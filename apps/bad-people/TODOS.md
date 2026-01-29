@@ -36,3 +36,27 @@
 ## App scaffolding
 - [x] Expand `src/pages/` with routes for reading views.
 - [x] Add layout refinements and typography tokens in `src/styles/`.
+
+## Specs
+- [ ] Global search with section-aware results, highlighting, and keyboard shortcuts (GitBook/ReadMe-style doc search). See: `specs/prd-global-search.md`.
+- [ ] Versioned releases with a visible version switcher and diff-friendly permalinks (GitBook/Docusaurus). See: `specs/prd-versioned-releases.md`.
+- [ ] Reader feedback widgets (inline "was this helpful", quick reactions, and optional comments). See: `specs/prd-reader-feedback.md`.
+- [ ] Export formats (PDF/EPUB) with styled covers and per-chapter downloads. See: `specs/prd-export-formats.md`.
+- [ ] Custom domain + SEO controls (open graph, canonical URLs, sitemap, robots). See: `specs/prd-seo-custom-domain.md`.
+- [ ] Analytics dashboard for chapter-level engagement and drop-off. See: `specs/prd-analytics-dashboard.md`.
+- [ ] Access control for drafts/private previews (invite-only or tokenized preview links). See: `specs/prd-access-control.md`.
+- [ ] Localization pipeline for translations with language switcher and fallback strings. See: `specs/prd-localization.md`.
+- [ ] Integrations for changelog + release notes (RSS, email, or webhook). See: `specs/prd-changelog-integrations.md`.
+- [ ] AI-powered Q&A over book content with citations and opt-out toggle. See: `specs/prd-ai-qa.md`.
+
+## Roadmap
+- [ ] Build the search index pipeline and UI (Algolia/Meilisearch or local index).
+- [ ] Add versioning primitives (content snapshotting, version metadata, and routing).
+- [ ] Implement reader feedback capture + review workflow for authors.
+- [ ] Ship PDF/EPUB export tooling with print-ready styling.
+- [ ] Add custom domain support and SEO controls.
+- [ ] Add analytics ingestion + dashboard views for authors.
+- [ ] Add access control for private previews and draft sharing.
+- [ ] Add localization scaffolding (i18n routing, language metadata, fallback strings).
+- [ ] Add integrations for changelog + RSS/webhooks.
+- [ ] Prototype AI Q&A experience with citation-required answers.

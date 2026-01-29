@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { recordReleaseEvent } from "../../lib/release-analytics";
+import { recordReleaseEvent } from "@bookkit/astro-bookkit";
 
 export const POST: APIRoute = async ({ request }) => {
   try {

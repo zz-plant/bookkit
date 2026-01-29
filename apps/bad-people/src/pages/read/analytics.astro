@@ -2,6 +2,7 @@
 import PreviewLinksPanel from "@bookkit/astro-bookkit/components/PreviewLinksPanel.astro";
 import { createPreviewLinks } from "@bookkit/astro-bookkit/preview";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import FeedbackDashboard from "@bookkit/astro-bookkit/components/FeedbackDashboard.astro";
 import bookConfig from "../../book.config";
 
 const lastUpdated = new Date().toLocaleDateString("en-US", {
@@ -107,6 +108,10 @@ const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
       </ul>
       <p class="meta">Last updated: {lastUpdated}</p>
     </div>
+  </section>
+
+  <section class="content-block">
+    <FeedbackDashboard />
   </section>
 
   <script>

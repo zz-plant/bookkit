@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import FeedbackWidget from "@bookkit/astro-bookkit/components/FeedbackWidget.astro";
 import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
 import { getChapterExportLinks } from "../../../lib/exports";
 
@@ -32,4 +33,5 @@ const exportLinks = getChapterExportLinks(frontmatter.slug, frontmatter.title ??
   <section class="content-block">
     <Content />
   </section>
+  <FeedbackWidget slug={frontmatter.slug} title={frontmatter.title} contentType="chapter" />
 </BaseLayout>

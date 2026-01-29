@@ -20,6 +20,7 @@
     "new:tool": "bun run scripts/scaffold-tool.ts",
     "check:concepts": "bun run scripts/check-floating-concepts.ts",
     "audit:unused": "bun run scripts/audit-unused.ts",
-    "fix:frontmatter": "bun run scripts/fix-frontmatter.ts"
+    "fix:frontmatter": "bun run scripts/fix-frontmatter.ts",
+    "export:gitbook": "bun run scripts/export-gitbook.ts"
   }
 }

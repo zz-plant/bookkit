@@ -115,6 +115,18 @@ Build everything:
 bun run --workspaces build
 ```
 
+## Portable exports (GitBook or other Markdown tooling)
+
+To generate a GitBook-compatible Markdown bundle for a specific book:
+
+```bash
+bun run export:gitbook -- --book bad-people
+```
+
+This writes a `SUMMARY.md` and a `README.md` plus a mirrored content tree under
+`apps/<book>/exports/gitbook`, which can be imported into GitBook or other
+Markdown-based compilers.
+
 ---
 
 ## What makes a book “real” here

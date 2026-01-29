@@ -33,10 +33,34 @@ export const defaultFrames: FrameDefinition[] = [
   },
 ];
 
+const framesMatch = (
+  existing: FrameDefinition,
+  incoming: FrameDefinition,
+): boolean =>
+  existing.slug === incoming.slug &&
+  existing.name === incoming.name &&
+  existing.steps.length === incoming.steps.length &&
+  existing.steps.every((step, index) => {
+    const incomingStep = incoming.steps[index];
+    return (
+      step.id === incomingStep.id &&
+      step.label === incomingStep.label &&
+      step.required === incomingStep.required
+    );
+  });
+
 export const registerDefaultFrames = (): FrameDefinition[] => {
-  // Rationale: allow safe re-entry so apps can call this in setup without guarding.
+  // Rationale: allow safe re-entry while ensuring defaults remain canonical.
   defaultFrames.forEach((frame) => {
-    if (getFrame(frame.slug)) return;
+    const existing = getFrame(frame.slug);
+    if (existing) {
+      if (!framesMatch(existing, frame)) {
+        throw new Error(
+          `Frame slug "${frame.slug}" is already registered with a different definition. Remove the conflicting registration or choose a unique slug.`,
+        );
+      }
+      return;
+    }
     registerFrame(frame);
   });
   return defaultFrames;

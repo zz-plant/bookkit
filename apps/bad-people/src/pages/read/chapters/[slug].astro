@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import FeedbackWidget from "@bookkit/astro-bookkit/components/FeedbackWidget.astro";
 
 export async function getStaticPaths() {
   const modules = Object.values(
@@ -24,4 +25,5 @@ const { frontmatter, Content } = Astro.props;
   <section class="content-block">
     <Content />
   </section>
+  <FeedbackWidget slug={frontmatter.slug} title={frontmatter.title} contentType="chapter" />
 </BaseLayout>

@@ -1,0 +1,261 @@
+---
+const { heading = "Reader feedback" } = Astro.props;
+---
+<section class="feedback-dashboard" data-feedback-dashboard>
+  <div class="section-header">
+    <div class="eyebrow">Author dashboard</div>
+    <h2>{heading}</h2>
+    <p class="lede">Review quick reactions and notes from readers.</p>
+  </div>
+
+  <div class="feedback-filters" data-feedback-filters>
+    <label class="analytics-filter">
+      <span>From</span>
+      <input type="date" data-feedback-start aria-label="Feedback start date" />
+    </label>
+    <label class="analytics-filter">
+      <span>To</span>
+      <input type="date" data-feedback-end aria-label="Feedback end date" />
+    </label>
+    <label class="analytics-filter">
+      <span>Reaction</span>
+      <select data-feedback-type aria-label="Filter by reaction">
+        <option value="all">All reactions</option>
+        <option value="helpful">Helpful</option>
+        <option value="not_helpful">Not helpful</option>
+        <option value="emoji">Emoji</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="feedback-grid">
+    <article class="analytics-card">
+      <div class="eyebrow">Feedback</div>
+      <div class="metric-value" data-feedback-metric="total">0</div>
+      <div class="metric-subtext" data-feedback-metric-detail="total">No feedback yet</div>
+    </article>
+    <article class="analytics-card">
+      <div class="eyebrow">Helpful rate</div>
+      <div class="metric-value" data-feedback-metric="helpful-rate">0%</div>
+      <div class="metric-subtext" data-feedback-metric-detail="helpful-rate">Based on votes</div>
+    </article>
+    <article class="analytics-card">
+      <div class="eyebrow">Conversion</div>
+      <div class="metric-value" data-feedback-metric="conversion">0%</div>
+      <div class="metric-subtext" data-feedback-metric-detail="conversion">Feedback per view</div>
+    </article>
+  </div>
+
+  <div class="feedback-empty" data-feedback-empty hidden>
+    <p>No feedback yet. Visit a chapter and respond to see insights here.</p>
+  </div>
+
+  <div class="feedback-table-wrap" data-feedback-table>
+    <h3>Feedback by chapter</h3>
+    <table class="analytics-table">
+      <thead>
+        <tr>
+          <th>Chapter</th>
+          <th>Views</th>
+          <th>Feedback</th>
+          <th>Helpful</th>
+          <th>Top emoji</th>
+        </tr>
+      </thead>
+      <tbody data-feedback-rows></tbody>
+    </table>
+  </div>
+
+  <div class="feedback-comments" data-feedback-comments>
+    <h3>Recent comments</h3>
+    <ul class="feedback-comments__list" data-feedback-comment-list></ul>
+  </div>
+</section>
+
+<script>
+  const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+  const storageKey = `${analyticsKeyPrefix}.feedback.events`;
+  const retentionDays = 120;
+
+  const toDateInput = (date) => date.toISOString().slice(0, 10);
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const formatPercent = (value) => `${Math.round(value * 100)}%`;
+
+  const loadEvents = () => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      const parsed = stored ? JSON.parse(stored) : [];
+      const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+      return Array.isArray(parsed)
+        ? parsed.filter((event) => typeof event?.timestamp === "number" && event.timestamp >= cutoff)
+        : [];
+    } catch (error) {
+      return [];
+    }
+  };
+
+  const buildEmojiSummary = (events) => {
+    const counts = new Map();
+    events
+      .filter((event) => event.responseType === "emoji" && event.emoji)
+      .forEach((event) => {
+        counts.set(event.emoji, (counts.get(event.emoji) ?? 0) + 1);
+      });
+    const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
+    return top ? `${top[0]} ${top[1]}` : "—";
+  };
+
+  const events = loadEvents();
+  const startInput = document.querySelector("[data-feedback-start]");
+  const endInput = document.querySelector("[data-feedback-end]");
+  const typeSelect = document.querySelector("[data-feedback-type]");
+  const emptyState = document.querySelector("[data-feedback-empty]");
+  const tableWrap = document.querySelector("[data-feedback-table]");
+  const rowsTarget = document.querySelector("[data-feedback-rows]");
+  const commentList = document.querySelector("[data-feedback-comment-list]");
+
+  const getRangeDefaults = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 30);
+    return { start, end };
+  };
+
+  const { start, end } = getRangeDefaults();
+  startInput.value = toDateInput(start);
+  endInput.value = toDateInput(end);
+
+  const filterEvents = () => {
+    const startDate = new Date(startInput.value);
+    const endDate = new Date(endInput.value);
+    endDate.setHours(23, 59, 59, 999);
+    const selectedType = typeSelect.value;
+
+    return events.filter((event) => {
+      if (event.timestamp < startDate.getTime() || event.timestamp > endDate.getTime()) return false;
+      if (selectedType !== "all" && event.responseType !== selectedType) return false;
+      return true;
+    });
+  };
+
+  const renderSummary = (filtered) => {
+    const impressions = filtered.filter((event) => event.eventType === "impression");
+    const feedback = filtered.filter((event) => event.eventType === "feedback");
+    const helpfulVotes = feedback.filter((event) => event.responseType === "helpful").length;
+    const notHelpfulVotes = feedback.filter((event) => event.responseType === "not_helpful").length;
+    const ratedTotal = helpfulVotes + notHelpfulVotes;
+    const helpfulRate = ratedTotal ? helpfulVotes / ratedTotal : 0;
+    const conversion = impressions.length ? feedback.length / impressions.length : 0;
+
+    document.querySelector("[data-feedback-metric='total']").textContent = feedback.length.toString();
+    document.querySelector("[data-feedback-metric='helpful-rate']").textContent =
+      formatPercent(helpfulRate);
+    document.querySelector("[data-feedback-metric='conversion']").textContent =
+      formatPercent(conversion);
+
+    document.querySelector("[data-feedback-metric-detail='total']").textContent =
+      feedback.length ? `${feedback.length} feedback responses` : "No feedback yet";
+    document.querySelector("[data-feedback-metric-detail='helpful-rate']").textContent = ratedTotal
+      ? `${helpfulVotes} helpful / ${notHelpfulVotes} not helpful`
+      : "No helpful votes yet";
+    document.querySelector("[data-feedback-metric-detail='conversion']").textContent = impressions.length
+      ? `${feedback.length} feedback from ${impressions.length} views`
+      : "No impressions tracked";
+  };
+
+  const renderTable = (filtered) => {
+    const impressions = filtered.filter((event) => event.eventType === "impression");
+    const feedback = filtered.filter((event) => event.eventType === "feedback");
+    const map = new Map();
+
+    impressions.forEach((event) => {
+      const key = event.slug ?? "unknown";
+      const entry = map.get(key) ?? { slug: key, views: 0, feedback: [], helpful: 0, notHelpful: 0 };
+      entry.views += 1;
+      map.set(key, entry);
+    });
+
+    feedback.forEach((event) => {
+      const key = event.slug ?? "unknown";
+      const entry = map.get(key) ?? { slug: key, views: 0, feedback: [], helpful: 0, notHelpful: 0 };
+      entry.feedback.push(event);
+      if (event.responseType === "helpful") entry.helpful += 1;
+      if (event.responseType === "not_helpful") entry.notHelpful += 1;
+      map.set(key, entry);
+    });
+
+    const rows = Array.from(map.values())
+      .filter((row) => row.slug !== "unknown")
+      .sort((a, b) => b.feedback.length - a.feedback.length);
+
+    rowsTarget.innerHTML = "";
+    rows.forEach((row) => {
+      const totalVotes = row.helpful + row.notHelpful;
+      const helpfulRate = totalVotes ? row.helpful / totalVotes : 0;
+      const topEmoji = buildEmojiSummary(row.feedback);
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.slug.replace(/-/g, " ")}</td>
+        <td>${row.views}</td>
+        <td>${row.feedback.length}</td>
+        <td>${formatPercent(helpfulRate)}</td>
+        <td>${topEmoji}</td>
+      `;
+      rowsTarget.appendChild(tr);
+    });
+  };
+
+  const renderComments = (filtered) => {
+    const comments = filtered
+      .filter((event) => event.eventType === "feedback" && event.comment)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 6);
+
+    commentList.innerHTML = "";
+    if (!comments.length) {
+      const li = document.createElement("li");
+      li.textContent = "No comments yet.";
+      commentList.appendChild(li);
+      return;
+    }
+
+    comments.forEach((event) => {
+      const li = document.createElement("li");
+      const date = new Date(event.timestamp).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      li.innerHTML = `<strong>${event.title ?? event.slug}</strong><span>${date}</span><p>${event.comment}</p>`;
+      commentList.appendChild(li);
+    });
+  };
+
+  const render = () => {
+    const filtered = filterEvents();
+    if (!filtered.length) {
+      emptyState.hidden = false;
+      tableWrap.hidden = true;
+      document.querySelector("[data-feedback-comments]").hidden = true;
+    } else {
+      emptyState.hidden = true;
+      tableWrap.hidden = false;
+      document.querySelector("[data-feedback-comments]").hidden = false;
+    }
+    renderSummary(filtered);
+    renderTable(filtered);
+    renderComments(filtered);
+  };
+
+  if (!events.length) {
+    emptyState.hidden = false;
+    tableWrap.hidden = true;
+    document.querySelector("[data-feedback-comments]").hidden = true;
+  } else {
+    render();
+  }
+
+  startInput.addEventListener("change", render);
+  endInput.addEventListener("change", render);
+  typeSelect.addEventListener("change", render);
+</script>

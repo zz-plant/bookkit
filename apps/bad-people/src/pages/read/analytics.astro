@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import FeedbackDashboard from "@bookkit/astro-bookkit/components/FeedbackDashboard.astro";
 
 const lastUpdated = new Date().toLocaleDateString("en-US", {
   month: "short",
@@ -93,6 +94,10 @@ const lastUpdated = new Date().toLocaleDateString("en-US", {
       </ul>
       <p class="meta">Last updated: {lastUpdated}</p>
     </div>
+  </section>
+
+  <section class="content-block">
+    <FeedbackDashboard />
   </section>
 
   <script>

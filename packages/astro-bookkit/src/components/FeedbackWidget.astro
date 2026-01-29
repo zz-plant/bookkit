@@ -1,0 +1,200 @@
+---
+const {
+  slug,
+  title,
+  contentType = "chapter",
+  prompt = "Was this helpful?",
+} = Astro.props;
+
+if (!slug) {
+  throw new Error("FeedbackWidget requires a slug prop.");
+}
+---
+<div
+  class="feedback-widget"
+  data-feedback-widget
+  data-feedback-slug={slug}
+  data-feedback-title={title}
+  data-feedback-type={contentType}
+>
+  <div class="feedback-widget__prompt">
+    <span>{prompt}</span>
+    <div class="feedback-widget__actions">
+      <button type="button" class="feedback-widget__button" data-feedback-choice="helpful">
+        👍 Helpful
+      </button>
+      <button type="button" class="feedback-widget__button" data-feedback-choice="not_helpful">
+        👎 Not helpful
+      </button>
+    </div>
+  </div>
+  <div class="feedback-widget__emoji" aria-label="Quick reactions">
+    <button type="button" data-feedback-choice="emoji:😀" aria-label="Happy">😀</button>
+    <button type="button" data-feedback-choice="emoji:🤔" aria-label="Thoughtful">🤔</button>
+    <button type="button" data-feedback-choice="emoji:😕" aria-label="Confused">😕</button>
+    <button type="button" data-feedback-choice="emoji:🔥" aria-label="Excited">🔥</button>
+  </div>
+  <button type="button" class="feedback-widget__note-toggle" data-feedback-note-toggle>
+    Add a note
+  </button>
+  <div class="feedback-widget__note" data-feedback-note hidden>
+    <label>
+      <span class="sr-only">Optional feedback note</span>
+      <textarea
+        rows="3"
+        maxlength="240"
+        placeholder="Optional: What should we improve?"
+        data-feedback-comment
+      ></textarea>
+    </label>
+    <button type="button" class="feedback-widget__submit" data-feedback-submit>
+      Send feedback
+    </button>
+  </div>
+  <div class="feedback-widget__status" data-feedback-status aria-live="polite"></div>
+</div>
+
+<script>
+  const RATE_LIMIT_MS = 1000 * 60 * 60 * 24;
+
+  const sanitizeComment = (value) => {
+    if (!value) return "";
+    return value
+      .replace(/https?:\/\/\S+/gi, "")
+      .replace(/www\.\S+/gi, "")
+      .replace(/[\u0000-\u001F\u007F]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 240);
+  };
+
+  const loadEvents = (storageKey) => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  };
+
+  const saveEvent = (storageKey, event) => {
+    const events = loadEvents(storageKey);
+    events.push(event);
+    localStorage.setItem(storageKey, JSON.stringify(events.slice(-400)));
+  };
+
+  const getRecentSubmission = (events, slug) => {
+    const recent = [...events]
+      .filter((event) => event.eventType === "feedback" && event.slug === slug)
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+    return recent && Date.now() - recent.timestamp < RATE_LIMIT_MS ? recent : null;
+  };
+
+  const renderWidget = (widget) => {
+    const slug = widget.dataset.feedbackSlug;
+    const title = widget.dataset.feedbackTitle || slug;
+    const contentType = widget.dataset.feedbackType || "chapter";
+    const status = widget.querySelector("[data-feedback-status]");
+    const noteToggle = widget.querySelector("[data-feedback-note-toggle]");
+    const notePanel = widget.querySelector("[data-feedback-note]");
+    const commentField = widget.querySelector("[data-feedback-comment]");
+    const submitButton = widget.querySelector("[data-feedback-submit]");
+    const choiceButtons = Array.from(widget.querySelectorAll("[data-feedback-choice]"));
+
+    const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+    const storageKey = `${analyticsKeyPrefix}.feedback.events`;
+    const version = document.body?.dataset?.bookVersion || "draft";
+    const impressionKey = `${analyticsKeyPrefix}.feedback.impression.${slug}`;
+
+    const announce = (message) => {
+      if (status) status.textContent = message;
+    };
+
+    const disable = () => {
+      widget.classList.add("is-submitted");
+      choiceButtons.forEach((button) => (button.disabled = true));
+      noteToggle && (noteToggle.disabled = true);
+      submitButton && (submitButton.disabled = true);
+      if (commentField) commentField.disabled = true;
+    };
+
+    const events = loadEvents(storageKey);
+    const recent = getRecentSubmission(events, slug);
+
+    if (!sessionStorage.getItem(impressionKey)) {
+      saveEvent(storageKey, {
+        id: `impression-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        eventType: "impression",
+        timestamp: Date.now(),
+        slug,
+        title,
+        contentType,
+        version,
+      });
+      sessionStorage.setItem(impressionKey, "1");
+    }
+
+    if (recent) {
+      announce("Thanks! Feedback was already sent recently.");
+      disable();
+      return;
+    }
+
+    let selectedChoice = null;
+    let noteOpen = false;
+
+    const submitFeedback = (choice, comment) => {
+      if (!choice) {
+        announce("Select a reaction before sending your note.");
+        return;
+      }
+      const timestamp = Date.now();
+      const isEmoji = choice.startsWith("emoji:");
+      saveEvent(storageKey, {
+        id: `feedback-${timestamp}-${Math.random().toString(16).slice(2)}`,
+        eventType: "feedback",
+        timestamp,
+        slug,
+        title,
+        contentType,
+        version,
+        responseType: isEmoji ? "emoji" : choice,
+        emoji: isEmoji ? choice.replace("emoji:", "") : null,
+        comment: sanitizeComment(comment),
+      });
+      announce("Thanks for the feedback!");
+      disable();
+    };
+
+    noteToggle?.addEventListener("click", () => {
+      noteOpen = !noteOpen;
+      if (!notePanel) return;
+      notePanel.hidden = !noteOpen;
+      noteToggle.textContent = noteOpen ? "Hide note" : "Add a note";
+      if (noteOpen) {
+        commentField?.focus();
+      }
+    });
+
+    choiceButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedChoice = button.dataset.feedbackChoice || null;
+        choiceButtons.forEach((btn) =>
+          btn.classList.toggle("is-selected", btn === button)
+        );
+        if (noteOpen) {
+          announce("Reaction selected. Add a note or send feedback.");
+          return;
+        }
+        submitFeedback(selectedChoice, "");
+      });
+    });
+
+    submitButton?.addEventListener("click", () => {
+      submitFeedback(selectedChoice, commentField?.value ?? "");
+    });
+  };
+
+  document.querySelectorAll("[data-feedback-widget]").forEach(renderWidget);
+</script>

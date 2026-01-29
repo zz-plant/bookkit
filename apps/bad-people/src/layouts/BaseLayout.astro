@@ -1,14 +1,35 @@
 ---
 import BookLayout from "@bookkit/astro-bookkit/layouts/BookLayout.astro";
+import { buildSeoProps } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
-const { title } = Astro.props;
+const {
+  title,
+  description,
+  ogTitle,
+  ogDescription,
+  ogImage,
+  robots,
+  canonicalPath,
+  canonicalUrl,
+} = Astro.props;
+const seoProps = buildSeoProps({
+  site: bookConfig.site,
+  description,
+  ogTitle,
+  ogDescription,
+  ogImage,
+  robots,
+  canonicalPath,
+  canonicalUrl,
+});
 ---
 <BookLayout
   title={title}
   bookTitle={bookConfig.title}
   bookVersion={bookConfig.status}
   bookKey={bookConfig.slug ?? "book"}
+  {...seoProps}
 >
   <slot />
 </BookLayout>

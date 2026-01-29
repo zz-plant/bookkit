@@ -7,9 +7,20 @@ const {
   bookVersion = "draft",
   bookKey = "book",
   footerText = "Draft book instance.",
+  metaDescription,
+  siteUrl,
+  canonicalPath,
+  canonicalUrl,
+  ogImage,
+  ogTitle,
+  ogDescription,
+  robots,
 } = Astro.props;
 
 const pageTitle = title ?? bookTitle;
+const resolvedCanonical = canonicalUrl ?? (siteUrl ? new URL(canonicalPath ?? Astro.url.pathname, siteUrl).toString() : undefined);
+const resolvedOgTitle = ogTitle ?? pageTitle;
+const resolvedOgDescription = ogDescription ?? metaDescription;
 ---
 <!doctype html>
 <html lang="en">
@@ -17,6 +28,13 @@ const pageTitle = title ?? bookTitle;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
+    {metaDescription && <meta name="description" content={metaDescription} />}
+    {resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
+    {robots && <meta name="robots" content={robots} />}
+    {resolvedOgTitle && <meta property="og:title" content={resolvedOgTitle} />}
+    {resolvedOgDescription && <meta property="og:description" content={resolvedOgDescription} />}
+    {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
+    {ogImage && <meta property="og:image" content={ogImage} />}
   </head>
   <body data-book-version={bookVersion} data-analytics-key={bookKey}>
     <a class="skip-link" href="#main-content">Skip to content</a>

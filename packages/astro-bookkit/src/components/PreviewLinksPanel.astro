@@ -1,0 +1,109 @@
+---
+import type { PreviewLinkStatus } from "../preview";
+
+const {
+  title = "Preview links",
+  description = "Share these private links with reviewers. Access can be revoked or set to expire.",
+  links = [],
+} = Astro.props as {
+  title?: string;
+  description?: string;
+  links?: Array<PreviewLinkStatus & { href: string }>;
+};
+
+const hasLinks = links.length > 0;
+---
+<section class="content-block preview-panel" aria-live="polite">
+  <div class="preview-panel__header">
+    <div>
+      <div class="eyebrow">Access control</div>
+      <h2>{title}</h2>
+      <p class="meta">{description}</p>
+    </div>
+  </div>
+
+  {hasLinks ? (
+    <div class="preview-links">
+      {links.map((link) => (
+        <article
+          class={`preview-link preview-link--${link.status}`}
+          data-preview-row
+          data-preview-hint={link.tokenHint}
+        >
+          <div class="preview-link__info">
+            <strong>{link.label ?? `Preview ${link.tokenHint}`}</strong>
+            <div class="preview-link__meta">
+              <span class={`preview-status preview-status--${link.status}`}>
+                {link.status === "active" ? "Active" : link.status === "expired" ? "Expired" : "Revoked"}
+              </span>
+              {link.expiresAt && (
+                <span class="preview-expiration">Expires {new Date(link.expiresAt).toLocaleDateString()}</span>
+              )}
+              <span class="preview-usage" data-preview-usage>
+                0 views
+              </span>
+            </div>
+          </div>
+          <div class="preview-link__actions">
+            <input class="preview-link__input" type="text" readonly value={link.href} />
+            <button class="preview-link__copy" type="button" data-preview-copy={link.href}>
+              Copy link
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  ) : (
+    <div class="preview-empty">
+      <p class="meta">No preview links have been configured yet.</p>
+    </div>
+  )}
+
+  <script>
+    const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+    const analyticsKey = `${analyticsKeyPrefix}.preview.analytics`;
+
+    const parseEvents = () => {
+      try {
+        const stored = localStorage.getItem(analyticsKey);
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    };
+
+    const counts = parseEvents().reduce((acc, event) => {
+      const hint = event?.tokenHint || "unknown";
+      acc[hint] = (acc[hint] || 0) + 1;
+      return acc;
+    }, {});
+
+    document.querySelectorAll("[data-preview-row]").forEach((row) => {
+      const hint = row.dataset.previewHint || "unknown";
+      const usage = row.querySelector("[data-preview-usage]");
+      if (usage) {
+        const count = counts[hint] || 0;
+        usage.textContent = `${count} view${count === 1 ? "" : "s"}`;
+      }
+    });
+
+    const copyButtons = document.querySelectorAll("[data-preview-copy]");
+    copyButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const value = button.dataset.previewCopy;
+        if (!value) return;
+        try {
+          await navigator.clipboard.writeText(value);
+          button.textContent = "Copied";
+        } catch (error) {
+          const input = button.parentElement?.querySelector("input");
+          input?.select?.();
+        }
+        window.setTimeout(() => {
+          button.textContent = "Copy link";
+        }, 1200);
+      });
+    });
+  </script>
+</section>

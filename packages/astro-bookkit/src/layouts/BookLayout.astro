@@ -15,6 +15,10 @@ const {
   ogTitle,
   ogDescription,
   robots,
+  isPreview = false,
+  previewLabel = "Preview",
+  previewTokenHint,
+  previewExpiresAt,
 } = Astro.props;
 
 const pageTitle = title ?? bookTitle;
@@ -36,12 +40,19 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
     {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
     {ogImage && <meta property="og:image" content={ogImage} />}
   </head>
-  <body data-book-version={bookVersion} data-analytics-key={bookKey}>
+  <body
+    data-book-version={bookVersion}
+    data-analytics-key={bookKey}
+    data-preview={isPreview ? "true" : "false"}
+    data-preview-hint={previewTokenHint}
+    data-preview-expires={previewExpiresAt}
+  >
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="page">
       <header class="site-header">
         <div class="site-brand">
           <a href="/">{bookTitle}</a>
+          {isPreview && <span class="preview-badge">{previewLabel}</span>}
         </div>
         <nav class="site-nav" aria-label="Primary">
           <a href="/read" aria-keyshortcuts="g r">Read</a>
@@ -211,6 +222,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
       let searchQuery = "";
       let searchTimeout = null;
       const searchAnalyticsKey = `${analyticsKeyPrefix}.search.analytics`;
+      const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
 
       const headingSelector = "main h2, main h3";
       const headings = Array.from(document.querySelectorAll(headingSelector));
@@ -320,6 +332,14 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
         existing.push(event);
         localStorage.setItem(searchAnalyticsKey, JSON.stringify(existing.slice(-120)));
         window.dispatchEvent(new CustomEvent("book-search", { detail: event }));
+      };
+
+      const recordExportEvent = (payload) => {
+        const event = { ...payload, ts: Date.now() };
+        const existing = JSON.parse(localStorage.getItem(exportAnalyticsKey) ?? "[]");
+        existing.push(event);
+        localStorage.setItem(exportAnalyticsKey, JSON.stringify(existing.slice(-120)));
+        window.dispatchEvent(new CustomEvent("book-export", { detail: event }));
       };
 
       const updateSearchStatus = (message) => {
@@ -565,11 +585,25 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           window.addEventListener("scroll", updateActiveHeading, { passive: true });
         }
       }
+
+      document.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("[data-export-link]") : null;
+        if (!target) return;
+        recordExportEvent({
+          type: "download",
+          format: target.dataset.exportFormat,
+          scope: target.dataset.exportScope,
+          slug: target.dataset.exportSlug ?? null,
+          href: target.getAttribute("href"),
+        });
+      });
     </script>
     <script>
       const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
       const analyticsStorageKey = `${analyticsKeyPrefix}.analytics.events`;
       const analyticsSessionKey = `${analyticsKeyPrefix}.analytics.session`;
+      const previewAnalyticsKey = `${analyticsKeyPrefix}.preview.analytics`;
+      const isPreview = document.body?.dataset?.preview === "true";
       const analyticsRetentionDays = 90;
 
       const loadAnalyticsEvents = () => {
@@ -610,6 +644,23 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
         saveAnalyticsEvents(events);
       };
 
+      const recordPreviewEvent = () => {
+        if (!isPreview) return;
+        const tokenHint = document.body?.dataset?.previewHint || "unknown";
+        const expiresAt = document.body?.dataset?.previewExpires || null;
+        const event = {
+          type: "preview",
+          tokenHint,
+          expiresAt,
+          path: window.location.pathname,
+          ts: Date.now(),
+        };
+        const existing = JSON.parse(localStorage.getItem(previewAnalyticsKey) ?? "[]");
+        existing.push(event);
+        localStorage.setItem(previewAnalyticsKey, JSON.stringify(existing.slice(-120)));
+        window.dispatchEvent(new CustomEvent("book-preview", { detail: event }));
+      };
+
       const analyticsVersion = document.body?.dataset?.bookVersion || "draft";
       const path = window.location.pathname;
       const pathSegments = path.split("/").filter(Boolean);
@@ -618,6 +669,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
 
       const sessionId = getSessionId();
       const pageViewTimestamp = Date.now();
+      recordPreviewEvent();
       recordAnalyticsEvent({
         id: `view-${pageViewTimestamp}-${Math.random().toString(16).slice(2)}`,
         type: "pageview",

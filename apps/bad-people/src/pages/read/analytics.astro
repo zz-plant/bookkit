@@ -1,11 +1,19 @@
 ---
+import PreviewLinksPanel from "@bookkit/astro-bookkit/components/PreviewLinksPanel.astro";
+import { createPreviewLinks } from "@bookkit/astro-bookkit/preview";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import FeedbackDashboard from "@bookkit/astro-bookkit/components/FeedbackDashboard.astro";
+import bookConfig from "../../book.config";
 
 const lastUpdated = new Date().toLocaleDateString("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
+});
+
+const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
+  baseUrl: bookConfig.site?.url,
+  path: "/read",
 });
 ---
 <BaseLayout title="Analytics • Bad People">
@@ -17,6 +25,12 @@ const lastUpdated = new Date().toLocaleDateString("en-US", {
       Local, privacy-conscious analytics based on anonymized session events.
     </p>
   </div>
+
+  <PreviewLinksPanel
+    title="Private preview links"
+    description="Share draft access with reviewers. Links can expire or be revoked without changing the content."
+    links={previewLinks}
+  />
 
   <section class="content-block analytics-section">
     <div class="analytics-filters" data-analytics-filters>

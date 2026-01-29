@@ -1,0 +1,12 @@
+{
+  "name": "bookkit-workspace",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint:books": "echo 'lint:books not configured yet'",
+    "build": "echo 'build not configured yet'"
+  }
+}

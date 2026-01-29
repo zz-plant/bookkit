@@ -36,3 +36,26 @@
 ## App scaffolding
 - [x] Expand `src/pages/` with routes for reading views.
 - [x] Add layout refinements and typography tokens in `src/styles/`.
+
+## Specs
+- [ ] Global search with section-aware results, highlighting, and keyboard shortcuts (GitBook/ReadMe-style doc search).
+- [ ] Versioned releases with a visible version switcher and diff-friendly permalinks (GitBook/Docusaurus).
+- [ ] Reader feedback widgets (inline "was this helpful", quick reactions, and optional comments).
+- [ ] Export formats (PDF/EPUB) with styled covers and per-chapter downloads.
+- [ ] Custom domain + SEO controls (open graph, canonical URLs, sitemap, robots).
+- [ ] Analytics dashboard for chapter-level engagement and drop-off.
+- [ ] Access control for drafts/private previews (invite-only or tokenized preview links).
+- [ ] Localization pipeline for translations with language switcher and fallback strings.
+- [ ] Integrations for changelog + release notes (RSS, email, or webhook).
+- [ ] AI-powered Q&A over book content with citations and opt-out toggle.
+
+## Roadmap
+- [ ] Build the search index pipeline and UI (Algolia/Meilisearch or local index).
+- [ ] Add versioning primitives (content snapshotting, version metadata, and routing).
+- [ ] Implement reader feedback capture + review workflow for authors.
+- [ ] Ship PDF/EPUB export tooling with print-ready styling.
+- [ ] Add analytics ingestion + dashboard views for authors.
+- [ ] Add access control for private previews and draft sharing.
+- [ ] Add localization scaffolding (i18n routing, language metadata, fallback strings).
+- [ ] Add integrations for changelog + RSS/webhooks.
+- [ ] Prototype AI Q&A experience with citation-required answers.

@@ -17,8 +17,11 @@ const examples = Object.entries(
 const sorted = examples.sort((a, b) => a.title.localeCompare(b.title));
 ---
 <BaseLayout title="Examples • Bad People">
-  <h1>Examples</h1>
-  <p class="lede">Replaceable cases that ground each mechanism.</p>
+  <a class="back-link" href="/read">← Reading hub</a>
+  <div class="section-header">
+    <h1>Examples</h1>
+    <p class="lede">Replaceable cases that ground each mechanism.</p>
+  </div>
   <div class="stack">
     {sorted.map((example) => (
       <a class="list-link" href={`/read/examples/${example.slug}`}>

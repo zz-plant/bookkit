@@ -18,6 +18,7 @@ export async function getStaticPaths() {
 const { frontmatter, Content } = Astro.props;
 ---
 <BaseLayout title={`${frontmatter.term} • Bad People`}>
+  <a class="back-link" href="/read/glossary">← Glossary</a>
   <div class="eyebrow">Glossary</div>
   <h1>{frontmatter.term}</h1>
   <section class="content-block">

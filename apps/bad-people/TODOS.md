@@ -34,5 +34,5 @@
 - [x] Goodness without skill is extractable (core promise framing).
 
 ## App scaffolding
-- [ ] Expand `src/pages/` with routes for reading views.
-- [ ] Add layout refinements and typography tokens in `src/styles/`.
+- [x] Expand `src/pages/` with routes for reading views.
+- [x] Add layout refinements and typography tokens in `src/styles/`.

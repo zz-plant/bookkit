@@ -19,6 +19,12 @@ const exampleModules = Object.values(
 
 const sections = [
   {
+    title: "Overview",
+    description: "Objectives, frame, and constraints for this draft.",
+    href: "/read/overview",
+    count: 1,
+  },
+  {
     title: "Chapters",
     description: "Core modules and the intervention frame.",
     href: "/read/chapters",
@@ -51,17 +57,24 @@ const sections = [
 ];
 ---
 <BaseLayout title="Read • Bad People">
-  <h1>Reading hub</h1>
-  <p class="lede">
-    Use these views to move through the book content without exposing engine logic.
-  </p>
+  <div class="section-header">
+    <h1>Reading hub</h1>
+    <p class="lede">
+      Use these views to move through the book content without exposing engine logic.
+    </p>
+  </div>
   <div class="card-grid">
-    {sections.map((section) => (
-      <a class="card" href={section.href}>
-        <div class="eyebrow">{section.count} items</div>
-        <h2>{section.title}</h2>
-        <p class="meta">{section.description}</p>
-      </a>
-    ))}
+    {sections.map((section) => {
+      const label = section.count === 1 ? "item" : "items";
+      return (
+        <a class="card" href={section.href}>
+          <div class="eyebrow">
+            {section.count} {label}
+          </div>
+          <h2>{section.title}</h2>
+          <p class="meta">{section.description}</p>
+        </a>
+      );
+    })}
   </div>
 </BaseLayout>

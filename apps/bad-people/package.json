@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "echo 'dev not configured yet'",
-    "build": "echo 'build not configured yet'"
+    "build": "echo 'build not configured yet'",
+    "validate": "bun run ../../scripts/validate-book.ts --book bad-people"
   }
 }

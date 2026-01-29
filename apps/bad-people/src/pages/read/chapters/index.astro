@@ -16,8 +16,11 @@ const modules = Object.entries(
 const chapters = modules.sort((a, b) => a.path.localeCompare(b.path));
 ---
 <BaseLayout title="Chapters • Bad People">
-  <h1>Chapters</h1>
-  <p class="lede">Module outlines that define the intervention frame.</p>
+  <a class="back-link" href="/read">← Reading hub</a>
+  <div class="section-header">
+    <h1>Chapters</h1>
+    <p class="lede">Module outlines that define the intervention frame.</p>
+  </div>
   <div class="stack">
     {chapters.map((chapter) => (
       <a class="list-link" href={`/read/chapters/${chapter.slug}`}>

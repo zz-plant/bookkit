@@ -13,8 +13,11 @@ const tools = Object.values(
   .sort((a, b) => a.name.localeCompare(b.name));
 ---
 <BaseLayout title="Toolkit • Bad People">
-  <h1>Toolkit</h1>
-  <p class="lede">Action primitives designed to be executed in ≤10 minutes.</p>
+  <a class="back-link" href="/read">← Reading hub</a>
+  <div class="section-header">
+    <h1>Toolkit</h1>
+    <p class="lede">Action primitives designed to be executed in ≤10 minutes.</p>
+  </div>
   <div class="stack">
     {tools.map((tool) => (
       <a class="list-link" href={`/read/toolkit/${tool.slug}`}>

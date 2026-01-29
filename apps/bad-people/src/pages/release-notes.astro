@@ -1,10 +1,15 @@
 ---
 import ReleaseNotesPage from "@bookkit/astro-bookkit/components/ReleaseNotesPage.astro";
+import { buildSeoProps } from "@bookkit/astro-bookkit";
 import { getReleaseNotes } from "../lib/release-notes";
 import bookConfig from "../book.config";
 
 const releases = getReleaseNotes();
 const rssUrl = "/release-notes.xml";
+const seoProps = buildSeoProps({
+  site: bookConfig.site,
+  description: "Track new releases, subscribe to updates, and review the latest changes.",
+});
 ---
 <ReleaseNotesPage
   title="Release notes • Bad People"
@@ -13,7 +18,8 @@ const rssUrl = "/release-notes.xml";
   bookKey={bookConfig.slug ?? "book"}
   rssUrl={rssUrl}
   releases={releases}
-  description="Track new releases, subscribe to updates, and review the latest changes."
+  description={seoProps.metaDescription}
   subscribeLabel="Subscribe via RSS"
   subscribeAnalyticsUrl="/api/release-analytics.json"
+  {...seoProps}
 />

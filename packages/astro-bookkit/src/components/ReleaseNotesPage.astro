@@ -12,6 +12,14 @@ export type Props = {
   description?: string;
   subscribeLabel?: string;
   subscribeAnalyticsUrl?: string | null;
+  siteUrl?: string;
+  metaDescription?: string;
+  ogImage?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  canonicalPath?: string;
+  canonicalUrl?: string;
+  robots?: string;
 };
 
 const {
@@ -24,9 +32,30 @@ const {
   description = "Track new releases, subscribe to updates, and review the latest changes.",
   subscribeLabel = "Subscribe via RSS",
   subscribeAnalyticsUrl = "/api/release-analytics.json",
+  siteUrl,
+  metaDescription,
+  ogImage,
+  ogTitle,
+  ogDescription,
+  canonicalPath,
+  canonicalUrl,
+  robots,
 } = Astro.props;
 ---
-<BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey}>
+<BookLayout
+  title={title}
+  bookTitle={bookTitle}
+  bookVersion={bookVersion}
+  bookKey={bookKey}
+  siteUrl={siteUrl}
+  metaDescription={metaDescription}
+  ogImage={ogImage}
+  ogTitle={ogTitle}
+  ogDescription={ogDescription}
+  canonicalPath={canonicalPath}
+  canonicalUrl={canonicalUrl}
+  robots={robots}
+>
   <div class="section-header release-header">
     <div>
       <h1>Release notes</h1>

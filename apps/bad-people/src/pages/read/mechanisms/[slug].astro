@@ -16,8 +16,9 @@ export async function getStaticPaths() {
 }
 
 const { frontmatter, Content } = Astro.props;
+const metaDescription = frontmatter.definition;
 ---
-<BaseLayout title={`${frontmatter.title} • Bad People`}>
+<BaseLayout title={`${frontmatter.title} • Bad People`} description={metaDescription}>
   <a class="back-link" href="/read/mechanisms">← Mechanisms</a>
   <div class="eyebrow">Mechanism</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>

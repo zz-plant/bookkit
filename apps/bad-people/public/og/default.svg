@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#141823" />
+  <g fill="none" stroke="#2b3245" stroke-width="2">
+    <path d="M120 160h960" />
+    <path d="M120 470h960" />
+  </g>
+  <text x="600" y="300" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="84" fill="#ffffff">
+    Bad People
+  </text>
+  <text x="600" y="380" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" fill="#b7bdc9">
+    Draft book
+  </text>
+</svg>

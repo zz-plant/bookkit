@@ -2,6 +2,16 @@ export const bookConfig = {
   slug: "bad-people",
   title: "Bad People",
   status: "draft",
+  site: {
+    url: "https://bad-people.book",
+    enforceHttps: true,
+    indexable: false,
+    defaultMeta: {
+      description:
+        "A draft book instance exploring how systems normalize harm and how readers can respond with small, reversible actions.",
+      ogImage: "/og/default.svg",
+    },
+  },
   objectives: {
     readerStart:
       "Feels isolated, over-responsible, and unsure how to act when harm is normalized.",

@@ -1,0 +1,197 @@
+# Bookkit — Recompilable Books (Astro + Bun)
+
+This repository hosts **Bookkit**, a reusable book compiler, and one or more **book instances** built on top of it.
+
+The core idea:
+
+> A book is not a pile of chapters.
+> A book is a specification that can be compiled into many coherent forms.
+
+This repo is designed to make that idea *practical*, even with many contributors.
+
+---
+
+## What this repo is for
+
+Bookkit is for books that aim to **intervene** — not just explain or persuade, but change how readers interpret situations and what they are able to do next.
+
+It supports books that:
+
+- define a **reader transformation** (start → end state)
+- rely on a small, stable set of **mechanisms** (named concepts that do real work)
+- enforce a **causal stance** (where blame and responsibility are routed)
+- produce **executable actions**, not just insight
+- can be updated, reordered, or extended without rewriting the core logic
+
+If you can swap examples, reorder modules, or update domains without changing what the book *does*, the system is working.
+
+---
+
+## How the repo is structured
+
+This is a **Bun workspace** with two layers.
+
+### 1) The engine (reusable, book-agnostic)
+
+`packages/astro-bookkit/`
+
+This contains:
+
+- **frames** — structural execution models (e.g. intervention, explainer)
+- **blocks** — reusable content units (scene, pivot, mechanism intro, action)
+- **schemas + validation** — concept governance, drift detection
+- **compiler utilities** — dependency graphs, ordering constraints
+- **shared styles** — base + print
+
+This layer contains *logic*. It should not contain book-specific content.
+
+---
+
+### 2) Book instances (content + configuration)
+
+`apps/<book>/`
+
+Each book is just:
+
+- a configuration file with the **irreducible author decisions**
+- structured content records (MD / MDX)
+- routing and branding
+
+No engine logic lives here.
+
+---
+
+## Repo layout
+
+```txt
+.
+├─ package.json              # Bun workspace root
+├─ apps/
+│  └─ bad-people/
+│     ├─ astro.config.mjs
+│     └─ src/
+│        ├─ book.config.ts   # the book’s objective function
+│        ├─ pages/
+│        └─ content/
+│           └─ book/
+│              ├─ mechanisms/
+│              ├─ toolkit/
+│              ├─ chapters/
+│              ├─ examples/
+│              └─ glossary/
+├─ packages/
+│  └─ astro-bookkit/
+└─ scripts/
+   └─ lint-all.ts
+```
+
+---
+
+## Bun-first workflow
+
+This repo assumes Bun.
+
+Install dependencies:
+
+```bash
+bun install
+```
+
+Run a specific book:
+
+```bash
+bun run --filter @books/bad-people dev
+```
+
+Run validation across all books:
+
+```bash
+bun run lint:books
+```
+
+Build everything:
+
+```bash
+bun run --workspaces build
+```
+
+---
+
+## What makes a book “real” here
+
+A book is considered real when it has:
+
+1. A transformation contract
+2. A small mechanism set (6–8 recommended)
+3. A declared causal stance
+4. ≥1 executable action per mechanism
+5. Ordering rules expressed as constraints, not a fixed outline
+
+Full chapters, polished scenes, citations, and examples are not required for compilation.
+
+Those are bindings, not the core.
+
+---
+
+## Frames (how structure is enforced)
+
+A frame defines:
+
+- what sections a module must contain
+- what emotional sequence is enforced
+- what validations apply
+
+Examples:
+
+- **intervention** — recognition → exoneration → mechanism → agency
+- **explainer** — definition → example → implication
+- **field-guide** — steps → failure modes → checklist
+
+A book selects one frame. The engine enforces it.
+
+---
+
+## Validation (why the repo is strict)
+
+Bookkit validates for:
+
+- missing required frame steps
+- unregistered or drifting mechanisms
+- concept boundary violations
+- missing action primitives
+- ordering constraint violations
+
+Validation can run in:
+
+- **warn mode** (drafting, collaboration)
+- **error mode** (release)
+
+The goal is not punishment — it’s to keep the book recompilable over time.
+
+---
+
+## Creating a new book
+
+1. Copy an existing app under `apps/`
+2. Update `book.config.ts`
+3. Add mechanisms + toolkit records
+4. Run validation
+5. Write content as needed
+
+Do not fork or duplicate the engine.
+
+---
+
+## Contributing
+
+This repo supports multiple contribution styles, including vibe-coding.
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) to choose the right lane and avoid fighting the system.
+
+For architectural invariants (humans + AI), see [AGENTS.md](./AGENTS.md).
+
+---
+
+## License
+
+Add license here.

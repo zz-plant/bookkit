@@ -4,11 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "main": "src/index.ts",
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1"
+  },
   "exports": {
     ".": "./src/index.ts",
+    "./components/ExportPanel.astro": "./src/components/ExportPanel.astro",
     "./components/ReleaseNotesPage.astro": "./src/components/ReleaseNotesPage.astro",
     "./layouts/BookLayout.astro": "./src/layouts/BookLayout.astro",
     "./styles/bookkit.css": "./src/styles/bookkit.css",
-    "./search": "./src/search/index.ts"
+    "./search": "./src/search/index.ts",
+    "./exports": "./src/exports/index.ts"
   }
 }

@@ -96,7 +96,8 @@ const lastUpdated = new Date().toLocaleDateString("en-US", {
   </section>
 
   <script>
-    const storageKey = "bp.analytics.events";
+    const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+    const storageKey = `${analyticsKeyPrefix}.analytics.events`;
     const retentionDays = 90;
 
     const parseEvents = () => {

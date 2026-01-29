@@ -12,6 +12,16 @@ export { buildSearchEntries, createSearchIndexResponse } from "./search";
 export type { SearchContentSource, SearchEntry } from "./search";
 export { createBookSearchSources } from "./search/sources";
 export type { BookSearchModuleMap } from "./search/sources";
+export {
+  buildExportChapters,
+  buildExportMetadata,
+  createExportResponse,
+  createEpubExport,
+  createPdfExport,
+  estimateExportBytes,
+  formatBytes,
+} from "./exports";
+export type { ExportBundle, ExportChapter, ExportFormat, ExportMetadata } from "./exports";
 export { buildSeoProps } from "./seo/config";
 export type { BookSeoConfig, BookSeoDefaults, SeoInput, SeoProps } from "./seo/config";
 export { buildAbsoluteUrl, normalizeSiteUrl } from "./seo/urls";

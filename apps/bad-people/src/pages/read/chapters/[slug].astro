@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import { getChapterExportLinks } from "../../../lib/exports";
 
 export async function getStaticPaths() {
   const modules = Object.values(
@@ -16,11 +18,17 @@ export async function getStaticPaths() {
 }
 
 const { frontmatter, Content } = Astro.props;
+const exportLinks = getChapterExportLinks(frontmatter.slug, frontmatter.title ?? "Chapter");
 ---
 <BaseLayout title={`${frontmatter.title} • Bad People`}>
   <a class="back-link" href="/read/chapters">← Chapters</a>
   <div class="eyebrow">{frontmatter.status ?? "draft"}</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
+  <ExportPanel
+    title="Download this chapter"
+    description="Share or save a focused export of this chapter."
+    links={exportLinks}
+  />
   <section class="content-block">
     <Content />
   </section>

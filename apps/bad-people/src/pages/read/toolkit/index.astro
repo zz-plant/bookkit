@@ -1,0 +1,28 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+
+const tools = Object.values(
+  import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true })
+)
+  .map((module) => ({
+    slug: module.frontmatter.slug,
+    name: module.frontmatter.name ?? "Untitled action",
+    mechanism: module.frontmatter.mechanism ?? "general",
+    timebox: module.frontmatter.timeboxMinutes ?? 10,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+---
+<BaseLayout title="Toolkit • Bad People">
+  <h1>Toolkit</h1>
+  <p class="lede">Action primitives designed to be executed in ≤10 minutes.</p>
+  <div class="stack">
+    {tools.map((tool) => (
+      <a class="list-link" href={`/read/toolkit/${tool.slug}`}>
+        <strong>{tool.name}</strong>
+        <span class="meta">
+          {tool.mechanism} • {tool.timebox} min
+        </span>
+      </a>
+    ))}
+  </div>
+</BaseLayout>

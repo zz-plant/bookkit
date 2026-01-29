@@ -3,5 +3,28 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 <BaseLayout title="Bad People">
   <h1>Bad People</h1>
-  <p>This is the scaffolded home page for the Bad People book instance.</p>
+  <p class="lede">
+    A draft book instance exploring how systems normalize harm and how readers can
+    respond with small, reversible actions.
+  </p>
+  <section class="content-block">
+    <div class="eyebrow">Start here</div>
+    <h2>Reading views</h2>
+    <p>
+      Browse chapters, mechanisms, toolkit entries, and glossary terms through the
+      reading views.
+    </p>
+    <div class="card-grid">
+      <a class="card" href="/read">
+        <div class="eyebrow">Read</div>
+        <h3>Open the reading hub</h3>
+        <p class="meta">Jump into chapters, mechanisms, toolkit, glossary, and examples.</p>
+      </a>
+      <div class="card">
+        <div class="eyebrow">Status</div>
+        <h3>Draft build</h3>
+        <p class="meta">Content is a working outline and will continue evolving.</p>
+      </div>
+    </div>
+  </section>
 </BaseLayout>

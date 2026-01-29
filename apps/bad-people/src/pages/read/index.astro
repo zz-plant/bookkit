@@ -1,0 +1,67 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const chapterModules = Object.values(
+  import.meta.glob("../../content/book/chapters/*.mdx", { eager: true })
+);
+const mechanismModules = Object.values(
+  import.meta.glob("../../content/book/mechanisms/*.mdx", { eager: true })
+);
+const toolkitModules = Object.values(
+  import.meta.glob("../../content/book/toolkit/*.mdx", { eager: true })
+);
+const glossaryModules = Object.values(
+  import.meta.glob("../../content/book/glossary/*.mdx", { eager: true })
+);
+const exampleModules = Object.values(
+  import.meta.glob("../../content/book/examples/*.mdx", { eager: true })
+);
+
+const sections = [
+  {
+    title: "Chapters",
+    description: "Core modules and the intervention frame.",
+    href: "/read/chapters",
+    count: chapterModules.length,
+  },
+  {
+    title: "Mechanisms",
+    description: "Named system patterns with stable definitions.",
+    href: "/read/mechanisms",
+    count: mechanismModules.length,
+  },
+  {
+    title: "Toolkit",
+    description: "Action primitives that fit inside ten minutes.",
+    href: "/read/toolkit",
+    count: toolkitModules.length,
+  },
+  {
+    title: "Glossary",
+    description: "Short definitions to keep shared language consistent.",
+    href: "/read/glossary",
+    count: glossaryModules.length,
+  },
+  {
+    title: "Examples",
+    description: "Replaceable cases that ground the modules.",
+    href: "/read/examples",
+    count: exampleModules.length,
+  },
+];
+---
+<BaseLayout title="Read • Bad People">
+  <h1>Reading hub</h1>
+  <p class="lede">
+    Use these views to move through the book content without exposing engine logic.
+  </p>
+  <div class="card-grid">
+    {sections.map((section) => (
+      <a class="card" href={section.href}>
+        <div class="eyebrow">{section.count} items</div>
+        <h2>{section.title}</h2>
+        <p class="meta">{section.description}</p>
+      </a>
+    ))}
+  </div>
+</BaseLayout>

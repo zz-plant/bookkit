@@ -1,0 +1,23 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+
+const entries = Object.values(
+  import.meta.glob("../../../content/book/glossary/*.mdx", { eager: true })
+)
+  .map((module) => ({
+    slug: module.frontmatter.slug,
+    term: module.frontmatter.term ?? "Untitled term",
+  }))
+  .sort((a, b) => a.term.localeCompare(b.term));
+---
+<BaseLayout title="Glossary • Bad People">
+  <h1>Glossary</h1>
+  <p class="lede">Shared language that keeps mechanisms stable.</p>
+  <div class="stack">
+    {entries.map((entry) => (
+      <a class="list-link" href={`/read/glossary/${entry.slug}`}>
+        <strong>{entry.term}</strong>
+      </a>
+    ))}
+  </div>
+</BaseLayout>

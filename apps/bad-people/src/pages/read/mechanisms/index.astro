@@ -1,0 +1,25 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+
+const mechanisms = Object.values(
+  import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true })
+)
+  .map((module) => ({
+    slug: module.frontmatter.slug,
+    title: module.frontmatter.title ?? "Untitled mechanism",
+    definition: module.frontmatter.definition ?? "",
+  }))
+  .sort((a, b) => a.title.localeCompare(b.title));
+---
+<BaseLayout title="Mechanisms • Bad People">
+  <h1>Mechanisms</h1>
+  <p class="lede">Stable patterns that explain how harm stays normalized.</p>
+  <div class="stack">
+    {mechanisms.map((mechanism) => (
+      <a class="list-link" href={`/read/mechanisms/${mechanism.slug}`}>
+        <strong>{mechanism.title}</strong>
+        <span class="meta">{mechanism.definition}</span>
+      </a>
+    ))}
+  </div>
+</BaseLayout>

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { ensureDir, optionalArg, repoRoot, requireArg } from "./_lib";
 
@@ -23,6 +23,7 @@ rmSync(outDir, { recursive: true, force: true });
 ensureDir(outDir);
 
 const markdownFiles = collectMarkdownFiles(contentDir);
+const assetFiles = collectNonMarkdownFiles(contentDir);
 const hasRootReadme = markdownFiles.some(
   (file) => relative(contentDir, file).replace(/\\/g, "/") === "README.md",
 );
@@ -32,6 +33,13 @@ for (const filePath of markdownFiles) {
   const destPath = join(outDir, relPath);
   ensureDir(dirname(destPath));
   writeFileSync(destPath, readFileSync(filePath, "utf8"), "utf8");
+}
+
+for (const filePath of assetFiles) {
+  const relPath = relative(contentDir, filePath);
+  const destPath = join(outDir, relPath);
+  ensureDir(dirname(destPath));
+  copyFileSync(filePath, destPath);
 }
 
 if (!hasRootReadme) {
@@ -54,6 +62,22 @@ function collectMarkdownFiles(dir: string): string[] {
       continue;
     }
     if (entry.isFile() && extname(entry.name).toLowerCase() === ".md") {
+      results.push(fullPath);
+    }
+  }
+  return results.sort();
+}
+
+function collectNonMarkdownFiles(dir: string): string[] {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const results: string[] = [];
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectNonMarkdownFiles(fullPath));
+      continue;
+    }
+    if (entry.isFile() && extname(entry.name).toLowerCase() !== ".md") {
       results.push(fullPath);
     }
   }

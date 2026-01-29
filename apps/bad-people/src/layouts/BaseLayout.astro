@@ -21,6 +21,7 @@ const bookVersion = bookConfig.status ?? "draft";
         </div>
         <nav class="site-nav" aria-label="Primary">
           <a href="/read" aria-keyshortcuts="g r">Read</a>
+          <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
           <button
             class="search-toggle"
             type="button"
@@ -118,6 +119,10 @@ const bookVersion = bookConfig.status ?? "draft";
             <li>
               <span>Go to reading hub</span>
               <span class="kbd-hint"><kbd>g</kbd><kbd>r</kbd></span>
+            </li>
+            <li>
+              <span>Go to release notes</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>n</kbd></span>
             </li>
             <li>
               <span>Go to overview</span>
@@ -489,6 +494,7 @@ const bookVersion = bookConfig.status ?? "draft";
           resetSequence();
           if (key === "h") navigateTo("/");
           if (key === "r") navigateTo("/read");
+          if (key === "n") navigateTo("/release-notes");
           if (key === "o") navigateTo("/read/overview");
           if (key === "c") navigateTo("/read/chapters");
           if (key === "m") navigateTo("/read/mechanisms");

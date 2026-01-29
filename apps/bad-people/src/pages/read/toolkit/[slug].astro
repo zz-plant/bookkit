@@ -1,0 +1,29 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+
+export async function getStaticPaths() {
+  const modules = Object.values(
+    import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true })
+  );
+
+  return modules.map((module) => ({
+    params: { slug: module.frontmatter.slug },
+    props: {
+      frontmatter: module.frontmatter,
+      Content: module.default,
+    },
+  }));
+}
+
+const { frontmatter, Content } = Astro.props;
+---
+<BaseLayout title={`${frontmatter.name} • Bad People`}>
+  <div class="eyebrow">Toolkit</div>
+  <h1>{frontmatter.name}</h1>
+  <p class="lede">
+    {frontmatter.mechanism} • {frontmatter.timeboxMinutes ?? 10} min
+  </p>
+  <section class="content-block">
+    <Content />
+  </section>
+</BaseLayout>

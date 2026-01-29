@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+
+const examples = Object.entries(
+  import.meta.glob("../../../content/book/examples/**/*.mdx", { eager: true })
+).map(([path, module]) => {
+  const slug = path.split("/examples/")[1].replace(/\\.mdx$/, "");
+  return {
+    slug,
+    title: module.frontmatter.title ?? "Untitled example",
+    mechanism: module.frontmatter.mechanism ?? "general",
+    domain: module.frontmatter.domain ?? "unknown",
+    status: module.frontmatter.status ?? "draft",
+  };
+});
+
+const sorted = examples.sort((a, b) => a.title.localeCompare(b.title));
+---
+<BaseLayout title="Examples • Bad People">
+  <h1>Examples</h1>
+  <p class="lede">Replaceable cases that ground each mechanism.</p>
+  <div class="stack">
+    {sorted.map((example) => (
+      <a class="list-link" href={`/read/examples/${example.slug}`}>
+        <span class="eyebrow">{example.status}</span>
+        <strong>{example.title}</strong>
+        <span class="meta">
+          {example.mechanism} • {example.domain}
+        </span>
+      </a>
+    ))}
+  </div>
+</BaseLayout>

@@ -1,73 +1,19 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import { formatReleaseDate, getReleaseNotes } from "../lib/release-notes";
+import ReleaseNotesPage from "@bookkit/astro-bookkit/components/ReleaseNotesPage.astro";
+import { getReleaseNotes } from "../lib/release-notes";
+import bookConfig from "../book.config";
 
 const releases = getReleaseNotes();
 const rssUrl = "/release-notes.xml";
 ---
-<BaseLayout title="Release notes • Bad People">
-  <div class="section-header release-header">
-    <div>
-      <h1>Release notes</h1>
-      <p class="lede">
-        Track new releases, subscribe to updates, and review the latest changes.
-      </p>
-    </div>
-    <div class="release-actions">
-      <a
-        class="button"
-        href={rssUrl}
-        data-release-subscribe
-        aria-label="Subscribe to release notes RSS"
-      >
-        Subscribe via RSS
-      </a>
-    </div>
-  </div>
-  <div class="release-list">
-    {releases.map((release) => {
-      const Content = release.Content;
-      return (
-        <article class="release-card" id={`release-${release.version}`}>
-          <header class="release-header">
-            <div class="release-meta">
-              <p class="eyebrow">Version {release.version}</p>
-              <h2>{release.title}</h2>
-            </div>
-            <time class="release-date" datetime={release.date}>
-              {formatReleaseDate(release.date)}
-            </time>
-          </header>
-          <p class="release-summary">{release.summary}</p>
-          {release.highlights.length > 0 && (
-            <ul class="release-highlights">
-              {release.highlights.map((item) => (
-                <li>{item}</li>
-              ))}
-            </ul>
-          )}
-          {Content && (
-            <section class="content-block">
-              <Content />
-            </section>
-          )}
-        </article>
-      );
-    })}
-  </div>
-  <script>
-    const subscribeButton = document.querySelector("[data-release-subscribe]");
-    subscribeButton?.addEventListener("click", () => {
-      const payload = JSON.stringify({ event: "rss_subscribe_click" });
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon("/api/release-analytics.json", payload);
-      } else {
-        fetch("/api/release-analytics.json", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: payload,
-        });
-      }
-    });
-  </script>
-</BaseLayout>
+<ReleaseNotesPage
+  title="Release notes • Bad People"
+  bookTitle={bookConfig.title}
+  bookVersion={bookConfig.status}
+  bookKey={bookConfig.slug ?? "book"}
+  rssUrl={rssUrl}
+  releases={releases}
+  description="Track new releases, subscribe to updates, and review the latest changes."
+  subscribeLabel="Subscribe via RSS"
+  subscribeAnalyticsUrl="/api/release-analytics.json"
+/>

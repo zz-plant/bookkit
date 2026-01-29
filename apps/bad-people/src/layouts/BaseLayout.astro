@@ -1,5 +1,8 @@
 ---
+import bookConfig from "../book.config";
+
 const { title = "Bad People" } = Astro.props;
+const bookVersion = bookConfig.status ?? "draft";
 ---
 <!doctype html>
 <html lang="en">
@@ -9,7 +12,7 @@ const { title = "Bad People" } = Astro.props;
     <title>{title}</title>
     <link rel="stylesheet" href="/styles/global.css" />
   </head>
-  <body>
+  <body data-book-version={bookVersion}>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="page">
       <header class="site-header">
@@ -532,6 +535,109 @@ const { title = "Bad People" } = Astro.props;
         }
       }
 
+    </script>
+    <script>
+      const analyticsStorageKey = "bp.analytics.events";
+      const analyticsSessionKey = "bp.analytics.session";
+      const analyticsRetentionDays = 90;
+
+      const loadAnalyticsEvents = () => {
+        try {
+          const stored = localStorage.getItem(analyticsStorageKey);
+          const parsed = stored ? JSON.parse(stored) : [];
+          const cutoff = Date.now() - analyticsRetentionDays * 24 * 60 * 60 * 1000;
+          const filtered = Array.isArray(parsed)
+            ? parsed.filter((event) => typeof event?.timestamp === "number" && event.timestamp >= cutoff)
+            : [];
+          if (filtered.length !== parsed.length) {
+            localStorage.setItem(analyticsStorageKey, JSON.stringify(filtered));
+          }
+          return filtered;
+        } catch (error) {
+          return [];
+        }
+      };
+
+      const saveAnalyticsEvents = (events) => {
+        localStorage.setItem(analyticsStorageKey, JSON.stringify(events));
+      };
+
+      const getSessionId = () => {
+        const existing = localStorage.getItem(analyticsSessionKey);
+        if (existing) return existing;
+        const generated =
+          "crypto" in window && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem(analyticsSessionKey, generated);
+        return generated;
+      };
+
+      const recordAnalyticsEvent = (event) => {
+        const events = loadAnalyticsEvents();
+        events.push(event);
+        saveAnalyticsEvents(events);
+      };
+
+      const analyticsVersion = document.body?.dataset?.bookVersion || "draft";
+      const path = window.location.pathname;
+      const pathSegments = path.split("/").filter(Boolean);
+      const isChapter = pathSegments[0] === "read" && pathSegments[1] === "chapters" && pathSegments[2];
+      const chapterSlug = isChapter ? pathSegments[2] : null;
+
+      const sessionId = getSessionId();
+      const pageViewTimestamp = Date.now();
+      recordAnalyticsEvent({
+        id: `view-${pageViewTimestamp}-${Math.random().toString(16).slice(2)}`,
+        type: "pageview",
+        timestamp: pageViewTimestamp,
+        sessionId,
+        path,
+        chapterSlug,
+        version: analyticsVersion,
+        title: document.title,
+      });
+
+      let maxScrollDepth = 0;
+      const updateScrollDepth = () => {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        if (scrollable <= 0) {
+          maxScrollDepth = 1;
+          return;
+        }
+        const ratio = window.scrollY / scrollable;
+        if (ratio > maxScrollDepth) {
+          maxScrollDepth = ratio;
+        }
+      };
+
+      let analyticsReported = false;
+      const reportEngagement = () => {
+        if (analyticsReported) return;
+        analyticsReported = true;
+        updateScrollDepth();
+        const durationSeconds = Math.max(1, Math.round((Date.now() - pageViewTimestamp) / 1000));
+        recordAnalyticsEvent({
+          id: `engagement-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "engagement",
+          timestamp: Date.now(),
+          sessionId,
+          path,
+          chapterSlug,
+          version: analyticsVersion,
+          durationSeconds,
+          scrollDepth: Math.max(0, Math.min(1, maxScrollDepth)),
+        });
+      };
+
+      updateScrollDepth();
+      window.addEventListener("scroll", updateScrollDepth, { passive: true });
+      window.addEventListener("beforeunload", reportEngagement);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          reportEngagement();
+        }
+      });
     </script>
   </body>
 </html>

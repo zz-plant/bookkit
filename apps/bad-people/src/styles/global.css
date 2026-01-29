@@ -491,6 +491,37 @@ kbd {
 }
 
 .search-panel__field input:focus-visible {
+.analytics-section {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.analytics-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-end;
+}
+
+.analytics-filter {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.analytics-filter input,
+.analytics-filter select {
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  font: inherit;
+  color: var(--color-ink);
+}
+
+.analytics-filter input:focus-visible,
+.analytics-filter select:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -545,6 +576,62 @@ kbd {
 }
 
 .search-panel__item-meta {
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.analytics-card {
+  padding: var(--space-4);
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.metric-value {
+  font-size: var(--text-2xl);
+  font-family: var(--font-serif);
+}
+
+.metric-subtext {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.sparkline {
+  width: 100%;
+  height: 32px;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.analytics-table-wrap h2 {
+  margin-bottom: var(--space-3);
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.analytics-table th,
+.analytics-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.analytics-table thead th {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
@@ -563,4 +650,19 @@ kbd {
   border-radius: 12px;
   padding: var(--space-4);
   background: #fbfaf7;
+.analytics-empty {
+  padding: var(--space-4);
+  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+  background-color: #fbfaf7;
+}
+
+.analytics-notes ul {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-muted);
+}
+
+.analytics-notes li {
+  margin-bottom: var(--space-2);
 }

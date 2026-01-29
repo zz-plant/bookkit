@@ -1,8 +1,68 @@
 export const bookConfig = {
   title: "Bad People",
   status: "draft",
-  description:
-    "Placeholder configuration for the Bad People book instance. Replace with real objectives and frame selection.",
+  objectives: {
+    readerStart:
+      "Feels isolated, over-responsible, and unsure how to act when harm is normalized.",
+    readerEnd:
+      "Can name the mechanism at play, route responsibility correctly, and execute a small, reversible move.",
+    transformation:
+      "From personalized blame to system-aware leverage with concrete, low-risk actions.",
+  },
+  frame: {
+    slug: "intervention",
+    steps: ["recognition", "exoneration", "mechanism", "agency"],
+    intent:
+      "Move readers from seeing harm to locating the mechanism and taking a small, executable action.",
+  },
+  causalStance:
+    "Harm persists through incentive alignment and transfer, not individual villainy.",
+  constraints: {
+    mechanismCountTarget: [6, 8],
+    actionPrimitiveMaxMinutes: 10,
+    examplesMustBeSwappable: true,
+    orderingModel: "constraint-graph",
+  },
+  mechanisms: [
+    {
+      slug: "transfer-success",
+      focus: "Systems that succeed by transferring cost, risk, or blame downward.",
+      actionPrimitiveCountTarget: 1,
+    },
+    {
+      slug: "bureaucracy-moral-technology",
+      focus: "Procedures that convert compliance into moral cover.",
+      actionPrimitiveCountTarget: 1,
+    },
+    {
+      slug: "compliance-trap",
+      focus: "Warmth leveraged to secure compliance and block refusal.",
+      actionPrimitiveCountTarget: 1,
+    },
+    {
+      slug: "delay-as-force",
+      focus: "Waiting used to exhaust options and coerce agreement.",
+      actionPrimitiveCountTarget: 1,
+    },
+    {
+      slug: "reputation-membrane",
+      focus: "Safety/ethics used as reputation shields without real reversibility.",
+      actionPrimitiveCountTarget: 1,
+    },
+    {
+      slug: "reversal-capacity",
+      focus: "Access to documentation, allies, and buffers determines who can reverse harm.",
+      actionPrimitiveCountTarget: 1,
+    },
+  ],
+  glossaryFocus: [
+    "transfer success",
+    "moral technology",
+    "compliance trap",
+    "delay as force",
+    "reputation membrane",
+    "reversal capacity",
+  ],
 } as const;
 
 export default bookConfig;

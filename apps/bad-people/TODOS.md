@@ -54,6 +54,7 @@
 - [ ] Add versioning primitives (content snapshotting, version metadata, and routing).
 - [ ] Implement reader feedback capture + review workflow for authors.
 - [ ] Ship PDF/EPUB export tooling with print-ready styling.
+- [ ] Add custom domain support and SEO controls.
 - [ ] Add analytics ingestion + dashboard views for authors.
 - [ ] Add access control for private previews and draft sharing.
 - [ ] Add localization scaffolding (i18n routing, language metadata, fallback strings).

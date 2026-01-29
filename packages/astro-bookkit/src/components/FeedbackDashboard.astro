@@ -133,8 +133,9 @@ const { heading = "Reader feedback" } = Astro.props;
 
     return events.filter((event) => {
       if (event.timestamp < startDate.getTime() || event.timestamp > endDate.getTime()) return false;
-      if (selectedType !== "all" && event.responseType !== selectedType) return false;
-      return true;
+      if (selectedType === "all") return true;
+      if (event.eventType === "impression") return true;
+      return event.responseType === selectedType;
     });
   };
 
@@ -222,11 +223,17 @@ const { heading = "Reader feedback" } = Astro.props;
 
     comments.forEach((event) => {
       const li = document.createElement("li");
+      const title = document.createElement("strong");
       const date = new Date(event.timestamp).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       });
-      li.innerHTML = `<strong>${event.title ?? event.slug}</strong><span>${date}</span><p>${event.comment}</p>`;
+      const dateSpan = document.createElement("span");
+      const comment = document.createElement("p");
+      title.textContent = event.title ?? event.slug ?? "Untitled";
+      dateSpan.textContent = date;
+      comment.textContent = event.comment;
+      li.append(title, dateSpan, comment);
       commentList.appendChild(li);
     });
   };

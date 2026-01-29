@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { optionalArg, readText, requireArg } from "./_lib";
-import { recordReleaseEvent } from "../apps/bad-people/src/lib/release-analytics";
+import { recordReleaseEvent } from "@bookkit/astro-bookkit";
 
 type ReleaseNote = {
   title: string;

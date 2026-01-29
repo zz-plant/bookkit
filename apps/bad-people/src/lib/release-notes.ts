@@ -1,7 +1,5 @@
 import {
   createReleaseNotes,
-  escapeXml,
-  formatReleaseDate,
   type ReleaseModule,
   type ReleaseNote,
 } from "@bookkit/astro-bookkit";
@@ -14,5 +12,4 @@ export const getReleaseNotes = (): ReleaseNote[] => {
   return createReleaseNotes(releaseModules);
 };
 
-export { escapeXml, formatReleaseDate };
 export type { ReleaseNote };

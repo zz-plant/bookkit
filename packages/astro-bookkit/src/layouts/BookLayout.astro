@@ -222,6 +222,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
       let searchQuery = "";
       let searchTimeout = null;
       const searchAnalyticsKey = `${analyticsKeyPrefix}.search.analytics`;
+      const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
 
       const headingSelector = "main h2, main h3";
       const headings = Array.from(document.querySelectorAll(headingSelector));
@@ -331,6 +332,14 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
         existing.push(event);
         localStorage.setItem(searchAnalyticsKey, JSON.stringify(existing.slice(-120)));
         window.dispatchEvent(new CustomEvent("book-search", { detail: event }));
+      };
+
+      const recordExportEvent = (payload) => {
+        const event = { ...payload, ts: Date.now() };
+        const existing = JSON.parse(localStorage.getItem(exportAnalyticsKey) ?? "[]");
+        existing.push(event);
+        localStorage.setItem(exportAnalyticsKey, JSON.stringify(existing.slice(-120)));
+        window.dispatchEvent(new CustomEvent("book-export", { detail: event }));
       };
 
       const updateSearchStatus = (message) => {
@@ -576,6 +585,18 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           window.addEventListener("scroll", updateActiveHeading, { passive: true });
         }
       }
+
+      document.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("[data-export-link]") : null;
+        if (!target) return;
+        recordExportEvent({
+          type: "download",
+          format: target.dataset.exportFormat,
+          scope: target.dataset.exportScope,
+          slug: target.dataset.exportSlug ?? null,
+          href: target.getAttribute("href"),
+        });
+      });
     </script>
     <script>
       const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";

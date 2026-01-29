@@ -1,4 +1,5 @@
 export const bookConfig = {
+  slug: "bad-people",
   title: "Bad People",
   status: "draft",
   objectives: {

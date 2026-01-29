@@ -6,3 +6,5 @@ export { recordReleaseEvent } from "./releases/analytics";
 export type { ReleaseEvent } from "./releases/analytics";
 export { createReleaseNotes, escapeXml, formatReleaseDate } from "./releases/notes";
 export type { ReleaseModule, ReleaseNote } from "./releases/notes";
+export { buildSearchEntries, createSearchIndexResponse } from "./search";
+export type { SearchContentSource, SearchEntry } from "./search";

@@ -4,8 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "echo 'dev not configured yet'",
-    "build": "echo 'build not configured yet'",
+    "dev": "astro dev",
+    "build": "astro build",
     "validate": "bun run ../../scripts/validate-book.ts --book bad-people"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^3.1.8",
+    "@bookkit/astro-bookkit": "workspace:*",
+    "astro": "^4.16.2"
   }
 }

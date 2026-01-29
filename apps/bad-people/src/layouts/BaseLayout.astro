@@ -10,21 +10,276 @@ const { title = "Bad People" } = Astro.props;
     <link rel="stylesheet" href="/styles/global.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="page">
       <header class="site-header">
         <div class="site-brand">
           <a href="/">Bad People</a>
         </div>
         <nav class="site-nav" aria-label="Primary">
-          <a href="/read">Read</a>
+          <a href="/read" aria-keyshortcuts="g r">Read</a>
+          <button
+            class="kbd-toggle"
+            type="button"
+            aria-keyshortcuts="?"
+            aria-expanded="false"
+            aria-controls="keyboard-help"
+            data-kbd-toggle
+          >
+            Keyboard <span aria-hidden="true">?</span>
+          </button>
         </nav>
       </header>
-      <main class="site-main">
+      <main id="main-content" class="site-main" tabindex="-1">
         <slot />
       </main>
       <footer class="site-footer">
         <span>Draft book instance.</span>
       </footer>
+      <div class="keyboard-help" id="keyboard-help" data-kbd-panel hidden>
+        <div
+          class="keyboard-help__content"
+          data-kbd-content
+          role="dialog"
+          aria-modal="false"
+          aria-label="Keyboard shortcuts"
+        >
+          <div class="keyboard-help__header">
+            <strong>Keyboard shortcuts</strong>
+            <button type="button" class="kbd-close" data-kbd-close aria-label="Close keyboard shortcuts">
+              Esc
+            </button>
+          </div>
+          <ul class="keyboard-help__list">
+            <li>
+              <span>Open this panel</span>
+              <span class="kbd-hint"><kbd>?</kbd></span>
+            </li>
+            <li>
+              <span>Go to home</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>h</kbd></span>
+            </li>
+            <li>
+              <span>Go to reading hub</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>r</kbd></span>
+            </li>
+            <li>
+              <span>Go to overview</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>o</kbd></span>
+            </li>
+            <li>
+              <span>Jump to chapters</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>c</kbd></span>
+            </li>
+            <li>
+              <span>Jump to mechanisms</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>m</kbd></span>
+            </li>
+            <li>
+              <span>Jump to toolkit</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>t</kbd></span>
+            </li>
+            <li>
+              <span>Jump to glossary</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>l</kbd></span>
+            </li>
+            <li>
+              <span>Jump to examples</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>e</kbd></span>
+            </li>
+            <li>
+              <span>Previous section</span>
+              <span class="kbd-hint"><kbd>[</kbd></span>
+            </li>
+            <li>
+              <span>Next section</span>
+              <span class="kbd-hint"><kbd>]</kbd></span>
+            </li>
+            <li>
+              <span>Close panel</span>
+              <span class="kbd-hint"><kbd>Esc</kbd></span>
+            </li>
+          </ul>
+          <p class="keyboard-help__note">
+            Shortcuts are active when you are not typing in a form field.
+          </p>
+        </div>
+      </div>
     </div>
+    <script>
+      const helpPanel = document.querySelector("[data-kbd-panel]");
+      const helpToggle = document.querySelector("[data-kbd-toggle]");
+      const helpClose = document.querySelector("[data-kbd-close]");
+      let lastFocused = null;
+      let pendingSequence = null;
+      let sequenceTimeout = null;
+      let activeHeadingIndex = 0;
+
+      const headingSelector = "main h2, main h3";
+      const headings = Array.from(document.querySelectorAll(headingSelector));
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const setHeadingHighlight = (target) => {
+        if (!target) return;
+        target.classList.add("viewport-highlight");
+        window.setTimeout(() => target.classList.remove("viewport-highlight"), 1200);
+      };
+
+      const goToHeading = (index) => {
+        if (!headings.length) return;
+        const clamped = Math.max(0, Math.min(index, headings.length - 1));
+        activeHeadingIndex = clamped;
+        const target = headings[clamped];
+        target.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+        target.focus?.({ preventScroll: true });
+        setHeadingHighlight(target);
+      };
+
+      const updateActiveHeading = () => {
+        const visible = headings.findIndex((heading) => {
+          const rect = heading.getBoundingClientRect();
+          return rect.top >= 0 && rect.top <= window.innerHeight * 0.35;
+        });
+        if (visible >= 0) {
+          activeHeadingIndex = visible;
+        }
+      };
+
+      const openHelp = () => {
+        if (!helpPanel) return;
+        lastFocused = document.activeElement;
+        helpPanel.hidden = false;
+        helpPanel.classList.add("is-open");
+        helpToggle?.setAttribute("aria-expanded", "true");
+        helpClose?.focus({ preventScroll: true });
+      };
+
+      const closeHelp = () => {
+        if (!helpPanel) return;
+        helpPanel.hidden = true;
+        helpPanel.classList.remove("is-open");
+        helpToggle?.setAttribute("aria-expanded", "false");
+        lastFocused?.focus?.();
+      };
+
+      const toggleHelp = () => {
+        if (!helpPanel) return;
+        if (helpPanel.hidden) {
+          openHelp();
+        } else {
+          closeHelp();
+        }
+      };
+
+      const resetSequence = () => {
+        pendingSequence = null;
+        if (sequenceTimeout) {
+          window.clearTimeout(sequenceTimeout);
+          sequenceTimeout = null;
+        }
+      };
+
+      const setSequence = () => {
+        pendingSequence = "g";
+        if (sequenceTimeout) {
+          window.clearTimeout(sequenceTimeout);
+        }
+        sequenceTimeout = window.setTimeout(resetSequence, 1200);
+      };
+
+      const navigateTo = (path) => {
+        if (!path) return;
+        window.location.href = path;
+      };
+
+      const inEditable = (target) => {
+        return (
+          target instanceof HTMLElement &&
+          (target.isContentEditable ||
+            ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+        );
+      };
+
+      helpToggle?.addEventListener("click", toggleHelp);
+      helpClose?.addEventListener("click", closeHelp);
+      helpPanel?.addEventListener("click", (event) => {
+        if (event.target instanceof HTMLElement && !event.target.closest("[data-kbd-content]")) {
+          closeHelp();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (inEditable(event.target)) return;
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+        if (event.key === "Escape") {
+          closeHelp();
+          return;
+        }
+
+        if (event.key === "?") {
+          event.preventDefault();
+          toggleHelp();
+          return;
+        }
+
+        if (event.key.toLowerCase() === "g") {
+          event.preventDefault();
+          setSequence();
+          return;
+        }
+
+        if (pendingSequence === "g") {
+          const key = event.key.toLowerCase();
+          resetSequence();
+          if (key === "h") navigateTo("/");
+          if (key === "r") navigateTo("/read");
+          if (key === "o") navigateTo("/read/overview");
+          if (key === "c") navigateTo("/read/chapters");
+          if (key === "m") navigateTo("/read/mechanisms");
+          if (key === "t") navigateTo("/read/toolkit");
+          if (key === "l") navigateTo("/read/glossary");
+          if (key === "e") navigateTo("/read/examples");
+          return;
+        }
+
+        if (event.key === "[") {
+          event.preventDefault();
+          updateActiveHeading();
+          goToHeading(activeHeadingIndex - 1);
+          return;
+        }
+
+        if (event.key === "]") {
+          event.preventDefault();
+          updateActiveHeading();
+          goToHeading(activeHeadingIndex + 1);
+        }
+      });
+
+      if (headings.length) {
+        headings.forEach((heading) => heading.setAttribute("tabindex", "-1"));
+        if ("IntersectionObserver" in window) {
+          const observer = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry) => {
+                entry.target.classList.toggle("is-in-viewport", entry.isIntersecting);
+                if (entry.isIntersecting) {
+                  activeHeadingIndex = headings.indexOf(entry.target);
+                }
+              });
+            },
+            {
+              rootMargin: "-10% 0px -70% 0px",
+              threshold: 0.1,
+            }
+          );
+          headings.forEach((heading) => observer.observe(heading));
+        } else {
+          window.addEventListener("scroll", updateActiveHeading, { passive: true });
+        }
+      }
+
+    </script>
   </body>
 </html>

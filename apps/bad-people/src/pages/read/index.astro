@@ -23,36 +23,42 @@ const sections = [
     description: "Objectives, frame, and constraints for this draft.",
     href: "/read/overview",
     count: 1,
+    keyHint: ["g", "o"],
   },
   {
     title: "Chapters",
     description: "Core modules and the intervention frame.",
     href: "/read/chapters",
     count: chapterModules.length,
+    keyHint: ["g", "c"],
   },
   {
     title: "Mechanisms",
     description: "Named system patterns with stable definitions.",
     href: "/read/mechanisms",
     count: mechanismModules.length,
+    keyHint: ["g", "m"],
   },
   {
     title: "Toolkit",
     description: "Action primitives that fit inside ten minutes.",
     href: "/read/toolkit",
     count: toolkitModules.length,
+    keyHint: ["g", "t"],
   },
   {
     title: "Glossary",
     description: "Short definitions to keep shared language consistent.",
     href: "/read/glossary",
     count: glossaryModules.length,
+    keyHint: ["g", "l"],
   },
   {
     title: "Examples",
     description: "Replaceable cases that ground the modules.",
     href: "/read/examples",
     count: exampleModules.length,
+    keyHint: ["g", "e"],
   },
 ];
 ---
@@ -66,13 +72,21 @@ const sections = [
   <div class="card-grid">
     {sections.map((section) => {
       const label = section.count === 1 ? "item" : "items";
+      const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
       return (
-        <a class="card" href={section.href}>
+        <a class="card" href={section.href} aria-keyshortcuts={keyShortcut}>
           <div class="eyebrow">
             {section.count} {label}
           </div>
           <h2>{section.title}</h2>
           <p class="meta">{section.description}</p>
+          {section.keyHint && (
+            <span class="kbd-hint" aria-hidden="true">
+              {section.keyHint.map((key) => (
+                <kbd>{key}</kbd>
+              ))}
+            </span>
+          )}
         </a>
       );
     })}

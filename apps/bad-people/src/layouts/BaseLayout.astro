@@ -22,6 +22,16 @@ const bookVersion = bookConfig.status ?? "draft";
         <nav class="site-nav" aria-label="Primary">
           <a href="/read" aria-keyshortcuts="g r">Read</a>
           <button
+            class="search-toggle"
+            type="button"
+            aria-keyshortcuts="k /"
+            aria-expanded="false"
+            aria-controls="search-panel"
+            data-search-toggle
+          >
+            Search <span aria-hidden="true">⌘K</span>
+          </button>
+          <button
             class="kbd-toggle"
             type="button"
             aria-keyshortcuts="?"
@@ -39,6 +49,45 @@ const bookVersion = bookConfig.status ?? "draft";
       <footer class="site-footer">
         <span>Draft book instance.</span>
       </footer>
+      <div class="search-panel" id="search-panel" data-search-panel hidden>
+        <div
+          class="search-panel__content"
+          role="dialog"
+          aria-modal="false"
+          aria-label="Search the book"
+          data-search-content
+        >
+          <div class="search-panel__header">
+            <strong>Search</strong>
+            <button type="button" class="kbd-close" data-search-close aria-label="Close search">
+              Esc
+            </button>
+          </div>
+          <label class="search-panel__field">
+            <span class="sr-only">Search the book</span>
+            <input
+              type="search"
+              placeholder="Search chapters, glossary, mechanisms..."
+              autocomplete="off"
+              spellcheck="false"
+              data-search-input
+            />
+          </label>
+          <div class="search-panel__meta">
+            <span class="meta" data-search-status>Type to search across the book.</span>
+            <span class="kbd-hint" aria-hidden="true">
+              <kbd>⌘</kbd><kbd>K</kbd> / <kbd>/</kbd>
+            </span>
+          </div>
+          <div class="search-panel__results" data-search-results></div>
+          <div class="search-panel__empty" data-search-empty hidden>
+            <strong>No matches yet.</strong>
+            <p class="meta">
+              Try a shorter phrase or search by mechanism, glossary term, or chapter title.
+            </p>
+          </div>
+        </div>
+      </div>
       <div class="keyboard-help" id="keyboard-help" data-kbd-panel hidden>
         <div
           class="keyboard-help__content"
@@ -57,6 +106,10 @@ const bookVersion = bookConfig.status ?? "draft";
             <li>
               <span>Open this panel</span>
               <span class="kbd-hint"><kbd>?</kbd></span>
+            </li>
+            <li>
+              <span>Open search</span>
+              <span class="kbd-hint"><kbd>⌘</kbd><kbd>K</kbd> / <kbd>/</kbd></span>
             </li>
             <li>
               <span>Go to home</span>
@@ -113,10 +166,21 @@ const bookVersion = bookConfig.status ?? "draft";
       const helpPanel = document.querySelector("[data-kbd-panel]");
       const helpToggle = document.querySelector("[data-kbd-toggle]");
       const helpClose = document.querySelector("[data-kbd-close]");
+      const searchPanel = document.querySelector("[data-search-panel]");
+      const searchToggle = document.querySelector("[data-search-toggle]");
+      const searchClose = document.querySelector("[data-search-close]");
+      const searchInput = document.querySelector("[data-search-input]");
+      const searchResults = document.querySelector("[data-search-results]");
+      const searchStatus = document.querySelector("[data-search-status]");
+      const searchEmpty = document.querySelector("[data-search-empty]");
       let lastFocused = null;
       let pendingSequence = null;
       let sequenceTimeout = null;
       let activeHeadingIndex = 0;
+      let searchIndex = null;
+      let searchQuery = "";
+      let searchTimeout = null;
+      const searchAnalyticsKey = "book-search-analytics";
 
       const headingSelector = "main h2, main h3";
       const headings = Array.from(document.querySelectorAll(headingSelector));
@@ -203,6 +267,166 @@ const bookVersion = bookConfig.status ?? "draft";
         );
       };
 
+      const escapeHtml = (value) => {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      };
+
+      const highlightText = (value, tokens) => {
+        if (!tokens.length) return escapeHtml(value);
+        return tokens.reduce((output, token) => {
+          const regex = new RegExp(`(${token.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")})`, "gi");
+          return output.replace(regex, "<mark>$1</mark>");
+        }, escapeHtml(value));
+      };
+
+      const recordSearchEvent = (payload) => {
+        const event = { ...payload, ts: Date.now() };
+        const existing = JSON.parse(localStorage.getItem(searchAnalyticsKey) ?? "[]");
+        existing.push(event);
+        localStorage.setItem(searchAnalyticsKey, JSON.stringify(existing.slice(-120)));
+        window.dispatchEvent(new CustomEvent("book-search", { detail: event }));
+      };
+
+      const updateSearchStatus = (message) => {
+        if (searchStatus) searchStatus.textContent = message;
+      };
+
+      const loadSearchIndex = async () => {
+        if (searchIndex) return searchIndex;
+        updateSearchStatus("Loading index…");
+        try {
+          const response = await fetch("/search-index.json");
+          const payload = await response.json();
+          searchIndex = payload.entries ?? [];
+          updateSearchStatus("Type to search across the book.");
+        } catch (error) {
+          updateSearchStatus("Search is unavailable right now.");
+          searchIndex = [];
+        }
+        return searchIndex;
+      };
+
+      const openSearch = async () => {
+        if (!searchPanel) return;
+        lastFocused = document.activeElement;
+        searchPanel.hidden = false;
+        searchPanel.classList.add("is-open");
+        searchToggle?.setAttribute("aria-expanded", "true");
+        await loadSearchIndex();
+        window.requestAnimationFrame(() => {
+          if (searchInput) {
+            searchInput.value = searchQuery;
+            searchInput.focus({ preventScroll: true });
+            searchInput.select?.();
+            if (searchQuery) {
+              runSearch(searchQuery);
+            }
+          }
+        });
+      };
+
+      const closeSearch = () => {
+        if (!searchPanel) return;
+        searchPanel.hidden = true;
+        searchPanel.classList.remove("is-open");
+        searchToggle?.setAttribute("aria-expanded", "false");
+        lastFocused?.focus?.();
+      };
+
+      const toggleSearch = () => {
+        if (!searchPanel) return;
+        if (searchPanel.hidden) {
+          openSearch();
+        } else {
+          closeSearch();
+        }
+      };
+
+      const renderSearchResults = (results, tokens) => {
+        if (!searchResults) return;
+        searchResults.innerHTML = "";
+        if (!results.length) {
+          searchEmpty?.removeAttribute("hidden");
+          return;
+        }
+        searchEmpty?.setAttribute("hidden", "true");
+        const grouped = results.reduce((groupMap, entry) => {
+          const key = entry.label ?? entry.type;
+          groupMap.set(key, [...(groupMap.get(key) ?? []), entry]);
+          return groupMap;
+        }, new Map());
+
+        grouped.forEach((items, label) => {
+          const section = document.createElement("div");
+          section.className = "search-panel__group";
+          const heading = document.createElement("h3");
+          heading.textContent = label;
+          section.appendChild(heading);
+
+          const list = document.createElement("div");
+          list.className = "search-panel__list";
+          items.forEach((entry) => {
+            const link = document.createElement("a");
+            link.href = entry.url;
+            link.className = "search-panel__item";
+            link.dataset.searchId = entry.id;
+            link.innerHTML = `
+              <div class="search-panel__item-title">${highlightText(entry.title, tokens)}</div>
+              <div class="search-panel__item-snippet">${highlightText(entry.snippet, tokens)}</div>
+              <div class="search-panel__item-meta">${escapeHtml(entry.label)} • ${escapeHtml(
+                entry.context
+              )}</div>
+            `;
+            list.appendChild(link);
+          });
+          section.appendChild(list);
+          searchResults.appendChild(section);
+        });
+      };
+
+      const runSearch = async (value) => {
+        const index = await loadSearchIndex();
+        searchQuery = value;
+        const query = value.trim().toLowerCase();
+        if (!query) {
+          searchResults && (searchResults.innerHTML = "");
+          searchEmpty?.setAttribute("hidden", "true");
+          updateSearchStatus("Type to search across the book.");
+          return;
+        }
+        const tokens = query.split(/\s+/).filter(Boolean);
+        const results = index
+          .map((entry) => ({
+            ...entry,
+            searchText: `${entry.title} ${entry.snippet} ${entry.context}`.toLowerCase(),
+          }))
+          .filter((entry) => tokens.every((token) => entry.searchText.includes(token)))
+          .map((entry) => {
+            const score = tokens.reduce((total, token) => {
+              const titleBoost = entry.title.toLowerCase().includes(token) ? 4 : 0;
+              const contextBoost = entry.context.toLowerCase().includes(token) ? 2 : 0;
+              return total + titleBoost + contextBoost + 1;
+            }, 0);
+            return { ...entry, score };
+          })
+          .sort((a, b) => b.score - a.score);
+
+        renderSearchResults(results, tokens);
+        updateSearchStatus(`${results.length} result${results.length === 1 ? "" : "s"}`);
+
+        if (query.length >= 2) {
+          recordSearchEvent({ type: "query", query, results: results.length });
+          if (!results.length) {
+            recordSearchEvent({ type: "zero_results", query });
+          }
+        }
+      };
+
       helpToggle?.addEventListener("click", toggleHelp);
       helpClose?.addEventListener("click", closeHelp);
       helpPanel?.addEventListener("click", (event) => {
@@ -210,15 +434,43 @@ const bookVersion = bookConfig.status ?? "draft";
           closeHelp();
         }
       });
+      searchToggle?.addEventListener("click", toggleSearch);
+      searchClose?.addEventListener("click", closeSearch);
+      searchPanel?.addEventListener("click", (event) => {
+        if (event.target instanceof HTMLElement && !event.target.closest("[data-search-content]")) {
+          closeSearch();
+        }
+      });
+      searchInput?.addEventListener("input", (event) => {
+        const value = event.target instanceof HTMLInputElement ? event.target.value : "";
+        if (searchTimeout) window.clearTimeout(searchTimeout);
+        searchTimeout = window.setTimeout(() => runSearch(value), 160);
+      });
+      searchResults?.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("a") : null;
+        if (!target) return;
+        recordSearchEvent({ type: "click", id: target.dataset.searchId, query: searchQuery });
+        closeSearch();
+      });
 
       document.addEventListener("keydown", (event) => {
-        if (inEditable(event.target)) return;
-        if (event.metaKey || event.ctrlKey || event.altKey) return;
-
         if (event.key === "Escape") {
+          closeSearch();
           closeHelp();
           return;
         }
+        if (inEditable(event.target)) return;
+        if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          toggleSearch();
+          return;
+        }
+        if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          event.preventDefault();
+          openSearch();
+          return;
+        }
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
 
         if (event.key === "?") {
           event.preventDefault();

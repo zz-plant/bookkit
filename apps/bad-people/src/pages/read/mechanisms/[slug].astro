@@ -20,7 +20,7 @@ const { frontmatter, Content } = Astro.props;
 <BaseLayout title={`${frontmatter.title} • Bad People`}>
   <a class="back-link" href="/read/mechanisms">← Mechanisms</a>
   <div class="eyebrow">Mechanism</div>
-  <h1>{frontmatter.title}</h1>
+  <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
   <p class="lede">{frontmatter.definition}</p>
   <section class="content-block">
     <Content />

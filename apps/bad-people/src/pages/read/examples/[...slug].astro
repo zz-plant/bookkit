@@ -22,7 +22,7 @@ const { frontmatter, Content } = Astro.props;
 <BaseLayout title={`${frontmatter.title} • Bad People`}>
   <a class="back-link" href="/read/examples">← Examples</a>
   <div class="eyebrow">Example</div>
-  <h1>{frontmatter.title}</h1>
+  <h1 id={Astro.params.slug?.replaceAll("/", "-")}>{frontmatter.title}</h1>
   <p class="lede">
     {frontmatter.mechanism} • {frontmatter.domain}
   </p>

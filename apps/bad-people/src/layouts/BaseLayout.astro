@@ -1,6 +1,6 @@
 ---
 import BookLayout from "@bookkit/astro-bookkit/layouts/BookLayout.astro";
-import { buildSeoProps } from "@bookkit/astro-bookkit";
+import { buildSeoProps, getPreviewContext } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
 const {
@@ -23,6 +23,8 @@ const seoProps = buildSeoProps({
   canonicalPath,
   canonicalUrl,
 });
+const previewContext = getPreviewContext(Astro.locals);
+const previewRobots = previewContext?.isPreview ? "noindex, nofollow" : robots;
 ---
 <BookLayout
   title={title}
@@ -30,6 +32,11 @@ const seoProps = buildSeoProps({
   bookVersion={bookConfig.status}
   bookKey={bookConfig.slug ?? "book"}
   {...seoProps}
+  robots={previewRobots ?? seoProps.robots}
+  isPreview={previewContext?.isPreview ?? false}
+  previewLabel={previewContext?.label ?? "Preview"}
+  previewTokenHint={previewContext?.tokenHint}
+  previewExpiresAt={previewContext?.expiresAt}
 >
   <slot />
 </BookLayout>

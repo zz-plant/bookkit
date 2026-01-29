@@ -10,6 +10,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./preview": "./src/preview/index.ts",
+    "./components/PreviewLinksPanel.astro": "./src/components/PreviewLinksPanel.astro",
     "./components/ExportPanel.astro": "./src/components/ExportPanel.astro",
     "./components/ReleaseNotesPage.astro": "./src/components/ReleaseNotesPage.astro",
     "./layouts/BookLayout.astro": "./src/layouts/BookLayout.astro",

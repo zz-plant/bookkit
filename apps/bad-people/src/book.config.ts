@@ -12,6 +12,28 @@ export const bookConfig = {
       ogImage: "/og/default.svg",
     },
   },
+  previewAccess: {
+    enabled: true,
+    paramName: "preview",
+    protectedPaths: ["/"],
+    tokens: [
+      {
+        token: "bp-preview-review-7f3a1c",
+        label: "Editorial review",
+        expiresAt: "2026-01-31",
+      },
+      {
+        token: "bp-preview-partner-4d9e2b",
+        label: "Partner feedback",
+        expiresAt: "2026-03-15",
+      },
+      {
+        token: "bp-preview-legacy-9c2d5e",
+        label: "Legacy link",
+        revoked: true,
+      },
+    ],
+  },
   objectives: {
     readerStart:
       "Feels isolated, over-responsible, and unsure how to act when harm is normalized.",

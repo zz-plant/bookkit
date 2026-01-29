@@ -208,11 +208,18 @@ export const createPreviewAccessMiddleware = (
 
     const queryToken = url.searchParams.get(paramName);
     const cookieToken = context.cookies.get(cookieName)?.value;
-    const token = queryToken ?? cookieToken;
-    const previewState = resolvePreviewToken({ tokens }, token);
+    const queryState = queryToken ? resolvePreviewToken({ tokens }, queryToken) : null;
+    const cookieState = cookieToken ? resolvePreviewToken({ tokens }, cookieToken) : null;
+    const previewState = queryToken
+      ? queryState?.isPreview
+        ? queryState
+        : cookieState?.isPreview
+          ? cookieState
+          : queryState ?? { isPreview: false, status: "missing" }
+      : cookieState ?? { isPreview: false, status: "missing" };
 
     if (!previewState.isPreview) {
-      if (cookieToken) {
+      if (cookieToken && !cookieState?.isPreview) {
         context.cookies.delete(cookieName, { path: "/" });
       }
       const title = `${siteTitle} preview required`;
@@ -234,7 +241,7 @@ export const createPreviewAccessMiddleware = (
 
     context.locals.preview = previewState;
 
-    if (queryToken) {
+    if (queryToken && queryState?.isPreview) {
       const expires = previewState.expiresAt ? new Date(previewState.expiresAt) : undefined;
       const maxAge = previewState.expiresAt ? undefined : cookieMaxAgeDays * 24 * 60 * 60;
       context.cookies.set(cookieName, queryToken, {
@@ -246,6 +253,11 @@ export const createPreviewAccessMiddleware = (
         maxAge,
       });
 
+      url.searchParams.delete(paramName);
+      return Response.redirect(url.toString(), 302);
+    }
+
+    if (queryToken) {
       url.searchParams.delete(paramName);
       return Response.redirect(url.toString(), 302);
     }

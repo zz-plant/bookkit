@@ -4,6 +4,7 @@ const {
   title,
   contentType = "chapter",
   prompt = "Was this helpful?",
+  endpoint,
 } = Astro.props;
 
 if (!slug) {
@@ -16,6 +17,7 @@ if (!slug) {
   data-feedback-slug={slug}
   data-feedback-title={title}
   data-feedback-type={contentType}
+  data-feedback-endpoint={endpoint}
 >
   <div class="feedback-widget__prompt">
     <span>{prompt}</span>
@@ -78,6 +80,37 @@ if (!slug) {
     }
   };
 
+  const resolveEndpoint = (value) => {
+    if (!value || typeof value !== "string") return null;
+    try {
+      const url = new URL(value, window.location.origin);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return url.toString();
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  };
+
+  const sendToEndpoint = async (endpoint, event) => {
+    if (!endpoint) return;
+    const payload = JSON.stringify(event);
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(endpoint, payload);
+      return;
+    }
+    try {
+      await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      });
+    } catch (error) {
+      // Ignore submission errors for now.
+    }
+  };
+
   const saveEvent = (storageKey, event) => {
     const events = loadEvents(storageKey);
     events.push(event);
@@ -95,6 +128,7 @@ if (!slug) {
     const slug = widget.dataset.feedbackSlug;
     const title = widget.dataset.feedbackTitle || slug;
     const contentType = widget.dataset.feedbackType || "chapter";
+    const endpoint = resolveEndpoint(widget.dataset.feedbackEndpoint);
     const status = widget.querySelector("[data-feedback-status]");
     const noteToggle = widget.querySelector("[data-feedback-note-toggle]");
     const notePanel = widget.querySelector("[data-feedback-note]");
@@ -123,7 +157,7 @@ if (!slug) {
     const recent = getRecentSubmission(events, slug);
 
     if (!sessionStorage.getItem(impressionKey)) {
-      saveEvent(storageKey, {
+      const impressionEvent = {
         id: `impression-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         eventType: "impression",
         timestamp: Date.now(),
@@ -131,7 +165,9 @@ if (!slug) {
         title,
         contentType,
         version,
-      });
+      };
+      saveEvent(storageKey, impressionEvent);
+      sendToEndpoint(endpoint, impressionEvent);
       sessionStorage.setItem(impressionKey, "1");
     }
 
@@ -151,7 +187,7 @@ if (!slug) {
       }
       const timestamp = Date.now();
       const isEmoji = choice.startsWith("emoji:");
-      saveEvent(storageKey, {
+      const feedbackEvent = {
         id: `feedback-${timestamp}-${Math.random().toString(16).slice(2)}`,
         eventType: "feedback",
         timestamp,
@@ -162,7 +198,9 @@ if (!slug) {
         responseType: isEmoji ? "emoji" : choice,
         emoji: isEmoji ? choice.replace("emoji:", "") : null,
         comment: sanitizeComment(comment),
-      });
+      };
+      saveEvent(storageKey, feedbackEvent);
+      sendToEndpoint(endpoint, feedbackEvent);
       announce("Thanks for the feedback!");
       disable();
     };

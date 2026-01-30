@@ -3,7 +3,7 @@ import "../styles/bookkit.css";
 import VersionSwitcher from "../components/VersionSwitcher.astro";
 import LanguageSwitcher from "../components/LanguageSwitcher.astro";
 import { buildLocalePath, resolveLocaleConfig, stripLocaleFromPath } from "../localization/routes";
-import { extractVersionFromPath } from "../releases/versions";
+import { extractVersionFromPath, stripVersionFromPath } from "../releases/versions";
 
 const {
   title,
@@ -32,6 +32,7 @@ const {
   versions = [],
   versionPrefix = "v",
   versionArchivePath = "/versions",
+  versionArchiveNoindex = true,
   locales = [],
   currentLocale,
   defaultLocale,
@@ -76,7 +77,21 @@ const versionBadgeLabel = hasVersions
       ? `v${resolvedVersion}`
       : null
   : null;
-const resolvedCanonical = canonicalUrl ?? (siteUrl ? new URL(canonicalPath ?? Astro.url.pathname, siteUrl).toString() : undefined);
+const canonicalPathBase =
+  canonicalPath ??
+  (pathVersion && !currentVersionEntry?.isLatest
+    ? stripVersionFromPath(Astro.url.pathname, { prefixSegment: versionPrefix })
+    : Astro.url.pathname);
+const resolvedCanonical =
+  canonicalUrl ?? (siteUrl ? new URL(canonicalPathBase, siteUrl).toString() : undefined);
+const normalizedPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
+const isArchivePage = normalizedPath === normalizedArchivePath;
+const resolvedRobots =
+  robots ??
+  ((pathVersion && !currentVersionEntry?.isLatest) || (versionArchiveNoindex && isArchivePage)
+    ? "noindex, nofollow"
+    : undefined);
 const resolvedOgTitle = ogTitle ?? pageTitle;
 const resolvedOgDescription = ogDescription ?? metaDescription;
 const hreflangEntries =
@@ -111,7 +126,7 @@ const hreflangDefault =
     <title>{pageTitle}</title>
     {metaDescription && <meta name="description" content={metaDescription} />}
     {resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
-    {robots && <meta name="robots" content={robots} />}
+    {resolvedRobots && <meta name="robots" content={resolvedRobots} />}
     {resolvedOgTitle && <meta property="og:title" content={resolvedOgTitle} />}
     {resolvedOgDescription && <meta property="og:description" content={resolvedOgDescription} />}
     {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}

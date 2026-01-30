@@ -33,14 +33,23 @@ export { createBookSearchIndexEndpoint } from "./search/endpoint";
 export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
 export {
   buildExportChapters,
+  buildExportLinks,
   buildExportMetadata,
   createExportResponse,
   createEpubExport,
   createPdfExport,
   estimateExportBytes,
+  formatExportUpdatedDate,
   formatBytes,
 } from "./exports";
-export type { ExportBundle, ExportChapter, ExportFormat, ExportMetadata } from "./exports";
+export type {
+  ExportBundle,
+  ExportChapter,
+  ExportFormat,
+  ExportLink,
+  ExportLinkOptions,
+  ExportMetadata,
+} from "./exports";
 export { buildSeoProps } from "./seo/config";
 export type { BookSeoConfig, BookSeoDefaults, SeoInput, SeoProps } from "./seo/config";
 export { buildAbsoluteUrl, normalizeSiteUrl } from "./seo/urls";

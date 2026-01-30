@@ -13,6 +13,8 @@
     "./preview": "./src/preview/index.ts",
     "./components/PreviewLinksPanel.astro": "./src/components/PreviewLinksPanel.astro",
     "./components/ExportPanel.astro": "./src/components/ExportPanel.astro",
+    "./components/AnalyticsDashboard.astro": "./src/components/AnalyticsDashboard.astro",
+    "./components/FeedbackDashboard.astro": "./src/components/FeedbackDashboard.astro",
     "./components/ReleaseNotesPage.astro": "./src/components/ReleaseNotesPage.astro",
     "./layouts/BookLayout.astro": "./src/layouts/BookLayout.astro",
     "./styles/bookkit.css": "./src/styles/bookkit.css",

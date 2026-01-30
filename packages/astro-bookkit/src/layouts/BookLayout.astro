@@ -122,6 +122,17 @@ const hreflangDefault =
         siteUrl
       ).toString()
     : null;
+const previewExpiresLabel = previewExpiresAt
+  ? new Date(previewExpiresAt).toLocaleDateString(activeLocale ?? "en", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  : null;
+const previewDetails = [
+  previewTokenHint ? `Link ending in ${previewTokenHint}` : null,
+  previewExpiresLabel ? `Expires ${previewExpiresLabel}` : null,
+].filter(Boolean);
 ---
 <!doctype html>
 <html lang={activeLocale ?? "en"}>
@@ -220,6 +231,15 @@ const hreflangDefault =
             {activeLocaleLabel} is {Math.round((localeCompleteness ?? 0) * 100)}% complete. Missing
             sections will fall back to {defaultLocaleLabel ?? "the default language"}.
           </span>
+        </div>
+      )}
+      {isPreview && (
+        <div class="preview-notice" role="status">
+          <span class="preview-notice__badge">Preview access</span>
+          <span class="preview-notice__text">You’re viewing a private preview of this book.</span>
+          {previewDetails.length ? (
+            <span class="preview-notice__meta">{previewDetails.join(" • ")}</span>
+          ) : null}
         </div>
       )}
       <main id="main-content" class="site-main" tabindex="-1">

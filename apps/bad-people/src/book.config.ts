@@ -34,6 +34,9 @@ export const bookConfig = {
       },
     ],
   },
+  features: {
+    aiQa: true,
+  },
   objectives: {
     readerStart:
       "Feels isolated, over-responsible, and unsure how to act when harm is normalized.",

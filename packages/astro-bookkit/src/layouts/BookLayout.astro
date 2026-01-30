@@ -1,6 +1,8 @@
 ---
 import "../styles/bookkit.css";
 import VersionSwitcher from "../components/VersionSwitcher.astro";
+import LanguageSwitcher from "../components/LanguageSwitcher.astro";
+import { buildLocalePath, resolveLocaleConfig, stripLocaleFromPath } from "../localization/routes";
 import { extractVersionFromPath } from "../releases/versions";
 
 const {
@@ -30,11 +32,38 @@ const {
   versions = [],
   versionPrefix = "v",
   versionArchivePath = "/versions",
+  locales = [],
+  currentLocale,
+  defaultLocale,
+  includeDefaultLocalePrefix = false,
+  localeLabel = "Language",
+  showLocaleNotice = true,
 } = Astro.props;
 
 const pageTitle = title ?? bookTitle;
 const versionEntries = Array.isArray(versions) ? versions : [];
 const hasVersions = versionEntries.length > 0;
+const localeEntries = Array.isArray(locales) ? locales : [];
+const localeCodes = localeEntries.map((entry) => entry.code).filter(Boolean);
+const { defaultLocale: resolvedDefaultLocale } = resolveLocaleConfig(localeEntries, { defaultLocale });
+const { locale: detectedLocale, pathWithoutLocale } = stripLocaleFromPath(
+  Astro.url.pathname,
+  localeCodes,
+  { defaultLocale: resolvedDefaultLocale, includeDefaultPrefix: includeDefaultLocalePrefix }
+);
+const activeLocale = currentLocale ?? detectedLocale ?? resolvedDefaultLocale ?? localeCodes[0];
+const activeLocaleEntry = localeEntries.find((entry) => entry.code === activeLocale);
+const activeLocaleLabel = activeLocaleEntry?.label ?? activeLocale;
+const defaultLocaleLabel =
+  localeEntries.find((entry) => entry.code === resolvedDefaultLocale)?.label ?? resolvedDefaultLocale;
+const localeCompletenessRaw =
+  typeof activeLocaleEntry?.completeness === "number" ? activeLocaleEntry.completeness : null;
+const localeCompleteness =
+  localeCompletenessRaw === null
+    ? null
+    : Math.min(1, Math.max(0, localeCompletenessRaw));
+const showTranslationNotice =
+  showLocaleNotice && localeCompleteness !== null && localeCompleteness < 1;
 const pathVersion = extractVersionFromPath(Astro.url.pathname, { prefixSegment: versionPrefix });
 const resolvedVersion = pathVersion ?? bookVersion;
 const currentVersionEntry =
@@ -50,9 +79,32 @@ const versionBadgeLabel = hasVersions
 const resolvedCanonical = canonicalUrl ?? (siteUrl ? new URL(canonicalPath ?? Astro.url.pathname, siteUrl).toString() : undefined);
 const resolvedOgTitle = ogTitle ?? pageTitle;
 const resolvedOgDescription = ogDescription ?? metaDescription;
+const hreflangEntries =
+  siteUrl && localeEntries.length
+    ? localeEntries.map((entry) => {
+        const localePath = buildLocalePath(pathWithoutLocale ?? Astro.url.pathname, entry.code, {
+          defaultLocale: resolvedDefaultLocale,
+          includeDefaultPrefix: includeDefaultLocalePrefix,
+        });
+        return {
+          locale: entry.code,
+          href: new URL(localePath, siteUrl).toString(),
+        };
+      })
+    : [];
+const hreflangDefault =
+  siteUrl && resolvedDefaultLocale
+    ? new URL(
+        buildLocalePath(pathWithoutLocale ?? Astro.url.pathname, resolvedDefaultLocale, {
+          defaultLocale: resolvedDefaultLocale,
+          includeDefaultPrefix: includeDefaultLocalePrefix,
+        }),
+        siteUrl
+      ).toString()
+    : null;
 ---
 <!doctype html>
-<html lang="en">
+<html lang={activeLocale ?? "en"}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -64,6 +116,10 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
     {resolvedOgDescription && <meta property="og:description" content={resolvedOgDescription} />}
     {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
     {ogImage && <meta property="og:image" content={ogImage} />}
+    {hreflangEntries.map((entry) => (
+      <link rel="alternate" hreflang={entry.locale} href={entry.href} />
+    ))}
+    {hreflangDefault && <link rel="alternate" hreflang="x-default" href={hreflangDefault} />}
   </head>
   <body
     data-book-version={bookVersion}
@@ -125,7 +181,26 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
             archivePath={versionArchivePath}
           />
         )}
+        {localeEntries.length > 1 && (
+          <LanguageSwitcher
+            locales={localeEntries}
+            currentPath={Astro.url.pathname}
+            currentLocale={activeLocale}
+            defaultLocale={resolvedDefaultLocale}
+            includeDefaultPrefix={includeDefaultLocalePrefix}
+            label={localeLabel}
+          />
+        )}
       </header>
+      {showTranslationNotice && (
+        <div class="translation-notice" role="status">
+          <span class="translation-notice__badge">Translation in progress</span>
+          <span class="translation-notice__text">
+            {activeLocaleLabel} is {Math.round((localeCompleteness ?? 0) * 100)}% complete. Missing
+            sections will fall back to {defaultLocaleLabel ?? "the default language"}.
+          </span>
+        </div>
+      )}
       <main id="main-content" class="site-main" tabindex="-1">
         <slot />
       </main>

@@ -1,7 +1,16 @@
+import { sequence } from "astro:middleware";
 import { createPreviewAccessMiddleware } from "@bookkit/astro-bookkit/preview";
+import { createLocaleRoutingMiddleware } from "@bookkit/astro-bookkit/localization";
 import bookConfig from "./book.config";
 
-export const onRequest = createPreviewAccessMiddleware({
-  ...bookConfig.previewAccess,
-  siteTitle: bookConfig.title,
-});
+export const onRequest = sequence(
+  createLocaleRoutingMiddleware({
+    locales: bookConfig.localization?.locales ?? [],
+    defaultLocale: bookConfig.localization?.defaultLocale,
+    includeDefaultPrefix: bookConfig.localization?.includeDefaultPrefix ?? false,
+  }),
+  createPreviewAccessMiddleware({
+    ...bookConfig.previewAccess,
+    siteTitle: bookConfig.title,
+  })
+);

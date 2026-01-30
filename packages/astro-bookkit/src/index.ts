@@ -50,6 +50,14 @@ export type { SitemapEntry } from "./seo/sitemap";
 export { createRobotsTxt } from "./seo/robots";
 export type { RobotsTxtOptions } from "./seo/robots";
 export {
+  buildLocalePath,
+  createLocaleRoutingMiddleware,
+  formatLocaleLabel,
+  resolveLocaleConfig,
+  stripLocaleFromPath,
+} from "./localization";
+export type { LocaleEntry, LocaleRoutingOptions, LocaleMiddlewareOptions } from "./localization";
+export {
   buildPreviewLink,
   createPreviewAccessMiddleware,
   createPreviewLinks,

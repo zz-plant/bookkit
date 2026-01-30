@@ -27,6 +27,25 @@ export type ExportMetadata = {
   slug?: string;
 };
 
+export type ExportLink = {
+  label: string;
+  href: string;
+  format: ExportFormat;
+  size?: string;
+  updatedAt?: string;
+  scope?: "book" | "chapter";
+  slug?: string;
+};
+
+export type ExportLinkOptions = {
+  bundle: ExportBundle;
+  scope: "book" | "chapter";
+  slug?: string;
+  title?: string;
+  basePath?: string;
+  formats?: ExportFormat[];
+};
+
 const frontmatterPattern = /^---\n([\s\S]*?)\n---/;
 
 const parseFrontmatter = (raw: string) => {
@@ -156,6 +175,8 @@ export const formatBytes = (bytes: number): string => {
   const mb = kb / 1024;
   return `${mb.toFixed(1)} MB`;
 };
+
+export const formatExportUpdatedDate = (updatedAt: string): string => updatedAt.slice(0, 10);
 
 export const estimateExportBytes = (chapters: ExportChapter[], format: ExportFormat): number => {
   const textLength = chapters.reduce((total, chapter) => total + chapter.body.length, 0);
@@ -401,4 +422,34 @@ export const buildExportMetadata = (
     scope,
     slug,
   };
+};
+
+export const buildExportLinks = ({
+  bundle,
+  scope,
+  slug,
+  title,
+  basePath = "/exports",
+  formats = ["pdf", "epub"],
+}: ExportLinkOptions): ExportLink[] => {
+  if (scope === "chapter" && !slug) return [];
+  const normalizedBase = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+  const updatedAt = formatExportUpdatedDate(bundle.updatedAt ?? new Date().toISOString());
+  const label = scope === "book" ? "Full book export" : `${title ?? "Chapter"} export`;
+  return formats.map((format) => {
+    const meta = buildExportMetadata(bundle, format, scope, slug);
+    const href =
+      scope === "book"
+        ? `${normalizedBase}/book.${format}`
+        : `${normalizedBase}/chapters/${slug}.${format}`;
+    return {
+      label,
+      href,
+      format,
+      size: formatBytes(meta.sizeBytes),
+      updatedAt,
+      scope,
+      slug,
+    };
+  });
 };

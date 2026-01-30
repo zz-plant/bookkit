@@ -1,7 +1,6 @@
 import {
   buildExportChapters,
-  buildExportMetadata,
-  formatBytes,
+  buildExportLinks,
   type ExportBundle,
   type ExportChapter,
 } from "@bookkit/astro-bookkit/exports";
@@ -31,59 +30,13 @@ export const getChapterExportBundle = (slug: string): ExportBundle | null => {
   return buildBundle([chapter]);
 };
 
-const formatUpdatedDate = (updatedAt: string) => updatedAt.slice(0, 10);
-
 export const getBookExportLinks = () => {
   const bundle = getBookExportBundle();
-  const pdfMeta = buildExportMetadata(bundle, "pdf", "book");
-  const epubMeta = buildExportMetadata(bundle, "epub", "book");
-  const updatedAt = formatUpdatedDate(bundle.updatedAt ?? new Date().toISOString());
-
-  return [
-    {
-      label: "Full book export",
-      href: "/exports/book.pdf",
-      format: "pdf" as const,
-      size: formatBytes(pdfMeta.sizeBytes),
-      updatedAt,
-      scope: "book" as const,
-    },
-    {
-      label: "Full book export",
-      href: "/exports/book.epub",
-      format: "epub" as const,
-      size: formatBytes(epubMeta.sizeBytes),
-      updatedAt,
-      scope: "book" as const,
-    },
-  ];
+  return buildExportLinks({ bundle, scope: "book" });
 };
 
 export const getChapterExportLinks = (slug: string, title: string) => {
   const bundle = getChapterExportBundle(slug);
   if (!bundle) return [];
-  const pdfMeta = buildExportMetadata(bundle, "pdf", "chapter", slug);
-  const epubMeta = buildExportMetadata(bundle, "epub", "chapter", slug);
-  const updatedAt = formatUpdatedDate(bundle.updatedAt ?? new Date().toISOString());
-
-  return [
-    {
-      label: `${title} export`,
-      href: `/exports/chapters/${slug}.pdf`,
-      format: "pdf" as const,
-      size: formatBytes(pdfMeta.sizeBytes),
-      updatedAt,
-      scope: "chapter" as const,
-      slug,
-    },
-    {
-      label: `${title} export`,
-      href: `/exports/chapters/${slug}.epub`,
-      format: "epub" as const,
-      size: formatBytes(epubMeta.sizeBytes),
-      updatedAt,
-      scope: "chapter" as const,
-      slug,
-    },
-  ];
+  return buildExportLinks({ bundle, scope: "chapter", slug, title });
 };

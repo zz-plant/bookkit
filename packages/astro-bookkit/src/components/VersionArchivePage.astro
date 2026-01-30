@@ -1,0 +1,104 @@
+---
+import BookLayout from "../layouts/BookLayout.astro";
+import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
+
+export type Props = {
+  title: string;
+  bookTitle: string;
+  bookVersion: string;
+  bookKey?: string;
+  versions: BookVersionEntry[];
+  description?: string;
+  prefixSegment?: string;
+  siteUrl?: string;
+  metaDescription?: string;
+  ogImage?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  canonicalPath?: string;
+  canonicalUrl?: string;
+  robots?: string;
+};
+
+const {
+  title,
+  bookTitle,
+  bookVersion,
+  bookKey = "book",
+  versions,
+  description = "Browse published versions and archived releases of this book.",
+  prefixSegment = "v",
+  siteUrl,
+  metaDescription,
+  ogImage,
+  ogTitle,
+  ogDescription,
+  canonicalPath,
+  canonicalUrl,
+  robots,
+} = Astro.props;
+
+const entries = versions.map((entry) => ({
+  ...entry,
+  href: buildVersionPath("/", entry, { prefixSegment }),
+}));
+---
+<BookLayout
+  title={title}
+  bookTitle={bookTitle}
+  bookVersion={bookVersion}
+  bookKey={bookKey}
+  versions={versions}
+  versionPrefix={prefixSegment}
+  siteUrl={siteUrl}
+  metaDescription={metaDescription}
+  ogImage={ogImage}
+  ogTitle={ogTitle}
+  ogDescription={ogDescription}
+  canonicalPath={canonicalPath}
+  canonicalUrl={canonicalUrl}
+  robots={robots}
+>
+  <div class="section-header">
+    <div>
+      <h1>Version archive</h1>
+      <p class="lede">{description}</p>
+    </div>
+  </div>
+  <div class="version-archive">
+    {entries.length ? (
+      entries.map((entry) => (
+        <article class="version-card">
+          <div class="version-card__header">
+            <div>
+              <p class="eyebrow">{entry.isLatest ? "Latest" : "Archived"}</p>
+              <h2>{entry.title ?? `Version ${entry.version}`}</h2>
+            </div>
+            {entry.date && (
+              <time class="version-card__date" datetime={entry.date}>
+                {new Date(entry.date).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+            )}
+          </div>
+          {entry.summary && <p class="version-card__summary">{entry.summary}</p>}
+          {entry.highlights?.length ? (
+            <ul class="version-card__highlights">
+              {entry.highlights.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          ) : null}
+          <a class="version-card__link" href={entry.href}>
+            View {entry.isLatest ? "latest" : "archived"} version
+          </a>
+        </article>
+      ))
+    ) : (
+      <p class="meta">No published versions yet.</p>
+    )}
+  </div>
+</BookLayout>

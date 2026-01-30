@@ -1,12 +1,16 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
 import { formatReleaseDate, type ReleaseNote } from "../releases/notes";
+import type { BookVersionEntry } from "../releases/versions";
 
 export type Props = {
   title: string;
   bookTitle: string;
   bookVersion: string;
   bookKey?: string;
+  versions?: BookVersionEntry[];
+  versionPrefix?: string;
+  versionArchivePath?: string;
   rssUrl: string;
   releases: ReleaseNote[];
   description?: string;
@@ -27,6 +31,9 @@ const {
   bookTitle,
   bookVersion,
   bookKey = "book",
+  versions = [],
+  versionPrefix = "v",
+  versionArchivePath = "/versions",
   rssUrl,
   releases,
   description = "Track new releases, subscribe to updates, and review the latest changes.",
@@ -47,6 +54,9 @@ const {
   bookTitle={bookTitle}
   bookVersion={bookVersion}
   bookKey={bookKey}
+  versions={versions}
+  versionPrefix={versionPrefix}
+  versionArchivePath={versionArchivePath}
   siteUrl={siteUrl}
   metaDescription={metaDescription}
   ogImage={ogImage}

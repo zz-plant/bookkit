@@ -1,5 +1,7 @@
 ---
 import "../styles/bookkit.css";
+import VersionSwitcher from "../components/VersionSwitcher.astro";
+import { extractVersionFromPath } from "../releases/versions";
 
 const {
   title,
@@ -25,9 +27,26 @@ const {
   previewLabel = "Preview",
   previewTokenHint,
   previewExpiresAt,
+  versions = [],
+  versionPrefix = "v",
+  versionArchivePath = "/versions",
 } = Astro.props;
 
 const pageTitle = title ?? bookTitle;
+const versionEntries = Array.isArray(versions) ? versions : [];
+const hasVersions = versionEntries.length > 0;
+const pathVersion = extractVersionFromPath(Astro.url.pathname, { prefixSegment: versionPrefix });
+const resolvedVersion = pathVersion ?? bookVersion;
+const currentVersionEntry =
+  versionEntries.find((entry) => entry.version === resolvedVersion) ??
+  versionEntries.find((entry) => entry.isLatest);
+const versionBadgeLabel = hasVersions
+  ? currentVersionEntry?.isLatest
+    ? "Latest"
+    : resolvedVersion
+      ? `v${resolvedVersion}`
+      : null
+  : null;
 const resolvedCanonical = canonicalUrl ?? (siteUrl ? new URL(canonicalPath ?? Astro.url.pathname, siteUrl).toString() : undefined);
 const resolvedOgTitle = ogTitle ?? pageTitle;
 const resolvedOgDescription = ogDescription ?? metaDescription;
@@ -60,6 +79,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
         <div class="site-brand">
           <a href="/">{bookTitle}</a>
           {isPreview && <span class="preview-badge">{previewLabel}</span>}
+          {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
         </div>
         <nav class="site-nav" aria-label="Primary">
           <a href="/read" aria-keyshortcuts="g r">Read</a>
@@ -96,6 +116,15 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
             Keyboard <span aria-hidden="true">?</span>
           </button>
         </nav>
+        {hasVersions && (
+          <VersionSwitcher
+            versions={versionEntries}
+            currentPath={Astro.url.pathname}
+            currentVersion={resolvedVersion}
+            prefixSegment={versionPrefix}
+            archivePath={versionArchivePath}
+          />
+        )}
       </header>
       <main id="main-content" class="site-main" tabindex="-1">
         <slot />

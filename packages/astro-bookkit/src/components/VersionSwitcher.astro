@@ -1,0 +1,91 @@
+---
+import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
+
+export type Props = {
+  versions: BookVersionEntry[];
+  currentPath: string;
+  currentVersion?: string;
+  prefixSegment?: string;
+  label?: string;
+  archivePath?: string;
+  archiveLabel?: string;
+};
+
+const {
+  versions = [],
+  currentPath,
+  currentVersion,
+  prefixSegment = "v",
+  label = "Version",
+  archivePath = "/versions",
+  archiveLabel = "Version archive",
+} = Astro.props;
+
+const resolvedCurrent =
+  currentVersion ?? versions.find((entry) => entry.isLatest)?.version ?? versions[0]?.version;
+const versionEntries = versions.map((entry) => ({
+  ...entry,
+  href: buildVersionPath(currentPath, entry, { prefixSegment }),
+}));
+---
+<div
+  class="version-switcher"
+  data-version-switcher
+  data-current-version={resolvedCurrent}
+>
+  <label class="version-switcher__label">
+    <span>{label}</span>
+    <select class="version-switcher__select" data-version-select>
+      {versionEntries.map((entry) => {
+        const isLatest = entry.isLatest;
+        const suffix = entry.version ? `v${entry.version}` : "";
+        const display = entry.label || suffix || "Version";
+        return (
+          <option
+            value={entry.version}
+            selected={entry.version === resolvedCurrent}
+            data-href={entry.href}
+          >
+            {isLatest && suffix ? `${display} (${suffix})` : display}
+          </option>
+        );
+      })}
+    </select>
+  </label>
+  {archivePath && (
+    <a class="version-switcher__archive" href={archivePath} data-version-archive>
+      {archiveLabel}
+    </a>
+  )}
+</div>
+
+<script>
+  const switcher = document.querySelector("[data-version-switcher]");
+  const select = switcher?.querySelector("[data-version-select]");
+  const archive = switcher?.querySelector("[data-version-archive]");
+  const currentVersion = switcher?.dataset?.currentVersion ?? null;
+
+  const recordVersionEvent = (payload) => {
+    const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+    const storageKey = `${analyticsKeyPrefix}.version.analytics`;
+    const event = { ...payload, ts: Date.now() };
+    const existing = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    existing.push(event);
+    localStorage.setItem(storageKey, JSON.stringify(existing.slice(-120)));
+    window.dispatchEvent(new CustomEvent("book-version", { detail: event }));
+  };
+
+  select?.addEventListener("change", () => {
+    const option = select.selectedOptions?.[0];
+    const href = option?.dataset?.href;
+    const next = option?.value ?? null;
+    recordVersionEvent({ type: "switch", from: currentVersion, to: next, href });
+    if (href) {
+      window.location.href = href;
+    }
+  });
+
+  archive?.addEventListener("click", () => {
+    recordVersionEvent({ type: "archive_open", from: currentVersion, href: archive.href });
+  });
+</script>

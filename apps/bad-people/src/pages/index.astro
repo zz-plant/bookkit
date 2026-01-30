@@ -1,5 +1,73 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
+
+const chapterIndex = buildLocalizedContentIndex(
+  import.meta.glob("../content/book/chapters/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const mechanismIndex = buildLocalizedContentIndex(
+  import.meta.glob("../content/book/mechanisms/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const toolkitIndex = buildLocalizedContentIndex(
+  import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const glossaryIndex = buildLocalizedContentIndex(
+  import.meta.glob("../content/book/glossary/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const exampleIndex = buildLocalizedContentIndex(
+  import.meta.glob("../content/book/examples/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const localeKey = Astro.locals?.locale;
+const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
+const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey });
+const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
+const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
+const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const stats = [
+  {
+    label: "Chapters",
+    count: chapters.entries.length,
+    completeness: chapters.completeness,
+  },
+  {
+    label: "Mechanisms",
+    count: mechanisms.entries.length,
+    completeness: mechanisms.completeness,
+  },
+  {
+    label: "Toolkit entries",
+    count: toolkit.entries.length,
+    completeness: toolkit.completeness,
+  },
+  {
+    label: "Glossary terms",
+    count: glossary.entries.length,
+    completeness: glossary.completeness,
+  },
+  {
+    label: "Examples",
+    count: examples.entries.length,
+    completeness: examples.completeness,
+  },
+];
 ---
 <BaseLayout title="Bad People">
   <div class="section-header">
@@ -9,6 +77,25 @@ import BaseLayout from "../layouts/BaseLayout.astro";
       respond with small, reversible actions.
     </p>
   </div>
+  <section class="content-block">
+    <div class="eyebrow">At a glance</div>
+    <h2>Draft readiness snapshot</h2>
+    <p class="meta">
+      Track how each reading surface is filling out. Translation completeness reflects the
+      active locale.
+    </p>
+    <div class="stats-grid">
+      {stats.map((stat) => (
+        <div class="stat-card">
+          <div class="stat-value">{stat.count}</div>
+          <div class="stat-label">{stat.label}</div>
+          {typeof stat.completeness === "number" && (
+            <div class="stat-meta">{Math.round(stat.completeness * 100)}% translated</div>
+          )}
+        </div>
+      ))}
+    </div>
+  </section>
   <section class="content-block">
     <div class="eyebrow">Start here</div>
     <h2>Reading views</h2>

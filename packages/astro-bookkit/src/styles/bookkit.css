@@ -345,6 +345,40 @@ p {
   gap: var(--space-4);
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.stat-card {
+  background: linear-gradient(180deg, rgba(91, 76, 230, 0.08), rgba(255, 255, 255, 0.95));
+  border: 1px solid rgba(91, 76, 230, 0.2);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-family: var(--font-serif);
+  line-height: var(--leading-tight);
+}
+
+.stat-label {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-muted);
+}
+
+.stat-meta {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
 .export-panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);

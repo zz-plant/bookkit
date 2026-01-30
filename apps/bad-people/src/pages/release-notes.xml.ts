@@ -1,6 +1,5 @@
-import type { APIRoute } from "astro";
-import { createReleaseNotesRssResponse, normalizeSiteUrl } from "@bookkit/astro-bookkit";
-import { getReleaseNotes } from "../lib/release-notes";
+import { createReleaseNotesRssEndpoint, normalizeSiteUrl } from "@bookkit/astro-bookkit";
+import { releaseModules } from "../lib/release-notes";
 import bookConfig from "../book.config";
 
 const siteUrl =
@@ -8,11 +7,8 @@ const siteUrl =
     ? normalizeSiteUrl(bookConfig.site.url, bookConfig.site.enforceHttps)
     : null) ?? import.meta.env.SITE_URL || "http://localhost:4321";
 
-export const GET: APIRoute = () => {
-  const releases = getReleaseNotes();
-  return createReleaseNotesRssResponse({
-    siteUrl,
-    bookTitle: bookConfig.title,
-    releases,
-  });
-};
+export const { GET } = createReleaseNotesRssEndpoint({
+  modules: releaseModules,
+  siteUrl,
+  bookTitle: bookConfig.title,
+});

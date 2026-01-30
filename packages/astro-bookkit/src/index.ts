@@ -25,6 +25,22 @@ export type {
 } from "./releases/webhooks";
 export { createReleaseNotesRss, createReleaseNotesRssResponse } from "./releases/rss";
 export type { ReleaseNotesRssOptions } from "./releases/rss";
+export {
+  createReleaseEmailEndpoint,
+  createReleaseNotesRssEndpoint,
+  createReleaseWebhookEndpoint,
+} from "./releases/endpoint";
+export type { ReleaseEndpointOptions } from "./releases/endpoint";
+export {
+  buildReleaseEmailPayload,
+  parseReleaseEmailTargets,
+  sendReleaseEmailHooks,
+} from "./releases/email";
+export type {
+  ReleaseEmailPayload,
+  ReleaseEmailResult,
+  ReleaseEmailTarget,
+} from "./releases/email";
 export { buildSearchEntries, createSearchIndexResponse } from "./search";
 export type { SearchContentSource, SearchEntry } from "./search";
 export { createBookSearchSources } from "./search/sources";

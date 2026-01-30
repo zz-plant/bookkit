@@ -416,6 +416,19 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           .replace(/'/g, "&#39;");
       };
 
+      const toSafeUrl = (value) => {
+        if (typeof value !== "string") return "#";
+        try {
+          const parsed = new URL(value, window.location.origin);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+          }
+        } catch (error) {
+          // Ignore invalid URLs.
+        }
+        return "#";
+      };
+
       const highlightText = (value, tokens) => {
         if (!tokens.length) return escapeHtml(value);
         return tokens.reduce((output, token) => {
@@ -498,24 +511,24 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           <p>${escapeHtml(answerText)}</p>
           <p class="meta">Answer assembled from ${results.length} cited passage${results.length === 1 ? "" : "s"}.</p>
         `;
-        const citationItems = results
-          .map(
-            (entry) => `
-              <li>
-                <a href="${entry.url}" data-qa-citation-id="${entry.id}">
-                  ${escapeHtml(entry.context)} — ${escapeHtml(entry.title)}
-                </a>
-                <p>${highlightText(entry.snippet, tokens)}</p>
-              </li>
-            `
-          )
-          .join("");
-        qaCitations.innerHTML = `
-          <h3>Sources</h3>
-          <ol class="qa-panel__citation-list">
-            ${citationItems}
-          </ol>
-        `;
+        const heading = document.createElement("h3");
+        heading.textContent = "Sources";
+        const list = document.createElement("ol");
+        list.className = "qa-panel__citation-list";
+        results.forEach((entry) => {
+          const item = document.createElement("li");
+          const link = document.createElement("a");
+          link.href = toSafeUrl(entry.url);
+          link.dataset.qaCitationId = entry.id;
+          link.textContent = `${entry.context} — ${entry.title}`;
+          const snippet = document.createElement("p");
+          snippet.innerHTML = highlightText(entry.snippet, tokens);
+          item.appendChild(link);
+          item.appendChild(snippet);
+          list.appendChild(item);
+        });
+        qaCitations.appendChild(heading);
+        qaCitations.appendChild(list);
       };
 
       const runQa = async (value) => {
@@ -655,7 +668,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           list.className = "search-panel__list";
           items.forEach((entry) => {
             const link = document.createElement("a");
-            link.href = entry.url;
+            link.href = toSafeUrl(entry.url);
             link.className = "search-panel__item";
             link.dataset.searchId = entry.id;
             link.innerHTML = `

@@ -48,7 +48,15 @@ export const parseReleaseWebhookTargets = (raw?: string | null): ReleaseWebhookT
   try {
     const parsed = JSON.parse(trimmed);
     if (Array.isArray(parsed)) {
-      return parsed.filter((entry) => entry && typeof entry.url === "string");
+      return parsed.flatMap((entry) => {
+        if (typeof entry === "string") {
+          return entry.trim() ? [{ url: entry.trim() }] : [];
+        }
+        if (entry && typeof entry.url === "string") {
+          return [entry];
+        }
+        return [];
+      });
     }
   } catch (error) {
     // Fall through to CSV parsing.

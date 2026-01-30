@@ -22,6 +22,8 @@ export { buildSearchEntries, createSearchIndexResponse } from "./search";
 export type { SearchContentSource, SearchEntry } from "./search";
 export { createBookSearchSources } from "./search/sources";
 export type { BookSearchModuleMap } from "./search/sources";
+export { createBookSearchIndexEndpoint } from "./search/endpoint";
+export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
 export {
   buildExportChapters,
   buildExportMetadata,

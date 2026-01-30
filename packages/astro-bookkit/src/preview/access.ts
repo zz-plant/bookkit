@@ -196,6 +196,10 @@ export const createPreviewAccessMiddleware = (
     }
 
     const url = new URL(context.request.url);
+    const redirectUrl =
+      typeof context.locals.originalUrl === "string"
+        ? new URL(context.locals.originalUrl)
+        : new URL(context.request.url);
     const pathname = url.pathname;
 
     if (matchesPath(pathname, publicPaths)) {
@@ -253,13 +257,13 @@ export const createPreviewAccessMiddleware = (
         maxAge,
       });
 
-      url.searchParams.delete(paramName);
-      return Response.redirect(url.toString(), 302);
+      redirectUrl.searchParams.delete(paramName);
+      return Response.redirect(redirectUrl.toString(), 302);
     }
 
     if (queryToken) {
-      url.searchParams.delete(paramName);
-      return Response.redirect(url.toString(), 302);
+      redirectUrl.searchParams.delete(paramName);
+      return Response.redirect(redirectUrl.toString(), 302);
     }
 
     const response = await next();

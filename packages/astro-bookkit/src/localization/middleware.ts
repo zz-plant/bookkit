@@ -21,6 +21,10 @@ export const createLocaleRoutingMiddleware = (
       return next();
     }
 
+    if (typeof context.locals.originalUrl !== "string") {
+      context.locals.originalUrl = context.request.url;
+    }
+
     const url = new URL(context.request.url);
     const { locale, pathWithoutLocale } = stripLocaleFromPath(url.pathname, localeCodes, {
       defaultLocale,

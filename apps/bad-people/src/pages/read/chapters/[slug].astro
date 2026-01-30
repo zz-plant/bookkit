@@ -24,7 +24,7 @@ const modules = import.meta.glob("../../../content/book/chapters/*.mdx", { eager
 const localizedIndex = buildLocalizedContentIndex(modules, {
   defaultLocale: "en",
 });
-const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+const { missingSlugs, entries } = resolveLocalizedContent(localizedIndex, {
   locale: Astro.locals?.locale,
 });
 const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
@@ -38,8 +38,23 @@ if (!module) {
 const { frontmatter, default: Content } = module;
 const exportLinks = getChapterExportLinks(frontmatter.slug, frontmatter.title ?? "Chapter");
 const isFallback = missingSlugs.includes(frontmatter.slug);
+const chapterOrder = entries
+  .map(({ slug, module: chapterModule }) => ({
+    slug,
+    title: chapterModule.frontmatter?.title ?? "Untitled chapter",
+  }))
+  .sort((a, b) => a.slug.localeCompare(b.slug));
+const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
+const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
 ---
 <BaseLayout title={`${frontmatter.title} • Bad People`}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/read">Reading hub</a>
+    <span>›</span>
+    <a href="/read/chapters">Chapters</a>
+    <span>›</span>
+    <span>{frontmatter.title}</span>
+  </nav>
   <a class="back-link" href="/read/chapters">← Chapters</a>
   <div class="eyebrow">
     {frontmatter.status ?? "draft"}
@@ -53,6 +68,18 @@ const isFallback = missingSlugs.includes(frontmatter.slug);
   />
   <section class="content-block">
     <Content />
+  </section>
+  <section class="next-steps">
+    <h2>Next steps</h2>
+    <div class="next-steps__links">
+      {nextChapter && (
+        <a class="next-steps__link" href={`/read/chapters/${nextChapter.slug}`}>
+          Next chapter: {nextChapter.title}
+        </a>
+      )}
+      <a class="next-steps__link" href="/read/mechanisms">Review mechanisms</a>
+      <a class="next-steps__link" href="/read/toolkit">Browse toolkit</a>
+    </div>
   </section>
   <FeedbackWidget
     slug={frontmatter.slug}

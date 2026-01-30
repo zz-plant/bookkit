@@ -48,6 +48,8 @@
 - [x] Localization pipeline for translations with language switcher and fallback strings. See: `specs/prd-localization.md`.
 - [x] Integrations for changelog + release notes (RSS, email, or webhook). See: `specs/prd-changelog-integrations.md`.
 - [x] AI-powered Q&A over book content with citations and opt-out toggle. See: `specs/prd-ai-qa.md`.
+- [x] Reading hub + overview for navigating core sections. See: `specs/prd-reading-hub.md`.
+- [x] Content index views for chapters, mechanisms, toolkit, glossary, and examples. See: `specs/prd-content-indexes.md`.
 
 ## Roadmap
 - [x] Build the search index pipeline and UI (Algolia/Meilisearch or local index).

@@ -71,14 +71,20 @@ No engine logic lives here.
 │     ├─ astro.config.mjs
 │     └─ src/
 │        ├─ book.config.ts   # the book’s objective function
+│        ├─ layouts/
+│        ├─ lib/
 │        ├─ pages/
+│        │  ├─ api/
+│        │  ├─ exports/
+│        │  └─ read/
 │        └─ content/
 │           └─ book/
 │              ├─ mechanisms/
 │              ├─ toolkit/
 │              ├─ chapters/
 │              ├─ examples/
-│              └─ glossary/
+│              ├─ glossary/
+│              └─ releases/
 ├─ packages/
 │  └─ astro-bookkit/
 └─ scripts/

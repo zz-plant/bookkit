@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { getBookExportLinks } from "../../../lib/exports";
 
 const modules = Object.entries(
@@ -16,25 +17,24 @@ const modules = Object.entries(
 });
 
 const chapters = modules.sort((a, b) => a.path.localeCompare(b.path));
+const chapterItems = chapters.map((chapter) => ({
+  href: `/read/chapters/${chapter.slug}`,
+  title: chapter.title,
+  eyebrow: chapter.status,
+}));
 const exportLinks = getBookExportLinks();
 ---
 <BaseLayout title="Chapters • Bad People">
-  <a class="back-link" href="/read">← Reading hub</a>
-  <div class="section-header">
-    <h1>Chapters</h1>
-    <p class="lede">Module outlines that define the intervention frame.</p>
-  </div>
-  <ExportPanel
-    title="Download exports"
-    description="Grab a print-ready PDF or an EPUB for offline reading."
-    links={exportLinks}
-  />
-  <div class="stack">
-    {chapters.map((chapter) => (
-      <a class="list-link" href={`/read/chapters/${chapter.slug}`}>
-        <span class="eyebrow">{chapter.status}</span>
-        <strong>{chapter.title}</strong>
-      </a>
-    ))}
-  </div>
+  <ContentIndexList
+    title="Chapters"
+    lede="Module outlines that define the intervention frame."
+    items={chapterItems}
+  >
+    <ExportPanel
+      slot="after-header"
+      title="Download exports"
+      description="Grab a print-ready PDF or an EPUB for offline reading."
+      links={exportLinks}
+    />
+  </ContentIndexList>
 </BaseLayout>

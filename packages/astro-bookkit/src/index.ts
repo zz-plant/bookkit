@@ -6,6 +6,16 @@ export { recordReleaseEvent } from "./releases/analytics";
 export type { ReleaseEvent } from "./releases/analytics";
 export { createReleaseNotes, escapeXml, formatReleaseDate } from "./releases/notes";
 export type { ReleaseModule, ReleaseNote } from "./releases/notes";
+export {
+  buildReleaseWebhookPayload,
+  parseReleaseWebhookTargets,
+  sendReleaseWebhooks,
+} from "./releases/webhooks";
+export type {
+  ReleaseWebhookPayload,
+  ReleaseWebhookResult,
+  ReleaseWebhookTarget,
+} from "./releases/webhooks";
 export { createReleaseNotesRss, createReleaseNotesRssResponse } from "./releases/rss";
 export type { ReleaseNotesRssOptions } from "./releases/rss";
 export { buildSearchEntries, createSearchIndexResponse } from "./search";

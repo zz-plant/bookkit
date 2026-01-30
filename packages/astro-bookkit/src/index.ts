@@ -13,6 +13,8 @@ export {
   stripVersionFromPath,
 } from "./releases/versions";
 export type { BookVersionEntry } from "./releases/versions";
+export { createVersionRoutingMiddleware } from "./releases/middleware";
+export type { VersionRoutingOptions } from "./releases/middleware";
 export {
   buildReleaseWebhookPayload,
   parseReleaseWebhookTargets,

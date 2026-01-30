@@ -72,6 +72,22 @@ const {
     </table>
   </div>
 
+  <div class="analytics-table-wrap" data-analytics-versions hidden>
+    <h2>Version comparison</h2>
+    <table class="analytics-table">
+      <thead>
+        <tr>
+          <th>Version</th>
+          <th>Views</th>
+          <th>Avg. time</th>
+          <th>Avg. scroll</th>
+          <th>Drop-off</th>
+        </tr>
+      </thead>
+      <tbody data-analytics-version-rows></tbody>
+    </table>
+  </div>
+
   <div class="analytics-notes">
     <h2>Privacy &amp; retention</h2>
     <ul>
@@ -166,7 +182,9 @@ const {
     const endInput = dashboard.querySelector("[data-filter-end]");
     const emptyState = dashboard.querySelector("[data-analytics-empty]");
     const tableWrap = dashboard.querySelector("[data-analytics-table]");
+    const versionTableWrap = dashboard.querySelector("[data-analytics-versions]");
     const rowsTarget = dashboard.querySelector("[data-analytics-rows]");
+    const versionRowsTarget = dashboard.querySelector("[data-analytics-version-rows]");
 
     if (
       !versionSelect ||
@@ -174,7 +192,9 @@ const {
       !endInput ||
       !emptyState ||
       !tableWrap ||
-      !rowsTarget
+      !rowsTarget ||
+      !versionTableWrap ||
+      !versionRowsTarget
     ) {
       return;
     }
@@ -299,21 +319,73 @@ const {
       });
     };
 
+    const renderVersionTable = (versionEvents) => {
+      if (!versions.length || versions.length === 1) {
+        versionTableWrap.hidden = true;
+        return;
+      }
+
+      const versionMap = new Map();
+
+      versionEvents.forEach((event) => {
+        const version = event.version || "draft";
+        const entry = versionMap.get(version) ?? {
+          version,
+          views: 0,
+          time: 0,
+          engagements: 0,
+          scroll: 0,
+        };
+        if (event.type === "pageview") entry.views += 1;
+        if (event.type === "engagement") {
+          entry.time += event.durationSeconds ?? 0;
+          entry.engagements += 1;
+          entry.scroll += event.scrollDepth ?? 0;
+        }
+        versionMap.set(version, entry);
+      });
+
+      const rows = Array.from(versionMap.values()).sort((a, b) => b.views - a.views);
+      versionRowsTarget.innerHTML = "";
+
+      rows.forEach((row) => {
+        const avgTime = row.engagements ? row.time / row.engagements : 0;
+        const avgScroll = row.engagements ? row.scroll / row.engagements : 0;
+        const dropOff = clamp(1 - avgScroll, 0, 1);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.version}</td>
+          <td>${row.views}</td>
+          <td>${formatSeconds(avgTime)}</td>
+          <td>${formatPercent(avgScroll)}</td>
+          <td>${formatPercent(dropOff)}</td>
+        `;
+        versionRowsTarget.appendChild(tr);
+      });
+
+      versionTableWrap.hidden = rows.length === 0;
+    };
+
     const filterEvents = () => {
       const selectedVersion = versionSelect.value;
       const startDate = new Date(startInput.value);
       const endDate = new Date(endInput.value);
       endDate.setHours(23, 59, 59, 999);
 
-      const filtered = events.filter((event) => {
-        if (selectedVersion !== "all" && event.version !== selectedVersion) return false;
+      const inRangeEvents = events.filter((event) => {
         const timestamp = event.timestamp;
         return timestamp >= startDate.getTime() && timestamp <= endDate.getTime();
       });
 
+      const filtered =
+        selectedVersion === "all"
+          ? inRangeEvents
+          : inRangeEvents.filter((event) => event.version === selectedVersion);
+
       if (!filtered.length) {
         emptyState.hidden = false;
         tableWrap.hidden = true;
+        versionTableWrap.hidden = true;
       } else {
         emptyState.hidden = true;
         tableWrap.hidden = false;
@@ -322,6 +394,12 @@ const {
       const summary = summarize(filtered);
       renderCards(summary);
       renderTable(summary.pageviews, summary.engagements);
+
+      if (selectedVersion === "all") {
+        renderVersionTable(inRangeEvents);
+      } else {
+        versionTableWrap.hidden = true;
+      }
     };
 
     fillVersions();

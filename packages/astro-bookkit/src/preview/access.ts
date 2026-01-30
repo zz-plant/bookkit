@@ -41,6 +41,7 @@ export type PreviewLinkBuildOptions = {
 
 export type PreviewAccessMiddlewareOptions = PreviewAccessConfig & {
   siteTitle?: string;
+  allowDev?: boolean;
 };
 
 const defaultCookieName = "preview_token";
@@ -203,10 +204,14 @@ export const createPreviewAccessMiddleware = (
     publicPaths = [],
     cookieMaxAgeDays = 7,
     siteTitle = "Preview",
+    allowDev = true,
   } = options;
 
   return async (context, next) => {
     if (!enabled) {
+      return next();
+    }
+    if (allowDev && import.meta.env?.DEV) {
       return next();
     }
 

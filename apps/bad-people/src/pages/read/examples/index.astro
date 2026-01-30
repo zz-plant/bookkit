@@ -1,32 +1,50 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
 
-const examples = Object.entries(
-  import.meta.glob("../../../content/book/examples/**/*.mdx", { eager: true })
-).map(([path, module]) => {
-  const slug = path.split("/examples/")[1].replace(/\\.mdx$/, "");
-  return {
-    slug,
-    title: module.frontmatter.title ?? "Untitled example",
-    mechanism: module.frontmatter.mechanism ?? "general",
-    domain: module.frontmatter.domain ?? "unknown",
-    status: module.frontmatter.status ?? "draft",
-  };
+const modules = import.meta.glob("../../../content/book/examples/**/*.mdx", { eager: true });
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
 });
-
-const sorted = examples.sort((a, b) => a.title.localeCompare(b.title));
-const exampleItems = sorted.map((example) => ({
+const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const examples = entries
+  .map(({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    return {
+      slug,
+      title: frontmatter.title ?? "Untitled example",
+      mechanism: frontmatter.mechanism ?? "general",
+      domain: frontmatter.domain ?? "unknown",
+      status: frontmatter.status ?? "draft",
+      isFallback,
+    };
+  })
+  .sort((a, b) => a.title.localeCompare(b.title));
+const exampleItems = examples.map((example) => ({
   href: `/read/examples/${example.slug}`,
-  title: example.title,
+  title: example.isFallback ? `${example.title} (fallback)` : example.title,
   eyebrow: example.status,
   meta: `${example.mechanism} • ${example.domain}`,
 }));
+const localizedLede =
+  typeof completeness === "number"
+    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
+    : null;
 ---
 <BaseLayout title="Examples • Bad People">
   <ContentIndexList
     title="Examples"
-    lede="Replaceable cases that ground each mechanism."
+    lede={
+      localizedLede
+        ? `Replaceable cases that ground each mechanism. ${localizedLede}`
+        : "Replaceable cases that ground each mechanism."
+    }
     items={exampleItems}
   />
 </BaseLayout>

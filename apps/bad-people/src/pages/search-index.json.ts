@@ -1,6 +1,7 @@
-import { createBookSearchIndexEndpoint } from "@bookkit/astro-bookkit";
+import { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "@bookkit/astro-bookkit";
+import type { APIContext } from "astro";
 
-const { GET } = createBookSearchIndexEndpoint({
+const modules = {
   chapters: import.meta.glob<string>("../content/book/chapters/*.mdx", {
     eager: true,
     as: "raw",
@@ -21,6 +22,17 @@ const { GET } = createBookSearchIndexEndpoint({
     eager: true,
     as: "raw",
   }),
+};
+
+const { GET: getDefault } = createBookSearchIndexEndpoint(modules);
+const { GET: getLocalized } = createLocalizedSearchIndexEndpoint(modules, {
+  defaultLocale: "en",
 });
 
-export { GET };
+export const GET: typeof getLocalized = (context: APIContext) => {
+  const url = new URL(context.request.url);
+  if (url.searchParams.has("locale")) {
+    return getLocalized(context);
+  }
+  return getDefault();
+};

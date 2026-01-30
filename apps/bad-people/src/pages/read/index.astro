@@ -1,21 +1,46 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
 
-const chapterModules = Object.values(
-  import.meta.glob("../../content/book/chapters/*.mdx", { eager: true })
+const chapterIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../content/book/chapters/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
 );
-const mechanismModules = Object.values(
-  import.meta.glob("../../content/book/mechanisms/*.mdx", { eager: true })
+const mechanismIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../content/book/mechanisms/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
 );
-const toolkitModules = Object.values(
-  import.meta.glob("../../content/book/toolkit/*.mdx", { eager: true })
+const toolkitIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../content/book/toolkit/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
 );
-const glossaryModules = Object.values(
-  import.meta.glob("../../content/book/glossary/*.mdx", { eager: true })
+const glossaryIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../content/book/glossary/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
 );
-const exampleModules = Object.values(
-  import.meta.glob("../../content/book/examples/*.mdx", { eager: true })
+const exampleIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../content/book/examples/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
 );
+const localeKey = Astro.locals?.locale;
+const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
+const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey });
+const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
+const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
+const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
 
 const sections = [
   {
@@ -29,35 +54,40 @@ const sections = [
     title: "Chapters",
     description: "Core modules and the intervention frame.",
     href: "/read/chapters",
-    count: chapterModules.length,
+    count: chapters.entries.length,
+    completeness: chapters.completeness,
     keyHint: ["g", "c"],
   },
   {
     title: "Mechanisms",
     description: "Named system patterns with stable definitions.",
     href: "/read/mechanisms",
-    count: mechanismModules.length,
+    count: mechanisms.entries.length,
+    completeness: mechanisms.completeness,
     keyHint: ["g", "m"],
   },
   {
     title: "Toolkit",
     description: "Action primitives that fit inside ten minutes.",
     href: "/read/toolkit",
-    count: toolkitModules.length,
+    count: toolkit.entries.length,
+    completeness: toolkit.completeness,
     keyHint: ["g", "t"],
   },
   {
     title: "Glossary",
     description: "Short definitions to keep shared language consistent.",
     href: "/read/glossary",
-    count: glossaryModules.length,
+    count: glossary.entries.length,
+    completeness: glossary.completeness,
     keyHint: ["g", "l"],
   },
   {
     title: "Examples",
     description: "Replaceable cases that ground the modules.",
     href: "/read/examples",
-    count: exampleModules.length,
+    count: examples.entries.length,
+    completeness: examples.completeness,
     keyHint: ["g", "e"],
   },
   {
@@ -79,10 +109,15 @@ const sections = [
     {sections.map((section) => {
       const label = section.count === 1 ? "item" : "items";
       const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
+      const completenessLabel =
+        typeof section.completeness === "number"
+          ? ` • ${Math.round(section.completeness * 100)}% translated`
+          : "";
       return (
         <a class="card" href={section.href} aria-keyshortcuts={keyShortcut}>
           <div class="eyebrow">
             {section.count} {label}
+            {completenessLabel}
           </div>
           <h2>{section.title}</h2>
           <p class="meta">{section.description}</p>

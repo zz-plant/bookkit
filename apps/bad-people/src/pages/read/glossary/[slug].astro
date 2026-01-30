@@ -1,25 +1,43 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+  resolveLocalizedModule,
+} from "@bookkit/astro-bookkit/localization";
 
 export async function getStaticPaths() {
-  const modules = Object.values(
-    import.meta.glob("../../../content/book/glossary/*.mdx", { eager: true })
-  );
+  const modules = import.meta.glob("../../../content/book/glossary/*.mdx", { eager: true });
+  const localizedIndex = buildLocalizedContentIndex(modules, {
+    defaultLocale: "en",
+  });
 
-  return modules.map((module) => ({
-    params: { slug: module.frontmatter.slug },
-    props: {
-      frontmatter: module.frontmatter,
-      Content: module.default,
-    },
+  return localizedIndex.slugs.map((slug) => ({
+    params: { slug },
   }));
 }
 
-const { frontmatter, Content } = Astro.props;
+const modules = import.meta.glob("../../../content/book/glossary/*.mdx", { eager: true });
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
+});
+const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+  locale: Astro.locals?.locale,
+});
+
+if (!module) {
+  throw new Error(`Missing glossary entry for slug: ${Astro.params.slug}`);
+}
+
+const { frontmatter, default: Content } = module;
+const isFallback = missingSlugs.includes(frontmatter.slug);
 ---
 <BaseLayout title={`${frontmatter.term} • Bad People`}>
   <a class="back-link" href="/read/glossary">← Glossary</a>
-  <div class="eyebrow">Glossary</div>
+  <div class="eyebrow">Glossary{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>
   <section class="content-block">
     <Content />

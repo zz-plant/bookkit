@@ -45,9 +45,9 @@ export type {
 } from "./releases/email";
 export { buildSearchEntries, createSearchIndexResponse } from "./search";
 export type { SearchContentSource, SearchEntry } from "./search";
-export { createBookSearchSources } from "./search/sources";
-export type { BookSearchModuleMap } from "./search/sources";
-export { createBookSearchIndexEndpoint } from "./search/endpoint";
+export { createBookSearchSources, createLocalizedSearchSources } from "./search/sources";
+export type { BookSearchModuleMap, LocalizedSearchOptions } from "./search/sources";
+export { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "./search/endpoint";
 export { createFeedbackEndpoint } from "./feedback/endpoint";
 export type { FeedbackEndpointOptions, FeedbackEvent } from "./feedback/endpoint";
 export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
@@ -97,6 +97,7 @@ export {
   formatLocaleLabel,
   resolveLocaleConfig,
   stripLocaleFromPath,
+  mergeLocaleCompleteness,
 } from "./localization";
 export type { LocaleEntry, LocaleRoutingOptions, LocaleMiddlewareOptions } from "./localization";
 export {

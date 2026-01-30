@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "astro";
 import { resolveLocaleConfig, stripLocaleFromPath, type LocaleEntry } from "./routes";
+import { ORIGINAL_URL_HEADER } from "../utils/request";
 
 export type LocaleMiddlewareOptions = {
   locales: LocaleEntry[];
@@ -24,6 +25,7 @@ export const createLocaleRoutingMiddleware = (
     if (typeof context.locals.originalUrl !== "string") {
       context.locals.originalUrl = context.request.url;
     }
+    const originalUrl = context.locals.originalUrl;
 
     const url = new URL(context.request.url);
     const { locale, pathWithoutLocale } = stripLocaleFromPath(url.pathname, localeCodes, {
@@ -37,7 +39,9 @@ export const createLocaleRoutingMiddleware = (
 
     if (locale && pathWithoutLocale !== url.pathname) {
       url.pathname = pathWithoutLocale;
-      return next(new Request(url, context.request));
+      const rewrittenRequest = new Request(url, context.request);
+      rewrittenRequest.headers.set(ORIGINAL_URL_HEADER, originalUrl);
+      return next(rewrittenRequest);
     }
 
     return next();

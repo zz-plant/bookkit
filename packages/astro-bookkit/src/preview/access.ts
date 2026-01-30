@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "astro";
+import { getOriginalUrl } from "../utils/request";
 
 export type PreviewTokenRecord = {
   token: string;
@@ -216,10 +217,8 @@ export const createPreviewAccessMiddleware = (
     }
 
     const url = new URL(context.request.url);
-    const redirectUrl =
-      typeof context.locals.originalUrl === "string"
-        ? new URL(context.locals.originalUrl)
-        : new URL(context.request.url);
+    const originalUrl = getOriginalUrl(context);
+    const redirectUrl = originalUrl ? new URL(originalUrl) : new URL(context.request.url);
     const pathname = url.pathname;
 
     if (matchesPath(pathname, publicPaths)) {

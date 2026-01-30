@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "astro";
 import { extractVersionFromPath, stripVersionFromPath, type BookVersionEntry } from "./versions";
+import { ORIGINAL_URL_HEADER } from "../utils/request";
 
 export type VersionRoutingOptions = {
   versions?: BookVersionEntry[];
@@ -23,6 +24,7 @@ export const createVersionRoutingMiddleware = (
     if (typeof context.locals.originalUrl !== "string") {
       context.locals.originalUrl = context.request.url;
     }
+    const originalUrl = context.locals.originalUrl;
 
     const url = new URL(context.request.url);
     const pathVersion = extractVersionFromPath(url.pathname, { prefixSegment });
@@ -33,7 +35,9 @@ export const createVersionRoutingMiddleware = (
       const strippedPath = stripVersionFromPath(url.pathname, { prefixSegment });
       if (strippedPath !== url.pathname) {
         url.pathname = strippedPath;
-        return next(new Request(url, context.request));
+        const rewrittenRequest = new Request(url, context.request);
+        rewrittenRequest.headers.set(ORIGINAL_URL_HEADER, originalUrl);
+        return next(rewrittenRequest);
       }
       return next();
     }

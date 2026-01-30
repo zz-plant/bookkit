@@ -16,3 +16,7 @@ export type {
   PreviewLinkStatus,
   PreviewTokenRecord,
 } from "./access";
+export { getPreviewAnalyticsLogPath, recordPreviewEvent } from "./analytics";
+export type { PreviewAnalyticsEvent } from "./analytics";
+export { createPreviewAnalyticsEndpoint } from "./endpoint";
+export type { PreviewAnalyticsEndpointOptions } from "./endpoint";

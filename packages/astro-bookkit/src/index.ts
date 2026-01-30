@@ -99,9 +99,12 @@ export type { LocaleEntry, LocaleRoutingOptions, LocaleMiddlewareOptions } from 
 export {
   buildPreviewLink,
   createPreviewAccessMiddleware,
+  createPreviewAnalyticsEndpoint,
   createPreviewLinks,
   getPreviewContext,
+  getPreviewAnalyticsLogPath,
   getPreviewTokenHint,
+  recordPreviewEvent,
   resolvePreviewLinks,
   resolvePreviewToken,
 } from "./preview";
@@ -110,6 +113,8 @@ export type {
   PreviewAccessMiddlewareOptions,
   PreviewAccessState,
   PreviewAccessStatus,
+  PreviewAnalyticsEndpointOptions,
+  PreviewAnalyticsEvent,
   PreviewLinkBuildOptions,
   PreviewLinkStatus,
   PreviewTokenRecord,

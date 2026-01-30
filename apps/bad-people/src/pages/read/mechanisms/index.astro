@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 
 const mechanisms = Object.values(
   import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true })
@@ -10,19 +11,16 @@ const mechanisms = Object.values(
     definition: module.frontmatter.definition ?? "",
   }))
   .sort((a, b) => a.title.localeCompare(b.title));
+const mechanismItems = mechanisms.map((mechanism) => ({
+  href: `/read/mechanisms/${mechanism.slug}`,
+  title: mechanism.title,
+  meta: mechanism.definition,
+}));
 ---
 <BaseLayout title="Mechanisms • Bad People">
-  <a class="back-link" href="/read">← Reading hub</a>
-  <div class="section-header">
-    <h1>Mechanisms</h1>
-    <p class="lede">Stable patterns that explain how harm stays normalized.</p>
-  </div>
-  <div class="stack">
-    {mechanisms.map((mechanism) => (
-      <a class="list-link" href={`/read/mechanisms/${mechanism.slug}`}>
-        <strong>{mechanism.title}</strong>
-        <span class="meta">{mechanism.definition}</span>
-      </a>
-    ))}
-  </div>
+  <ContentIndexList
+    title="Mechanisms"
+    lede="Stable patterns that explain how harm stays normalized."
+    items={mechanismItems}
+  />
 </BaseLayout>

@@ -1,0 +1,33 @@
+---
+export type ContentIndexItem = {
+  href: string;
+  title: string;
+  eyebrow?: string | null;
+  meta?: string | null;
+};
+
+const {
+  title,
+  lede,
+  items = [],
+  backHref = "/read",
+  backLabel = "Reading hub",
+} = Astro.props;
+
+const resolvedItems = Array.isArray(items) ? items : [];
+---
+<a class="back-link" href={backHref}>← {backLabel}</a>
+<div class="section-header">
+  <h1>{title}</h1>
+  {lede && <p class="lede">{lede}</p>}
+</div>
+<slot name="after-header" />
+<div class="stack">
+  {resolvedItems.map((item) => (
+    <a class="list-link" href={item.href}>
+      {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+      <strong>{item.title}</strong>
+      {item.meta && <span class="meta">{item.meta}</span>}
+    </a>
+  ))}
+</div>

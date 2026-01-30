@@ -13,6 +13,7 @@
     "./preview": "./src/preview/index.ts",
     "./components/PreviewLinksPanel.astro": "./src/components/PreviewLinksPanel.astro",
     "./components/ExportPanel.astro": "./src/components/ExportPanel.astro",
+    "./components/ContentIndexList.astro": "./src/components/ContentIndexList.astro",
     "./components/AnalyticsDashboard.astro": "./src/components/AnalyticsDashboard.astro",
     "./components/FeedbackDashboard.astro": "./src/components/FeedbackDashboard.astro",
     "./components/ReleaseNotesPage.astro": "./src/components/ReleaseNotesPage.astro",

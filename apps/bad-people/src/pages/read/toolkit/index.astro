@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 
 const tools = Object.values(
   import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true })
@@ -11,21 +12,16 @@ const tools = Object.values(
     timebox: module.frontmatter.timeboxMinutes ?? 10,
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
+const toolItems = tools.map((tool) => ({
+  href: `/read/toolkit/${tool.slug}`,
+  title: tool.name,
+  meta: `${tool.mechanism} • ${tool.timebox} min`,
+}));
 ---
 <BaseLayout title="Toolkit • Bad People">
-  <a class="back-link" href="/read">← Reading hub</a>
-  <div class="section-header">
-    <h1>Toolkit</h1>
-    <p class="lede">Action primitives designed to be executed in ≤10 minutes.</p>
-  </div>
-  <div class="stack">
-    {tools.map((tool) => (
-      <a class="list-link" href={`/read/toolkit/${tool.slug}`}>
-        <strong>{tool.name}</strong>
-        <span class="meta">
-          {tool.mechanism} • {tool.timebox} min
-        </span>
-      </a>
-    ))}
-  </div>
+  <ContentIndexList
+    title="Toolkit"
+    lede="Action primitives designed to be executed in ≤10 minutes."
+    items={toolItems}
+  />
 </BaseLayout>

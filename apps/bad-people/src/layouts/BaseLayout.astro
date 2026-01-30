@@ -1,6 +1,13 @@
 ---
 import BookLayout from "@bookkit/astro-bookkit/layouts/BookLayout.astro";
-import { buildSeoProps, extractVersionFromPath, getPreviewContext } from "@bookkit/astro-bookkit";
+import {
+  buildSeoProps,
+  extractVersionFromPath,
+  getPreviewContext,
+  buildLocalizedContentIndex,
+  calculateLocaleCompleteness,
+  mergeLocaleCompleteness,
+} from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 import { getVersionEntries } from "../lib/versions";
 
@@ -34,6 +41,33 @@ const pathVersion = extractVersionFromPath(originalUrl?.pathname ?? Astro.url.pa
 });
 const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version;
 const resolvedVersion = Astro.locals?.bookVersion ?? pathVersion ?? latestVersion ?? bookConfig.status;
+const localeIndexes = [
+  buildLocalizedContentIndex(import.meta.glob("../content/book/chapters/*.mdx", { eager: true }), {
+    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
+  }),
+  buildLocalizedContentIndex(
+    import.meta.glob("../content/book/mechanisms/*.mdx", { eager: true }),
+    {
+      defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
+    }
+  ),
+  buildLocalizedContentIndex(import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }), {
+    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
+  }),
+  buildLocalizedContentIndex(import.meta.glob("../content/book/glossary/*.mdx", { eager: true }), {
+    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
+  }),
+  buildLocalizedContentIndex(import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }), {
+    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
+  }),
+];
+const localeCompleteness = calculateLocaleCompleteness(localeIndexes, {
+  locales: bookConfig.localization?.locales?.map((locale) => locale.code) ?? [],
+});
+const resolvedLocales = mergeLocaleCompleteness(
+  bookConfig.localization?.locales ?? [],
+  localeCompleteness
+);
 ---
 <BookLayout
   title={title}
@@ -42,7 +76,7 @@ const resolvedVersion = Astro.locals?.bookVersion ?? pathVersion ?? latestVersio
   bookKey={bookConfig.slug ?? "book"}
   aiQaEnabled={bookConfig.features?.aiQa ?? true}
   versions={versionEntries}
-  locales={bookConfig.localization?.locales}
+  locales={resolvedLocales}
   currentLocale={Astro.locals?.locale}
   defaultLocale={bookConfig.localization?.defaultLocale}
   includeDefaultLocalePrefix={bookConfig.localization?.includeDefaultPrefix ?? false}

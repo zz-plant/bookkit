@@ -1,27 +1,48 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
 
-const tools = Object.values(
-  import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true })
-)
-  .map((module) => ({
-    slug: module.frontmatter.slug,
-    name: module.frontmatter.name ?? "Untitled action",
-    mechanism: module.frontmatter.mechanism ?? "general",
-    timebox: module.frontmatter.timeboxMinutes ?? 10,
-  }))
+const modules = import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true });
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
+});
+const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const tools = entries
+  .map(({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    return {
+      slug,
+      name: frontmatter.name ?? "Untitled action",
+      mechanism: frontmatter.mechanism ?? "general",
+      timebox: frontmatter.timeboxMinutes ?? 10,
+      isFallback,
+    };
+  })
   .sort((a, b) => a.name.localeCompare(b.name));
 const toolItems = tools.map((tool) => ({
   href: `/read/toolkit/${tool.slug}`,
-  title: tool.name,
+  title: tool.isFallback ? `${tool.name} (fallback)` : tool.name,
   meta: `${tool.mechanism} • ${tool.timebox} min`,
 }));
+const localizedLede =
+  typeof completeness === "number"
+    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
+    : null;
 ---
 <BaseLayout title="Toolkit • Bad People">
   <ContentIndexList
     title="Toolkit"
-    lede="Action primitives designed to be executed in ≤10 minutes."
+    lede={
+      localizedLede
+        ? `Action primitives designed to be executed in ≤10 minutes. ${localizedLede}`
+        : "Action primitives designed to be executed in ≤10 minutes."
+    }
     items={toolItems}
   />
 </BaseLayout>

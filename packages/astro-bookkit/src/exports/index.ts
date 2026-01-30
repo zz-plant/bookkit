@@ -8,6 +8,7 @@ export type ExportChapter = {
   title: string;
   body: string;
   description?: string;
+  locale?: string;
 };
 
 export type ExportBundle = {
@@ -161,21 +162,18 @@ const markdownToHtml = (body: string, chapterSlugs?: string[]) => {
   return rewriteLinks(output.join("\n"));
 };
 
-const buildChapterSlug = (path: string) => {
-  return path.split("/").pop()?.replace(/\.mdx?$/, "") ?? "chapter";
-};
-
 export const buildExportChapters = (modules: Record<string, string>): ExportChapter[] => {
   return Object.entries(modules)
     .sort(([pathA], [pathB]) => pathA.localeCompare(pathB))
     .map(([path, raw]) => {
       const { data, body } = parseFrontmatter(raw);
-      const slug = data.slug ?? buildChapterSlug(path);
+      const slug = data.slug ?? path.split("/").pop()?.replace(/\.mdx?$/, "") ?? "chapter";
       return {
         slug,
         title: data.title ?? slug,
         body,
         description: data.summary ?? data.description,
+        locale: data.locale ?? undefined,
       };
     })
     .filter((chapter) => chapter.slug);
@@ -221,7 +219,7 @@ const buildChapterHtml = (chapter: ExportChapter, chapterSlugs?: string[]) => {
   const content = markdownToHtml(chapter.body, chapterSlugs);
   return `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="${escapeHtml(chapter.locale ?? "en")}">
   <head>
     <title>${escapeHtml(chapter.title)}</title>
     <link rel="stylesheet" href="../styles.css" />

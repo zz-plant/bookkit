@@ -1,24 +1,45 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
 
-const entries = Object.values(
-  import.meta.glob("../../../content/book/glossary/*.mdx", { eager: true })
-)
-  .map((module) => ({
-    slug: module.frontmatter.slug,
-    term: module.frontmatter.term ?? "Untitled term",
-  }))
+const modules = import.meta.glob("../../../content/book/glossary/*.mdx", { eager: true });
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
+});
+const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const glossaryEntries = entries
+  .map(({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    return {
+      slug,
+      term: frontmatter.term ?? "Untitled term",
+      isFallback,
+    };
+  })
   .sort((a, b) => a.term.localeCompare(b.term));
-const entryItems = entries.map((entry) => ({
+const entryItems = glossaryEntries.map((entry) => ({
   href: `/read/glossary/${entry.slug}`,
-  title: entry.term,
+  title: entry.isFallback ? `${entry.term} (fallback)` : entry.term,
 }));
+const localizedLede =
+  typeof completeness === "number"
+    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
+    : null;
 ---
 <BaseLayout title="Glossary • Bad People">
   <ContentIndexList
     title="Glossary"
-    lede="Shared language that keeps mechanisms stable."
+    lede={
+      localizedLede
+        ? `Shared language that keeps mechanisms stable. ${localizedLede}`
+        : "Shared language that keeps mechanisms stable."
+    }
     items={entryItems}
   />
 </BaseLayout>

@@ -1,26 +1,47 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
 
-const mechanisms = Object.values(
-  import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true })
-)
-  .map((module) => ({
-    slug: module.frontmatter.slug,
-    title: module.frontmatter.title ?? "Untitled mechanism",
-    definition: module.frontmatter.definition ?? "",
-  }))
+const modules = import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true });
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
+});
+const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const mechanisms = entries
+  .map(({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    return {
+      slug,
+      title: frontmatter.title ?? "Untitled mechanism",
+      definition: frontmatter.definition ?? "",
+      isFallback,
+    };
+  })
   .sort((a, b) => a.title.localeCompare(b.title));
 const mechanismItems = mechanisms.map((mechanism) => ({
   href: `/read/mechanisms/${mechanism.slug}`,
   title: mechanism.title,
-  meta: mechanism.definition,
+  meta: mechanism.isFallback ? `${mechanism.definition} (fallback)` : mechanism.definition,
 }));
+const localizedLede =
+  typeof completeness === "number"
+    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
+    : null;
 ---
 <BaseLayout title="Mechanisms • Bad People">
   <ContentIndexList
     title="Mechanisms"
-    lede="Stable patterns that explain how harm stays normalized."
+    lede={
+      localizedLede
+        ? `Stable patterns that explain how harm stays normalized. ${localizedLede}`
+        : "Stable patterns that explain how harm stays normalized."
+    }
     items={mechanismItems}
   />
 </BaseLayout>

@@ -52,7 +52,10 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
     <ul>
       {mechanisms.map((mechanism) => (
         <li>
-          <strong>{mechanism.slug}:</strong> {mechanism.focus}
+          <strong>
+            <a href={`/read/mechanisms/${mechanism.slug}`}>{mechanism.slug}</a>:
+          </strong>{" "}
+          {mechanism.focus}
         </li>
       ))}
     </ul>

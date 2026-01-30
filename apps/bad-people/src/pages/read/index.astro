@@ -30,7 +30,7 @@ const glossaryIndex = buildLocalizedContentIndex(
   }
 );
 const exampleIndex = buildLocalizedContentIndex(
-  import.meta.glob("../../content/book/examples/*.mdx", { eager: true }),
+  import.meta.glob("../../content/book/examples/**/*.mdx", { eager: true }),
   {
     defaultLocale: "en",
   }
@@ -95,6 +95,7 @@ const sections = [
     description: "Author-only engagement dashboard and drop-off insights.",
     href: "/read/analytics",
     count: 1,
+    badge: "Author-only",
   },
 ];
 ---
@@ -119,6 +120,7 @@ const sections = [
             {section.count} {label}
             {completenessLabel}
           </div>
+          {section.badge && <span class="pill">{section.badge}</span>}
           <h2>{section.title}</h2>
           <p class="meta">{section.description}</p>
           {section.keyHint && (

@@ -35,6 +35,41 @@ if (!module) {
 const { frontmatter, default: Content } = module;
 const metaDescription = frontmatter.definition;
 const isFallback = missingSlugs.includes(frontmatter.slug);
+const hasPredictions =
+  Array.isArray(frontmatter.predictions) && frontmatter.predictions.length > 0;
+const hasTests = Array.isArray(frontmatter.tests) && frontmatter.tests.length > 0;
+const hasIs = Array.isArray(frontmatter.is) && frontmatter.is.length > 0;
+const hasIsNot = Array.isArray(frontmatter.isNot) && frontmatter.isNot.length > 0;
+const toolkitIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const exampleIndex = buildLocalizedContentIndex(
+  import.meta.glob("../../../content/book/examples/**/*.mdx", { eager: true }),
+  {
+    defaultLocale: "en",
+  }
+);
+const { entries: toolkitEntries } = resolveLocalizedContent(toolkitIndex, {
+  locale: Astro.locals?.locale,
+});
+const { entries: exampleEntries } = resolveLocalizedContent(exampleIndex, {
+  locale: Astro.locals?.locale,
+});
+const relatedToolkit = toolkitEntries
+  .map(({ slug, module: toolkitModule }) => ({
+    slug,
+    frontmatter: toolkitModule.frontmatter ?? {},
+  }))
+  .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
+const relatedExamples = exampleEntries
+  .map(({ slug, module: exampleModule }) => ({
+    slug,
+    frontmatter: exampleModule.frontmatter ?? {},
+  }))
+  .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
 ---
 <BaseLayout title={`${frontmatter.title} • Bad People`} description={metaDescription}>
   <a class="back-link" href="/read/mechanisms">← Mechanisms</a>
@@ -44,4 +79,82 @@ const isFallback = missingSlugs.includes(frontmatter.slug);
   <section class="content-block">
     <Content />
   </section>
+  {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+    <section class="content-block">
+      <h2>How to recognize it</h2>
+      {hasIs && (
+        <>
+          <div class="eyebrow">This is</div>
+          <ul>
+            {frontmatter.is.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasIsNot && (
+        <>
+          <div class="eyebrow">This is not</div>
+          <ul>
+            {frontmatter.isNot.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasPredictions && (
+        <>
+          <div class="eyebrow">Predictions</div>
+          <ul>
+            {frontmatter.predictions.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasTests && (
+        <>
+          <div class="eyebrow">Quick tests</div>
+          <ul>
+            {frontmatter.tests.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  )}
+  {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+    <section class="content-block">
+      <h2>Next steps</h2>
+      {relatedToolkit.length > 0 && (
+        <>
+          <div class="eyebrow">Related actions</div>
+          <div class="stack">
+            {relatedToolkit.map((entry) => (
+              <a class="list-link" href={`/read/toolkit/${entry.slug}`}>
+                <strong>{entry.frontmatter.name ?? "Untitled action"}</strong>
+                <span class="meta">
+                  {entry.frontmatter.timeboxMinutes ?? 10} min
+                </span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+      {relatedExamples.length > 0 && (
+        <>
+          <div class="eyebrow">Related examples</div>
+          <div class="stack">
+            {relatedExamples.map((entry) => (
+              <a class="list-link" href={`/read/examples/${entry.slug}`}>
+                <strong>{entry.frontmatter.title ?? "Untitled example"}</strong>
+                <span class="meta">{entry.frontmatter.domain ?? "unknown domain"}</span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )}
 </BaseLayout>

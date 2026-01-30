@@ -7,6 +7,7 @@ export type BookSeoDefaults = {
 
 export type BookSeoConfig = {
   url?: string;
+  domains?: string[];
   enforceHttps?: boolean;
   indexable?: boolean;
   defaultMeta?: BookSeoDefaults;
@@ -36,6 +37,13 @@ const resolveOgImage = (image: string | undefined, siteUrl?: string): string | u
   return buildAbsoluteUrl(siteUrl, image);
 };
 
+export const resolveSiteUrl = (site?: BookSeoConfig): string | undefined => {
+  const candidate = site?.url ?? site?.domains?.[0];
+  if (!candidate) return undefined;
+  const normalized = normalizeSiteUrl(candidate, site?.enforceHttps);
+  return normalized || undefined;
+};
+
 export const buildSeoProps = ({
   site,
   description,
@@ -46,7 +54,7 @@ export const buildSeoProps = ({
   canonicalPath,
   canonicalUrl,
 }: SeoInput & { site?: BookSeoConfig }): SeoProps => {
-  const siteUrl = site?.url ? normalizeSiteUrl(site.url, site.enforceHttps) : undefined;
+  const siteUrl = resolveSiteUrl(site);
   const resolvedDescription = description ?? site?.defaultMeta?.description;
   const resolvedOgImage = resolveOgImage(ogImage ?? site?.defaultMeta?.ogImage, siteUrl);
   const resolvedRobots = robots ?? (site?.indexable === false ? "noindex, nofollow" : undefined);

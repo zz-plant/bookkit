@@ -50,10 +50,16 @@ export type {
   ExportLinkOptions,
   ExportMetadata,
 } from "./exports";
-export { buildSeoProps } from "./seo/config";
+export { buildSeoProps, resolveSiteUrl } from "./seo/config";
 export type { BookSeoConfig, BookSeoDefaults, SeoInput, SeoProps } from "./seo/config";
 export { buildAbsoluteUrl, normalizeSiteUrl } from "./seo/urls";
 export type { SiteUrlOptions } from "./seo/urls";
+export {
+  DEFAULT_BOOK_SITEMAP_PATHS,
+  createBookRobotsTxt,
+  createBookSitemapEntries,
+} from "./seo/book";
+export type { BookRobotsOptions, BookSitemapContentModules, BookSitemapOptions } from "./seo/book";
 export { createSitemapXml } from "./seo/sitemap";
 export type { SitemapEntry } from "./seo/sitemap";
 export { createRobotsTxt } from "./seo/robots";

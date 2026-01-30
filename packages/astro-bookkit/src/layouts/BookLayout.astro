@@ -15,6 +15,12 @@ const {
   ogTitle,
   ogDescription,
   robots,
+  aiQaEnabled = true,
+  aiQaSamples = [
+    "What is the core mechanism behind transfer success?",
+    "How do I spot a compliance trap in an organization?",
+    "Which actions help reverse moral technology?",
+  ],
   isPreview = false,
   previewLabel = "Preview",
   previewTokenHint,
@@ -43,6 +49,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
   <body
     data-book-version={bookVersion}
     data-analytics-key={bookKey}
+    data-qa-enabled={aiQaEnabled ? "true" : "false"}
     data-preview={isPreview ? "true" : "false"}
     data-preview-hint={previewTokenHint}
     data-preview-expires={previewExpiresAt}
@@ -67,6 +74,17 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           >
             Search <span aria-hidden="true">⌘K</span>
           </button>
+          {aiQaEnabled && (
+            <button
+              class="qa-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="qa-panel"
+              data-qa-toggle
+            >
+              Ask <span aria-hidden="true">AI</span>
+            </button>
+          )}
           <button
             class="kbd-toggle"
             type="button"
@@ -124,6 +142,69 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           </div>
         </div>
       </div>
+      {aiQaEnabled && (
+        <div class="qa-panel" id="qa-panel" data-qa-panel hidden>
+          <div
+            class="qa-panel__content"
+            role="dialog"
+            aria-modal="false"
+            aria-label="Ask about the book"
+            data-qa-content
+          >
+            <div class="qa-panel__header">
+              <strong>Ask the book</strong>
+              <div class="qa-panel__actions">
+                <button type="button" class="qa-panel__toggle" data-qa-disable>
+                  Disable AI Q&amp;A
+                </button>
+                <button type="button" class="kbd-close" data-qa-close aria-label="Close AI Q&A">
+                  Esc
+                </button>
+              </div>
+            </div>
+            <div class="qa-panel__body" data-qa-body>
+              <p class="meta">
+                This assistant matches your question to passages in the book. Responses are grounded in cited
+                sections and won’t include external knowledge.
+              </p>
+              <form class="qa-panel__form" data-qa-form>
+                <label class="qa-panel__field">
+                  <span class="sr-only">Ask a question about the book</span>
+                  <textarea
+                    rows="2"
+                    placeholder="Ask a question about the book..."
+                    autocomplete="off"
+                    spellcheck="false"
+                    data-qa-input
+                  ></textarea>
+                </label>
+                <button type="submit" class="qa-panel__submit">Get answer</button>
+              </form>
+              <div class="qa-panel__meta" data-qa-status>Try a question to see cited answers.</div>
+              <div class="qa-panel__suggestions">
+                <div class="eyebrow">Sample prompts</div>
+                <div class="qa-panel__suggestion-list">
+                  {aiQaSamples.map((prompt) => (
+                    <button type="button" class="qa-panel__suggestion" data-qa-suggestion>
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div class="qa-panel__answer" data-qa-answer>
+                <p class="meta">No answer yet.</p>
+              </div>
+              <div class="qa-panel__citations" data-qa-citations></div>
+            </div>
+            <div class="qa-panel__disabled" data-qa-disabled hidden>
+              <p>AI Q&amp;A is disabled for this book in your browser.</p>
+              <button type="button" class="qa-panel__submit" data-qa-enable>
+                Re-enable AI Q&amp;A
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div class="keyboard-help" id="keyboard-help" data-kbd-panel hidden>
         <div
           class="keyboard-help__content"
@@ -214,6 +295,20 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
       const searchResults = document.querySelector("[data-search-results]");
       const searchStatus = document.querySelector("[data-search-status]");
       const searchEmpty = document.querySelector("[data-search-empty]");
+      const qaPanel = document.querySelector("[data-qa-panel]");
+      const qaToggle = document.querySelector("[data-qa-toggle]");
+      const qaClose = document.querySelector("[data-qa-close]");
+      const qaForm = document.querySelector("[data-qa-form]");
+      const qaInput = document.querySelector("[data-qa-input]");
+      const qaAnswer = document.querySelector("[data-qa-answer]");
+      const qaCitations = document.querySelector("[data-qa-citations]");
+      const qaStatus = document.querySelector("[data-qa-status]");
+      const qaBody = document.querySelector("[data-qa-body]");
+      const qaDisabledPanel = document.querySelector("[data-qa-disabled]");
+      const qaDisableButton = document.querySelector("[data-qa-disable]");
+      const qaEnableButton = document.querySelector("[data-qa-enable]");
+      const qaSuggestions = Array.from(document.querySelectorAll("[data-qa-suggestion]"));
+      const qaEnabled = document.body?.dataset?.qaEnabled === "true";
       let lastFocused = null;
       let pendingSequence = null;
       let sequenceTimeout = null;
@@ -221,8 +316,11 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
       let searchIndex = null;
       let searchQuery = "";
       let searchTimeout = null;
+      let qaQuery = "";
       const searchAnalyticsKey = `${analyticsKeyPrefix}.search.analytics`;
       const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
+      const qaAnalyticsKey = `${analyticsKeyPrefix}.qa.analytics`;
+      const qaDisabledKey = `${analyticsKeyPrefix}.qa.disabled`;
 
       const headingSelector = "main h2, main h3";
       const headings = Array.from(document.querySelectorAll(headingSelector));
@@ -361,6 +459,107 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
         return searchIndex;
       };
 
+      const recordQaEvent = (payload) => {
+        const event = { ...payload, ts: Date.now() };
+        const existing = JSON.parse(localStorage.getItem(qaAnalyticsKey) ?? "[]");
+        existing.push(event);
+        localStorage.setItem(qaAnalyticsKey, JSON.stringify(existing.slice(-120)));
+        window.dispatchEvent(new CustomEvent("book-qa", { detail: event }));
+      };
+
+      const isQaDisabled = () => localStorage.getItem(qaDisabledKey) === "true";
+
+      const setQaDisabled = (value) => {
+        localStorage.setItem(qaDisabledKey, value ? "true" : "false");
+      };
+
+      const updateQaState = () => {
+        if (!qaEnabled || !qaPanel) return;
+        const disabled = isQaDisabled();
+        qaPanel.classList.toggle("is-disabled", disabled);
+        qaBody?.toggleAttribute("hidden", disabled);
+        qaDisabledPanel?.toggleAttribute("hidden", !disabled);
+        qaDisableButton?.toggleAttribute("disabled", disabled);
+      };
+
+      const updateQaStatus = (message) => {
+        if (qaStatus) qaStatus.textContent = message;
+      };
+
+      const renderQaAnswer = (results, tokens) => {
+        if (!qaAnswer || !qaCitations) return;
+        qaCitations.innerHTML = "";
+        if (!results.length) {
+          qaAnswer.innerHTML = "<p>No answer found. Try rephrasing or using fewer words.</p>";
+          return;
+        }
+        const answerText = results[0]?.snippet ?? "No answer found.";
+        qaAnswer.innerHTML = `
+          <p>${escapeHtml(answerText)}</p>
+          <p class="meta">Answer assembled from ${results.length} cited passage${results.length === 1 ? "" : "s"}.</p>
+        `;
+        const citationItems = results
+          .map(
+            (entry) => `
+              <li>
+                <a href="${entry.url}" data-qa-citation-id="${entry.id}">
+                  ${escapeHtml(entry.context)} — ${escapeHtml(entry.title)}
+                </a>
+                <p>${highlightText(entry.snippet, tokens)}</p>
+              </li>
+            `
+          )
+          .join("");
+        qaCitations.innerHTML = `
+          <h3>Sources</h3>
+          <ol class="qa-panel__citation-list">
+            ${citationItems}
+          </ol>
+        `;
+      };
+
+      const runQa = async (value) => {
+        if (!qaEnabled) return;
+        if (isQaDisabled()) {
+          updateQaStatus("AI Q&A is disabled.");
+          return;
+        }
+        const index = await loadSearchIndex();
+        qaQuery = value;
+        const query = value.trim().toLowerCase();
+        if (!query) {
+          updateQaStatus("Ask a question to see answers.");
+          qaAnswer && (qaAnswer.innerHTML = "<p class='meta'>No answer yet.</p>");
+          qaCitations && (qaCitations.innerHTML = "");
+          return;
+        }
+        const tokens = query.split(/\s+/).filter(Boolean);
+        const results = index
+          .map((entry) => ({
+            ...entry,
+            searchText: `${entry.title} ${entry.snippet} ${entry.context}`.toLowerCase(),
+          }))
+          .filter((entry) => tokens.every((token) => entry.searchText.includes(token)))
+          .map((entry) => {
+            const score = tokens.reduce((total, token) => {
+              const titleBoost = entry.title.toLowerCase().includes(token) ? 4 : 0;
+              const contextBoost = entry.context.toLowerCase().includes(token) ? 2 : 0;
+              return total + titleBoost + contextBoost + 1;
+            }, 0);
+            return { ...entry, score };
+          })
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+
+        renderQaAnswer(results, tokens);
+        updateQaStatus(
+          results.length
+            ? `${results.length} cited passage${results.length === 1 ? "" : "s"} returned.`
+            : "No citations found."
+        );
+        recordQaEvent({ type: "question", query, matches: results.length });
+      };
+
       const openSearch = async () => {
         if (!searchPanel) return;
         lastFocused = document.activeElement;
@@ -394,6 +593,40 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
           openSearch();
         } else {
           closeSearch();
+        }
+      };
+
+      const openQa = async () => {
+        if (!qaEnabled || !qaPanel) return;
+        lastFocused = document.activeElement;
+        qaPanel.hidden = false;
+        qaPanel.classList.add("is-open");
+        qaToggle?.setAttribute("aria-expanded", "true");
+        updateQaState();
+        await loadSearchIndex();
+        window.requestAnimationFrame(() => {
+          if (qaInput && !isQaDisabled()) {
+            qaInput.value = qaQuery;
+            qaInput.focus({ preventScroll: true });
+            qaInput.select?.();
+          }
+        });
+      };
+
+      const closeQa = () => {
+        if (!qaPanel) return;
+        qaPanel.hidden = true;
+        qaPanel.classList.remove("is-open");
+        qaToggle?.setAttribute("aria-expanded", "false");
+        lastFocused?.focus?.();
+      };
+
+      const toggleQa = () => {
+        if (!qaPanel) return;
+        if (qaPanel.hidden) {
+          openQa();
+        } else {
+          closeQa();
         }
       };
 
@@ -502,10 +735,53 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
         recordSearchEvent({ type: "click", id: target.dataset.searchId, query: searchQuery });
         closeSearch();
       });
+      qaToggle?.addEventListener("click", toggleQa);
+      qaClose?.addEventListener("click", closeQa);
+      qaPanel?.addEventListener("click", (event) => {
+        if (event.target instanceof HTMLElement && !event.target.closest("[data-qa-content]")) {
+          closeQa();
+        }
+      });
+      qaForm?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = qaInput instanceof HTMLTextAreaElement ? qaInput.value : "";
+        runQa(value);
+      });
+      qaInput?.addEventListener("input", (event) => {
+        qaQuery = event.target instanceof HTMLTextAreaElement ? event.target.value : "";
+      });
+      qaDisableButton?.addEventListener("click", () => {
+        setQaDisabled(true);
+        updateQaState();
+        recordQaEvent({ type: "opt_out", enabled: false });
+      });
+      qaEnableButton?.addEventListener("click", () => {
+        setQaDisabled(false);
+        updateQaState();
+        recordQaEvent({ type: "opt_in", enabled: true });
+        if (qaInput && qaInput instanceof HTMLTextAreaElement) {
+          qaInput.focus({ preventScroll: true });
+        }
+      });
+      qaSuggestions.forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!qaInput || !(qaInput instanceof HTMLTextAreaElement)) return;
+          qaInput.value = button.textContent?.trim() ?? "";
+          runQa(qaInput.value);
+          qaInput.focus({ preventScroll: true });
+        });
+      });
+      qaCitations?.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("a") : null;
+        if (!target) return;
+        recordQaEvent({ type: "citation_click", id: target.dataset.qaCitationId, query: qaQuery });
+        closeQa();
+      });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           closeSearch();
+          closeQa();
           closeHelp();
           return;
         }

@@ -17,6 +17,7 @@
     "./layouts/BookLayout.astro": "./src/layouts/BookLayout.astro",
     "./styles/bookkit.css": "./src/styles/bookkit.css",
     "./search": "./src/search/index.ts",
-    "./exports": "./src/exports/index.ts"
+    "./exports": "./src/exports/index.ts",
+    "./localization": "./src/localization/index.ts"
   }
 }

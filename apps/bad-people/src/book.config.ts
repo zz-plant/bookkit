@@ -12,6 +12,24 @@ export const bookConfig = {
       ogImage: "/og/default.svg",
     },
   },
+  localization: {
+    defaultLocale: "en",
+    includeDefaultPrefix: false,
+    label: "Language",
+    locales: [
+      {
+        code: "en",
+        label: "English",
+        isDefault: true,
+        completeness: 1,
+      },
+      {
+        code: "es",
+        label: "Español",
+        completeness: 0.65,
+      },
+    ],
+  },
   previewAccess: {
     enabled: true,
     paramName: "preview",

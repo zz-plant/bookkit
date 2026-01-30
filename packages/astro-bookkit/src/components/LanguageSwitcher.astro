@@ -1,0 +1,92 @@
+---
+import {
+  buildLocalePath,
+  formatLocaleLabel,
+  resolveLocaleConfig,
+  stripLocaleFromPath,
+  type LocaleEntry,
+} from "../localization/routes";
+
+const {
+  locales = [],
+  currentPath = Astro.url.pathname,
+  currentLocale,
+  defaultLocale,
+  includeDefaultPrefix = false,
+  label = "Language",
+} = Astro.props as {
+  locales?: LocaleEntry[];
+  currentPath?: string;
+  currentLocale?: string;
+  defaultLocale?: string;
+  includeDefaultPrefix?: boolean;
+  label?: string;
+};
+
+const localeEntries = Array.isArray(locales) ? locales : [];
+const localeCodes = localeEntries.map((entry) => entry.code).filter(Boolean);
+const { defaultLocale: resolvedDefault } = resolveLocaleConfig(localeEntries, {
+  defaultLocale,
+});
+const { locale: detectedLocale, pathWithoutLocale } = stripLocaleFromPath(currentPath, localeCodes, {
+  defaultLocale: resolvedDefault,
+  includeDefaultPrefix,
+});
+const activeLocale = currentLocale ?? detectedLocale ?? resolvedDefault ?? localeCodes[0];
+const basePath = pathWithoutLocale ?? currentPath;
+const options = { defaultLocale: resolvedDefault, includeDefaultPrefix };
+const links = localeEntries.map((entry) => ({
+  code: entry.code,
+  label: formatLocaleLabel(entry),
+  href: buildLocalePath(basePath, entry.code, options),
+}));
+const shouldRender = links.length > 1;
+---
+{shouldRender && (
+  <div class="language-switcher" data-language-switcher>
+    <label class="language-switcher__label">
+      <span>{label}</span>
+      <select
+        class="language-switcher__select"
+        data-language-select
+        data-language-current={activeLocale}
+        aria-label="Select language"
+      >
+        {links.map((link) => (
+          <option value={link.href} data-locale={link.code} selected={link.code === activeLocale}>
+            {link.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  </div>
+)}
+
+<script>
+  document.querySelectorAll("[data-language-select]").forEach((select) => {
+    if (!(select instanceof HTMLSelectElement)) return;
+    select.addEventListener("change", () => {
+      const href = select.value;
+      const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+      const storageKey = `${analyticsKeyPrefix}.locale.analytics`;
+      const currentLocale = select.dataset.languageCurrent || null;
+      const selectedOption = select.selectedOptions[0];
+      const nextLocale = selectedOption?.dataset?.locale || null;
+      const event = {
+        type: "locale",
+        from: currentLocale,
+        to: nextLocale,
+        timestamp: Date.now(),
+        path: window.location.pathname,
+      };
+      try {
+        const existing = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+        existing.push(event);
+        localStorage.setItem(storageKey, JSON.stringify(existing.slice(-120)));
+      } catch (error) {
+        // ignore storage errors
+      }
+      window.location.assign(href);
+    });
+  });
+</script>

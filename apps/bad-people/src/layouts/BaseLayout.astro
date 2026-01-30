@@ -38,6 +38,11 @@ const resolvedVersion = pathVersion ?? latestVersion ?? bookConfig.status;
   bookKey={bookConfig.slug ?? "book"}
   aiQaEnabled={bookConfig.features?.aiQa ?? true}
   versions={versionEntries}
+  locales={bookConfig.localization?.locales}
+  currentLocale={Astro.locals?.locale}
+  defaultLocale={bookConfig.localization?.defaultLocale}
+  includeDefaultLocalePrefix={bookConfig.localization?.includeDefaultPrefix ?? false}
+  localeLabel={bookConfig.localization?.label ?? "Language"}
   {...seoProps}
   robots={previewRobots ?? seoProps.robots}
   isPreview={previewContext?.isPreview ?? false}

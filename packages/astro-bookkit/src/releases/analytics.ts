@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export type ReleaseEvent = {
-  event: "rss_subscribe_click" | "webhook_delivery";
+  event: "rss_subscribe_click" | "webhook_delivery" | "email_delivery";
   status?: "success" | "failure";
   version?: string;
   webhook?: string;

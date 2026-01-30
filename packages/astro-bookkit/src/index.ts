@@ -94,7 +94,10 @@ export type { RobotsTxtOptions } from "./seo/robots";
 export {
   buildLocalePath,
   createLocaleRoutingMiddleware,
+  buildLocalizedContentIndex,
+  calculateLocaleCompleteness,
   formatLocaleLabel,
+  normalizeLocaleCode,
   resolveLocaleConfig,
   stripLocaleFromPath,
   mergeLocaleCompleteness,

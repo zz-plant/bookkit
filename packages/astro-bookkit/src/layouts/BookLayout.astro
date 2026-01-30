@@ -10,6 +10,7 @@ const {
   bookTitle = "Book",
   bookVersion = "draft",
   bookKey = "book",
+  exportAnalyticsEndpoint = "/api/export-analytics.json",
   footerText = "Draft book instance.",
   metaDescription,
   siteUrl,
@@ -143,6 +144,7 @@ const hreflangDefault =
   <body
     data-book-version={bookVersion}
     data-analytics-key={bookKey}
+    data-export-analytics-endpoint={exportAnalyticsEndpoint}
     data-qa-enabled={aiQaEnabled ? "true" : "false"}
     data-preview={isPreview ? "true" : "false"}
     data-preview-hint={previewTokenHint}
@@ -444,6 +446,7 @@ const hreflangDefault =
       const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
       const qaAnalyticsKey = `${analyticsKeyPrefix}.qa.analytics`;
       const qaDisabledKey = `${analyticsKeyPrefix}.qa.disabled`;
+      const exportAnalyticsEndpoint = document.body?.dataset?.exportAnalyticsEndpoint;
 
       const headingSelector = "main h2, main h3";
       const headings = Array.from(document.querySelectorAll(headingSelector));
@@ -574,6 +577,22 @@ const hreflangDefault =
         existing.push(event);
         localStorage.setItem(exportAnalyticsKey, JSON.stringify(existing.slice(-120)));
         window.dispatchEvent(new CustomEvent("book-export", { detail: event }));
+      };
+
+      const sendExportAnalytics = (payload) => {
+        if (!exportAnalyticsEndpoint) return;
+        const body = JSON.stringify(payload);
+        if ("sendBeacon" in navigator) {
+          const blob = new Blob([body], { type: "application/json" });
+          navigator.sendBeacon(exportAnalyticsEndpoint, blob);
+          return;
+        }
+        fetch(exportAnalyticsEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
       };
 
       const updateSearchStatus = (message) => {
@@ -1001,13 +1020,16 @@ const hreflangDefault =
       document.addEventListener("click", (event) => {
         const target = event.target instanceof HTMLElement ? event.target.closest("[data-export-link]") : null;
         if (!target) return;
-        recordExportEvent({
+        const payload = {
           type: "download",
           format: target.dataset.exportFormat,
           scope: target.dataset.exportScope,
           slug: target.dataset.exportSlug ?? null,
           href: target.getAttribute("href"),
-        });
+          path: window.location.pathname,
+        };
+        recordExportEvent(payload);
+        sendExportAnalytics(payload);
       });
     </script>
     <script>

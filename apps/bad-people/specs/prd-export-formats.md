@@ -1,5 +1,8 @@
 # PRD: Export formats (PDF/EPUB)
 
+## Status
+- [x] Implemented
+
 ## Summary
 Provide high-quality PDF and EPUB exports with styled covers and per-chapter downloads.
 

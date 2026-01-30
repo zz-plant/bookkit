@@ -37,15 +37,37 @@ const resolveOgImage = (image: string | undefined, siteUrl?: string): string | u
   return buildAbsoluteUrl(siteUrl, image);
 };
 
-export const resolveSiteUrl = (site?: BookSeoConfig): string | undefined => {
-  const candidate = site?.url ?? site?.domains?.[0];
-  if (!candidate) return undefined;
-  const normalized = normalizeSiteUrl(candidate, site?.enforceHttps);
-  return normalized || undefined;
+const normalizeCandidateUrls = (site?: BookSeoConfig): string[] =>
+  [site?.url, ...(site?.domains ?? [])]
+    .map((candidate) => (candidate ? normalizeSiteUrl(candidate, site?.enforceHttps) : ""))
+    .filter(Boolean);
+
+const resolveRequestHost = (requestUrl?: string): string | undefined => {
+  if (!requestUrl) return undefined;
+  try {
+    return new URL(requestUrl).host;
+  } catch (error) {
+    return undefined;
+  }
+};
+
+export const resolveSiteUrl = (
+  site?: BookSeoConfig,
+  requestUrl?: string
+): string | undefined => {
+  const candidates = normalizeCandidateUrls(site);
+  if (!candidates.length) return undefined;
+  const requestHost = resolveRequestHost(requestUrl);
+  if (requestHost) {
+    const matching = candidates.find((candidate) => new URL(candidate).host === requestHost);
+    if (matching) return matching;
+  }
+  return candidates[0] || undefined;
 };
 
 export const buildSeoProps = ({
   site,
+  requestUrl,
   description,
   ogTitle,
   ogDescription,
@@ -53,8 +75,8 @@ export const buildSeoProps = ({
   robots,
   canonicalPath,
   canonicalUrl,
-}: SeoInput & { site?: BookSeoConfig }): SeoProps => {
-  const siteUrl = resolveSiteUrl(site);
+}: SeoInput & { site?: BookSeoConfig; requestUrl?: string }): SeoProps => {
+  const siteUrl = resolveSiteUrl(site, requestUrl);
   const resolvedDescription = description ?? site?.defaultMeta?.description;
   const resolvedOgImage = resolveOgImage(ogImage ?? site?.defaultMeta?.ogImage, siteUrl);
   const resolvedRobots = robots ?? (site?.indexable === false ? "noindex, nofollow" : undefined);

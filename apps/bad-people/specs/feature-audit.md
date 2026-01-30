@@ -7,15 +7,15 @@ book instance.
 
 | Feature | Status | PRD |
 | --- | --- | --- |
-| Reading hub + overview | Documented | `prd-reading-hub.md` |
-| Content index views (chapters, mechanisms, toolkit, glossary, examples) | Documented | `prd-content-indexes.md` |
-| Global search | Documented | `prd-global-search.md` |
-| Versioned releases + version switcher | Documented | `prd-versioned-releases.md` |
-| Reader feedback widgets | Documented | `prd-reader-feedback.md` |
-| Export formats (PDF/EPUB) | Documented | `prd-export-formats.md` |
-| Custom domain + SEO controls | Documented | `prd-seo-custom-domain.md` |
-| Analytics dashboard | Documented | `prd-analytics-dashboard.md` |
-| Draft/preview access control | Documented | `prd-access-control.md` |
-| Localization pipeline | Documented | `prd-localization.md` |
-| Changelog + release note integrations | Documented | `prd-changelog-integrations.md` |
-| AI-powered Q&A | Documented | `prd-ai-qa.md` |
+| Reading hub + overview | Documented | [`prd-reading-hub.md`](./prd-reading-hub.md) |
+| Content index views (chapters, mechanisms, toolkit, glossary, examples) | Documented | [`prd-content-indexes.md`](./prd-content-indexes.md) |
+| Global search | Documented | [`prd-global-search.md`](./prd-global-search.md) |
+| Versioned releases + version switcher | Documented | [`prd-versioned-releases.md`](./prd-versioned-releases.md) |
+| Reader feedback widgets | Documented | [`prd-reader-feedback.md`](./prd-reader-feedback.md) |
+| Export formats (PDF/EPUB) | Documented | [`prd-export-formats.md`](./prd-export-formats.md) |
+| Custom domain + SEO controls | Documented | [`prd-seo-custom-domain.md`](./prd-seo-custom-domain.md) |
+| Analytics dashboard | Documented | [`prd-analytics-dashboard.md`](./prd-analytics-dashboard.md) |
+| Draft/preview access control | Documented | [`prd-access-control.md`](./prd-access-control.md) |
+| Localization pipeline | Documented | [`prd-localization.md`](./prd-localization.md) |
+| Changelog + release note integrations | Documented | [`prd-changelog-integrations.md`](./prd-changelog-integrations.md) |
+| AI-powered Q&A | Documented | [`prd-ai-qa.md`](./prd-ai-qa.md) |

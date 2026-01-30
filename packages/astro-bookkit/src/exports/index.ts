@@ -46,6 +46,19 @@ export type ExportLinkOptions = {
   formats?: ExportFormat[];
 };
 
+export type BookExportInfo = {
+  title: string;
+  version?: string;
+  updatedAt?: string;
+};
+
+export type BookExportHelperOptions = {
+  book: BookExportInfo;
+  modules: Record<string, string>;
+  basePath?: string;
+  formats?: ExportFormat[];
+};
+
 const frontmatterPattern = /^---\n([\s\S]*?)\n---/;
 
 const parseFrontmatter = (raw: string) => {
@@ -452,6 +465,53 @@ export const buildExportLinks = ({
       slug,
     };
   });
+};
+
+export const createBookExportHelpers = ({
+  book,
+  modules,
+  basePath,
+  formats,
+}: BookExportHelperOptions) => {
+  const chapters = buildExportChapters(modules);
+  const updatedAt = book.updatedAt ?? new Date().toISOString();
+  const buildBundle = (subset: ExportChapter[]): ExportBundle => ({
+    title: book.title,
+    version: book.version,
+    updatedAt,
+    chapters: subset,
+  });
+
+  const getBookExportBundle = () => buildBundle(chapters);
+
+  const getChapterExportBundle = (slug: string): ExportBundle | null => {
+    const chapter = chapters.find((item) => item.slug === slug);
+    if (!chapter) return null;
+    return buildBundle([chapter]);
+  };
+
+  const getBookExportLinks = () =>
+    buildExportLinks({ bundle: getBookExportBundle(), scope: "book", basePath, formats });
+
+  const getChapterExportLinks = (slug: string, title: string) => {
+    const bundle = getChapterExportBundle(slug);
+    if (!bundle) return [];
+    return buildExportLinks({
+      bundle,
+      scope: "chapter",
+      slug,
+      title,
+      basePath,
+      formats,
+    });
+  };
+
+  return {
+    getBookExportBundle,
+    getChapterExportBundle,
+    getBookExportLinks,
+    getChapterExportLinks,
+  };
 };
 
 export { recordExportEvent } from "./analytics";

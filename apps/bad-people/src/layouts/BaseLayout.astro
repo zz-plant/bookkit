@@ -1,7 +1,8 @@
 ---
 import BookLayout from "@bookkit/astro-bookkit/layouts/BookLayout.astro";
-import { buildSeoProps, getPreviewContext } from "@bookkit/astro-bookkit";
+import { buildSeoProps, extractVersionFromPath, getPreviewContext } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
+import { getVersionEntries } from "../lib/versions";
 
 const {
   title,
@@ -25,13 +26,18 @@ const seoProps = buildSeoProps({
 });
 const previewContext = getPreviewContext(Astro.locals);
 const previewRobots = previewContext?.isPreview ? "noindex, nofollow" : robots;
+const versionEntries = getVersionEntries();
+const pathVersion = extractVersionFromPath(Astro.url.pathname, { prefixSegment: "v" });
+const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version;
+const resolvedVersion = pathVersion ?? latestVersion ?? bookConfig.status;
 ---
 <BookLayout
   title={title}
   bookTitle={bookConfig.title}
-  bookVersion={bookConfig.status}
+  bookVersion={resolvedVersion}
   bookKey={bookConfig.slug ?? "book"}
   aiQaEnabled={bookConfig.features?.aiQa ?? true}
+  versions={versionEntries}
   {...seoProps}
   robots={previewRobots ?? seoProps.robots}
   isPreview={previewContext?.isPreview ?? false}

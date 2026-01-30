@@ -7,6 +7,13 @@ export type { ReleaseEvent } from "./releases/analytics";
 export { createReleaseNotes, escapeXml, formatReleaseDate } from "./releases/notes";
 export type { ReleaseModule, ReleaseNote } from "./releases/notes";
 export {
+  buildVersionPath,
+  createVersionEntries,
+  extractVersionFromPath,
+  stripVersionFromPath,
+} from "./releases/versions";
+export type { BookVersionEntry } from "./releases/versions";
+export {
   buildReleaseWebhookPayload,
   parseReleaseWebhookTargets,
   sendReleaseWebhooks,

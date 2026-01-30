@@ -34,14 +34,54 @@ if (!module) {
 
 const { frontmatter, default: Content } = module;
 const isFallback = missingSlugs.includes(frontmatter.slug);
+const hasSteps = Array.isArray(frontmatter.steps) && frontmatter.steps.length > 0;
+const hasFailureLooks = Array.isArray(frontmatter.failureLooksLike) && frontmatter.failureLooksLike.length > 0;
+const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatter.legitimateDemand.length > 0;
 ---
 <BaseLayout title={`${frontmatter.name} • Bad People`}>
   <a class="back-link" href="/read/toolkit">← Toolkit</a>
   <div class="eyebrow">Toolkit{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.name}</h1>
+  <div class="pill">{frontmatter.timeboxMinutes ?? 10} min action</div>
   <p class="lede">
     {frontmatter.mechanism} • {frontmatter.timeboxMinutes ?? 10} min
   </p>
+  {frontmatter.trigger && (
+    <section class="content-block">
+      <h2>When to use this</h2>
+      <p>{frontmatter.trigger}</p>
+    </section>
+  )}
+  {hasSteps && (
+    <section class="content-block">
+      <h2>Steps</h2>
+      <ol>
+        {frontmatter.steps.map((step) => (
+          <li>{step}</li>
+        ))}
+      </ol>
+    </section>
+  )}
+  {hasFailureLooks && (
+    <section class="content-block">
+      <h2>Failure looks like</h2>
+      <ul>
+        {frontmatter.failureLooksLike.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  {hasLegitDemand && (
+    <section class="content-block">
+      <h2>Legitimate demand</h2>
+      <ul>
+        {frontmatter.legitimateDemand.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    </section>
+  )}
   <section class="content-block">
     <Content />
   </section>

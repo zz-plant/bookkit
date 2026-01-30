@@ -12,9 +12,20 @@ const {
   items = [],
   backHref = "/read",
   backLabel = "Reading hub",
+  filterPlaceholder = "Filter by title, mechanism, or domain...",
+  filterMode = "auto",
 } = Astro.props;
 
 const resolvedItems = Array.isArray(items) ? items : [];
+const shouldAutoFilter = resolvedItems.length > 6;
+const showFilter =
+  filterMode === true ||
+  filterMode === "always" ||
+  (filterMode === "auto" && shouldAutoFilter);
+const filterId = `list-filter-${String(title ?? "items")
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-+|-+$/g, "")}`;
 ---
 <a class="back-link" href={backHref}>← {backLabel}</a>
 <div class="section-header">
@@ -22,12 +33,51 @@ const resolvedItems = Array.isArray(items) ? items : [];
   {lede && <p class="lede">{lede}</p>}
 </div>
 <slot name="after-header" />
-<div class="stack">
+{showFilter && (
+  <div class="list-filter">
+    <label class="list-filter__label" for={filterId}>
+      Filter list
+    </label>
+    <input
+      id={filterId}
+      class="list-filter__input"
+      type="search"
+      placeholder={filterPlaceholder}
+      autocomplete="off"
+      spellcheck="false"
+      data-list-filter={filterId}
+    />
+  </div>
+)}
+<div class="stack" data-list-container={filterId}>
   {resolvedItems.map((item) => (
-    <a class="list-link" href={item.href}>
+    <a
+      class="list-link"
+      href={item.href}
+      data-list-item
+      data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
+    >
       {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
       <strong>{item.title}</strong>
       {item.meta && <span class="meta">{item.meta}</span>}
     </a>
   ))}
 </div>
+<slot name="after-list" />
+{showFilter && (
+  <script define:vars={{ filterId }}>
+    const input = document.querySelector(`[data-list-filter="${filterId}"]`);
+    const list = document.querySelector(`[data-list-container="${filterId}"]`);
+    if (input && list) {
+      const items = Array.from(list.querySelectorAll("[data-list-item]"));
+      const applyFilter = () => {
+        const query = input.value.trim().toLowerCase();
+        items.forEach((item) => {
+          const text = item.dataset.filterText || "";
+          item.hidden = query.length > 0 && !text.includes(query);
+        });
+      };
+      input.addEventListener("input", applyFilter);
+    }
+  </script>
+)}

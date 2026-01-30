@@ -24,12 +24,15 @@ const localizedIndex = buildLocalizedContentIndex(modules, {
 const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
   locale: Astro.locals?.locale,
 });
-const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+const slugParam = Array.isArray(Astro.params.slug)
+  ? Astro.params.slug.join("/")
+  : Astro.params.slug ?? "";
+const module = resolveLocalizedModule(localizedIndex, slugParam, {
   locale: Astro.locals?.locale,
 });
 
 if (!module) {
-  throw new Error(`Missing example for slug: ${Astro.params.slug}`);
+  throw new Error(`Missing example for slug: ${slugParam}`);
 }
 
 const { frontmatter, default: Content } = module;
@@ -39,10 +42,17 @@ const isFallback = missingSlugs.includes(frontmatter.slug);
 <BaseLayout title={`${frontmatter.title} • Bad People`} description={metaDescription}>
   <a class="back-link" href="/read/examples">← Examples</a>
   <div class="eyebrow">Example{isFallback ? " • fallback" : ""}</div>
-  <h1 id={Astro.params.slug?.replaceAll("/", "-")}>{frontmatter.title}</h1>
+  <h1 id={slugParam.replaceAll("/", "-")}>{frontmatter.title}</h1>
   <p class="lede">
     {frontmatter.mechanism} • {frontmatter.domain}
   </p>
+  <section class="content-block">
+    <div class="eyebrow">Replaceable example</div>
+    <p class="meta">
+      Swap this example without changing the mechanism it illustrates. Keep the causal pattern
+      intact, even if the domain changes.
+    </p>
+  </section>
   <section class="content-block">
     <Content />
   </section>

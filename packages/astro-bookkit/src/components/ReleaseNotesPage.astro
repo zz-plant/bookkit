@@ -105,9 +105,12 @@ const {
             </ul>
           )}
           {Content && (
-            <section class="content-block">
-              <Content />
-            </section>
+            <details class="release-details">
+              <summary>Read details</summary>
+              <section class="content-block">
+                <Content />
+              </section>
+            </details>
           )}
         </article>
       );

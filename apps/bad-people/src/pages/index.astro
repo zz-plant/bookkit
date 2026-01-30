@@ -30,7 +30,7 @@ const glossaryIndex = buildLocalizedContentIndex(
   }
 );
 const exampleIndex = buildLocalizedContentIndex(
-  import.meta.glob("../content/book/examples/*.mdx", { eager: true }),
+  import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }),
   {
     defaultLocale: "en",
   }
@@ -116,7 +116,7 @@ const stats = [
         <p class="meta">See what changed in each version and subscribe to updates.</p>
         <span class="kbd-hint" aria-hidden="true"><kbd>g</kbd><kbd>n</kbd></span>
       </a>
-      <div class="card">
+      <div class="card card--static">
         <div class="eyebrow">Status</div>
         <h3>Draft build</h3>
         <p class="meta">Content is a working outline and will continue evolving.</p>

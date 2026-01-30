@@ -64,14 +64,34 @@ const versionEntries = versions.map((entry) => ({
   const select = switcher?.querySelector("[data-version-select]");
   const archive = switcher?.querySelector("[data-version-archive]");
   const currentVersion = switcher?.dataset?.currentVersion ?? null;
+  const memoryEvents = [];
 
   const recordVersionEvent = (payload) => {
     const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
     const storageKey = `${analyticsKeyPrefix}.version.analytics`;
     const event = { ...payload, ts: Date.now() };
-    const existing = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
-    existing.push(event);
-    localStorage.setItem(storageKey, JSON.stringify(existing.slice(-120)));
+    const existing = (() => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) {
+          memoryEvents.length = 0;
+          memoryEvents.push(...parsed);
+          return parsed;
+        }
+      } catch (error) {
+        console.warn("Version analytics storage unavailable.", error);
+      }
+      return [...memoryEvents];
+    })();
+    const nextEvents = [...existing, event].slice(-120);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(nextEvents));
+    } catch (error) {
+      console.warn("Version analytics storage unavailable.", error);
+    }
+    memoryEvents.length = 0;
+    memoryEvents.push(...nextEvents);
     window.dispatchEvent(new CustomEvent("book-version", { detail: event }));
   };
 

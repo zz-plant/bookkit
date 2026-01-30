@@ -1,0 +1,340 @@
+---
+const {
+  lastUpdated = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }),
+} = Astro.props;
+---
+<section class="content-block analytics-section" data-analytics-dashboard>
+  <div class="analytics-filters" data-analytics-filters>
+    <label class="analytics-filter">
+      <span>Version</span>
+      <select data-filter-version aria-label="Filter by version"></select>
+    </label>
+    <label class="analytics-filter">
+      <span>From</span>
+      <input type="date" data-filter-start aria-label="Filter start date" />
+    </label>
+    <label class="analytics-filter">
+      <span>To</span>
+      <input type="date" data-filter-end aria-label="Filter end date" />
+    </label>
+  </div>
+
+  <div class="analytics-grid">
+    <article class="analytics-card">
+      <div class="eyebrow">Views</div>
+      <div class="metric-value" data-metric="views">0</div>
+      <div class="metric-subtext" data-metric-detail="views">0 over the last 7 days</div>
+      <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Views trend">
+        <polyline data-sparkline="views" points="0,32 100,32" />
+      </svg>
+    </article>
+    <article class="analytics-card">
+      <div class="eyebrow">Avg. time on page</div>
+      <div class="metric-value" data-metric="time">0s</div>
+      <div class="metric-subtext" data-metric-detail="time">0s median this week</div>
+      <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Time on page trend">
+        <polyline data-sparkline="time" points="0,32 100,32" />
+      </svg>
+    </article>
+    <article class="analytics-card">
+      <div class="eyebrow">Drop-off</div>
+      <div class="metric-value" data-metric="dropoff">0%</div>
+      <div class="metric-subtext" data-metric-detail="dropoff">0% avg. scroll depth</div>
+      <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Drop-off trend">
+        <polyline data-sparkline="dropoff" points="0,32 100,32" />
+      </svg>
+    </article>
+  </div>
+
+  <div class="analytics-empty" data-analytics-empty hidden>
+    <p>
+      No analytics events yet. Visit a few chapters and return here to see engagement metrics.
+    </p>
+  </div>
+
+  <div class="analytics-table-wrap" data-analytics-table>
+    <h2>Chapter engagement</h2>
+    <table class="analytics-table">
+      <thead>
+        <tr>
+          <th>Chapter</th>
+          <th>Views</th>
+          <th>Avg. time</th>
+          <th>Avg. scroll</th>
+          <th>Drop-off</th>
+        </tr>
+      </thead>
+      <tbody data-analytics-rows></tbody>
+    </table>
+  </div>
+
+  <div class="analytics-notes">
+    <h2>Privacy &amp; retention</h2>
+    <ul>
+      <li>Events store anonymized session IDs with no personal identifiers.</li>
+      <li>Only page views, time-on-page, and scroll depth are captured.</li>
+      <li>Events expire after 90 days to minimize retention.</li>
+      <li>Drop-off is estimated using average scroll depth, not user identity.</li>
+    </ul>
+    <p class="meta">Last updated: {lastUpdated}</p>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll("[data-analytics-dashboard]").forEach((dashboard) => {
+    const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+    const storageKey = `${analyticsKeyPrefix}.analytics.events`;
+    const retentionDays = 90;
+
+    const parseEvents = () => {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        const parsed = stored ? JSON.parse(stored) : [];
+        const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+        return Array.isArray(parsed)
+          ? parsed.filter((event) => typeof event?.timestamp === "number" && event.timestamp >= cutoff)
+          : [];
+      } catch (error) {
+        return [];
+      }
+    };
+
+    const formatSeconds = (value) => {
+      if (!value || Number.isNaN(value)) return "0s";
+      if (value < 60) return `${Math.round(value)}s`;
+      const minutes = Math.floor(value / 60);
+      const seconds = Math.round(value % 60);
+      return `${minutes}m ${seconds}s`;
+    };
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+    const formatPercent = (value) => `${Math.round(value * 100)}%`;
+
+    const uniqueValues = (items) => Array.from(new Set(items));
+
+    const byDayKey = (timestamp) => new Date(timestamp).toISOString().slice(0, 10);
+
+    const buildSeries = (events, key) => {
+      const map = new Map();
+      events.forEach((event) => {
+        const day = byDayKey(event.timestamp);
+        map.set(day, (map.get(day) ?? 0) + (event[key] ?? 1));
+      });
+      const sortedDays = Array.from(map.keys()).sort();
+      return sortedDays.map((day) => map.get(day));
+    };
+
+    const renderSparkline = (polyline, values) => {
+      if (!polyline) return;
+      if (!values.length) {
+        polyline.setAttribute("points", "0,32 100,32");
+        return;
+      }
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+      const range = max - min || 1;
+      const step = 100 / Math.max(values.length - 1, 1);
+      const points = values
+        .map((value, index) => {
+          const x = index * step;
+          const normalized = (value - min) / range;
+          const y = 32 - normalized * 28 - 2;
+          return `${x},${y}`;
+        })
+        .join(" ");
+      polyline.setAttribute("points", points);
+    };
+
+    const toDateInput = (date) => date.toISOString().slice(0, 10);
+
+    const getRangeDefaults = () => {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - 30);
+      return { start, end };
+    };
+
+    const events = parseEvents();
+    const versions = uniqueValues(events.map((event) => event.version).filter(Boolean));
+    const versionSelect = dashboard.querySelector("[data-filter-version]");
+    const startInput = dashboard.querySelector("[data-filter-start]");
+    const endInput = dashboard.querySelector("[data-filter-end]");
+    const emptyState = dashboard.querySelector("[data-analytics-empty]");
+    const tableWrap = dashboard.querySelector("[data-analytics-table]");
+    const rowsTarget = dashboard.querySelector("[data-analytics-rows]");
+
+    if (
+      !versionSelect ||
+      !startInput ||
+      !endInput ||
+      !emptyState ||
+      !tableWrap ||
+      !rowsTarget
+    ) {
+      return;
+    }
+
+    const { start, end } = getRangeDefaults();
+    startInput.value = toDateInput(start);
+    endInput.value = toDateInput(end);
+
+    const fillVersions = () => {
+      const options = ["all", ...versions];
+      versionSelect.innerHTML = "";
+      options.forEach((version) => {
+        const option = document.createElement("option");
+        option.value = version;
+        option.textContent = version === "all" ? "All versions" : version;
+        versionSelect.appendChild(option);
+      });
+    };
+
+    const summarize = (filteredEvents) => {
+      const pageviews = filteredEvents.filter((event) => event.type === "pageview");
+      const engagements = filteredEvents.filter((event) => event.type === "engagement");
+
+      const totalViews = pageviews.length;
+      const totalTime = engagements.reduce((sum, event) => sum + (event.durationSeconds ?? 0), 0);
+      const avgTime = engagements.length ? totalTime / engagements.length : 0;
+      const avgScroll = engagements.length
+        ? engagements.reduce((sum, event) => sum + (event.scrollDepth ?? 0), 0) / engagements.length
+        : 0;
+
+      return { totalViews, avgTime, avgScroll, pageviews, engagements };
+    };
+
+    const setText = (selector, value) => {
+      const target = dashboard.querySelector(selector);
+      if (target) target.textContent = value;
+    };
+
+    const renderCards = ({ totalViews, avgTime, avgScroll, pageviews, engagements }) => {
+      setText("[data-metric='views']", totalViews.toString());
+      setText("[data-metric='time']", formatSeconds(avgTime));
+      setText("[data-metric='dropoff']", formatPercent(1 - avgScroll));
+
+      const viewSeries = buildSeries(pageviews, "count");
+      const timeSeries = buildSeries(
+        engagements.map((event) => ({ ...event, count: event.durationSeconds ?? 0 })),
+        "count"
+      );
+      const dropSeries = buildSeries(
+        engagements.map((event) => ({ ...event, count: 1 - (event.scrollDepth ?? 0) })),
+        "count"
+      );
+
+      renderSparkline(dashboard.querySelector("[data-sparkline='views']"), viewSeries);
+      renderSparkline(dashboard.querySelector("[data-sparkline='time']"), timeSeries);
+      renderSparkline(dashboard.querySelector("[data-sparkline='dropoff']"), dropSeries);
+
+      setText(
+        "[data-metric-detail='views']",
+        viewSeries.length ? `${viewSeries[viewSeries.length - 1]} today` : "No recent views"
+      );
+      setText(
+        "[data-metric-detail='time']",
+        engagements.length ? `${formatSeconds(avgTime)} avg. engagement` : "No engagement yet"
+      );
+      setText(
+        "[data-metric-detail='dropoff']",
+        engagements.length ? `${formatPercent(avgScroll)} avg. scroll depth` : "No scroll data"
+      );
+    };
+
+    const renderTable = (pageviews, engagements) => {
+      const chapterMap = new Map();
+
+      pageviews.forEach((event) => {
+        const key = event.chapterSlug ?? "unknown";
+        const entry = chapterMap.get(key) ?? {
+          chapter: key,
+          views: 0,
+          time: 0,
+          engagements: 0,
+          scroll: 0,
+        };
+        entry.views += 1;
+        chapterMap.set(key, entry);
+      });
+
+      engagements.forEach((event) => {
+        const key = event.chapterSlug ?? "unknown";
+        const entry = chapterMap.get(key) ?? {
+          chapter: key,
+          views: 0,
+          time: 0,
+          engagements: 0,
+          scroll: 0,
+        };
+        entry.time += event.durationSeconds ?? 0;
+        entry.engagements += 1;
+        entry.scroll += event.scrollDepth ?? 0;
+        chapterMap.set(key, entry);
+      });
+
+      const rows = Array.from(chapterMap.values())
+        .filter((row) => row.chapter !== "unknown")
+        .sort((a, b) => b.views - a.views);
+
+      rowsTarget.innerHTML = "";
+      rows.forEach((row) => {
+        const avgTime = row.engagements ? row.time / row.engagements : 0;
+        const avgScroll = row.engagements ? row.scroll / row.engagements : 0;
+        const dropOff = clamp(1 - avgScroll, 0, 1);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.chapter.replace(/-/g, " ")}</td>
+          <td>${row.views}</td>
+          <td>${formatSeconds(avgTime)}</td>
+          <td>${formatPercent(avgScroll)}</td>
+          <td>${formatPercent(dropOff)}</td>
+        `;
+        rowsTarget.appendChild(tr);
+      });
+    };
+
+    const filterEvents = () => {
+      const selectedVersion = versionSelect.value;
+      const startDate = new Date(startInput.value);
+      const endDate = new Date(endInput.value);
+      endDate.setHours(23, 59, 59, 999);
+
+      const filtered = events.filter((event) => {
+        if (selectedVersion !== "all" && event.version !== selectedVersion) return false;
+        const timestamp = event.timestamp;
+        return timestamp >= startDate.getTime() && timestamp <= endDate.getTime();
+      });
+
+      if (!filtered.length) {
+        emptyState.hidden = false;
+        tableWrap.hidden = true;
+      } else {
+        emptyState.hidden = true;
+        tableWrap.hidden = false;
+      }
+
+      const summary = summarize(filtered);
+      renderCards(summary);
+      renderTable(summary.pageviews, summary.engagements);
+    };
+
+    fillVersions();
+
+    if (events.length) {
+      filterEvents();
+    } else {
+      emptyState.hidden = false;
+      tableWrap.hidden = true;
+    }
+
+    versionSelect.addEventListener("change", filterEvents);
+    startInput.addEventListener("change", filterEvents);
+    endInput.addEventListener("change", filterEvents);
+  });
+</script>

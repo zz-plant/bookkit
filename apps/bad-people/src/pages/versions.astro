@@ -8,6 +8,7 @@ const versionEntries = getVersionEntries();
 const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version ?? bookConfig.status;
 const seoProps = buildSeoProps({
   site: bookConfig.site,
+  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
   description: "Browse current and archived versions of the book.",
 });
 ---

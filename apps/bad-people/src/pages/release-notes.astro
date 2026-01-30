@@ -11,6 +11,7 @@ const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version ??
 const rssUrl = "/release-notes.xml";
 const seoProps = buildSeoProps({
   site: bookConfig.site,
+  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
   description: "Track new releases, subscribe to updates, and review the latest changes.",
 });
 ---

@@ -23,6 +23,7 @@ const {
 } = Astro.props;
 const seoProps = buildSeoProps({
   site: bookConfig.site,
+  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
   description,
   ogTitle,
   ogDescription,

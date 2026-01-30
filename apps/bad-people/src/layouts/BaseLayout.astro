@@ -27,9 +27,13 @@ const seoProps = buildSeoProps({
 const previewContext = getPreviewContext(Astro.locals);
 const previewRobots = previewContext?.isPreview ? "noindex, nofollow" : robots;
 const versionEntries = getVersionEntries();
-const pathVersion = extractVersionFromPath(Astro.url.pathname, { prefixSegment: "v" });
+const originalUrl =
+  typeof Astro.locals?.originalUrl === "string" ? new URL(Astro.locals.originalUrl) : null;
+const pathVersion = extractVersionFromPath(originalUrl?.pathname ?? Astro.url.pathname, {
+  prefixSegment: "v",
+});
 const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version;
-const resolvedVersion = pathVersion ?? latestVersion ?? bookConfig.status;
+const resolvedVersion = Astro.locals?.bookVersion ?? pathVersion ?? latestVersion ?? bookConfig.status;
 ---
 <BookLayout
   title={title}

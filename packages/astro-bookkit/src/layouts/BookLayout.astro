@@ -46,9 +46,14 @@ const versionEntries = Array.isArray(versions) ? versions : [];
 const hasVersions = versionEntries.length > 0;
 const localeEntries = Array.isArray(locales) ? locales : [];
 const localeCodes = localeEntries.map((entry) => entry.code).filter(Boolean);
+const originalUrl =
+  typeof Astro.locals?.originalUrl === "string" ? new URL(Astro.locals.originalUrl) : null;
+const requestPathname = originalUrl?.pathname ?? Astro.url.pathname;
+const pathVersion = extractVersionFromPath(requestPathname, { prefixSegment: versionPrefix });
+const pathWithoutVersion = stripVersionFromPath(requestPathname, { prefixSegment: versionPrefix });
 const { defaultLocale: resolvedDefaultLocale } = resolveLocaleConfig(localeEntries, { defaultLocale });
 const { locale: detectedLocale, pathWithoutLocale } = stripLocaleFromPath(
-  Astro.url.pathname,
+  pathWithoutVersion,
   localeCodes,
   { defaultLocale: resolvedDefaultLocale, includeDefaultPrefix: includeDefaultLocalePrefix }
 );
@@ -65,7 +70,6 @@ const localeCompleteness =
     : Math.min(1, Math.max(0, localeCompletenessRaw));
 const showTranslationNotice =
   showLocaleNotice && localeCompleteness !== null && localeCompleteness < 1;
-const pathVersion = extractVersionFromPath(Astro.url.pathname, { prefixSegment: versionPrefix });
 const resolvedVersion = pathVersion ?? bookVersion;
 const currentVersionEntry =
   versionEntries.find((entry) => entry.version === resolvedVersion) ??
@@ -80,11 +84,11 @@ const versionBadgeLabel = hasVersions
 const canonicalPathBase =
   canonicalPath ??
   (pathVersion && !currentVersionEntry?.isLatest
-    ? stripVersionFromPath(Astro.url.pathname, { prefixSegment: versionPrefix })
-    : Astro.url.pathname);
+    ? stripVersionFromPath(requestPathname, { prefixSegment: versionPrefix })
+    : requestPathname);
 const resolvedCanonical =
   canonicalUrl ?? (siteUrl ? new URL(canonicalPathBase, siteUrl).toString() : undefined);
-const normalizedPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+const normalizedPath = pathWithoutVersion.replace(/\/$/, "") || "/";
 const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
 const isArchivePage = normalizedPath === normalizedArchivePath;
 const resolvedRobots =
@@ -97,7 +101,7 @@ const resolvedOgDescription = ogDescription ?? metaDescription;
 const hreflangEntries =
   siteUrl && localeEntries.length
     ? localeEntries.map((entry) => {
-        const localePath = buildLocalePath(pathWithoutLocale ?? Astro.url.pathname, entry.code, {
+        const localePath = buildLocalePath(pathWithoutLocale ?? pathWithoutVersion, entry.code, {
           defaultLocale: resolvedDefaultLocale,
           includeDefaultPrefix: includeDefaultLocalePrefix,
         });
@@ -110,7 +114,7 @@ const hreflangEntries =
 const hreflangDefault =
   siteUrl && resolvedDefaultLocale
     ? new URL(
-        buildLocalePath(pathWithoutLocale ?? Astro.url.pathname, resolvedDefaultLocale, {
+        buildLocalePath(pathWithoutLocale ?? pathWithoutVersion, resolvedDefaultLocale, {
           defaultLocale: resolvedDefaultLocale,
           includeDefaultPrefix: includeDefaultLocalePrefix,
         }),

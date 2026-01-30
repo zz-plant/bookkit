@@ -3,6 +3,7 @@ import { createSlugger, stripMarkdown } from "../utils/markdown";
 export type SearchContentSource = {
   type: string;
   label: string;
+  order: number;
   urlPrefix: string;
   titleKey: string;
   modules: Record<string, string>;
@@ -13,7 +14,9 @@ export type SearchEntry = {
   id: string;
   type: string;
   label: string;
+  order: number;
   title: string;
+  section?: string | null;
   snippet: string;
   url: string;
   context: string;
@@ -109,7 +112,9 @@ export const buildSearchEntries = async (
         id: `${source.type}-${slug}-intro`,
         type: source.type,
         label: source.label,
+        order: source.order,
         title,
+        section: null,
         snippet: baseSnippet,
         url: `${source.urlPrefix}${slug}${defaultAnchor ? `#${defaultAnchor}` : ""}`,
         context: title,
@@ -120,7 +125,9 @@ export const buildSearchEntries = async (
           id: `${source.type}-${slug}-${section.anchor}`,
           type: source.type,
           label: source.label,
+          order: source.order,
           title: section.heading,
+          section: section.heading,
           snippet: section.snippet,
           url: `${source.urlPrefix}${slug}#${section.anchor}`,
           context: title,

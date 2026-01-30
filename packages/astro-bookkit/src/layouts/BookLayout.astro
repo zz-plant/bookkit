@@ -819,11 +819,17 @@ const previewDetails = [
           return groupMap;
         }, new Map());
 
-        grouped.forEach((items, label) => {
+        const groupedEntries = Array.from(grouped.entries()).sort(([, aItems], [, bItems]) => {
+          const aOrder = aItems[0]?.order ?? 999;
+          const bOrder = bItems[0]?.order ?? 999;
+          return aOrder - bOrder;
+        });
+
+        groupedEntries.forEach(([label, items]) => {
           const section = document.createElement("div");
           section.className = "search-panel__group";
           const heading = document.createElement("h3");
-          heading.textContent = label;
+          heading.textContent = `${label} (${items.length})`;
           section.appendChild(heading);
 
           const list = document.createElement("div");
@@ -833,11 +839,12 @@ const previewDetails = [
             link.href = toSafeUrl(entry.url);
             link.className = "search-panel__item";
             link.dataset.searchId = entry.id;
+            const breadcrumb = entry.section ? `${entry.context} › ${entry.section}` : entry.context;
             link.innerHTML = `
               <div class="search-panel__item-title">${highlightText(entry.title, tokens)}</div>
               <div class="search-panel__item-snippet">${highlightText(entry.snippet, tokens)}</div>
               <div class="search-panel__item-meta">${escapeHtml(entry.label)} • ${escapeHtml(
-                entry.context
+                breadcrumb
               )}</div>
             `;
             list.appendChild(link);

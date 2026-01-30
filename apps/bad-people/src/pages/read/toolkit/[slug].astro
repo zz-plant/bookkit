@@ -39,6 +39,13 @@ const hasFailureLooks = Array.isArray(frontmatter.failureLooksLike) && frontmatt
 const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatter.legitimateDemand.length > 0;
 ---
 <BaseLayout title={`${frontmatter.name} • Bad People`}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/read">Reading hub</a>
+    <span>›</span>
+    <a href="/read/toolkit">Toolkit</a>
+    <span>›</span>
+    <span>{frontmatter.name}</span>
+  </nav>
   <a class="back-link" href="/read/toolkit">← Toolkit</a>
   <div class="eyebrow">Toolkit{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.name}</h1>
@@ -55,9 +62,12 @@ const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatte
   {hasSteps && (
     <section class="content-block">
       <h2>Steps</h2>
-      <ol>
-        {frontmatter.steps.map((step) => (
-          <li>{step}</li>
+      <ol class="step-list">
+        {frontmatter.steps.map((step, index) => (
+          <li class="step-card">
+            <span class="step-card__number">{index + 1}</span>
+            <span>{step}</span>
+          </li>
         ))}
       </ol>
     </section>
@@ -84,5 +94,15 @@ const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatte
   )}
   <section class="content-block">
     <Content />
+  </section>
+  <section class="next-steps">
+    <h2>Next steps</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href={`/read/mechanisms/${frontmatter.mechanism}`}>
+        Review the {frontmatter.mechanism} mechanism
+      </a>
+      <a class="next-steps__link" href="/read/examples">Find related examples</a>
+      <a class="next-steps__link" href="/read/toolkit">Pick another action</a>
+    </div>
   </section>
 </BaseLayout>

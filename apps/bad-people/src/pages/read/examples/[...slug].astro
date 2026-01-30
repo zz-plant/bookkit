@@ -40,6 +40,13 @@ const metaDescription = frontmatter.summary ?? frontmatter.description;
 const isFallback = missingSlugs.includes(frontmatter.slug);
 ---
 <BaseLayout title={`${frontmatter.title} • Bad People`} description={metaDescription}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/read">Reading hub</a>
+    <span>›</span>
+    <a href="/read/examples">Examples</a>
+    <span>›</span>
+    <span>{frontmatter.title}</span>
+  </nav>
   <a class="back-link" href="/read/examples">← Examples</a>
   <div class="eyebrow">Example{isFallback ? " • fallback" : ""}</div>
   <h1 id={slugParam.replaceAll("/", "-")}>{frontmatter.title}</h1>
@@ -53,7 +60,34 @@ const isFallback = missingSlugs.includes(frontmatter.slug);
       intact, even if the domain changes.
     </p>
   </section>
+  <section class="content-block" id="swap-template">
+    <h2>Swap this example template</h2>
+    <ol class="step-list">
+      <li class="step-card">
+        <span class="step-card__number">1</span>
+        <span>Restate the mechanism in one sentence (keep the same causal pattern).</span>
+      </li>
+      <li class="step-card">
+        <span class="step-card__number">2</span>
+        <span>Replace the domain and actors, but keep the same incentives and constraints.</span>
+      </li>
+      <li class="step-card">
+        <span class="step-card__number">3</span>
+        <span>Confirm the same harm persists without changing the mechanism.</span>
+      </li>
+    </ol>
+  </section>
   <section class="content-block">
     <Content />
+  </section>
+  <section class="next-steps">
+    <h2>Next steps</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href={`/read/mechanisms/${frontmatter.mechanism}`}>
+        Review the {frontmatter.mechanism} mechanism
+      </a>
+      <a class="next-steps__link" href="/read/toolkit">Pick a toolkit action</a>
+      <a class="next-steps__link" href="#swap-template">Swap this example</a>
+    </div>
   </section>
 </BaseLayout>

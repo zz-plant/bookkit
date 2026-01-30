@@ -14,6 +14,8 @@ const {
   backLabel = "Reading hub",
   filterPlaceholder = "Filter by title, mechanism, or domain...",
   filterMode = "auto",
+  filterHint,
+  alphaMode = "auto",
 } = Astro.props;
 
 const resolvedItems = Array.isArray(items) ? items : [];
@@ -22,6 +24,19 @@ const showFilter =
   filterMode === true ||
   filterMode === "always" ||
   (filterMode === "auto" && shouldAutoFilter);
+const shouldAutoAlpha = resolvedItems.length > 10;
+const showAlphaNav =
+  alphaMode === true ||
+  alphaMode === "always" ||
+  (alphaMode === "auto" && shouldAutoAlpha);
+const alphaGroups = resolvedItems.reduce((groups, item) => {
+  const raw = item.title?.trim()?.charAt(0)?.toUpperCase() ?? "#";
+  const key = /[A-Z]/.test(raw) ? raw : "#";
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key)?.push(item);
+  return groups;
+}, new Map());
+const alphaKeys = Array.from(alphaGroups.keys());
 const filterId = `list-filter-${String(title ?? "items")
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, "-")
@@ -47,21 +62,52 @@ const filterId = `list-filter-${String(title ?? "items")
       spellcheck="false"
       data-list-filter={filterId}
     />
+    {filterHint && <p class="list-filter__hint">{filterHint}</p>}
   </div>
 )}
+{showAlphaNav && alphaKeys.length > 0 && (
+  <nav class="alpha-nav" aria-label="Jump to letter">
+    <span class="alpha-nav__label">Jump to</span>
+    {alphaKeys.map((letter) => (
+      <a class="alpha-nav__link" href={`#alpha-${letter}`}>{letter}</a>
+    ))}
+  </nav>
+)}
 <div class="stack" data-list-container={filterId}>
-  {resolvedItems.map((item) => (
-    <a
-      class="list-link"
-      href={item.href}
-      data-list-item
-      data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
-    >
-      {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
-      <strong>{item.title}</strong>
-      {item.meta && <span class="meta">{item.meta}</span>}
-    </a>
-  ))}
+  {showAlphaNav
+    ? alphaKeys.map((letter) => (
+        <section class="alpha-group" data-alpha-group>
+          <h2 class="alpha-group__letter" id={`alpha-${letter}`}>
+            {letter}
+          </h2>
+          <div class="stack" data-alpha-items>
+            {alphaGroups.get(letter)?.map((item) => (
+              <a
+                class="list-link"
+                href={item.href}
+                data-list-item
+                data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
+              >
+                {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+                <strong>{item.title}</strong>
+                {item.meta && <span class="meta">{item.meta}</span>}
+              </a>
+            ))}
+          </div>
+        </section>
+      ))
+    : resolvedItems.map((item) => (
+        <a
+          class="list-link"
+          href={item.href}
+          data-list-item
+          data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
+        >
+          {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+          <strong>{item.title}</strong>
+          {item.meta && <span class="meta">{item.meta}</span>}
+        </a>
+      ))}
 </div>
 <slot name="after-list" />
 {showFilter && (
@@ -70,11 +116,16 @@ const filterId = `list-filter-${String(title ?? "items")
     const list = document.querySelector(`[data-list-container="${filterId}"]`);
     if (input && list) {
       const items = Array.from(list.querySelectorAll("[data-list-item]"));
+      const groups = Array.from(list.querySelectorAll("[data-alpha-group]"));
       const applyFilter = () => {
         const query = input.value.trim().toLowerCase();
         items.forEach((item) => {
           const text = item.dataset.filterText || "";
           item.hidden = query.length > 0 && !text.includes(query);
+        });
+        groups.forEach((group) => {
+          const visibleItems = group.querySelectorAll("[data-list-item]:not([hidden])");
+          group.hidden = visibleItems.length === 0;
         });
       };
       input.addEventListener("input", applyFilter);

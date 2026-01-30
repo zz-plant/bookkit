@@ -72,6 +72,13 @@ const relatedExamples = exampleEntries
   .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
 ---
 <BaseLayout title={`${frontmatter.title} • Bad People`} description={metaDescription}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/read">Reading hub</a>
+    <span>›</span>
+    <a href="/read/mechanisms">Mechanisms</a>
+    <span>›</span>
+    <span>{frontmatter.title}</span>
+  </nav>
   <a class="back-link" href="/read/mechanisms">← Mechanisms</a>
   <div class="eyebrow">Mechanism{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
@@ -157,4 +164,12 @@ const relatedExamples = exampleEntries
       )}
     </section>
   )}
+  <section class="next-steps">
+    <h2>Keep going</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href="/read/toolkit">Explore toolkit actions</a>
+      <a class="next-steps__link" href="/read/examples">Browse examples</a>
+      <a class="next-steps__link" href="/read/chapters">Read the next chapter</a>
+    </div>
+  </section>
 </BaseLayout>

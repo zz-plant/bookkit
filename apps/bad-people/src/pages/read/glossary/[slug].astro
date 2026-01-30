@@ -36,10 +36,25 @@ const { frontmatter, default: Content } = module;
 const isFallback = missingSlugs.includes(frontmatter.slug);
 ---
 <BaseLayout title={`${frontmatter.term} • Bad People`}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/read">Reading hub</a>
+    <span>›</span>
+    <a href="/read/glossary">Glossary</a>
+    <span>›</span>
+    <span>{frontmatter.term}</span>
+  </nav>
   <a class="back-link" href="/read/glossary">← Glossary</a>
   <div class="eyebrow">Glossary{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>
   <section class="content-block">
     <Content />
+  </section>
+  <section class="next-steps">
+    <h2>Next steps</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href="/read/mechanisms">Review mechanisms</a>
+      <a class="next-steps__link" href="/read/examples">Browse examples</a>
+      <a class="next-steps__link" href="/read/toolkit">Explore toolkit actions</a>
+    </div>
   </section>
 </BaseLayout>

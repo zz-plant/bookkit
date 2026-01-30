@@ -1,7 +1,7 @@
 ---
-const { heading = "Reader feedback" } = Astro.props;
+const { heading = "Reader feedback", endpoint } = Astro.props;
 ---
-<section class="feedback-dashboard" data-feedback-dashboard>
+<section class="feedback-dashboard" data-feedback-dashboard data-feedback-endpoint={endpoint}>
   <div class="section-header">
     <div class="eyebrow">Author dashboard</div>
     <h2>{heading}</h2>
@@ -73,6 +73,19 @@ const { heading = "Reader feedback" } = Astro.props;
 </section>
 
 <script>
+  const resolveEndpoint = (value) => {
+    if (!value || typeof value !== "string") return null;
+    try {
+      const url = new URL(value, window.location.origin);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return url.toString();
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  };
+
   const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
   const storageKey = `${analyticsKeyPrefix}.feedback.events`;
   const retentionDays = 120;
@@ -81,11 +94,24 @@ const { heading = "Reader feedback" } = Astro.props;
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const formatPercent = (value) => `${Math.round(value * 100)}%`;
 
-  const loadEvents = () => {
+  const loadEvents = async (endpoint) => {
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    if (endpoint) {
+      try {
+        const response = await fetch(`${endpoint}?since=${cutoff}`);
+        if (response.ok) {
+          const payload = await response.json();
+          if (Array.isArray(payload?.events)) {
+            return payload.events;
+          }
+        }
+      } catch (error) {
+        // Fall back to local storage.
+      }
+    }
     try {
       const stored = localStorage.getItem(storageKey);
       const parsed = stored ? JSON.parse(stored) : [];
-      const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
       return Array.isArray(parsed)
         ? parsed.filter((event) => typeof event?.timestamp === "number" && event.timestamp >= cutoff)
         : [];
@@ -105,7 +131,8 @@ const { heading = "Reader feedback" } = Astro.props;
     return top ? `${top[0]} ${top[1]}` : "—";
   };
 
-  const events = loadEvents();
+  const dashboard = document.querySelector("[data-feedback-dashboard]");
+  const endpoint = resolveEndpoint(dashboard?.dataset?.feedbackEndpoint);
   const startInput = document.querySelector("[data-feedback-start]");
   const endInput = document.querySelector("[data-feedback-end]");
   const typeSelect = document.querySelector("[data-feedback-type]");
@@ -113,6 +140,7 @@ const { heading = "Reader feedback" } = Astro.props;
   const tableWrap = document.querySelector("[data-feedback-table]");
   const rowsTarget = document.querySelector("[data-feedback-rows]");
   const commentList = document.querySelector("[data-feedback-comment-list]");
+  let events = [];
 
   const getRangeDefaults = () => {
     const end = new Date();
@@ -254,13 +282,18 @@ const { heading = "Reader feedback" } = Astro.props;
     renderComments(filtered);
   };
 
-  if (!events.length) {
-    emptyState.hidden = false;
-    tableWrap.hidden = true;
-    document.querySelector("[data-feedback-comments]").hidden = true;
-  } else {
+  const initialize = async () => {
+    events = await loadEvents(endpoint);
+    if (!events.length) {
+      emptyState.hidden = false;
+      tableWrap.hidden = true;
+      document.querySelector("[data-feedback-comments]").hidden = true;
+      return;
+    }
     render();
-  }
+  };
+
+  initialize();
 
   startInput.addEventListener("change", render);
   endInput.addEventListener("change", render);

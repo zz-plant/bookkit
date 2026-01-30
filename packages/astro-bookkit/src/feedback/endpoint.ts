@@ -91,21 +91,29 @@ const parsePayload = (payload: unknown): FeedbackEvent[] => {
   return [];
 };
 
+const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const parseNumber = (value: string | null) => {
+  if (!value) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const loadEvents = async (storagePath: string): Promise<FeedbackEvent[]> => {
+  try {
+    const stored = await fs.readFile(storagePath, "utf8");
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? (parsed as FeedbackEvent[]) : [];
+  } catch (error) {
+    return [];
+  }
+};
+
 const persistEvents = async (storagePath: string, events: FeedbackEvent[], maxEvents: number) => {
   const directory = path.dirname(storagePath);
   await fs.mkdir(directory, { recursive: true });
 
-  let existing: FeedbackEvent[] = [];
-  try {
-    const stored = await fs.readFile(storagePath, "utf8");
-    const parsed = JSON.parse(stored);
-    if (Array.isArray(parsed)) {
-      existing = parsed as FeedbackEvent[];
-    }
-  } catch (error) {
-    existing = [];
-  }
-
+  const existing = await loadEvents(storagePath);
   const merged = [...existing, ...events].slice(-maxEvents);
   await fs.writeFile(storagePath, JSON.stringify(merged, null, 2));
 };
@@ -115,6 +123,29 @@ export const createFeedbackEndpoint = (options: FeedbackEndpointOptions = {}) =>
   const maxEvents = options.maxEvents ?? 2000;
 
   return {
+    GET: async ({ request }: { request: Request }) => {
+      const url = new URL(request.url);
+      const limitParam = parseNumber(url.searchParams.get("limit"));
+      const sinceParam = parseNumber(url.searchParams.get("since"));
+      const untilParam = parseNumber(url.searchParams.get("until"));
+      const slugParam = cleanText(url.searchParams.get("slug"), MAX_SLUG_LENGTH);
+
+      const limit = clampNumber(limitParam ?? maxEvents, 1, maxEvents);
+      const since = sinceParam ?? 0;
+      const until = untilParam ?? Date.now();
+
+      const storedEvents = await loadEvents(storagePath);
+      const filtered = storedEvents.filter((event) => {
+        if (event.timestamp < since || event.timestamp > until) return false;
+        if (slugParam && event.slug !== slugParam) return false;
+        return true;
+      });
+
+      return new Response(JSON.stringify({ ok: true, events: filtered.slice(-limit) }), {
+        status: 200,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      });
+    },
     POST: async ({ request }: { request: Request }) => {
       let payload: unknown = null;
       try {

@@ -1,5 +1,7 @@
 # PRD: Reader feedback widgets
 
+- [x] Implemented in bookkit feedback widget, endpoint, and dashboard components.
+
 ## Summary
 Add lightweight feedback prompts so readers can react to chapters and sections.
 

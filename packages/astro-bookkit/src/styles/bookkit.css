@@ -538,6 +538,10 @@ p {
   color: var(--color-text);
 }
 
+.preview-last {
+  color: var(--color-muted);
+}
+
 .preview-empty {
   padding: var(--space-4);
   border: 1px dashed var(--color-border);

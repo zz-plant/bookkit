@@ -39,6 +39,9 @@ const hasLinks = links.length > 0;
               {link.expiresAt && (
                 <span class="preview-expiration">Expires {new Date(link.expiresAt).toLocaleDateString()}</span>
               )}
+              <span class="preview-last" data-preview-last>
+                No recent views
+              </span>
               <span class="preview-usage" data-preview-usage>
                 0 views
               </span>
@@ -74,42 +77,64 @@ const hasLinks = links.length > 0;
       }
     };
 
-    const countFromEvents = (events) =>
-      events.reduce((acc, event) => {
-        const hint = event?.tokenHint || "unknown";
-        acc[hint] = (acc[hint] || 0) + 1;
-        return acc;
-      }, {});
+    const statsFromEvents = (events) =>
+      events.reduce(
+        (acc, event) => {
+          const hint = event?.tokenHint || "unknown";
+          acc.counts[hint] = (acc.counts[hint] || 0) + 1;
+          const at = event?.at;
+          if (at) {
+            const existing = acc.latest[hint];
+            acc.latest[hint] = existing
+              ? new Date(existing).getTime() < new Date(at).getTime()
+                ? at
+                : existing
+              : at;
+          }
+          return acc;
+        },
+        { counts: {}, latest: {} }
+      );
 
-    const updateUsage = (counts) => {
+    const updateUsage = (counts, latest) => {
       document.querySelectorAll("[data-preview-row]").forEach((row) => {
         const hint = row.dataset.previewHint || "unknown";
         const usage = row.querySelector("[data-preview-usage]");
+        const last = row.querySelector("[data-preview-last]");
         if (usage) {
           const count = counts[hint] || 0;
           usage.textContent = `${count} view${count === 1 ? "" : "s"}`;
         }
+        if (last) {
+          const lastViewed = latest?.[hint];
+          last.textContent = lastViewed
+            ? `Last viewed ${new Date(lastViewed).toLocaleString()}`
+            : "No recent views";
+        }
       });
     };
 
-    const loadRemoteCounts = async () => {
+    const loadRemoteStats = async () => {
       if (!previewAnalyticsEndpoint) return null;
       try {
         const response = await fetch(previewAnalyticsEndpoint, { headers: { Accept: "application/json" } });
         if (!response.ok) return null;
         const payload = await response.json();
-        return payload?.totals || null;
+        return {
+          counts: payload?.totals || {},
+          latest: payload?.latest || {},
+        };
       } catch (error) {
         return null;
       }
     };
 
-    const localCounts = countFromEvents(parseEvents());
-    updateUsage(localCounts);
+    const localStats = statsFromEvents(parseEvents());
+    updateUsage(localStats.counts, localStats.latest);
 
-    loadRemoteCounts().then((counts) => {
-      if (counts) {
-        updateUsage(counts);
+    loadRemoteStats().then((stats) => {
+      if (stats) {
+        updateUsage(stats.counts, stats.latest);
       }
     });
 

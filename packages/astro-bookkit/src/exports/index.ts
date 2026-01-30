@@ -453,3 +453,8 @@ export const buildExportLinks = ({
     };
   });
 };
+
+export { recordExportEvent } from "./analytics";
+export type { ExportAnalyticsEvent } from "./analytics";
+export { createExportAnalyticsEndpoint } from "./endpoint";
+export type { ExportAnalyticsEndpointOptions } from "./endpoint";

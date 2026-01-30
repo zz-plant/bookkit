@@ -55,14 +55,18 @@ export {
   buildExportMetadata,
   createExportResponse,
   createEpubExport,
+  createExportAnalyticsEndpoint,
   createPdfExport,
   estimateExportBytes,
   formatExportUpdatedDate,
   formatBytes,
+  recordExportEvent,
 } from "./exports";
 export type {
   ExportBundle,
   ExportChapter,
+  ExportAnalyticsEndpointOptions,
+  ExportAnalyticsEvent,
   ExportFormat,
   ExportLink,
   ExportLinkOptions,

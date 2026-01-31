@@ -91,16 +91,20 @@ const bookConfig = `export const bookConfig = {
     aiQa: true,
   },
   objectives: {
-    readerStart: "TODO: Describe the reader's starting state.",
-    readerEnd: "TODO: Describe the reader's end state.",
-    transformation: "TODO: Summarize the reader transformation.",
+    readerStart:
+      "Feels stuck at the starting edge of the transformation and lacks a reliable next move.",
+    readerEnd:
+      "Can name the core mechanism, route responsibility correctly, and take a small, reversible action.",
+    transformation:
+      "From stuck and over-responsible to system-aware action with a concrete first step.",
   },
   frame: {
     slug: "intervention",
     steps: ["recognition", "exoneration", "mechanism", "agency"],
-    intent: "TODO: Describe how the frame moves the reader.",
+    intent: "Move readers from recognition to agency with enforceable steps.",
   },
-  causalStance: "TODO: Describe how responsibility and causality are routed.",
+  causalStance:
+    "Outcomes are shaped by incentives and constraints, not just individual intent or character.",
   constraints: {
     mechanismCountTarget: [6, 8],
     actionPrimitiveMaxMinutes: 10,
@@ -157,7 +161,7 @@ function scaffoldStarterContent({ contentRoot, title }: StarterContentOptions) {
 
   ensureDir(exampleDir);
 
-  const chapter = `---
+const chapter = `---
 slug: overview
 status: draft
 title: "Overview"
@@ -165,48 +169,48 @@ title: "Overview"
 
 ## Purpose
 
-- TODO: State the reader transformation for ${title}.
-- TODO: Name the causal stance and frame you are using.
+- Reader moves from a stuck, over-responsible stance to a practical, system-aware response.
+- Causal stance: incentives and constraints drive outcomes more than individual virtue.
 
 ## Outline
 
 ### Recognition
-- TODO: Describe the pattern the reader should recognize.
+- Name the recurring pattern or harm that the reader keeps encountering.
 
 ### Exoneration
-- TODO: Name what gets disentangled from blame.
+- State what gets disentangled from blame so responsibility can be routed correctly.
 
 ### Mechanism
-- TODO: Preview the mechanisms that will be defined.
+- Preview the mechanism(s) this book will define and rely on.
 
 ### Agency
-- TODO: Describe the action primitives you will offer.
+- Preview the small, reversible actions the reader will be able to take.
 
 ## Primary mechanisms referenced
 
 - ${mechanismSlug}
 `;
 
-  const mechanism = `---
+const mechanism = `---
 slug: ${mechanismSlug}
 title: "Starter mechanism"
-definition: "TODO: Define the mechanism in one sentence."
+definition: "A repeatable pattern where a system produces harm while preserving surface legitimacy."
 is:
-  - "TODO: Describe what counts as this mechanism."
+  - "A named incentive or process keeps harm in motion without clear accountability."
 isNot:
-  - "TODO: Describe what does not count as this mechanism."
+  - "One-off mistakes or accidents with no repeatable structure."
 predictions:
-  - "TODO: Add a falsifiable prediction."
+  - "If the mechanism is active, similar outcomes will appear across unrelated cases."
 tests:
-  - "TODO: Add a quick test for spotting the mechanism."
+  - "Ask: if we swapped the person but kept the incentives, would the outcome stay the same?"
 ---
 
 Replace this placeholder mechanism with the first real mechanism in your book.
 `;
 
-  const example = `---
+const example = `---
 mechanism: ${mechanismSlug}
-domain: "TODO"
+domain: "Workplace"
 title: "Starter example"
 status: draft
 ---
@@ -218,18 +222,18 @@ Constraints:
 - Make the example swappable without changing the mechanism.
 `;
 
-  const tool = `---
+const tool = `---
 slug: ${toolSlug}
 mechanism: ${mechanismSlug}
 name: "Starter tool"
-trigger: "TODO: When should a reader use this?"
+trigger: "When you notice the same harm repeating even after good-faith effort."
 timeboxMinutes: 10
 steps:
-  - "TODO: Describe the first step."
+  - "Name the repeating outcome in one sentence."
 failureLooksLike:
-  - "TODO: Describe what failure looks like."
+  - "You still cannot name a repeatable pattern after 10 minutes."
 legitimateDemand:
-  - "TODO: Describe the legitimate demand behind the action."
+  - "A clear, repeatable description of the harm that can be shared or escalated."
 ---
 
 Keep this tool runnable by a depleted reader. No heroics.

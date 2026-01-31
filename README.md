@@ -231,10 +231,17 @@ and wiring that the engine expects.
 3. **Update the starter content** under `apps/<new-book>/src/content/book/`:
    - The scaffold adds starter files for `chapters/`, `mechanisms/`, `toolkit/`, `examples/`, `glossary/`, and `releases/`.
    - Replace the placeholder mechanism, tool, example, glossary entry, and release note before publishing.
-4. **Run validation** before publishing:
+4. **Swap out the scaffolded placeholders** so nothing ships as a draft:
+   - `src/content/book/chapters/00-overview.mdx` → overwrite the Purpose + Outline bullets with your actual module plan.
+   - `src/content/book/mechanisms/starter-mechanism.mdx` → replace the definition, boundaries, predictions, and tests.
+   - `src/content/book/toolkit/starter-mechanism--starter-tool.mdx` → replace the trigger, steps, failure mode, and legitimate demand.
+   - `src/content/book/examples/starter-mechanism/starter-example.mdx` → replace the domain and example narrative.
+   - `src/content/book/glossary/starter-term.mdx` → replace the term and definition.
+   - `src/content/book/releases/<date>-initial-draft.mdx` → replace the release note before any publish or export.
+5. **Run validation** before publishing:
    - `bun run validate` (warn mode)
    - `bun run validate:release` (error mode, for release gates)
-5. **Use the new convenience scripts** in the root `package.json` (added by the scaffold):
+6. **Use the new convenience scripts** in the root `package.json` (added by the scaffold):
    - `bun run dev:<book>` and `bun run build:<book>`
    - If you skipped root scripts, add the one-liners manually.
 

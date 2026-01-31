@@ -140,6 +140,19 @@ Drafts:
 
 ---
 
+## Scaffold placeholder checklist (new books)
+
+If you used `bun run new:book`, replace the starter placeholders before publish:
+
+- `src/content/book/chapters/00-overview.mdx` → update the Purpose + Outline bullets.
+- `src/content/book/mechanisms/starter-mechanism.mdx` → replace definition, boundaries, predictions, and tests.
+- `src/content/book/toolkit/starter-mechanism--starter-tool.mdx` → replace trigger, steps, failure mode, and legitimate demand.
+- `src/content/book/examples/starter-mechanism/starter-example.mdx` → replace the domain and the example narrative.
+- `src/content/book/glossary/starter-term.mdx` → replace the term and definition.
+- `src/content/book/releases/<date>-initial-draft.mdx` → replace the release note summary and highlights.
+
+---
+
 ## What not to do
 
 - Don’t add conditional logic inside content files

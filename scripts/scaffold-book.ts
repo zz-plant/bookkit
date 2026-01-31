@@ -1,11 +1,12 @@
 import { cpSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ensureDir, optionalArg, readText, requireArg, slugify } from "./_lib";
+import { ensureDir, optionalArg, readText, requireArg, slugify, writeFileSafe } from "./_lib";
 
 const rawBook = requireArg("--book");
 const template = optionalArg("--template") ?? "bad-people";
 const titleArg = optionalArg("--title");
 const skipRootScripts = process.argv.includes("--skip-root-scripts");
+const skipStarterContent = process.argv.includes("--skip-starter-content");
 const slug = slugify(rawBook);
 
 if (slug !== rawBook) {
@@ -115,6 +116,10 @@ export default bookConfig;
 
 writeFileSync(bookConfigPath, bookConfig, "utf8");
 
+if (!skipStarterContent) {
+  scaffoldStarterContent({ contentRoot, title });
+}
+
 if (!skipRootScripts) {
   const rootPackagePath = join(root, "package.json");
   const rootPackage = JSON.parse(readText(rootPackagePath));
@@ -134,3 +139,129 @@ if (!skipRootScripts) {
 }
 
 console.log(`✅ Scaffolded new book at apps/${slug}`);
+
+type StarterContentOptions = {
+  contentRoot: string;
+  title: string;
+};
+
+function scaffoldStarterContent({ contentRoot, title }: StarterContentOptions) {
+  const chapterPath = join(contentRoot, "chapters", "00-overview.mdx");
+  const mechanismSlug = "starter-mechanism";
+  const mechanismPath = join(contentRoot, "mechanisms", `${mechanismSlug}.mdx`);
+  const exampleDir = join(contentRoot, "examples", mechanismSlug);
+  const examplePath = join(exampleDir, "starter-example.mdx");
+  const toolSlug = `${mechanismSlug}--starter-tool`;
+  const toolPath = join(contentRoot, "toolkit", `${toolSlug}.mdx`);
+  const glossaryPath = join(contentRoot, "glossary", "starter-term.mdx");
+
+  ensureDir(exampleDir);
+
+  const chapter = `---
+slug: overview
+status: draft
+title: "Overview"
+---
+
+## Purpose
+
+- TODO: State the reader transformation for ${title}.
+- TODO: Name the causal stance and frame you are using.
+
+## Outline
+
+### Recognition
+- TODO: Describe the pattern the reader should recognize.
+
+### Exoneration
+- TODO: Name what gets disentangled from blame.
+
+### Mechanism
+- TODO: Preview the mechanisms that will be defined.
+
+### Agency
+- TODO: Describe the action primitives you will offer.
+
+## Primary mechanisms referenced
+
+- ${mechanismSlug}
+`;
+
+  const mechanism = `---
+slug: ${mechanismSlug}
+title: "Starter mechanism"
+definition: "TODO: Define the mechanism in one sentence."
+is:
+  - "TODO: Describe what counts as this mechanism."
+isNot:
+  - "TODO: Describe what does not count as this mechanism."
+predictions:
+  - "TODO: Add a falsifiable prediction."
+tests:
+  - "TODO: Add a quick test for spotting the mechanism."
+---
+
+Replace this placeholder mechanism with the first real mechanism in your book.
+`;
+
+  const example = `---
+mechanism: ${mechanismSlug}
+domain: "TODO"
+title: "Starter example"
+status: draft
+---
+
+Write an example that illustrates the mechanism above.
+
+Constraints:
+- Do not define the mechanism here.
+- Make the example swappable without changing the mechanism.
+`;
+
+  const tool = `---
+slug: ${toolSlug}
+mechanism: ${mechanismSlug}
+name: "Starter tool"
+trigger: "TODO: When should a reader use this?"
+timeboxMinutes: 10
+steps:
+  - "TODO: Describe the first step."
+failureLooksLike:
+  - "TODO: Describe what failure looks like."
+legitimateDemand:
+  - "TODO: Describe the legitimate demand behind the action."
+---
+
+Keep this tool runnable by a depleted reader. No heroics.
+`;
+
+  const glossary = `---
+slug: starter-term
+term: "Starter term"
+---
+
+Define the key term here. Keep it concise and replaceable.
+`;
+
+  const date = new Date().toISOString().slice(0, 10);
+  const releasePath = join(contentRoot, "releases", `${date}-initial-draft.mdx`);
+  const release = `---
+title: "Initial draft"
+version: "0.1.0"
+date: "${date}"
+summary: "Introduces the first draft structure for ${title}."
+highlights:
+  - "Added the initial overview chapter."
+  - "Seeded one starter mechanism, example, and tool."
+---
+
+This placeholder release note should be updated before publication.
+`;
+
+  writeFileSafe(chapterPath, chapter);
+  writeFileSafe(mechanismPath, mechanism);
+  writeFileSafe(examplePath, example);
+  writeFileSafe(toolPath, tool);
+  writeFileSafe(glossaryPath, glossary);
+  writeFileSafe(releasePath, release);
+}

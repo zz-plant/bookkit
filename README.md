@@ -211,11 +211,13 @@ and wiring that the engine expects.
    - `bun run new:book -- --book <new-book> --title "Your Book Title"`
    - Optional: `--template <existing-book>` (defaults to `bad-people`)
    - Optional: `--skip-root-scripts` to avoid adding `dev:<book>` and `build:<book>` to the root `package.json`
+   - Optional: `--skip-starter-content` to keep content folders empty
 2. **Review `apps/<new-book>/src/book.config.ts`** and replace TODO fields:
    - `title`, `slug`, `status`, and `site.url`
    - objectives, constraints, frame, and mechanism list
-3. **Populate required content records** under `apps/<new-book>/src/content/book/`:
-   - `mechanisms/`, `toolkit/`, `chapters/`, `examples/`, `glossary/`, `releases/`
+3. **Update the starter content** under `apps/<new-book>/src/content/book/`:
+   - The scaffold adds starter files for `chapters/`, `mechanisms/`, `toolkit/`, `examples/`, `glossary/`, and `releases/`.
+   - Replace the placeholder mechanism, tool, example, glossary entry, and release note before publishing.
 4. **Run validation** before publishing:
    - `bun run validate` (warn mode)
    - `bun run validate:release` (error mode, for release gates)
@@ -231,7 +233,7 @@ Do not fork or duplicate the engine.
    - Ensure `site.url` and `site.enforceHttps` match the production domain.
 2. **Configure preview access** (optional) in `book.config.ts` if you want gated
    review links before launch.
-3. **Create a release note entry** under `src/content/book/releases/` with a
+3. **Finalize a release note entry** under `src/content/book/releases/` with a
    version and date so the release notes page and RSS feed are populated.
 4. **Build the book for production**:
    - `bun run --filter @books/<new-book> build`

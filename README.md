@@ -71,14 +71,20 @@ No engine logic lives here.
 │     ├─ astro.config.mjs
 │     └─ src/
 │        ├─ book.config.ts   # the book’s objective function
+│        ├─ layouts/
+│        ├─ lib/
 │        ├─ pages/
+│        │  ├─ api/
+│        │  ├─ exports/
+│        │  └─ read/
 │        └─ content/
 │           └─ book/
 │              ├─ mechanisms/
 │              ├─ toolkit/
 │              ├─ chapters/
 │              ├─ examples/
-│              └─ glossary/
+│              ├─ glossary/
+│              └─ releases/
 ├─ packages/
 │  └─ astro-bookkit/
 └─ scripts/
@@ -86,6 +92,18 @@ No engine logic lives here.
 ```
 
 ---
+
+## Built-in capabilities already implemented
+
+The engine and the `apps/bad-people` instance already ship with features beyond frames and validation, including:
+
+- **Search indexing + API endpoints** for chapters, mechanisms, glossary terms, and toolkit entries so the front end can power fast in-book search.
+- **Export pipelines** for PDF and EPUB, including per-chapter and full-book exports, with analytics capture for export events.
+- **Preview access controls** (token-based previews) plus preview analytics endpoints for gated review workflows.
+- **Release tooling** for versioned release notes, RSS feeds, and optional webhook/email notifications.
+- **Localization utilities** (locale routing middleware, completeness tracking, and localized content indexing).
+- **SEO helpers** for site URLs, sitemaps, and robots.txt generation.
+- **Reader feedback collection** plus dashboards for feedback and analytics inside the reading UI.
 
 ## Bun-first workflow
 

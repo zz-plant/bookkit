@@ -10,6 +10,7 @@ const {
   bookTitle = "Book",
   bookVersion = "draft",
   bookKey = "book",
+  analyticsEndpoint = "/api/analytics.json",
   exportAnalyticsEndpoint = "/api/export-analytics.json",
   previewAnalyticsEndpoint = "/api/preview-analytics.json",
   footerText = "Draft book instance.",
@@ -156,6 +157,7 @@ const previewDetails = [
   <body
     data-book-version={bookVersion}
     data-analytics-key={bookKey}
+    data-analytics-endpoint={analyticsEndpoint}
     data-export-analytics-endpoint={exportAnalyticsEndpoint}
     data-preview-analytics-endpoint={previewAnalyticsEndpoint}
     data-qa-enabled={aiQaEnabled ? "true" : "false"}
@@ -1084,6 +1086,7 @@ const previewDetails = [
       const analyticsStorageKey = `${analyticsKeyPrefix}.analytics.events`;
       const analyticsSessionKey = `${analyticsKeyPrefix}.analytics.session`;
       const previewAnalyticsKey = `${analyticsKeyPrefix}.preview.analytics`;
+      const analyticsEndpoint = document.body?.dataset?.analyticsEndpoint;
       const isPreview = document.body?.dataset?.preview === "true";
       const analyticsRetentionDays = 90;
 
@@ -1123,6 +1126,23 @@ const previewDetails = [
         const events = loadAnalyticsEvents();
         events.push(event);
         saveAnalyticsEvents(events);
+        sendAnalyticsEvent(event);
+      };
+
+      const sendAnalyticsEvent = (payload) => {
+        if (!analyticsEndpoint) return;
+        const body = JSON.stringify(payload);
+        if ("sendBeacon" in navigator) {
+          const blob = new Blob([body], { type: "application/json" });
+          navigator.sendBeacon(analyticsEndpoint, blob);
+          return;
+        }
+        fetch(analyticsEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
       };
 
       const recordPreviewEvent = () => {

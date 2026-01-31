@@ -22,6 +22,7 @@
     "./styles/bookkit.css": "./src/styles/bookkit.css",
     "./search": "./src/search/index.ts",
     "./exports": "./src/exports/index.ts",
-    "./localization": "./src/localization/index.ts"
+    "./localization": "./src/localization/index.ts",
+    "./analytics": "./src/analytics/index.ts"
   }
 }

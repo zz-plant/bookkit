@@ -5,9 +5,17 @@ const {
     day: "numeric",
     year: "numeric",
   }),
-} = Astro.props;
+  endpoint,
+} = Astro.props as {
+  lastUpdated?: string;
+  endpoint?: string;
+};
 ---
-<section class="content-block analytics-section" data-analytics-dashboard>
+<section
+  class="content-block analytics-section"
+  data-analytics-dashboard
+  data-analytics-endpoint={endpoint}
+>
   <div class="analytics-filters" data-analytics-filters>
     <label class="analytics-filter">
       <span>Version</span>
@@ -175,8 +183,9 @@ const {
       return { start, end };
     };
 
-    const events = parseEvents();
-    const versions = uniqueValues(events.map((event) => event.version).filter(Boolean));
+    let events = [];
+    let versions = [];
+    const endpointUrl = dashboard.dataset.analyticsEndpoint;
     const versionSelect = dashboard.querySelector("[data-filter-version]");
     const startInput = dashboard.querySelector("[data-filter-start]");
     const endInput = dashboard.querySelector("[data-filter-end]");
@@ -402,17 +411,41 @@ const {
       }
     };
 
-    fillVersions();
+    const loadEvents = async () => {
+      if (!endpointUrl) {
+        events = parseEvents();
+        return;
+      }
+      try {
+        const response = await fetch(endpointUrl);
+        const payload = await response.json();
+        if (Array.isArray(payload?.events)) {
+          events = payload.events;
+          return;
+        }
+      } catch (error) {
+        // Ignore and fall back to local events.
+      }
+      events = parseEvents();
+    };
 
-    if (events.length) {
-      filterEvents();
-    } else {
-      emptyState.hidden = false;
-      tableWrap.hidden = true;
-    }
+    const initialize = async () => {
+      await loadEvents();
+      versions = uniqueValues(events.map((event) => event.version).filter(Boolean));
+      fillVersions();
 
-    versionSelect.addEventListener("change", filterEvents);
-    startInput.addEventListener("change", filterEvents);
-    endInput.addEventListener("change", filterEvents);
+      if (events.length) {
+        filterEvents();
+      } else {
+        emptyState.hidden = false;
+        tableWrap.hidden = true;
+      }
+
+      versionSelect.addEventListener("change", filterEvents);
+      startInput.addEventListener("change", filterEvents);
+      endInput.addEventListener("change", filterEvents);
+    };
+
+    initialize();
   });
 </script>

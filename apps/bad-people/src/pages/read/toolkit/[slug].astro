@@ -6,6 +6,7 @@ import {
   resolveLocalizedModule,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.toolkit;
@@ -39,7 +40,7 @@ const hasSteps = Array.isArray(frontmatter.steps) && frontmatter.steps.length > 
 const hasFailureLooks = Array.isArray(frontmatter.failureLooksLike) && frontmatter.failureLooksLike.length > 0;
 const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatter.legitimateDemand.length > 0;
 ---
-<BaseLayout title={`${frontmatter.name} • Bad People`}>
+<BaseLayout title={`${frontmatter.name} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="/read">Reading hub</a>
     <span>›</span>

@@ -5,6 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../lib/book-entrypoints";
+import bookConfig from "../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
   bookEntryPoints.contentModules.chapters,
@@ -42,6 +43,8 @@ const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey }
 const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const metaDescription =
+  bookConfig.site?.defaultMeta?.description ?? "Draft book instance content.";
 const stats = [
   {
     label: "Chapters",
@@ -70,13 +73,10 @@ const stats = [
   },
 ];
 ---
-<BaseLayout title="Bad People">
+<BaseLayout title={bookConfig.title}>
   <div class="section-header">
-    <h1>Bad People</h1>
-    <p class="lede">
-      A draft book instance exploring how systems normalize harm and how readers can
-      respond with small, reversible actions.
-    </p>
+    <h1>{bookConfig.title}</h1>
+    <p class="lede">{metaDescription}</p>
   </div>
   <section class="content-block">
     <div class="eyebrow">At a glance</div>

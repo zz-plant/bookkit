@@ -13,7 +13,7 @@ const seoProps = buildSeoProps({
 });
 ---
 <VersionArchivePage
-  title="Version archive • Bad People"
+  title={`Version archive • ${bookConfig.title}`}
   bookTitle={bookConfig.title}
   bookVersion={latestVersion}
   bookKey={bookConfig.slug ?? "book"}

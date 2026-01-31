@@ -3,6 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.examples;
 const { items: exampleItems, completeness } = createLocalizedContentList(modules, {
@@ -25,7 +26,7 @@ const localizedLede =
     ? `Translation completeness: ${Math.round(completeness * 100)}%.`
     : null;
 ---
-<BaseLayout title="Examples • Bad People">
+<BaseLayout title={`Examples • ${bookConfig.title}`}>
   <ContentIndexList
     title="Examples"
     lede={

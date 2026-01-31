@@ -6,6 +6,7 @@ import {
   resolveLocalizedModule,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.glossary;
@@ -36,7 +37,7 @@ if (!module) {
 const { frontmatter, default: Content } = module;
 const isFallback = missingSlugs.includes(frontmatter.slug);
 ---
-<BaseLayout title={`${frontmatter.term} • Bad People`}>
+<BaseLayout title={`${frontmatter.term} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="/read">Reading hub</a>
     <span>›</span>

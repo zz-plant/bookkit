@@ -16,7 +16,7 @@ const seoProps = buildSeoProps({
 });
 ---
 <ReleaseNotesPage
-  title="Release notes • Bad People"
+  title={`Release notes • ${bookConfig.title}`}
   bookTitle={bookConfig.title}
   bookVersion={latestVersion}
   bookKey={bookConfig.slug ?? "book"}

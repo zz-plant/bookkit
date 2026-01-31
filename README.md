@@ -209,6 +209,7 @@ and wiring that the engine expects.
 
 1. **Scaffold the new book** from the template:
    - `bun run new:book -- --book <new-book> --title "Your Book Title"`
+   - CLI shortcut: `bun run bookkit new-book -- --book <new-book> --title "Your Book Title"`
    - Optional: `--template <existing-book>` (defaults to `bad-people`)
    - Optional: `--skip-root-scripts` to avoid adding `dev:<book>` and `build:<book>` to the root `package.json`
    - Optional: `--skip-starter-content` to keep content folders empty

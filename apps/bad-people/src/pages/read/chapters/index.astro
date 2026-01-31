@@ -4,8 +4,9 @@ import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { getBookExportLinks } from "../../../lib/exports";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
 
-const modules = import.meta.glob("../../../content/book/chapters/*.mdx", { eager: true });
+const modules = bookEntryPoints.contentModules.chapters;
 const { items: chapterItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,

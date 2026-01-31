@@ -5,9 +5,10 @@ import {
   resolveLocalizedContent,
   resolveLocalizedModule,
 } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
 
 export async function getStaticPaths() {
-  const modules = import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true });
+  const modules = bookEntryPoints.contentModules.mechanisms;
   const localizedIndex = buildLocalizedContentIndex(modules, {
     defaultLocale: "en",
   });
@@ -17,7 +18,7 @@ export async function getStaticPaths() {
   }));
 }
 
-const modules = import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true });
+const modules = bookEntryPoints.contentModules.mechanisms;
 const localizedIndex = buildLocalizedContentIndex(modules, {
   defaultLocale: "en",
 });
@@ -41,13 +42,13 @@ const hasTests = Array.isArray(frontmatter.tests) && frontmatter.tests.length > 
 const hasIs = Array.isArray(frontmatter.is) && frontmatter.is.length > 0;
 const hasIsNot = Array.isArray(frontmatter.isNot) && frontmatter.isNot.length > 0;
 const toolkitIndex = buildLocalizedContentIndex(
-  import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.toolkit,
   {
     defaultLocale: "en",
   }
 );
 const exampleIndex = buildLocalizedContentIndex(
-  import.meta.glob("../../../content/book/examples/**/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.examples,
   {
     defaultLocale: "en",
   }

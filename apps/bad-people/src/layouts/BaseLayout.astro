@@ -4,6 +4,7 @@ import {
   createBookLayoutState,
 } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
+import { bookEntryPoints } from "../lib/book-entrypoints";
 import { getVersionEntries } from "../lib/versions";
 
 const versionEntries = getVersionEntries();
@@ -15,13 +16,7 @@ const layoutState = createBookLayoutState({
   },
   bookConfig,
   versionEntries,
-  localizedContentModules: [
-    import.meta.glob("../content/book/chapters/*.mdx", { eager: true }),
-    import.meta.glob("../content/book/mechanisms/*.mdx", { eager: true }),
-    import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }),
-    import.meta.glob("../content/book/glossary/*.mdx", { eager: true }),
-    import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }),
-  ],
+  localizedContentModules: bookEntryPoints.localizedContentModules,
   versionPrefix: "v",
 });
 const {

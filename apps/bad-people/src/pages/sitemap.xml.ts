@@ -1,17 +1,12 @@
 import type { APIRoute } from "astro";
 import { createBookSitemapEntries, createSitemapXml } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
+import { bookEntryPoints } from "../lib/book-entrypoints";
 
 export const GET: APIRoute = () => {
   const entries = createBookSitemapEntries({
     site: bookConfig.site,
-    content: {
-      chapters: import.meta.glob("../content/book/chapters/*.mdx", { eager: true }),
-      mechanisms: import.meta.glob("../content/book/mechanisms/*.mdx", { eager: true }),
-      toolkit: import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }),
-      glossary: import.meta.glob("../content/book/glossary/*.mdx", { eager: true }),
-      examples: import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }),
-    },
+    content: bookEntryPoints.contentModules,
   });
 
   const xml = createSitemapXml(entries);

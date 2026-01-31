@@ -4,33 +4,34 @@ import {
   buildLocalizedContentIndex,
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../lib/book-entrypoints";
 
 const chapterIndex = buildLocalizedContentIndex(
-  import.meta.glob("../content/book/chapters/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.chapters,
   {
     defaultLocale: "en",
   }
 );
 const mechanismIndex = buildLocalizedContentIndex(
-  import.meta.glob("../content/book/mechanisms/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.mechanisms,
   {
     defaultLocale: "en",
   }
 );
 const toolkitIndex = buildLocalizedContentIndex(
-  import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.toolkit,
   {
     defaultLocale: "en",
   }
 );
 const glossaryIndex = buildLocalizedContentIndex(
-  import.meta.glob("../content/book/glossary/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.glossary,
   {
     defaultLocale: "en",
   }
 );
 const exampleIndex = buildLocalizedContentIndex(
-  import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }),
+  bookEntryPoints.contentModules.examples,
   {
     defaultLocale: "en",
   }

@@ -2,8 +2,9 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
 
-const modules = import.meta.glob("../../../content/book/mechanisms/*.mdx", { eager: true });
+const modules = bookEntryPoints.contentModules.mechanisms;
 const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,

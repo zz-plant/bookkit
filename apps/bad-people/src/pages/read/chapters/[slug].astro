@@ -9,6 +9,7 @@ import {
   resolveLocalizedModule,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.chapters;
@@ -48,7 +49,7 @@ const chapterOrder = entries
 const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
 const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
 ---
-<BaseLayout title={`${frontmatter.title} • Bad People`}>
+<BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="/read">Reading hub</a>
     <span>›</span>

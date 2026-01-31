@@ -5,6 +5,7 @@ import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList
 import { getBookExportLinks } from "../../../lib/exports";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.chapters;
 const { items: chapterItems, completeness } = createLocalizedContentList(modules, {
@@ -26,7 +27,7 @@ const localizedLede =
     ? `Translation completeness: ${Math.round(completeness * 100)}%.`
     : null;
 ---
-<BaseLayout title="Chapters • Bad People">
+<BaseLayout title={`Chapters • ${bookConfig.title}`}>
   <ContentIndexList
     title="Chapters"
     lede={

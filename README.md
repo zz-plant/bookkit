@@ -202,13 +202,43 @@ The goal is not punishment — it’s to keep the book recompilable over time.
 
 ## Creating a new book
 
-1. Copy an existing app under `apps/`
-2. Update `book.config.ts`
-3. Add mechanisms + toolkit records
-4. Run validation
-5. Write content as needed
+Use an existing book instance as a template so you inherit the routes, middleware,
+and wiring that the engine expects.
+
+### Repo steps (add a new book instance)
+
+1. **Scaffold the new book** from the template:
+   - `bun run new:book -- --book <new-book> --title "Your Book Title"`
+   - Optional: `--template <existing-book>` (defaults to `bad-people`)
+2. **Review `apps/<new-book>/src/book.config.ts`** and replace TODO fields:
+   - `title`, `slug`, `status`, and `site.url`
+   - objectives, constraints, frame, and mechanism list
+3. **Populate required content records** under `apps/<new-book>/src/content/book/`:
+   - `mechanisms/`, `toolkit/`, `chapters/`, `examples/`, `glossary/`, `releases/`
+4. **Run validation** before publishing:
+   - `bun run validate` (warn mode)
+   - `bun run validate:release` (error mode, for release gates)
+5. **Add convenience scripts (optional)** to the root `package.json` if you want
+   one-liners like `dev:<book>` or `build:<book>`.
 
 Do not fork or duplicate the engine.
+
+### Deployment + user-facing publish steps
+
+1. **Set the public URL** in `apps/<new-book>/src/book.config.ts`:
+   - Ensure `site.url` and `site.enforceHttps` match the production domain.
+2. **Configure preview access** (optional) in `book.config.ts` if you want gated
+   review links before launch.
+3. **Create a release note entry** under `src/content/book/releases/` with a
+   version and date so the release notes page and RSS feed are populated.
+4. **Build the book for production**:
+   - `bun run --filter @books/<new-book> build`
+5. **Deploy the built output** with your hosting provider (Astro static output).
+6. **Verify user-facing endpoints** after deploy:
+   - `/` (home), `/read` (reading hub), `/sitemap.xml`, `/robots.txt`,
+     `/release-notes`, `/release-notes.xml`
+7. **Optional exports**:
+   - `bun run export:gitbook -- --book <new-book>` to generate a GitBook-ready bundle.
 
 ---
 

@@ -5,6 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
+import bookConfig from "../../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
   bookEntryPoints.contentModules.chapters,
@@ -100,7 +101,7 @@ const sections = [
   },
 ];
 ---
-<BaseLayout title="Read • Bad People">
+<BaseLayout title={`Read • ${bookConfig.title}`}>
   <div class="section-header">
     <h1>Reading hub</h1>
     <p class="lede">

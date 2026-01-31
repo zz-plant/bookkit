@@ -88,11 +88,26 @@ const {
     </table>
   </div>
 
+  <div class="analytics-table-wrap" data-analytics-locales hidden>
+    <h2>Locale usage</h2>
+    <table class="analytics-table">
+      <thead>
+        <tr>
+          <th>Locale</th>
+          <th>Views</th>
+          <th>Share</th>
+        </tr>
+      </thead>
+      <tbody data-analytics-locale-rows></tbody>
+    </table>
+  </div>
+
   <div class="analytics-notes">
     <h2>Privacy &amp; retention</h2>
     <ul>
       <li>Events store anonymized session IDs with no personal identifiers.</li>
       <li>Only page views, time-on-page, and scroll depth are captured.</li>
+      <li>Language switch events are recorded to track locale preferences.</li>
       <li>Events expire after 90 days to minimize retention.</li>
       <li>Drop-off is estimated using average scroll depth, not user identity.</li>
     </ul>
@@ -185,6 +200,8 @@ const {
     const versionTableWrap = dashboard.querySelector("[data-analytics-versions]");
     const rowsTarget = dashboard.querySelector("[data-analytics-rows]");
     const versionRowsTarget = dashboard.querySelector("[data-analytics-version-rows]");
+    const localeTableWrap = dashboard.querySelector("[data-analytics-locales]");
+    const localeRowsTarget = dashboard.querySelector("[data-analytics-locale-rows]");
 
     if (
       !versionSelect ||
@@ -194,7 +211,9 @@ const {
       !tableWrap ||
       !rowsTarget ||
       !versionTableWrap ||
-      !versionRowsTarget
+      !versionRowsTarget ||
+      !localeTableWrap ||
+      !localeRowsTarget
     ) {
       return;
     }
@@ -366,6 +385,42 @@ const {
       versionTableWrap.hidden = rows.length === 0;
     };
 
+    const renderLocaleTable = (pageviewEvents) => {
+      const localeMap = new Map();
+
+      pageviewEvents.forEach((event) => {
+        const locale = event.locale || "unknown";
+        const entry = localeMap.get(locale) ?? { locale, views: 0 };
+        entry.views += 1;
+        localeMap.set(locale, entry);
+      });
+
+      const rows = Array.from(localeMap.values())
+        .filter((row) => row.locale !== "unknown")
+        .sort((a, b) => b.views - a.views);
+
+      localeRowsTarget.innerHTML = "";
+
+      if (!rows.length) {
+        localeTableWrap.hidden = true;
+        return;
+      }
+
+      const totalViews = rows.reduce((sum, row) => sum + row.views, 0);
+      rows.forEach((row) => {
+        const share = totalViews ? row.views / totalViews : 0;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.locale}</td>
+          <td>${row.views}</td>
+          <td>${formatPercent(share)}</td>
+        `;
+        localeRowsTarget.appendChild(tr);
+      });
+
+      localeTableWrap.hidden = false;
+    };
+
     const filterEvents = () => {
       const selectedVersion = versionSelect.value;
       const startDate = new Date(startInput.value);
@@ -386,6 +441,7 @@ const {
         emptyState.hidden = false;
         tableWrap.hidden = true;
         versionTableWrap.hidden = true;
+        localeTableWrap.hidden = true;
       } else {
         emptyState.hidden = true;
         tableWrap.hidden = false;
@@ -394,6 +450,7 @@ const {
       const summary = summarize(filtered);
       renderCards(summary);
       renderTable(summary.pageviews, summary.engagements);
+      renderLocaleTable(summary.pageviews);
 
       if (selectedVersion === "all") {
         renderVersionTable(inRangeEvents);

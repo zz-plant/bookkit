@@ -210,6 +210,7 @@ and wiring that the engine expects.
 1. **Scaffold the new book** from the template:
    - `bun run new:book -- --book <new-book> --title "Your Book Title"`
    - Optional: `--template <existing-book>` (defaults to `bad-people`)
+   - Optional: `--skip-root-scripts` to avoid adding `dev:<book>` and `build:<book>` to the root `package.json`
 2. **Review `apps/<new-book>/src/book.config.ts`** and replace TODO fields:
    - `title`, `slug`, `status`, and `site.url`
    - objectives, constraints, frame, and mechanism list
@@ -218,8 +219,9 @@ and wiring that the engine expects.
 4. **Run validation** before publishing:
    - `bun run validate` (warn mode)
    - `bun run validate:release` (error mode, for release gates)
-5. **Add convenience scripts (optional)** to the root `package.json` if you want
-   one-liners like `dev:<book>` or `build:<book>`.
+5. **Use the new convenience scripts** in the root `package.json` (added by the scaffold):
+   - `bun run dev:<book>` and `bun run build:<book>`
+   - If you skipped root scripts, add the one-liners manually.
 
 Do not fork or duplicate the engine.
 

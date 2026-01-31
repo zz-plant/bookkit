@@ -14,6 +14,8 @@ type LocalizedSearchOptions = {
   defaultLocale?: string;
 };
 
+const LOCALE_FRONTMATTER_PATTERN = /\nlocale:\s*([^\n]+)\n/;
+
 const defaultBookSearchSources = [
   {
     type: "chapters",
@@ -52,8 +54,24 @@ const defaultBookSearchSources = [
   },
 ] as const;
 
+const getLocaleForModule = (raw: string): string | undefined => {
+  const match = raw.match(LOCALE_FRONTMATTER_PATTERN);
+  return normalizeLocaleCode(match?.[1]);
+};
+
+const shouldIncludeModule = (
+  raw: string,
+  requestedLocale: string | null,
+  defaultLocale: string
+): boolean => {
+  if (!requestedLocale) return true;
+
+  const moduleLocale = getLocaleForModule(raw);
+  return moduleLocale ? moduleLocale === requestedLocale : requestedLocale === defaultLocale;
+};
+
 export const createBookSearchSources = (
-  modules: BookSearchModuleMap
+  modules: BookSearchModuleMap,
 ): SearchContentSource[] => {
   return defaultBookSearchSources.map((source) => ({
     ...source,
@@ -63,7 +81,7 @@ export const createBookSearchSources = (
 
 export const createLocalizedSearchSources = (
   modules: BookSearchModuleMap,
-  options: LocalizedSearchOptions
+  options: LocalizedSearchOptions,
 ): SearchContentSource[] => {
   const defaultLocale = normalizeLocaleCode(options.defaultLocale) ?? "default";
   const requestedLocale = normalizeLocaleCode(options.locale);
@@ -71,12 +89,9 @@ export const createLocalizedSearchSources = (
   return defaultBookSearchSources.map((source) => ({
     ...source,
     modules: Object.fromEntries(
-      Object.entries(modules[source.type]).filter(([, raw]) => {
-        if (!requestedLocale) return true;
-        const match = raw.match(/\nlocale:\s*([^\n]+)\n/);
-        const localeValue = normalizeLocaleCode(match?.[1]);
-        return localeValue ? localeValue === requestedLocale : requestedLocale === defaultLocale;
-      })
+      Object.entries(modules[source.type]).filter(([, raw]) =>
+        shouldIncludeModule(raw, requestedLocale, defaultLocale),
+      ),
     ),
   }));
 };

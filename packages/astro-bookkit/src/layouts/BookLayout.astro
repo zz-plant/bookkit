@@ -158,6 +158,7 @@ const previewDetails = [
     data-analytics-key={bookKey}
     data-export-analytics-endpoint={exportAnalyticsEndpoint}
     data-preview-analytics-endpoint={previewAnalyticsEndpoint}
+    data-locale={activeLocale}
     data-qa-enabled={aiQaEnabled ? "true" : "false"}
     data-preview={isPreview ? "true" : "false"}
     data-preview-hint={previewTokenHint}
@@ -1085,6 +1086,7 @@ const previewDetails = [
       const analyticsSessionKey = `${analyticsKeyPrefix}.analytics.session`;
       const previewAnalyticsKey = `${analyticsKeyPrefix}.preview.analytics`;
       const isPreview = document.body?.dataset?.preview === "true";
+      const analyticsLocale = document.body?.dataset?.locale || document.documentElement.lang || "en";
       const analyticsRetentionDays = 90;
 
       const loadAnalyticsEvents = () => {
@@ -1164,6 +1166,7 @@ const previewDetails = [
         path,
         chapterSlug,
         version: analyticsVersion,
+        locale: analyticsLocale,
         title: document.title,
       });
 
@@ -1194,6 +1197,7 @@ const previewDetails = [
           path,
           chapterSlug,
           version: analyticsVersion,
+          locale: analyticsLocale,
           durationSeconds,
           scrollDepth: Math.max(0, Math.min(1, maxScrollDepth)),
         });

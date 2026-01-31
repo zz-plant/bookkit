@@ -69,6 +69,7 @@ const shouldRender = links.length > 1;
       const href = select.value;
       const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
       const storageKey = `${analyticsKeyPrefix}.locale.analytics`;
+      const analyticsEventsKey = `${analyticsKeyPrefix}.analytics.events`;
       const currentLocale = select.dataset.languageCurrent || null;
       const selectedOption = select.selectedOptions[0];
       const nextLocale = selectedOption?.dataset?.locale || null;
@@ -83,6 +84,15 @@ const shouldRender = links.length > 1;
         const existing = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
         existing.push(event);
         localStorage.setItem(storageKey, JSON.stringify(existing.slice(-120)));
+      } catch (error) {
+        // ignore storage errors
+      }
+      try {
+        const existingEvents = JSON.parse(localStorage.getItem(analyticsEventsKey) ?? "[]");
+        if (Array.isArray(existingEvents)) {
+          existingEvents.push({ ...event, type: "locale-switch" });
+          localStorage.setItem(analyticsEventsKey, JSON.stringify(existingEvents));
+        }
       } catch (error) {
         // ignore storage errors
       }

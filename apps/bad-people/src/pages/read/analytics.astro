@@ -33,7 +33,7 @@ const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
     links={previewLinks}
   />
 
-  <AnalyticsDashboard lastUpdated={lastUpdated} />
+  <AnalyticsDashboard lastUpdated={lastUpdated} endpoint="/api/analytics.json" />
 
   <section class="content-block">
     <FeedbackDashboard endpoint="/api/feedback.json" />

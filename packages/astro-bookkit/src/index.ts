@@ -50,6 +50,12 @@ export type { BookSearchModuleMap, LocalizedSearchOptions } from "./search/sourc
 export { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "./search/endpoint";
 export { createFeedbackEndpoint } from "./feedback/endpoint";
 export type { FeedbackEndpointOptions, FeedbackEvent } from "./feedback/endpoint";
+export {
+  createReaderAnalyticsEndpoint,
+  getReaderAnalyticsLogPath,
+  recordReaderAnalyticsEvent,
+} from "./analytics";
+export type { ReaderAnalyticsEndpointOptions, ReaderAnalyticsEvent } from "./analytics";
 export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
 export {
   buildExportChapters,

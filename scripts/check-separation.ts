@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { join, extname } from "node:path";
+import { basename, extname, join } from "node:path";
 import { listBookDirs } from "./_lib";
 
 const allowedExtensions = new Set([".md", ".mdx", ".json", ".yml", ".yaml", ".txt", ".csv"]);
@@ -11,7 +11,7 @@ for (const book of listBookDirs()) {
   const contentRoot = join(process.cwd(), "apps", book, "src", "content", "book");
   if (!existsSync(contentRoot)) continue;
   for (const file of listFiles(contentRoot)) {
-    const baseName = file.split("/").pop() ?? file;
+    const baseName = basename(file);
     if (allowedFilenames.has(baseName)) continue;
     const extension = extname(file);
     if (!allowedExtensions.has(extension)) {

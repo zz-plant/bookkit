@@ -3,26 +3,21 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { getBookExportLinks } from "../../../lib/exports";
-import {
-  buildLocalizedContentIndex,
-  resolveLocalizedContent,
-} from "@bookkit/astro-bookkit/localization";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 
 const modules = import.meta.glob("../../../content/book/chapters/*.mdx", { eager: true });
-const localizedIndex = buildLocalizedContentIndex(modules, {
+const { items: chapterItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
-});
-const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
   locale: Astro.locals?.locale,
-});
-const chapterItems = entries.map(({ slug, module, isFallback }) => {
-  const frontmatter = module.frontmatter ?? {};
-  const status = frontmatter.status ?? "draft";
-  return {
-    href: `/read/chapters/${slug}`,
-    title: frontmatter.title ?? "Untitled chapter",
-    eyebrow: isFallback ? `${status} · fallback` : status,
-  };
+  mapEntry: ({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    const status = frontmatter.status ?? "draft";
+    return {
+      href: `/read/chapters/${slug}`,
+      title: frontmatter.title ?? "Untitled chapter",
+      eyebrow: isFallback ? `${status} · fallback` : status,
+    };
+  },
 });
 const exportLinks = getBookExportLinks();
 const localizedLede =

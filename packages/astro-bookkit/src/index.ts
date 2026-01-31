@@ -96,6 +96,7 @@ export {
   createLocaleRoutingMiddleware,
   buildLocalizedContentIndex,
   calculateLocaleCompleteness,
+  createLocalizedContentList,
   formatLocaleLabel,
   normalizeLocaleCode,
   resolveLocaleConfig,

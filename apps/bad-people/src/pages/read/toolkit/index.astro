@@ -1,35 +1,25 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import {
-  buildLocalizedContentIndex,
-  resolveLocalizedContent,
-} from "@bookkit/astro-bookkit/localization";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 
 const modules = import.meta.glob("../../../content/book/toolkit/*.mdx", { eager: true });
-const localizedIndex = buildLocalizedContentIndex(modules, {
+const { items: toolItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
-});
-const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
   locale: Astro.locals?.locale,
-});
-const tools = entries
-  .map(({ slug, module, isFallback }) => {
+  mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
+    const name = frontmatter.name ?? "Untitled action";
     return {
-      slug,
-      name: frontmatter.name ?? "Untitled action",
-      mechanism: frontmatter.mechanism ?? "general",
-      timebox: frontmatter.timeboxMinutes ?? 10,
-      isFallback,
+      href: `/read/toolkit/${slug}`,
+      title: isFallback ? `${name} (fallback)` : name,
+      meta: `${frontmatter.mechanism ?? "general"} • ${
+        frontmatter.timeboxMinutes ?? 10
+      } min`,
     };
-  })
-  .sort((a, b) => a.name.localeCompare(b.name));
-const toolItems = tools.map((tool) => ({
-  href: `/read/toolkit/${tool.slug}`,
-  title: tool.isFallback ? `${tool.name} (fallback)` : tool.name,
-  meta: `${tool.mechanism} • ${tool.timebox} min`,
-}));
+  },
+  sort: (a, b) => a.title.localeCompare(b.title),
+});
 const localizedLede =
   typeof completeness === "number"
     ? `Translation completeness: ${Math.round(completeness * 100)}%.`

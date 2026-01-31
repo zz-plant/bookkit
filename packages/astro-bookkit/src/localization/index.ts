@@ -10,6 +10,7 @@ export type { LocaleMiddlewareOptions } from "./middleware";
 export {
   buildLocalizedContentIndex,
   calculateLocaleCompleteness,
+  createLocalizedContentList,
   mergeLocaleCompleteness,
   normalizeLocaleCode,
   resolveLocalizedContent,

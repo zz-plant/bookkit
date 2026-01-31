@@ -1,37 +1,24 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import {
-  buildLocalizedContentIndex,
-  resolveLocalizedContent,
-} from "@bookkit/astro-bookkit/localization";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 
 const modules = import.meta.glob("../../../content/book/examples/**/*.mdx", { eager: true });
-const localizedIndex = buildLocalizedContentIndex(modules, {
+const { items: exampleItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
-});
-const { entries, completeness } = resolveLocalizedContent(localizedIndex, {
   locale: Astro.locals?.locale,
-});
-const examples = entries
-  .map(({ slug, module, isFallback }) => {
+  mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
+    const title = frontmatter.title ?? "Untitled example";
     return {
-      slug,
-      title: frontmatter.title ?? "Untitled example",
-      mechanism: frontmatter.mechanism ?? "general",
-      domain: frontmatter.domain ?? "unknown",
-      status: frontmatter.status ?? "draft",
-      isFallback,
+      href: `/read/examples/${slug}`,
+      title: isFallback ? `${title} (fallback)` : title,
+      eyebrow: frontmatter.status ?? "draft",
+      meta: `${frontmatter.mechanism ?? "general"} • ${frontmatter.domain ?? "unknown"}`,
     };
-  })
-  .sort((a, b) => a.title.localeCompare(b.title));
-const exampleItems = examples.map((example) => ({
-  href: `/read/examples/${example.slug}`,
-  title: example.isFallback ? `${example.title} (fallback)` : example.title,
-  eyebrow: example.status,
-  meta: `${example.mechanism} • ${example.domain}`,
-}));
+  },
+  sort: (a, b) => a.title.localeCompare(b.title),
+});
 const localizedLede =
   typeof completeness === "number"
     ? `Translation completeness: ${Math.round(completeness * 100)}%.`

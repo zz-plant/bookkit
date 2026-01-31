@@ -81,6 +81,37 @@ export const buildLocalizedContentIndex = <TModule extends ContentModule = Conte
   };
 };
 
+export const createLocalizedContentList = <TModule extends ContentModule, TItem>(
+  modules: Record<string, TModule>,
+  options: {
+    defaultLocale?: string;
+    locale?: string;
+    mapEntry: (entry: LocalizedContentResolution<TModule>["entries"][number]) => TItem;
+    sort?: (a: TItem, b: TItem) => number;
+  }
+): {
+  entries: LocalizedContentResolution<TModule>["entries"];
+  items: TItem[];
+  completeness: number | null;
+} => {
+  const localizedIndex = buildLocalizedContentIndex(modules, {
+    defaultLocale: options.defaultLocale,
+  });
+  const resolved = resolveLocalizedContent(localizedIndex, {
+    locale: options.locale,
+  });
+  const items = resolved.entries.map((entry) => options.mapEntry(entry));
+  if (options.sort) {
+    items.sort(options.sort);
+  }
+
+  return {
+    entries: resolved.entries,
+    items,
+    completeness: resolved.completeness,
+  };
+};
+
 export const mergeLocaleCompleteness = (
   locales: LocaleEntry[],
   completeness: Record<string, number>

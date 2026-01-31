@@ -1,6 +1,4 @@
-import {
-  createBookExportHelpers,
-} from "@bookkit/astro-bookkit/exports";
+import { createBookExportHelpersFromConfig } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
 const chapterModules = import.meta.glob<string>("../content/book/chapters/*.mdx", {
@@ -8,11 +6,8 @@ const chapterModules = import.meta.glob<string>("../content/book/chapters/*.mdx"
   as: "raw",
 });
 
-const exportHelpers = createBookExportHelpers({
-  book: {
-    title: bookConfig.title,
-    version: bookConfig.status,
-  },
+const exportHelpers = createBookExportHelpersFromConfig({
+  bookConfig,
   modules: chapterModules,
 });
 

@@ -1,87 +1,56 @@
 ---
 import BookLayout from "@bookkit/astro-bookkit/layouts/BookLayout.astro";
 import {
-  buildSeoProps,
-  extractVersionFromPath,
-  getPreviewContext,
-  buildLocalizedContentIndex,
-  calculateLocaleCompleteness,
-  mergeLocaleCompleteness,
+  createBookLayoutState,
 } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 import { getVersionEntries } from "../lib/versions";
 
-const {
-  title,
-  description,
-  ogTitle,
-  ogDescription,
-  ogImage,
-  robots,
-  canonicalPath,
-  canonicalUrl,
-} = Astro.props;
-const seoProps = buildSeoProps({
-  site: bookConfig.site,
-  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
-  description,
-  ogTitle,
-  ogDescription,
-  ogImage,
-  robots,
-  canonicalPath,
-  canonicalUrl,
-});
-const previewContext = getPreviewContext(Astro.locals);
-const previewRobots = previewContext?.isPreview ? "noindex, nofollow" : robots;
 const versionEntries = getVersionEntries();
-const originalUrl =
-  typeof Astro.locals?.originalUrl === "string" ? new URL(Astro.locals.originalUrl) : null;
-const pathVersion = extractVersionFromPath(originalUrl?.pathname ?? Astro.url.pathname, {
-  prefixSegment: "v",
-});
-const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version;
-const resolvedVersion = Astro.locals?.bookVersion ?? pathVersion ?? latestVersion ?? bookConfig.status;
-const localeIndexes = [
-  buildLocalizedContentIndex(import.meta.glob("../content/book/chapters/*.mdx", { eager: true }), {
-    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
-  }),
-  buildLocalizedContentIndex(
+const layoutState = createBookLayoutState({
+  astro: {
+    props: Astro.props,
+    locals: Astro.locals,
+    url: Astro.url,
+  },
+  bookConfig,
+  versionEntries,
+  localizedContentModules: [
+    import.meta.glob("../content/book/chapters/*.mdx", { eager: true }),
     import.meta.glob("../content/book/mechanisms/*.mdx", { eager: true }),
-    {
-      defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
-    }
-  ),
-  buildLocalizedContentIndex(import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }), {
-    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
-  }),
-  buildLocalizedContentIndex(import.meta.glob("../content/book/glossary/*.mdx", { eager: true }), {
-    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
-  }),
-  buildLocalizedContentIndex(import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }), {
-    defaultLocale: bookConfig.localization?.defaultLocale ?? "en",
-  }),
-];
-const localeCompleteness = calculateLocaleCompleteness(localeIndexes, {
-  locales: bookConfig.localization?.locales?.map((locale) => locale.code) ?? [],
+    import.meta.glob("../content/book/toolkit/*.mdx", { eager: true }),
+    import.meta.glob("../content/book/glossary/*.mdx", { eager: true }),
+    import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }),
+  ],
+  versionPrefix: "v",
 });
-const resolvedLocales = mergeLocaleCompleteness(
-  bookConfig.localization?.locales ?? [],
-  localeCompleteness
-);
+const {
+  seoProps,
+  previewContext,
+  previewRobots,
+  resolvedVersion,
+  resolvedLocales,
+  bookTitle,
+  bookKey,
+  aiQaEnabled,
+  currentLocale,
+  defaultLocale,
+  includeDefaultLocalePrefix,
+  localeLabel,
+} = layoutState;
 ---
 <BookLayout
-  title={title}
-  bookTitle={bookConfig.title}
+  title={Astro.props.title}
+  bookTitle={bookTitle}
   bookVersion={resolvedVersion}
-  bookKey={bookConfig.slug ?? "book"}
-  aiQaEnabled={bookConfig.features?.aiQa ?? true}
+  bookKey={bookKey}
+  aiQaEnabled={aiQaEnabled}
   versions={versionEntries}
   locales={resolvedLocales}
-  currentLocale={Astro.locals?.locale}
-  defaultLocale={bookConfig.localization?.defaultLocale}
-  includeDefaultLocalePrefix={bookConfig.localization?.includeDefaultPrefix ?? false}
-  localeLabel={bookConfig.localization?.label ?? "Language"}
+  currentLocale={currentLocale}
+  defaultLocale={defaultLocale}
+  includeDefaultLocalePrefix={includeDefaultLocalePrefix}
+  localeLabel={localeLabel}
   {...seoProps}
   robots={previewRobots ?? seoProps.robots}
   isPreview={previewContext?.isPreview ?? false}

@@ -126,3 +126,19 @@ export type {
   PreviewLinkStatus,
   PreviewTokenRecord,
 } from "./preview";
+export {
+  createBookExportHelpersFromConfig,
+  createBookLayoutState,
+  createBookMiddleware,
+  createBookVersionEntries,
+  createBookVersionEntriesFromReleaseModules,
+  createReleaseNotesFromModules,
+} from "./book";
+export type {
+  BookExportHelpersFromConfigOptions,
+  BookLayoutConfig,
+  BookLayoutOptions,
+  BookLayoutState,
+  BookMiddlewareOptions,
+  BookVersionEntryOptions,
+} from "./book";

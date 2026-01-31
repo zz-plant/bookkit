@@ -1,5 +1,5 @@
 import {
-  createReleaseNotes,
+  createReleaseNotesFromModules,
   type ReleaseModule,
   type ReleaseNote,
 } from "@bookkit/astro-bookkit";
@@ -12,7 +12,7 @@ export const releaseModules = import.meta.glob<ReleaseModule>(
 );
 
 export const getReleaseNotes = (): ReleaseNote[] => {
-  return createReleaseNotes(releaseModules);
+  return createReleaseNotesFromModules(releaseModules);
 };
 
 export type { ReleaseNote };

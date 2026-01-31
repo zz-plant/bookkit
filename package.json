@@ -24,6 +24,7 @@
     "check:concepts:book": "bun run scripts/check-floating-concepts.ts --book",
     "audit:unused": "bun run scripts/audit-unused.ts",
     "fix:frontmatter": "bun run scripts/fix-frontmatter.ts",
-    "export:gitbook": "bun run scripts/export-gitbook.ts"
+    "export:gitbook": "bun run scripts/export-gitbook.ts",
+    "check:separation": "bun run scripts/check-separation.ts"
   }
 }

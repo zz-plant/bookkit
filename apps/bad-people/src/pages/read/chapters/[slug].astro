@@ -8,9 +8,10 @@ import {
   resolveLocalizedContent,
   resolveLocalizedModule,
 } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
 
 export async function getStaticPaths() {
-  const modules = import.meta.glob("../../../content/book/chapters/*.mdx", { eager: true });
+  const modules = bookEntryPoints.contentModules.chapters;
   const localizedIndex = buildLocalizedContentIndex(modules, {
     defaultLocale: "en",
   });
@@ -20,7 +21,7 @@ export async function getStaticPaths() {
   }));
 }
 
-const modules = import.meta.glob("../../../content/book/chapters/*.mdx", { eager: true });
+const modules = bookEntryPoints.contentModules.chapters;
 const localizedIndex = buildLocalizedContentIndex(modules, {
   defaultLocale: "en",
 });

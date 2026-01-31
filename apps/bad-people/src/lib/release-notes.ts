@@ -1,15 +1,10 @@
 import {
   createReleaseNotesFromModules,
-  type ReleaseModule,
   type ReleaseNote,
 } from "@bookkit/astro-bookkit";
+import { bookEntryPoints } from "./book-entrypoints";
 
-export const releaseModules = import.meta.glob<ReleaseModule>(
-  "../content/book/releases/*.mdx",
-  {
-    eager: true,
-  }
-);
+export const releaseModules = bookEntryPoints.releaseModules;
 
 export const getReleaseNotes = (): ReleaseNote[] => {
   return createReleaseNotesFromModules(releaseModules);

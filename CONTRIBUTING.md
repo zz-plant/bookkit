@@ -64,6 +64,13 @@ Tools must include:
 
 Validation will guide you if something is missing.
 
+**If you need to change an existing mechanism:**
+
+- Treat it as a breaking change.
+- Add a short “mechanism change note” in your PR summary or commit message
+  (what changed, why it’s still the same mechanism, and migration advice if any).
+- If the meaning shifts, create a new mechanism instead of redefining.
+
 ---
 
 ### Lane C — Engine / frame work (restricted)
@@ -99,6 +106,26 @@ Typical fixes:
 
 If an error message is unclear, that’s a bug — please flag it.
 
+### Validation expectations (decision guide)
+
+Use this as a quick decision tree for running validation:
+
+1. **Drafting or collaboration?**  
+   Run `bun run validate` (warn mode). Fix what you can; mark drafts as `draft: true`
+   to keep work visible while iterating.
+2. **Pre-release or merging?**  
+   Run `bun run validate:release` (error mode). All errors must be resolved before
+   release.
+3. **Changed schemas, validation rules, or frames?**  
+   Ensure any new errors have actionable guidance, and document breaking changes
+   (README or commit message).
+
+Common failure patterns and fixes:
+
+- **Missing action primitive** → add a ≤10 minute, failure-resilient step.
+- **Unregistered concept** → register a mechanism or glossary term.
+- **Missing frame step** → add a required section (don’t imply it in prose).
+
 ---
 
 ## Drafts are allowed
@@ -121,6 +148,17 @@ Drafts:
 - Don’t optimize for vibes at the cost of clarity
 
 The system exists to protect future readers — and future contributors.
+
+---
+
+## Example checklist (keep examples replaceable)
+
+Before you submit an example or case:
+
+- Does it illustrate an existing mechanism without redefining it?
+- Could we swap this example without changing the module’s function?
+- Does it avoid introducing new named concepts?
+- Is any current event treated as context, not as a mechanism definition?
 
 ---
 

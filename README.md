@@ -91,6 +91,18 @@ No engine logic lives here.
    └─ lint-all.ts
 ```
 
+### Separation of concerns (visual map)
+
+```txt
+Author decisions      Engine / compiler logic          Replaceable bindings
+apps/<book>/src/      packages/astro-bookkit/          apps/<book>/src/content/book/
+  book.config.ts        frames/                          chapters/
+  (objectives,          schemas/                         mechanisms/
+   frame,               validators/                      toolkit/
+   mechanisms)          compiler/                        examples/
+                        styles/                          glossary/
+```
+
 ---
 
 ## Built-in capabilities already implemented

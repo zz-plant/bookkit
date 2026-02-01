@@ -14,6 +14,7 @@
     "format": "bun run scripts/format.ts",
     "list:books": "bun run scripts/list-books.ts",
     "bookkit": "bun run scripts/bookkit.ts",
+    "compile:book": "bun run scripts/compile-book.ts",
     "validate": "bun run scripts/validate-all.ts",
     "validate:release": "bun run scripts/validate-all.ts --mode error --no-drafts",
     "new:example": "bun run scripts/scaffold-example.ts",

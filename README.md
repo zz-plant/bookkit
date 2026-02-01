@@ -145,6 +145,12 @@ Build everything:
 bun run --workspaces build
 ```
 
+Compile a specific book (validate + build, optional export):
+
+```bash
+bun run compile:book -- --book bad-people
+```
+
 ## Portable exports (GitBook or other Markdown tooling)
 
 To generate a GitBook-compatible Markdown bundle for a specific book:
@@ -256,7 +262,8 @@ Do not fork or duplicate the engine.
 3. **Finalize a release note entry** under `src/content/book/releases/` with a
    version and date so the release notes page and RSS feed are populated.
 4. **Build the book for production**:
-   - `bun run --filter @books/<new-book> build`
+   - `bun run compile:book -- --book <new-book> --mode error --no-drafts`
+   - (or run `bun run --filter @books/<new-book> build` if you already validated)
 5. **Deploy the built output** with your hosting provider (Astro static output).
 6. **Verify user-facing endpoints** after deploy:
    - `/` (home), `/read` (reading hub), `/sitemap.xml`, `/robots.txt`,

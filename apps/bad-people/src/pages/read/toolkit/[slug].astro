@@ -7,6 +7,7 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
+import { readItemPath, readRoutes } from "../../../lib/read-routes";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.toolkit;
@@ -42,13 +43,13 @@ const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatte
 ---
 <BaseLayout title={`${frontmatter.name} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/read">Reading hub</a>
+    <a href={readRoutes.root}>Reading hub</a>
     <span>›</span>
-    <a href="/read/toolkit">Toolkit</a>
+    <a href={readRoutes.toolkit}>Toolkit</a>
     <span>›</span>
     <span>{frontmatter.name}</span>
   </nav>
-  <a class="back-link" href="/read/toolkit">← Toolkit</a>
+  <a class="back-link" href={readRoutes.toolkit}>← Toolkit</a>
   <div class="eyebrow">Toolkit{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.name}</h1>
   <div class="pill">{frontmatter.timeboxMinutes ?? 10} min action</div>
@@ -100,11 +101,11 @@ const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatte
   <section class="next-steps">
     <h2>Next steps</h2>
     <div class="next-steps__links">
-      <a class="next-steps__link" href={`/read/mechanisms/${frontmatter.mechanism}`}>
+      <a class="next-steps__link" href={readItemPath("mechanisms", frontmatter.mechanism)}>
         Review the {frontmatter.mechanism} mechanism
       </a>
-      <a class="next-steps__link" href="/read/examples">Find related examples</a>
-      <a class="next-steps__link" href="/read/toolkit">Pick another action</a>
+      <a class="next-steps__link" href={readRoutes.examples}>Find related examples</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Pick another action</a>
     </div>
   </section>
 </BaseLayout>

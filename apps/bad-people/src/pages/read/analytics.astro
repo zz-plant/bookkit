@@ -5,6 +5,7 @@ import PreviewLinksPanel from "@bookkit/astro-bookkit/components/PreviewLinksPan
 import { createPreviewLinks } from "@bookkit/astro-bookkit/preview";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import bookConfig from "../../book.config";
+import { readRoutes } from "../../lib/read-routes";
 
 const lastUpdated = new Date().toLocaleDateString("en-US", {
   month: "short",
@@ -14,11 +15,11 @@ const lastUpdated = new Date().toLocaleDateString("en-US", {
 
 const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
   baseUrl: bookConfig.site?.url,
-  path: "/read",
+  path: readRoutes.root,
 });
 ---
 <BaseLayout title={`Analytics • ${bookConfig.title}`}>
-  <a class="back-link" href="/read">← Back to reading hub</a>
+  <a class="back-link" href={readRoutes.root}>← Back to reading hub</a>
   <div class="section-header">
     <div class="eyebrow">Author dashboard</div>
     <h1>Engagement analytics</h1>

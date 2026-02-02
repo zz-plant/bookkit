@@ -10,6 +10,7 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
+import { readItemPath, readRoutes } from "../../../lib/read-routes";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.chapters;
@@ -51,13 +52,13 @@ const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/read">Reading hub</a>
+    <a href={readRoutes.root}>Reading hub</a>
     <span>›</span>
-    <a href="/read/chapters">Chapters</a>
+    <a href={readRoutes.chapters}>Chapters</a>
     <span>›</span>
     <span>{frontmatter.title}</span>
   </nav>
-  <a class="back-link" href="/read/chapters">← Chapters</a>
+  <a class="back-link" href={readRoutes.chapters}>← Chapters</a>
   <div class="eyebrow">
     {frontmatter.status ?? "draft"}
     {isFallback ? " • fallback" : ""}
@@ -75,12 +76,12 @@ const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
     <h2>Next steps</h2>
     <div class="next-steps__links">
       {nextChapter && (
-        <a class="next-steps__link" href={`/read/chapters/${nextChapter.slug}`}>
+        <a class="next-steps__link" href={readItemPath("chapters", nextChapter.slug)}>
           Next chapter: {nextChapter.title}
         </a>
       )}
-      <a class="next-steps__link" href="/read/mechanisms">Review mechanisms</a>
-      <a class="next-steps__link" href="/read/toolkit">Browse toolkit</a>
+      <a class="next-steps__link" href={readRoutes.mechanisms}>Review mechanisms</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Browse toolkit</a>
     </div>
   </section>
   <FeedbackWidget

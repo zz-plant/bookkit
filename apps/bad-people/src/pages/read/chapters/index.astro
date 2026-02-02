@@ -5,6 +5,7 @@ import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList
 import { getBookExportLinks } from "../../../lib/exports";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "../../../lib/read-routes";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.chapters;
@@ -15,26 +16,22 @@ const { items: chapterItems, completeness } = createLocalizedContentList(modules
     const frontmatter = module.frontmatter ?? {};
     const status = frontmatter.status ?? "draft";
     return {
-      href: `/read/chapters/${slug}`,
+      href: readItemPath("chapters", slug),
       title: frontmatter.title ?? "Untitled chapter",
       eyebrow: isFallback ? `${status} · fallback` : status,
     };
   },
 });
 const exportLinks = getBookExportLinks();
-const localizedLede =
-  typeof completeness === "number"
-    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
-    : null;
+const localizedLede = buildTranslationLede(
+  "Module outlines that define the intervention frame.",
+  completeness
+);
 ---
 <BaseLayout title={`Chapters • ${bookConfig.title}`}>
   <ContentIndexList
     title="Chapters"
-    lede={
-      localizedLede
-        ? `Module outlines that define the intervention frame. ${localizedLede}`
-        : "Module outlines that define the intervention frame."
-    }
+    lede={localizedLede}
     items={chapterItems}
   >
     <ExportPanel

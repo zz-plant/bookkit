@@ -5,6 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../lib/book-entrypoints";
+import { formatTranslationCompleteness, readRoutes } from "../lib/read-routes";
 import bookConfig from "../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
@@ -90,8 +91,8 @@ const stats = [
         <div class="stat-card">
           <div class="stat-value">{stat.count}</div>
           <div class="stat-label">{stat.label}</div>
-          {typeof stat.completeness === "number" && (
-            <div class="stat-meta">{Math.round(stat.completeness * 100)}% translated</div>
+          {formatTranslationCompleteness(stat.completeness) && (
+            <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
           )}
         </div>
       ))}
@@ -105,7 +106,7 @@ const stats = [
       reading views.
     </p>
     <div class="card-grid">
-      <a class="card" href="/read" aria-keyshortcuts="g r">
+      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r">
         <div class="eyebrow">Read</div>
         <h3>Open the reading hub</h3>
         <p class="meta">Jump into chapters, mechanisms, toolkit, glossary, and examples.</p>

@@ -3,6 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "../../../lib/read-routes";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
@@ -12,7 +13,7 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
   mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
     return {
-      href: `/read/mechanisms/${slug}`,
+      href: readItemPath("mechanisms", slug),
       title: frontmatter.title ?? "Untitled mechanism",
       meta: isFallback
         ? `${frontmatter.definition ?? ""} (fallback)`
@@ -21,19 +22,15 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
-const localizedLede =
-  typeof completeness === "number"
-    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
-    : null;
+const localizedLede = buildTranslationLede(
+  "Stable patterns that explain how harm stays normalized.",
+  completeness
+);
 ---
 <BaseLayout title={`Mechanisms • ${bookConfig.title}`}>
   <ContentIndexList
     title="Mechanisms"
-    lede={
-      localizedLede
-        ? `Stable patterns that explain how harm stays normalized. ${localizedLede}`
-        : "Stable patterns that explain how harm stays normalized."
-    }
+    lede={localizedLede}
     items={mechanismItems}
     filterMode="always"
     filterPlaceholder="Filter by mechanism name or definition..."

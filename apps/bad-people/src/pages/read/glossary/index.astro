@@ -3,6 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "../../../lib/read-routes";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.glossary;
@@ -13,25 +14,21 @@ const { items: entryItems, completeness } = createLocalizedContentList(modules, 
     const frontmatter = module.frontmatter ?? {};
     const term = frontmatter.term ?? "Untitled term";
     return {
-      href: `/read/glossary/${slug}`,
+      href: readItemPath("glossary", slug),
       title: isFallback ? `${term} (fallback)` : term,
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
-const localizedLede =
-  typeof completeness === "number"
-    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
-    : null;
+const localizedLede = buildTranslationLede(
+  "Shared language that keeps mechanisms stable.",
+  completeness
+);
 ---
 <BaseLayout title={`Glossary • ${bookConfig.title}`}>
   <ContentIndexList
     title="Glossary"
-    lede={
-      localizedLede
-        ? `Shared language that keeps mechanisms stable. ${localizedLede}`
-        : "Shared language that keeps mechanisms stable."
-    }
+    lede={localizedLede}
     items={entryItems}
     filterMode="always"
     filterPlaceholder="Filter glossary terms..."

@@ -3,6 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "../../../lib/read-routes";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.examples;
@@ -13,7 +14,7 @@ const { items: exampleItems, completeness } = createLocalizedContentList(modules
     const frontmatter = module.frontmatter ?? {};
     const title = frontmatter.title ?? "Untitled example";
     return {
-      href: `/read/examples/${slug}`,
+      href: readItemPath("examples", slug),
       title: isFallback ? `${title} (fallback)` : title,
       eyebrow: frontmatter.status ?? "draft",
       meta: `${frontmatter.mechanism ?? "general"} • ${frontmatter.domain ?? "unknown"}`,
@@ -21,19 +22,15 @@ const { items: exampleItems, completeness } = createLocalizedContentList(modules
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
-const localizedLede =
-  typeof completeness === "number"
-    ? `Translation completeness: ${Math.round(completeness * 100)}%.`
-    : null;
+const localizedLede = buildTranslationLede(
+  "Replaceable cases that ground each mechanism.",
+  completeness
+);
 ---
 <BaseLayout title={`Examples • ${bookConfig.title}`}>
   <ContentIndexList
     title="Examples"
-    lede={
-      localizedLede
-        ? `Replaceable cases that ground each mechanism. ${localizedLede}`
-        : "Replaceable cases that ground each mechanism."
-    }
+    lede={localizedLede}
     items={exampleItems}
     filterMode="always"
     filterPlaceholder="Filter by example, mechanism, or domain..."

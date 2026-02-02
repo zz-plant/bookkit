@@ -105,6 +105,60 @@ apps/<book>/src/      packages/astro-bookkit/          apps/<book>/src/content/b
 
 ---
 
+## Architecture: how the pieces fit together
+
+The system is built around **compile-time governance** rather than runtime hacks. The engine takes structured content + author decisions and compiles them into multiple outputs while enforcing the frame and mechanism rules.
+
+### Key artifacts and ownership
+
+| Artifact | Purpose | Owned by |
+| --- | --- | --- |
+| `apps/<book>/src/book.config.ts` | Irreducible author decisions: frame, objectives, mechanism set, ordering constraints. | Author |
+| `apps/<book>/src/content/book/**` | Replaceable bindings: chapters, examples, glossary, toolkit, releases. | Author |
+| `packages/astro-bookkit/frames/**` | Enforceable module structure and required steps. | Engine |
+| `packages/astro-bookkit/schemas/**` | Domain schemas for content governance. | Engine |
+| `packages/astro-bookkit/validators/**` | Validation logic + error messaging. | Engine |
+| `packages/astro-bookkit/compiler/**` | Dependency graphs, ordering, export builders. | Engine |
+
+### Data flow (compile path)
+
+```txt
+content records + book.config.ts
+          │
+          ▼
+   schema validation
+          │
+          ▼
+ frame enforcement + ordering constraints
+          │
+          ▼
+   compiler graph + exports
+          │
+          ▼
+  read UI + PDF/EPUB + API indexes
+```
+
+### Where to put changes (decision guide)
+
+**You want to…** | **Put it in…**
+--- | ---
+Add a new frame or enforceable structure | `packages/astro-bookkit/frames/`
+Change schema rules or validation errors | `packages/astro-bookkit/schemas/` or `validators/`
+Add a new book or change objectives/mechanisms | `apps/<book>/src/book.config.ts`
+Swap or extend examples, chapters, glossary | `apps/<book>/src/content/book/`
+
+### Validation philosophy
+
+Validation is designed to keep books **recompilable**. If validation fails, it should produce:
+
+- actionable errors
+- the exact file or field that failed
+- guidance on how to fix it
+
+The goal is for a book to fail fast and fail helpfully.
+
+---
+
 ## Built-in capabilities already implemented
 
 The engine and the `apps/bad-people` instance already ship with features beyond frames and validation, including:

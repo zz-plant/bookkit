@@ -105,6 +105,43 @@ apps/<book>/src/      packages/astro-bookkit/          apps/<book>/src/content/b
 
 ---
 
+## Architecture overview (how the system compiles a book)
+
+Bookkit treats a book as a **specification** that becomes multiple outputs (web,
+exports, APIs). The architecture is organized around **immutable author choices**
+and **replaceable content bindings** so the engine can recompile the book without
+semantic drift.
+
+### Core flow
+
+1. **Author decisions** live in `apps/<book>/src/book.config.ts`:
+   - declared frame
+   - mechanism roster + constraints
+   - ordering rules and objectives
+2. **Bindings** live under `apps/<book>/src/content/book/`:
+   - chapters, mechanisms, toolkit items, examples, glossary entries
+   - can be swapped without changing the book’s function
+3. **Engine orchestration** lives in `packages/astro-bookkit/`:
+   - parses configs + content
+   - validates against schemas + frames
+   - builds graphs for ordering + dependencies
+4. **Outputs** are compiled into:
+   - reading UI routes
+   - API indexes (search, exports, releases)
+   - export bundles (PDF/EPUB/GitBook)
+
+### Why the strict boundaries matter
+
+- **Book logic stays in `book.config.ts`** so author decisions remain explicit.
+- **Content stays replaceable** so examples and chapters can evolve without
+  redefinition of mechanisms.
+- **Engine logic stays reusable** so multiple books share the same guarantees.
+
+If a change breaks these boundaries, the system becomes fragile and the book
+loses its recompilable property.
+
+---
+
 ## Built-in capabilities already implemented
 
 The engine and the `apps/bad-people` instance already ship with features beyond frames and validation, including:

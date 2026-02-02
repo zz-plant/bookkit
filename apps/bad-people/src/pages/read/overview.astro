@@ -1,11 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import bookConfig from "../../book.config";
+import { readItemPath, readRoutes } from "../../lib/read-routes";
 
 const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
 ---
 <BaseLayout title={`Overview • ${bookConfig.title}`}>
-  <a class="back-link" href="/read">← Reading hub</a>
+  <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
     <h1>Book overview</h1>
     <p class="lede">Intent, frame, and constraints that anchor the draft.</p>
@@ -53,7 +54,7 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
       {mechanisms.map((mechanism) => (
         <li>
           <strong>
-            <a href={`/read/mechanisms/${mechanism.slug}`}>{mechanism.slug}</a>:
+            <a href={readItemPath("mechanisms", mechanism.slug)}>{mechanism.slug}</a>:
           </strong>{" "}
           {mechanism.focus}
         </li>

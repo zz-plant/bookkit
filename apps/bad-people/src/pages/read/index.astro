@@ -5,6 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
+import { formatTranslationCompleteness, readRoutes } from "../../lib/read-routes";
 import bookConfig from "../../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
@@ -48,14 +49,14 @@ const sections = [
   {
     title: "Overview",
     description: "Objectives, frame, and constraints for this draft.",
-    href: "/read/overview",
+    href: readRoutes.overview,
     count: 1,
     keyHint: ["g", "o"],
   },
   {
     title: "Chapters",
     description: "Core modules and the intervention frame.",
-    href: "/read/chapters",
+    href: readRoutes.chapters,
     count: chapters.entries.length,
     completeness: chapters.completeness,
     keyHint: ["g", "c"],
@@ -63,7 +64,7 @@ const sections = [
   {
     title: "Mechanisms",
     description: "Named system patterns with stable definitions.",
-    href: "/read/mechanisms",
+    href: readRoutes.mechanisms,
     count: mechanisms.entries.length,
     completeness: mechanisms.completeness,
     keyHint: ["g", "m"],
@@ -71,7 +72,7 @@ const sections = [
   {
     title: "Toolkit",
     description: "Action primitives that fit inside ten minutes.",
-    href: "/read/toolkit",
+    href: readRoutes.toolkit,
     count: toolkit.entries.length,
     completeness: toolkit.completeness,
     keyHint: ["g", "t"],
@@ -79,7 +80,7 @@ const sections = [
   {
     title: "Glossary",
     description: "Short definitions to keep shared language consistent.",
-    href: "/read/glossary",
+    href: readRoutes.glossary,
     count: glossary.entries.length,
     completeness: glossary.completeness,
     keyHint: ["g", "l"],
@@ -87,7 +88,7 @@ const sections = [
   {
     title: "Examples",
     description: "Replaceable cases that ground the modules.",
-    href: "/read/examples",
+    href: readRoutes.examples,
     count: examples.entries.length,
     completeness: examples.completeness,
     keyHint: ["g", "e"],
@@ -95,7 +96,7 @@ const sections = [
   {
     title: "Analytics",
     description: "Author-only engagement dashboard and drop-off insights.",
-    href: "/read/analytics",
+    href: readRoutes.analytics,
     count: 1,
     badge: "Author-only",
   },
@@ -112,15 +113,12 @@ const sections = [
     {sections.map((section) => {
       const label = section.count === 1 ? "item" : "items";
       const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
-      const completenessLabel =
-        typeof section.completeness === "number"
-          ? ` • ${Math.round(section.completeness * 100)}% translated`
-          : "";
+      const completenessLabel = formatTranslationCompleteness(section.completeness);
       return (
         <a class="card" href={section.href} aria-keyshortcuts={keyShortcut}>
           <div class="eyebrow">
             {section.count} {label}
-            {completenessLabel}
+            {completenessLabel ? ` • ${completenessLabel}` : ""}
           </div>
           {section.badge && <span class="pill">{section.badge}</span>}
           <h2>{section.title}</h2>

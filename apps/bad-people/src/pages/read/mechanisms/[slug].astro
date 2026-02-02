@@ -7,6 +7,7 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
+import { readItemPath, readRoutes } from "../../../lib/read-routes";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.mechanisms;
@@ -75,13 +76,13 @@ const relatedExamples = exampleEntries
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} description={metaDescription}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/read">Reading hub</a>
+    <a href={readRoutes.root}>Reading hub</a>
     <span>›</span>
-    <a href="/read/mechanisms">Mechanisms</a>
+    <a href={readRoutes.mechanisms}>Mechanisms</a>
     <span>›</span>
     <span>{frontmatter.title}</span>
   </nav>
-  <a class="back-link" href="/read/mechanisms">← Mechanisms</a>
+  <a class="back-link" href={readRoutes.mechanisms}>← Mechanisms</a>
   <div class="eyebrow">Mechanism{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
   <p class="lede">{frontmatter.definition}</p>
@@ -141,7 +142,7 @@ const relatedExamples = exampleEntries
           <div class="eyebrow">Related actions</div>
           <div class="stack">
             {relatedToolkit.map((entry) => (
-              <a class="list-link" href={`/read/toolkit/${entry.slug}`}>
+              <a class="list-link" href={readItemPath("toolkit", entry.slug)}>
                 <strong>{entry.frontmatter.name ?? "Untitled action"}</strong>
                 <span class="meta">
                   {entry.frontmatter.timeboxMinutes ?? 10} min
@@ -156,7 +157,7 @@ const relatedExamples = exampleEntries
           <div class="eyebrow">Related examples</div>
           <div class="stack">
             {relatedExamples.map((entry) => (
-              <a class="list-link" href={`/read/examples/${entry.slug}`}>
+              <a class="list-link" href={readItemPath("examples", entry.slug)}>
                 <strong>{entry.frontmatter.title ?? "Untitled example"}</strong>
                 <span class="meta">{entry.frontmatter.domain ?? "unknown domain"}</span>
               </a>
@@ -169,9 +170,9 @@ const relatedExamples = exampleEntries
   <section class="next-steps">
     <h2>Keep going</h2>
     <div class="next-steps__links">
-      <a class="next-steps__link" href="/read/toolkit">Explore toolkit actions</a>
-      <a class="next-steps__link" href="/read/examples">Browse examples</a>
-      <a class="next-steps__link" href="/read/chapters">Read the next chapter</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Explore toolkit actions</a>
+      <a class="next-steps__link" href={readRoutes.examples}>Browse examples</a>
+      <a class="next-steps__link" href={readRoutes.chapters}>Read the next chapter</a>
     </div>
   </section>
 </BaseLayout>

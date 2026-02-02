@@ -193,6 +193,7 @@ title: "Overview"
 
 const mechanism = `---
 slug: ${mechanismSlug}
+status: draft
 title: "Starter mechanism"
 definition: "A repeatable pattern where a system produces harm while preserving surface legitimacy."
 is:
@@ -224,6 +225,7 @@ Constraints:
 
 const tool = `---
 slug: ${toolSlug}
+status: draft
 mechanism: ${mechanismSlug}
 name: "Starter tool"
 trigger: "When you notice the same harm repeating even after good-faith effort."
@@ -241,6 +243,7 @@ Keep this tool runnable by a depleted reader. No heroics.
 
   const glossary = `---
 slug: starter-term
+status: draft
 term: "Starter term"
 ---
 

@@ -10,6 +10,8 @@ const {
 if (!slug) {
   throw new Error("FeedbackWidget requires a slug prop.");
 }
+
+const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 ---
 <div
   class="feedback-widget"
@@ -22,24 +24,40 @@ if (!slug) {
   <div class="feedback-widget__prompt">
     <span>{prompt}</span>
     <div class="feedback-widget__actions">
-      <button type="button" class="feedback-widget__button" data-feedback-choice="helpful">
+      <button
+        type="button"
+        class="feedback-widget__button"
+        data-feedback-choice="helpful"
+        aria-pressed="false"
+      >
         👍 Helpful
       </button>
-      <button type="button" class="feedback-widget__button" data-feedback-choice="not_helpful">
+      <button
+        type="button"
+        class="feedback-widget__button"
+        data-feedback-choice="not_helpful"
+        aria-pressed="false"
+      >
         👎 Not helpful
       </button>
     </div>
   </div>
   <div class="feedback-widget__emoji" aria-label="Quick reactions">
-    <button type="button" data-feedback-choice="emoji:😀" aria-label="Happy">😀</button>
-    <button type="button" data-feedback-choice="emoji:🤔" aria-label="Thoughtful">🤔</button>
-    <button type="button" data-feedback-choice="emoji:😕" aria-label="Confused">😕</button>
-    <button type="button" data-feedback-choice="emoji:🔥" aria-label="Excited">🔥</button>
+    <button type="button" data-feedback-choice="emoji:😀" aria-label="Happy" aria-pressed="false">😀</button>
+    <button type="button" data-feedback-choice="emoji:🤔" aria-label="Thoughtful" aria-pressed="false">🤔</button>
+    <button type="button" data-feedback-choice="emoji:😕" aria-label="Confused" aria-pressed="false">😕</button>
+    <button type="button" data-feedback-choice="emoji:🔥" aria-label="Excited" aria-pressed="false">🔥</button>
   </div>
-  <button type="button" class="feedback-widget__note-toggle" data-feedback-note-toggle>
+  <button
+    type="button"
+    class="feedback-widget__note-toggle"
+    data-feedback-note-toggle
+    aria-expanded="false"
+    aria-controls={noteId}
+  >
     Add a note
   </button>
-  <div class="feedback-widget__note" data-feedback-note hidden>
+  <div class="feedback-widget__note" id={noteId} data-feedback-note hidden>
     <label>
       <span class="sr-only">Optional feedback note</span>
       <textarea
@@ -210,6 +228,7 @@ if (!slug) {
       if (!notePanel) return;
       notePanel.hidden = !noteOpen;
       noteToggle.textContent = noteOpen ? "Hide note" : "Add a note";
+      noteToggle.setAttribute("aria-expanded", noteOpen ? "true" : "false");
       if (noteOpen) {
         commentField?.focus();
       }
@@ -221,6 +240,9 @@ if (!slug) {
         choiceButtons.forEach((btn) =>
           btn.classList.toggle("is-selected", btn === button)
         );
+        choiceButtons.forEach((btn) => {
+          btn.setAttribute("aria-pressed", btn === button ? "true" : "false");
+        });
         if (noteOpen) {
           announce("Reaction selected. Add a note or send feedback.");
           return;

@@ -275,11 +275,20 @@ const previewDetails = [
               placeholder="Search chapters, glossary, mechanisms..."
               autocomplete="off"
               spellcheck="false"
+              aria-describedby="search-status"
               data-search-input
             />
           </label>
           <div class="search-panel__meta">
-            <span class="meta" data-search-status>Type to search across the book.</span>
+            <span
+              class="meta"
+              id="search-status"
+              role="status"
+              aria-live="polite"
+              data-search-status
+            >
+              Type to search across the book.
+            </span>
             <span class="kbd-hint" aria-hidden="true">
               <kbd>⌘</kbd><kbd>K</kbd> / <kbd>/</kbd>
             </span>
@@ -326,12 +335,21 @@ const previewDetails = [
                     placeholder="Ask a question about the book..."
                     autocomplete="off"
                     spellcheck="false"
+                    aria-describedby="qa-status"
                     data-qa-input
                   ></textarea>
                 </label>
                 <button type="submit" class="qa-panel__submit">Get answer</button>
               </form>
-              <div class="qa-panel__meta" data-qa-status>Try a question to see cited answers.</div>
+              <div
+                class="qa-panel__meta"
+                id="qa-status"
+                role="status"
+                aria-live="polite"
+                data-qa-status
+              >
+                Try a question to see cited answers.
+              </div>
               <div class="qa-panel__suggestions">
                 <div class="eyebrow">Sample prompts</div>
                 <div class="qa-panel__suggestion-list">

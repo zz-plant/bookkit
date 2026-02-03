@@ -24,14 +24,14 @@ const hasLinks = links.length > 0;
 
   {hasLinks ? (
     <div class="preview-links">
-      {links.map((link) => (
+      {links.map((link, index) => (
         <article
           class={`preview-link preview-link--${link.status}`}
           data-preview-row
           data-preview-hint={link.tokenHint}
         >
           <div class="preview-link__info">
-            <strong>{link.label ?? `Preview ${link.tokenHint}`}</strong>
+            <strong id={`preview-link-label-${index}`}>{link.label ?? `Preview ${link.tokenHint}`}</strong>
             <div class="preview-link__meta">
               <span class={`preview-status preview-status--${link.status}`}>
                 {link.status === "active" ? "Active" : link.status === "expired" ? "Expired" : "Revoked"}
@@ -48,8 +48,20 @@ const hasLinks = links.length > 0;
             </div>
           </div>
           <div class="preview-link__actions">
-            <input class="preview-link__input" type="text" readonly value={link.href} />
-            <button class="preview-link__copy" type="button" data-preview-copy={link.href}>
+            <input
+              class="preview-link__input"
+              type="text"
+              readonly
+              aria-readonly="true"
+              aria-labelledby={`preview-link-label-${index}`}
+              value={link.href}
+            />
+            <button
+              class="preview-link__copy"
+              type="button"
+              data-preview-copy={link.href}
+              aria-label={`Copy preview link for ${link.label ?? `Preview ${link.tokenHint}`}`}
+            >
               Copy link
             </button>
           </div>

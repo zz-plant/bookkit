@@ -37,6 +37,21 @@ const resolveOgImage = (image: string | undefined, siteUrl?: string): string | u
   return buildAbsoluteUrl(siteUrl, image);
 };
 
+const resolveCanonicalUrl = ({
+  canonicalUrl,
+  canonicalPath,
+  siteUrl,
+}: {
+  canonicalUrl?: string;
+  canonicalPath?: string;
+  siteUrl?: string;
+}): string | undefined => {
+  if (canonicalUrl) return canonicalUrl;
+  if (!canonicalPath) return undefined;
+  if (!siteUrl) return canonicalPath;
+  return buildAbsoluteUrl(siteUrl, canonicalPath);
+};
+
 const normalizeCandidateUrls = (site?: BookSeoConfig): string[] =>
   [site?.url, ...(site?.domains ?? [])]
     .map((candidate) => (candidate ? normalizeSiteUrl(candidate, site?.enforceHttps) : ""))
@@ -80,6 +95,7 @@ export const buildSeoProps = ({
   const resolvedDescription = description ?? site?.defaultMeta?.description;
   const resolvedOgImage = resolveOgImage(ogImage ?? site?.defaultMeta?.ogImage, siteUrl);
   const resolvedRobots = robots ?? (site?.indexable === false ? "noindex, nofollow" : undefined);
+  const resolvedCanonicalUrl = resolveCanonicalUrl({ canonicalUrl, canonicalPath, siteUrl });
 
   return {
     siteUrl,
@@ -88,7 +104,7 @@ export const buildSeoProps = ({
     ogDescription,
     ogImage: resolvedOgImage,
     canonicalPath,
-    canonicalUrl,
+    canonicalUrl: resolvedCanonicalUrl,
     robots: resolvedRobots,
   };
 };

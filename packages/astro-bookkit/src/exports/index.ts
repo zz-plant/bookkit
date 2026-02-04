@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import JSZip from "jszip";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { createSlugger, stripMarkdown } from "../utils/markdown";

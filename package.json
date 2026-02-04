@@ -11,6 +11,8 @@
     "build:bad-people": "bun run --filter @books/bad-people build",
     "build:all": "bun run --workspaces build",
     "lint": "bun run scripts/lint.ts",
+    "check:types": "bun run scripts/typecheck.ts",
+    "check:upgrade": "bun run scripts/upgrade-check.ts",
     "format": "bun run scripts/format.ts",
     "list:books": "bun run scripts/list-books.ts",
     "bookkit": "bun run scripts/bookkit.ts",
@@ -27,5 +29,8 @@
     "fix:frontmatter": "bun run scripts/fix-frontmatter.ts",
     "export:gitbook": "bun run scripts/export-gitbook.ts",
     "check:separation": "bun run scripts/check-separation.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

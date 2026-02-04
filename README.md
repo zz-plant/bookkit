@@ -278,6 +278,25 @@ The goal is not punishment — it’s to keep the book recompilable over time.
 
 ---
 
+## Upgrade safety net (lint + typecheck + validation)
+
+For upgrades, run the full safety net to catch regressions across apps and packages:
+
+- `bun run check:upgrade` (warn-mode validation)
+- `bun run check:upgrade -- --release` (error-mode validation)
+
+What it runs:
+
+- **Lint** via `scripts/lint.ts` (Biome or Prettier when configured).
+- **Typecheck** via `tsc --noEmit` across `apps/*` and `packages/*`.
+- **Validation** via `scripts/validate-all.ts`.
+- **Architecture checks** via `scripts/check-separation.ts` and
+  `scripts/check-floating-concepts.ts`.
+
+If you only need type checks, run `bun run check:types`.
+
+---
+
 ## Creating a new book
 
 Use an existing book instance as a template so you inherit the routes, middleware,

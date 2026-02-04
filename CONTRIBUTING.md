@@ -126,6 +126,16 @@ Common failure patterns and fixes:
 - **Unregistered concept** → register a mechanism or glossary term.
 - **Missing frame step** → add a required section (don’t imply it in prose).
 
+### Upgrade safety net (full repo checks)
+
+When upgrading dependencies or compiler logic, run the full safety net:
+
+- `bun run check:upgrade` (warn-mode validation)
+- `bun run check:upgrade -- --release` (error-mode validation)
+
+This bundles linting, TypeScript type checks across `apps/*` and `packages/*`,
+book validation, and the architectural checks for separation and floating concepts.
+
 ---
 
 ## Drafts are allowed

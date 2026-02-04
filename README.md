@@ -205,6 +205,12 @@ Compile a specific book (validate + build, optional export):
 bun run compile:book -- --book bad-people
 ```
 
+## Upgrade Notes (Astro 5 + MDX 4)
+
+- Astro 5 requires Node.js 18.17+ (or 20+). If you see runtime or build failures after upgrade, verify your Node version first.
+- `apps/<book>/astro.config.mjs` integration wiring remains the same (e.g., `mdx({ rehypePlugins: [...] })`), so no config changes are required for MDX v4 in this repo.
+- Keep `vite.ssr.noExternal: ["@bookkit/astro-bookkit"]` in `astro.config.mjs` to ensure the workspace package is bundled for SSR with Astro 5/Vite 5.
+
 ## Portable exports (GitBook or other Markdown tooling)
 
 To generate a GitBook-compatible Markdown bundle for a specific book:

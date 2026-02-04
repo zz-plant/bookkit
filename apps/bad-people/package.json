@@ -9,8 +9,8 @@
     "validate": "bun run ../../scripts/validate-book.ts --book bad-people"
   },
   "dependencies": {
-    "@astrojs/mdx": "^3.1.8",
+    "@astrojs/mdx": "^4.3.13",
     "@bookkit/astro-bookkit": "workspace:*",
-    "astro": "^4.16.2"
+    "astro": "^5.17.1"
   }
 }

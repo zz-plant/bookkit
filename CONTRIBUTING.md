@@ -140,6 +140,18 @@ Drafts:
 
 ---
 
+## TypeScript config hierarchy
+
+This repo uses a shared base config with per-package overrides:
+
+- **Root base**: `tsconfig.base.json` defines modern defaults like `moduleResolution: "bundler"`, `strict: true`, and `resolveJsonModule`.
+- **Astro app**: `apps/bad-people/tsconfig.json` extends the base and adds Astro-specific compiler options (including `types: ["astro/client"]` and Astro JSX settings).
+- **Engine package**: `packages/astro-bookkit/tsconfig.json` extends the base and scopes TypeScript to `src/` and `specs/`.
+
+If you add another app or package, extend the base config and only add framework-specific overrides where needed.
+
+---
+
 ## Scaffold placeholder checklist (new books)
 
 If you used `bun run new:book`, replace the starter placeholders before publish:

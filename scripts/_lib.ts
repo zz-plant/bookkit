@@ -13,6 +13,14 @@ export function listBookDirs(): string[] {
     .map((d) => d.name);
 }
 
+export function listPackageDirs(): string[] {
+  const packagesDir = join(repoRoot(), "packages");
+  if (!existsSync(packagesDir)) return [];
+  return readdirSync(packagesDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
+}
+
 export function requireArg(flag: string): string {
   const idx = process.argv.indexOf(flag);
   if (idx === -1 || !process.argv[idx + 1]) {

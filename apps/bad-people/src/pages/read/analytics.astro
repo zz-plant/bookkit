@@ -5,7 +5,7 @@ import PreviewLinksPanel from "@bookkit/astro-bookkit/components/PreviewLinksPan
 import { createPreviewLinks } from "@bookkit/astro-bookkit/preview";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import bookConfig from "../../book.config";
-import { readRoutes } from "../../lib/read-routes";
+import { readRoutes } from "@bookkit/astro-bookkit";
 
 const lastUpdated = new Date().toLocaleDateString("en-US", {
   month: "short",

@@ -513,6 +513,11 @@ p {
   margin-bottom: var(--space-5);
 }
 
+.mermaid {
+  display: block;
+  overflow-x: auto;
+}
+
 .content-block h2 {
   margin-top: 0;
 }

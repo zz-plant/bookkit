@@ -974,6 +974,12 @@ p {
   border: 1px solid var(--color-border);
 }
 
+.search-panel__field input:focus-visible,
+.qa-panel__field textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .search-panel__meta {
   display: flex;
   justify-content: space-between;
@@ -1008,6 +1014,11 @@ p {
   border-color: var(--color-accent);
 }
 
+.search-panel__item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .search-panel__item-title {
   font-weight: 600;
 }
@@ -1036,6 +1047,14 @@ p {
   border-radius: 999px;
   font-size: var(--text-sm);
   cursor: pointer;
+}
+
+.qa-panel__toggle:focus-visible,
+.qa-panel__submit:focus-visible,
+.qa-panel__suggestion:focus-visible,
+.kbd-close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .qa-panel__body {

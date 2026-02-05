@@ -7,7 +7,7 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
-import { readRoutes } from "../../../lib/read-routes";
+import { readRoutes } from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.glossary;

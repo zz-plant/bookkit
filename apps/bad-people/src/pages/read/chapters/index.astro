@@ -5,7 +5,7 @@ import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList
 import { getBookExportLinks } from "../../../lib/exports";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
-import { buildTranslationLede, readItemPath } from "../../../lib/read-routes";
+import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.chapters;

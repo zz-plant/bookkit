@@ -135,17 +135,28 @@ export type {
 } from "./preview";
 export {
   createBookExportHelpersFromConfig,
+  createBookEntryPoints,
   createBookLayoutState,
   createBookMiddleware,
   createBookVersionEntries,
   createBookVersionEntriesFromReleaseModules,
   createReleaseNotesFromModules,
+  buildTranslationLede,
+  formatTranslationCompleteness,
+  readItemPath,
+  readRoutes,
+  readSectionPath,
 } from "./book";
 export type {
   BookExportHelpersFromConfigOptions,
+  BookContentModules,
+  BookContentRawModules,
+  BookEntryPoints,
+  BookEntryPointsOptions,
   BookLayoutConfig,
   BookLayoutOptions,
   BookLayoutState,
   BookMiddlewareOptions,
   BookVersionEntryOptions,
+  ReadIndexKey,
 } from "./book";

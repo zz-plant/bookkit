@@ -1,5 +1,20 @@
 export { createBookExportHelpersFromConfig } from "./exports";
 export type { BookExportHelpersFromConfigOptions } from "./exports";
+export { createBookEntryPoints } from "./entrypoints";
+export type {
+  BookContentModules,
+  BookContentRawModules,
+  BookEntryPoints,
+  BookEntryPointsOptions,
+} from "./entrypoints";
+export {
+  buildTranslationLede,
+  formatTranslationCompleteness,
+  readItemPath,
+  readRoutes,
+  readSectionPath,
+} from "./read-routes";
+export type { ReadIndexKey } from "./read-routes";
 export {
   createBookVersionEntries,
   createBookVersionEntriesFromReleaseModules,

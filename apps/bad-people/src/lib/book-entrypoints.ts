@@ -1,20 +1,9 @@
-import type { ReleaseModule } from "@bookkit/astro-bookkit";
-
-type BookContentModules = {
-  chapters: Record<string, unknown>;
-  mechanisms: Record<string, unknown>;
-  toolkit: Record<string, unknown>;
-  glossary: Record<string, unknown>;
-  examples: Record<string, unknown>;
-};
-
-type BookContentRawModules = {
-  chapters: Record<string, string>;
-  mechanisms: Record<string, string>;
-  toolkit: Record<string, string>;
-  glossary: Record<string, string>;
-  examples: Record<string, string>;
-};
+import {
+  createBookEntryPoints,
+  type BookContentModules,
+  type BookContentRawModules,
+  type ReleaseModule,
+} from "@bookkit/astro-bookkit";
 
 const contentModules: BookContentModules = {
   chapters: import.meta.glob("../content/book/chapters/*.mdx", { eager: true }),
@@ -51,15 +40,8 @@ const releaseModules = import.meta.glob<ReleaseModule>("../content/book/releases
   eager: true,
 });
 
-export const bookEntryPoints = {
+export const bookEntryPoints = createBookEntryPoints({
   contentModules,
   contentRawModules,
-  localizedContentModules: [
-    contentModules.chapters,
-    contentModules.mechanisms,
-    contentModules.toolkit,
-    contentModules.glossary,
-    contentModules.examples,
-  ],
   releaseModules,
-};
+});

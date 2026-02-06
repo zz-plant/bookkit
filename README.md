@@ -11,6 +11,23 @@ This repo is designed to make that idea *practical*, even with many contributors
 
 ---
 
+## Objectives of this codebase
+
+Bookkit is built to make serious books easier to build, safer to evolve, and clearer to use.
+
+1. **Give authors a clear “contract” for what a book is supposed to do.**
+   - `apps/<book>/src/book.config.ts` captures the transformation, frame, mechanism set, and constraints so intent is explicit.
+2. **Keep structure enforceable as teams edit content.**
+   - Validation and frame checks catch drift early so required steps are present in structure, not hidden in prose.
+3. **Let content change without breaking the book’s function.**
+   - Chapters, examples, glossary, and toolkit entries are replaceable bindings, so updates don’t require rewriting engine logic.
+4. **Publish one source of truth to multiple reader surfaces.**
+   - The same spec compiles to reading views, API/search indexes, and export artifacts (PDF/EPUB/release outputs).
+
+In short: this repo exists to preserve a book’s instructional function while still supporting real-world iteration.
+
+---
+
 ## What this repo is for
 
 Bookkit is for books that aim to **intervene** — not just explain or persuade, but change how readers interpret situations and what they are able to do next.

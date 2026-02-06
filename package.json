@@ -29,7 +29,8 @@
     "fix:frontmatter": "bun run scripts/fix-frontmatter.ts",
     "export:gitbook": "bun run scripts/export-gitbook.ts",
     "export:smoke": "bun run scripts/export-smoke.ts",
-    "check:separation": "bun run scripts/check-separation.ts"
+    "check:separation": "bun run scripts/check-separation.ts",
+    "stack:capabilities": "bun run scripts/stack-capabilities.ts --write STACK_CAPABILITIES_RESEARCH.md"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

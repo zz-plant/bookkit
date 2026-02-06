@@ -204,16 +204,28 @@ Run a specific book:
 bun run --filter @books/bad-people dev
 ```
 
+Run lint checks (if formatter/linter config is present):
+
+```bash
+bun run lint
+```
+
 Run validation across all books:
 
 ```bash
-bun run lint:books
+bun run validate
+```
+
+Generate a stack capability/version scan report:
+
+```bash
+bun run stack:capabilities
 ```
 
 Build everything:
 
 ```bash
-bun run --workspaces build
+bun run build:all
 ```
 
 Compile a specific book (validate + build, optional export):

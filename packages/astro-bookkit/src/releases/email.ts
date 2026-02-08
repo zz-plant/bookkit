@@ -27,6 +27,43 @@ export type ReleaseEmailResult = {
   error?: string;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const readStringField = (value: Record<string, unknown>, key: string): string | undefined => {
+  const field = value[key];
+  return typeof field === "string" && field.trim() ? field : undefined;
+};
+
+const readHeadersField = (value: Record<string, unknown>): Record<string, string> | undefined => {
+  const headers = value.headers;
+  if (!isRecord(headers)) return undefined;
+  const normalized = Object.entries(headers).flatMap(([headerKey, headerValue]) =>
+    typeof headerValue === "string" ? [[headerKey, headerValue]] : []
+  );
+  return normalized.length ? Object.fromEntries(normalized) : undefined;
+};
+
+const normalizeTarget = (entry: unknown): ReleaseEmailTarget | null => {
+  if (typeof entry === "string") {
+    return entry.trim() ? { url: entry.trim() } : null;
+  }
+
+  if (!isRecord(entry)) return null;
+
+  const url = readStringField(entry, "url");
+  if (!url) return null;
+
+  return {
+    url,
+    name: readStringField(entry, "name"),
+    secret: readStringField(entry, "secret"),
+    provider: readStringField(entry, "provider"),
+    headers: readHeadersField(entry),
+    enabled: typeof entry.enabled === "boolean" ? entry.enabled : undefined,
+  };
+};
+
 export const buildReleaseEmailPayload = ({
   release,
   book,
@@ -47,16 +84,11 @@ export const parseReleaseEmailTargets = (raw?: string | null): ReleaseEmailTarge
   const trimmed = raw.trim();
   if (!trimmed) return [];
   try {
-    const parsed = JSON.parse(trimmed);
+    const parsed: unknown = JSON.parse(trimmed);
     if (Array.isArray(parsed)) {
       return parsed.flatMap((entry) => {
-        if (typeof entry === "string") {
-          return entry.trim() ? [{ url: entry.trim() }] : [];
-        }
-        if (entry && typeof entry.url === "string") {
-          return [entry as ReleaseEmailTarget];
-        }
-        return [];
+        const target = normalizeTarget(entry);
+        return target ? [target] : [];
       });
     }
   } catch (error) {
@@ -94,14 +126,14 @@ export const sendReleaseEmailHooks = async ({
   const activeTargets = targets.filter((target) => target.enabled !== false);
 
   const results = await Promise.all(
-    activeTargets.map(async (target) => {
+    activeTargets.map(async (target): Promise<ReleaseEmailResult> => {
       try {
         const response = await fetch(target.url, {
           method: "POST",
           headers: buildHeaders(target),
           body: JSON.stringify(payload),
         });
-        const status = response.ok ? "success" : "failure";
+        const status: ReleaseEmailResult["status"] = response.ok ? "success" : "failure";
         await recordReleaseEvent({
           event: "email_delivery",
           status,

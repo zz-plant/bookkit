@@ -100,8 +100,11 @@ for (const file of exampleFiles) {
 const bookConfigPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
 if (existsSync(bookConfigPath)) {
   const configSource = readFileSync(bookConfigPath, "utf8");
-  const indexableFalse = /indexable\s*:\s*false/.test(configSource);
-  const siteUrlMatch = /url\s*:\s*["'`](.+?)["'`]/.exec(configSource);
+  const siteConfigSource = extractNamedObjectLiteral(configSource, "site");
+  const indexableFalse = !!siteConfigSource && /indexable\s*:\s*false/.test(siteConfigSource);
+  const siteUrlMatch = siteConfigSource
+    ? /url\s*:\s*["'`](.+?)["'`]/.exec(siteConfigSource)
+    : null;
   const siteUrl = siteUrlMatch?.[1]?.trim();
   const localSiteUrl = !!siteUrl && /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(siteUrl);
 
@@ -118,6 +121,73 @@ if (existsSync(bookConfigPath)) {
       `Release validation failed: apps/${book}/src/book.config.ts must define a public site.url for production builds.`
     );
   }
+}
+
+function extractNamedObjectLiteral(source: string, key: string): string | null {
+  const objectStartMatch = new RegExp(`\\b${key}\\s*:\\s*\\{`).exec(source);
+  if (!objectStartMatch) return null;
+  const braceStart = source.indexOf("{", objectStartMatch.index);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  let isEscaped = false;
+
+  for (let index = braceStart; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (isEscaped) {
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      isEscaped = true;
+      continue;
+    }
+
+    if (inSingleQuote) {
+      if (char === "'") inSingleQuote = false;
+      continue;
+    }
+
+    if (inDoubleQuote) {
+      if (char === '"') inDoubleQuote = false;
+      continue;
+    }
+
+    if (inTemplate) {
+      if (char === "`") inTemplate = false;
+      continue;
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+    if (char === '"') {
+      inDoubleQuote = true;
+      continue;
+    }
+    if (char === "`") {
+      inTemplate = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(braceStart, index + 1);
+    }
+  }
+
+  return null;
 }
 
 report("warning", warnings);

@@ -13,7 +13,8 @@ const book = requireArg("--book");
 const mode = optionalArg("--mode") ?? "warn";
 const noDrafts = process.argv.includes("--no-drafts");
 
-const bookRoot = join(process.cwd(), "apps", book, "src", "content", "book");
+const workspaceRoot = join(import.meta.dir, "..");
+const bookRoot = join(workspaceRoot, "apps", book, "src", "content", "book");
 
 const requiredDirs = [
   "chapters",

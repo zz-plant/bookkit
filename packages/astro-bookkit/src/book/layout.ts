@@ -81,7 +81,7 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
   const { props, locals, url } = astro;
   const seoProps = buildSeoProps({
     site: bookConfig.site,
-    requestUrl: locals?.originalUrl ?? url.toString(),
+    requestUrl: typeof locals?.originalUrl === "string" ? locals.originalUrl : url.toString(),
     description: props.description,
     ogTitle: props.ogTitle,
     ogDescription: props.ogDescription,

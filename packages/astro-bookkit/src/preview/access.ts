@@ -10,11 +10,11 @@ export type PreviewTokenRecord = {
 
 export type PreviewAccessConfig = {
   enabled?: boolean;
-  tokens: PreviewTokenRecord[];
+  tokens: readonly PreviewTokenRecord[];
   paramName?: string;
   cookieName?: string;
-  protectedPaths?: string[];
-  publicPaths?: string[];
+  protectedPaths?: readonly string[];
+  publicPaths?: readonly string[];
   cookieMaxAgeDays?: number;
 };
 
@@ -60,7 +60,7 @@ const isExpired = (expiresAt?: string): boolean => {
   return date.getTime() <= Date.now();
 };
 
-const matchesPath = (pathname: string, prefixes: string[] = []): boolean =>
+const matchesPath = (pathname: string, prefixes: readonly string[] = []): boolean =>
   prefixes.some((prefix) => {
     if (!prefix) return false;
     if (prefix === "/") return true;
@@ -262,7 +262,7 @@ export const createPreviewAccessMiddleware = (
       });
     }
 
-    context.locals.preview = previewState;
+    (context.locals as Record<string, unknown>).preview = previewState;
 
     if (queryToken && queryState?.isPreview) {
       const expires = previewState.expiresAt ? new Date(previewState.expiresAt) : undefined;

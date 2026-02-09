@@ -1,4 +1,5 @@
-import { sequence, type MiddlewareHandler } from "astro:middleware";
+import { sequence } from "astro:middleware";
+import type { MiddlewareHandler } from "astro";
 import { createVersionRoutingMiddleware } from "../releases/middleware";
 import type { BookVersionEntry } from "../releases/versions";
 import { createLocaleRoutingMiddleware } from "../localization/middleware";
@@ -7,10 +8,10 @@ import { createPreviewAccessMiddleware } from "../preview/access";
 import type { PreviewAccessConfig } from "../preview/access";
 
 export type BookMiddlewareOptions = {
-  versions: BookVersionEntry[];
+  versions: readonly BookVersionEntry[];
   versionPrefix?: string;
   defaultVersion?: string;
-  locales?: LocaleEntry[];
+  locales?: readonly LocaleEntry[];
   defaultLocale?: string;
   includeDefaultLocalePrefix?: boolean;
   previewAccess?: PreviewAccessConfig;

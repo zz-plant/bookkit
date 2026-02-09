@@ -15,6 +15,19 @@ import {
   createReleaseWebhookEndpoint,
   createReleaseEmailEndpoint,
 } from "@bookkit/astro-bookkit";
+
+// Example for an RSS feed endpoint (e.g., pages/rss.xml.ts)
+export const { GET } = createReleaseNotesRssEndpoint({
+  modules: releaseModules,
+  siteUrl,
+  bookTitle,
+});
+
+// Example for a webhook endpoint (e.g., pages/api/webhooks.ts)
+export const { POST } = createReleaseWebhookEndpoint({
+  modules: releaseModules,
+  book: { slug: bookConfig.slug, title: bookConfig.title },
+});
 ```
 
 ## Environment variables

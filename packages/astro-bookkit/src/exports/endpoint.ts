@@ -34,7 +34,7 @@ const normalizeMetadata = (value: unknown): Record<string, string> | undefined =
       if (!cleanedKey || !cleanedValue) return null;
       return [cleanedKey, cleanedValue] as const;
     })
-    .filter(Boolean);
+        .filter((entry): entry is readonly [string, string] => entry !== null);
   return entries.length ? Object.fromEntries(entries) : undefined;
 };
 

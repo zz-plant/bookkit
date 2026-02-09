@@ -410,7 +410,7 @@ export const createExportResponse = async (
   const resolved = { ...bundle, updatedAt };
   const bytes =
     format === "pdf" ? await createPdfExport(resolved) : await createEpubExport(resolved);
-  return new Response(bytes, {
+  return new Response(Uint8Array.from(bytes), {
     headers: {
       "Content-Type": format === "pdf" ? "application/pdf" : "application/epub+zip",
       "Content-Disposition": `attachment; filename=\"${filename}\"`,

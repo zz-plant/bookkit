@@ -3,7 +3,7 @@ import { resolveLocaleConfig, stripLocaleFromPath, type LocaleEntry } from "./ro
 import { ORIGINAL_URL_HEADER } from "../utils/request";
 
 export type LocaleMiddlewareOptions = {
-  locales: LocaleEntry[];
+  locales: readonly LocaleEntry[];
   defaultLocale?: string;
   includeDefaultPrefix?: boolean;
 };
@@ -22,10 +22,11 @@ export const createLocaleRoutingMiddleware = (
       return next();
     }
 
-    if (typeof context.locals.originalUrl !== "string") {
-      context.locals.originalUrl = context.request.url;
+    const locals = context.locals as Record<string, unknown>;
+    if (typeof locals.originalUrl !== "string") {
+      locals.originalUrl = context.request.url;
     }
-    const originalUrl = context.locals.originalUrl;
+    const originalUrl = locals.originalUrl as string;
 
     const url = new URL(context.request.url);
     const { locale, pathWithoutLocale } = stripLocaleFromPath(url.pathname, localeCodes, {
@@ -34,8 +35,8 @@ export const createLocaleRoutingMiddleware = (
     });
 
     const resolvedLocale = locale ?? defaultLocale ?? localeCodes[0];
-    context.locals.locale = resolvedLocale;
-    context.locals.localePath = pathWithoutLocale;
+    locals.locale = resolvedLocale;
+    locals.localePath = pathWithoutLocale;
 
     if (locale && pathWithoutLocale !== url.pathname) {
       url.pathname = pathWithoutLocale;

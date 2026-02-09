@@ -56,7 +56,8 @@ const defaultBookSearchSources = [
 
 const getLocaleForModule = (raw: string): string | undefined => {
   const match = raw.match(LOCALE_FRONTMATTER_PATTERN);
-  return normalizeLocaleCode(match?.[1]);
+  const normalized = normalizeLocaleCode(match?.[1]);
+  return normalized ?? undefined;
 };
 
 const shouldIncludeModule = (

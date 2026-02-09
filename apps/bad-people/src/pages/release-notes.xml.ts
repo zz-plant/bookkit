@@ -5,7 +5,7 @@ import bookConfig from "../book.config";
 const siteUrl =
   (bookConfig.site?.url
     ? normalizeSiteUrl(bookConfig.site.url, bookConfig.site.enforceHttps)
-    : null) ?? import.meta.env.SITE_URL || "http://localhost:4321";
+    : null) ?? (import.meta.env.SITE_URL || "http://localhost:4321");
 
 export const { GET } = createReleaseNotesRssEndpoint({
   modules: releaseModules,

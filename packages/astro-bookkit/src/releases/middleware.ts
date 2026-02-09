@@ -3,7 +3,7 @@ import { extractVersionFromPath, stripVersionFromPath, type BookVersionEntry } f
 import { ORIGINAL_URL_HEADER } from "../utils/request";
 
 export type VersionRoutingOptions = {
-  versions?: BookVersionEntry[];
+  versions?: readonly BookVersionEntry[];
   prefixSegment?: string;
   defaultVersion?: string;
 };
@@ -21,17 +21,18 @@ export const createVersionRoutingMiddleware = (
       return next();
     }
 
-    if (typeof context.locals.originalUrl !== "string") {
-      context.locals.originalUrl = context.request.url;
+    const locals = context.locals as Record<string, unknown>;
+    if (typeof locals.originalUrl !== "string") {
+      locals.originalUrl = context.request.url;
     }
-    const originalUrl = context.locals.originalUrl;
+    const originalUrl = locals.originalUrl as string;
 
     const url = new URL(context.request.url);
     const pathVersion = extractVersionFromPath(url.pathname, { prefixSegment });
     const isKnownVersion = pathVersion ? knownVersions.has(pathVersion) : false;
 
     if (isKnownVersion && pathVersion) {
-      context.locals.bookVersion = pathVersion;
+      locals.bookVersion = pathVersion;
       const strippedPath = stripVersionFromPath(url.pathname, { prefixSegment });
       if (strippedPath !== url.pathname) {
         url.pathname = strippedPath;
@@ -42,7 +43,7 @@ export const createVersionRoutingMiddleware = (
       return next();
     }
 
-    context.locals.bookVersion = latestVersion;
+    locals.bookVersion = latestVersion;
     return next();
   };
 };

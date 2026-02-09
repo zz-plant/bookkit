@@ -164,15 +164,17 @@ const {
       const storageKey = `${bookKey}:release:lastVisit`;
       const nowIso = new Date().toISOString();
       const previousVisit = localStorage.getItem(storageKey);
+      const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
 
-      if (filterButton && previousVisit && cards.length > 0) {
+      if (filterButton && Number.isFinite(previousVisitMs) && cards.length > 0) {
         filterButton.hidden = false;
         let showingFiltered = false;
         filterButton.addEventListener("click", () => {
           showingFiltered = !showingFiltered;
           cards.forEach((card) => {
             const dateValue = card.getAttribute("data-release-date");
-            const show = !showingFiltered || (dateValue && dateValue > previousVisit);
+            const releaseMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+            const show = !showingFiltered || (Number.isFinite(releaseMs) && releaseMs > previousVisitMs);
             card.hidden = !show;
           });
           if (visitNote) {

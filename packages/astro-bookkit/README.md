@@ -2,13 +2,22 @@
 
 This directory hosts the reusable Bookkit engine.
 
-Expected structure:
+## Scope
 
-- `src/` for book-agnostic frames, schemas, validators, compiler utilities, and shared styles.
-  - `compiler/`
-  - `frames/`
-  - `schemas/`
-  - `styles/`
-  - `validators/`
+Use this package for book-agnostic logic only:
 
-Book-specific configuration and content belong under `apps/`.
+- frames
+- schemas
+- validators
+- compiler and orchestration utilities
+- shared styles/components used across books
+
+Book-specific configuration/content belongs under `apps/<book>/`.
+
+## Canonical docs
+
+For contributor guidance, use these canonical docs instead of duplicating policy here:
+
+- Repo architecture + commands: [`README.md`](../../README.md)
+- Contribution workflow and lanes: [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
+- Non-negotiable invariants (humans + AI): [`AGENTS.md`](../../AGENTS.md)

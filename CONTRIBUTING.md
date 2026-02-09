@@ -8,6 +8,19 @@ Choose the lane that matches what you want to do.
 
 ---
 
+## Documentation boundaries (rationalized)
+
+To keep contributor-facing docs coherent:
+
+- `README.md` is the canonical source for architecture and operational commands.
+- `CONTRIBUTING.md` is the canonical source for contribution workflow and lane selection.
+- `AGENTS.md` is the canonical source for non-negotiable invariants (humans + AI).
+- App/package READMEs should stay lightweight and point back to these canonical docs.
+
+When updating docs, prefer linking to canonical sections instead of duplicating long guidance.
+
+---
+
 ## Choose your lane
 
 ### Lane A — Add prose, examples, or cases (lowest friction)

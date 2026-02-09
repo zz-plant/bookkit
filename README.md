@@ -28,6 +28,27 @@ In short: this repo exists to preserve a book’s instructional function while s
 
 ---
 
+## Documentation map (who should read what)
+
+To reduce duplication and make contribution paths clearer, this repo treats each document as a primary source for a specific audience.
+
+| Audience | Start here | Why |
+| --- | --- | --- |
+| New developers (human) | [`README.md`](./README.md) | Repo architecture, workspace layout, and day-to-day commands. |
+| Contributors (human + AI) | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Practical contribution lanes, validation workflow, and submission expectations. |
+| Agents + maintainers enforcing invariants | [`AGENTS.md`](./AGENTS.md) | Non-negotiable architectural invariants and risk boundaries. |
+| Engine contributors | [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md) | Scope and boundaries for reusable compiler logic. |
+| Book-instance contributors | [`apps/bad-people/README.md`](./apps/bad-people/README.md) | Scope and boundaries for book-specific config/content work. |
+
+### Doc ownership policy
+
+- Keep **architecture + command references** in `README.md`.
+- Keep **how to contribute** in `CONTRIBUTING.md`.
+- Keep **hard invariants** in `AGENTS.md`.
+- Prefer linking over copying the same guidance into multiple files.
+
+---
+
 ## What this repo is for
 
 Bookkit is for books that aim to **intervene** — not just explain or persuade, but change how readers interpret situations and what they are able to do next.

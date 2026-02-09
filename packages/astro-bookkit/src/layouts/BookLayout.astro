@@ -21,6 +21,12 @@ const {
   ogImage,
   ogTitle,
   ogDescription,
+  ogType = "website",
+  twitterCard,
+  twitterTitle,
+  twitterDescription,
+  twitterImage,
+  structuredData,
   robots,
   aiQaEnabled = true,
   aiQaSamples = [
@@ -101,6 +107,35 @@ const resolvedRobots =
     : undefined);
 const resolvedOgTitle = ogTitle ?? pageTitle;
 const resolvedOgDescription = ogDescription ?? metaDescription;
+const resolvedTwitterCard = twitterCard ?? (twitterImage || ogImage ? "summary_large_image" : "summary");
+const resolvedTwitterTitle = twitterTitle ?? resolvedOgTitle;
+const resolvedTwitterDescription = twitterDescription ?? resolvedOgDescription;
+const resolvedTwitterImage = twitterImage ?? ogImage;
+const defaultStructuredData = [
+  resolvedCanonical
+    ? {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: pageTitle,
+        description: metaDescription,
+        url: resolvedCanonical,
+        inLanguage: activeLocale,
+        isPartOf: siteUrl
+          ? {
+              "@type": "WebSite",
+              name: bookTitle,
+              url: siteUrl,
+            }
+          : undefined,
+      }
+    : null,
+].filter(Boolean);
+const customStructuredData = Array.isArray(structuredData)
+  ? structuredData
+  : structuredData
+    ? [structuredData]
+    : [];
+const structuredDataScripts = [...defaultStructuredData, ...customStructuredData];
 const hreflangEntries =
   siteUrl && localeEntries.length
     ? localeEntries.map((entry) => {
@@ -148,11 +183,19 @@ const previewDetails = [
     {resolvedOgTitle && <meta property="og:title" content={resolvedOgTitle} />}
     {resolvedOgDescription && <meta property="og:description" content={resolvedOgDescription} />}
     {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
+    {ogType && <meta property="og:type" content={ogType} />}
     {ogImage && <meta property="og:image" content={ogImage} />}
+    {resolvedTwitterCard && <meta name="twitter:card" content={resolvedTwitterCard} />}
+    {resolvedTwitterTitle && <meta name="twitter:title" content={resolvedTwitterTitle} />}
+    {resolvedTwitterDescription && <meta name="twitter:description" content={resolvedTwitterDescription} />}
+    {resolvedTwitterImage && <meta name="twitter:image" content={resolvedTwitterImage} />}
     {hreflangEntries.map((entry) => (
       <link rel="alternate" hreflang={entry.locale} href={entry.href} />
     ))}
     {hreflangDefault && <link rel="alternate" hreflang="x-default" href={hreflangDefault} />}
+    {structuredDataScripts.map((entry) => (
+      <script type="application/ld+json" set:html={JSON.stringify(entry)} />
+    ))}
   </head>
   <body
     data-book-version={bookVersion}

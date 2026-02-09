@@ -96,6 +96,30 @@ for (const file of exampleFiles) {
   }
 }
 
+
+const bookConfigPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
+if (existsSync(bookConfigPath)) {
+  const configSource = readFileSync(bookConfigPath, "utf8");
+  const indexableFalse = /indexable\s*:\s*false/.test(configSource);
+  const siteUrlMatch = /url\s*:\s*["'`](.+?)["'`]/.exec(configSource);
+  const siteUrl = siteUrlMatch?.[1]?.trim();
+  const localSiteUrl = !!siteUrl && /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(siteUrl);
+
+  const requireProdSeo = noDrafts && process.env.BOOKKIT_REQUIRE_INDEXABLE_PROD === "true";
+
+  if (requireProdSeo && indexableFalse) {
+    errors.push(
+      `Release validation failed: apps/${book}/src/book.config.ts has site.indexable set to false. Set indexable: true for production.`
+    );
+  }
+
+  if (requireProdSeo && (!siteUrl || localSiteUrl)) {
+    errors.push(
+      `Release validation failed: apps/${book}/src/book.config.ts must define a public site.url for production builds.`
+    );
+  }
+}
+
 report("warning", warnings);
 report("error", errors);
 

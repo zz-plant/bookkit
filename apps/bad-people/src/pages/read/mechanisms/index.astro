@@ -7,17 +7,22 @@ import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
+const coreMechanismSlugs = new Set(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
 const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,
   mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
+    const tags = [
+      coreMechanismSlugs.has(slug) ? "core" : null,
+      "high leverage",
+      isFallback ? "fallback" : null,
+    ].filter(Boolean);
     return {
       href: readItemPath("mechanisms", slug),
       title: frontmatter.title ?? "Untitled mechanism",
-      meta: isFallback
-        ? `${frontmatter.definition ?? ""} (fallback)`
-        : frontmatter.definition ?? "",
+      eyebrow: tags.join(" • "),
+      meta: frontmatter.definition ?? "",
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),

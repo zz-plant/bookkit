@@ -66,7 +66,11 @@ const relatedToolkit = toolkitEntries
     slug,
     frontmatter: toolkitModule.frontmatter ?? {},
   }))
-  .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
+  .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug)
+  .sort(
+    (a, b) =>
+      (a.frontmatter.timeboxMinutes ?? 10) - (b.frontmatter.timeboxMinutes ?? 10)
+  );
 const relatedExamples = exampleEntries
   .map(({ slug, module: exampleModule }) => ({
     slug,
@@ -85,12 +89,27 @@ const relatedExamples = exampleEntries
   <a class="back-link" href={readRoutes.mechanisms}>← Mechanisms</a>
   <div class="eyebrow">Mechanism{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
-  <p class="lede">{frontmatter.definition}</p>
+  <p class="lede" id="definition">{frontmatter.definition}</p>
+
+  <section class="content-block" style="margin-top: 0;">
+    <h2>On this page</h2>
+    <div class="stack">
+      <a class="list-link" href="#definition"><strong>Definition</strong></a>
+      {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+        <a class="list-link" href="#recognize"><strong>How to recognize it</strong></a>
+      )}
+      {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+        <a class="list-link" href="#next-steps"><strong>Next steps</strong></a>
+      )}
+      <a class="list-link" href="#keep-going"><strong>Keep going</strong></a>
+    </div>
+  </section>
+
   <section class="content-block">
     <Content />
   </section>
   {(hasIs || hasIsNot || hasPredictions || hasTests) && (
-    <section class="content-block">
+    <section class="content-block" id="recognize">
       <h2>How to recognize it</h2>
       {hasIs && (
         <>
@@ -135,11 +154,11 @@ const relatedExamples = exampleEntries
     </section>
   )}
   {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
-    <section class="content-block">
+    <section class="content-block" id="next-steps">
       <h2>Next steps</h2>
       {relatedToolkit.length > 0 && (
         <>
-          <div class="eyebrow">Related actions</div>
+          <div class="eyebrow">Related actions (shortest first)</div>
           <div class="stack">
             {relatedToolkit.map((entry) => (
               <a class="list-link" href={readItemPath("toolkit", entry.slug)}>
@@ -167,7 +186,7 @@ const relatedExamples = exampleEntries
       )}
     </section>
   )}
-  <section class="next-steps">
+  <section class="next-steps" id="keep-going">
     <h2>Keep going</h2>
     <div class="next-steps__links">
       <a class="next-steps__link" href={readRoutes.toolkit}>Explore toolkit actions</a>

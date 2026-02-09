@@ -6,6 +6,20 @@ These rules apply to humans and automated agents equally.
 
 ---
 
+
+## Documentation governance
+
+To keep developer/agent guidance coherent:
+
+- `README.md` is canonical for architecture and operational commands.
+- `CONTRIBUTING.md` is canonical for contribution workflow.
+- `AGENTS.md` is canonical for architectural invariants and agent guardrails.
+- App/package READMEs should stay local in scope and link back to canonical docs.
+
+When docs conflict, apply this file for invariants and prefer linking over duplicated policy text.
+
+---
+
 ## Core invariant
 
 This repo enforces a strict separation of concerns:

@@ -2,18 +2,23 @@
 
 This directory hosts the **Bad People** book instance.
 
-Current structure:
+## Scope
 
-- `src/book.config.ts` for the book's core configuration.
-- `src/content/book/` for structured content records.
-  - `chapters/`
-  - `examples/`
-  - `glossary/`
-  - `mechanisms/`
-  - `toolkit/`
-- `src/pages/` for Astro routes and layouts.
+Use this app for:
 
-Keep engine logic in `packages/astro-bookkit/` and reserve this space for book-specific configuration and content only.
+- `src/book.config.ts` (book-level objectives, constraints, and mechanisms)
+- `src/content/book/**` (replaceable content bindings)
+- `src/pages/**` and `src/layouts/**` (book routes and presentation)
+
+Do **not** place reusable engine/compiler logic in this directory.
+
+## Canonical docs
+
+For contributor guidance, use these canonical docs instead of duplicating policy here:
+
+- Repo architecture + commands: [`README.md`](../../README.md)
+- Contribution workflow and lanes: [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
+- Non-negotiable invariants (humans + AI): [`AGENTS.md`](../../AGENTS.md)
 
 ## Analytics retention policy
 

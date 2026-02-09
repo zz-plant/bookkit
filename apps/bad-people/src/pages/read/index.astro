@@ -5,7 +5,9 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
-import { formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
+import { formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { getReleaseNotes } from "../../lib/release-notes";
+import { getVersionEntries } from "../../lib/versions";
 import bookConfig from "../../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
@@ -44,6 +46,12 @@ const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey }
 const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const releaseNotes = getReleaseNotes();
+const latestRelease = releaseNotes[0];
+const latestVersion =
+  getVersionEntries().find((entry) => entry.isLatest)?.version ?? bookConfig.status;
+const startingChapter =
+  chapters.entries.find((entry) => entry.slug === "overview") ?? chapters.entries[0];
 
 const sections = [
   {
@@ -76,6 +84,7 @@ const sections = [
     count: toolkit.entries.length,
     completeness: toolkit.completeness,
     keyHint: ["g", "t"],
+    updatedIn: latestVersion,
   },
   {
     title: "Glossary",
@@ -92,6 +101,7 @@ const sections = [
     count: examples.entries.length,
     completeness: examples.completeness,
     keyHint: ["g", "e"],
+    updatedIn: latestVersion,
   },
   {
     title: "Analytics",
@@ -109,6 +119,28 @@ const sections = [
       Use these views to move through the book content without exposing engine logic.
     </p>
   </div>
+
+  {latestRelease && (
+    <section class="content-block" style="margin-top: 0;">
+      <div class="eyebrow">Latest update</div>
+      <h2>What changed in v{latestRelease.version}</h2>
+      <p class="meta">{latestRelease.summary}</p>
+      <a class="next-steps__link" href="/release-notes">See full release notes</a>
+    </section>
+  )}
+
+  <section class="content-block" style="margin-top: 0;">
+    <div class="eyebrow">Recommended path</div>
+    <h2>Start here</h2>
+    <p class="meta">New reader? Begin with the foundational chapter before diving into mechanisms.</p>
+    {startingChapter && (
+      <a class="next-steps__link" href={readItemPath("chapters", startingChapter.slug)}>
+        Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}
+      </a>
+    )}
+    <p class="meta">Prefer offline reading? Download PDF/EPUB from the Chapters page.</p>
+  </section>
+
   <div class="card-grid">
     {sections.map((section) => {
       const label = section.count === 1 ? "item" : "items";
@@ -120,7 +152,10 @@ const sections = [
             {section.count} {label}
             {completenessLabel ? ` • ${completenessLabel}` : ""}
           </div>
-          {section.badge && <span class="pill">{section.badge}</span>}
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            {section.badge && <span class="pill">{section.badge}</span>}
+            {section.updatedIn && <span class="pill">Updated in v{section.updatedIn}</span>}
+          </div>
           <h2>{section.title}</h2>
           <p class="meta">{section.description}</p>
           {section.keyHint && (

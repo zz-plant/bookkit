@@ -34,6 +34,13 @@ const localizedLede = buildTranslationLede(
     lede={localizedLede}
     items={chapterItems}
   >
+    <details slot="after-header" class="content-block" style="margin-top: 0;">
+      <summary><strong>What draft status means</strong></summary>
+      <p class="meta">
+        Draft chapters are readable and useful, but examples, wording, and ordering can still
+        change as validation improves.
+      </p>
+    </details>
     <ExportPanel
       slot="after-list"
       title="Download exports"

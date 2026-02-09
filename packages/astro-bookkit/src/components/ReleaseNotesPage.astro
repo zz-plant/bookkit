@@ -88,8 +88,14 @@ const {
     <div>
       <h1>Release notes</h1>
       <p class="lede">{description}</p>
+      <p class="meta" data-release-visit-note hidden>
+        Showing changes since your last visit.
+      </p>
     </div>
-    <div class="release-actions">
+    <div class="release-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <button class="button" type="button" data-release-filter hidden>
+        Show since last visit
+      </button>
       <a
         class="button"
         href={rssUrl}
@@ -100,11 +106,11 @@ const {
       </a>
     </div>
   </div>
-  <div class="release-list">
+  <div class="release-list" data-release-list>
     {releases.map((release) => {
       const Content = release.Content;
       return (
-        <article class="release-card" id={`release-${release.version}`}>
+        <article class="release-card" id={`release-${release.version}`} data-release-date={release.date}>
           <header class="release-header">
             <div class="release-meta">
               <p class="eyebrow">Version {release.version}</p>
@@ -114,6 +120,7 @@ const {
               {formatReleaseDate(release.date)}
             </time>
           </header>
+          <p class="eyebrow">Reader impact summary</p>
           <p class="release-summary">{release.summary}</p>
           {release.highlights.length > 0 && (
             <ul class="release-highlights">
@@ -134,10 +141,11 @@ const {
       );
     })}
   </div>
-  {subscribeAnalyticsUrl && (
-    <script define:vars={{ subscribeAnalyticsUrl }}>
+  {(subscribeAnalyticsUrl || releases.length > 0) && (
+    <script define:vars={{ subscribeAnalyticsUrl, releases, bookKey }}>
       const subscribeButton = document.querySelector("[data-release-subscribe]");
       subscribeButton?.addEventListener("click", () => {
+        if (!subscribeAnalyticsUrl) return;
         const payload = JSON.stringify({ event: "rss_subscribe_click" });
         if (navigator.sendBeacon) {
           navigator.sendBeacon(subscribeAnalyticsUrl, payload);
@@ -149,6 +157,34 @@ const {
           });
         }
       });
+
+      const filterButton = document.querySelector("[data-release-filter]");
+      const visitNote = document.querySelector("[data-release-visit-note]");
+      const cards = Array.from(document.querySelectorAll("[data-release-date]"));
+      const storageKey = `${bookKey}:release:lastVisit`;
+      const nowIso = new Date().toISOString();
+      const previousVisit = localStorage.getItem(storageKey);
+
+      if (filterButton && previousVisit && cards.length > 0) {
+        filterButton.hidden = false;
+        let showingFiltered = false;
+        filterButton.addEventListener("click", () => {
+          showingFiltered = !showingFiltered;
+          cards.forEach((card) => {
+            const dateValue = card.getAttribute("data-release-date");
+            const show = !showingFiltered || (dateValue && dateValue > previousVisit);
+            card.hidden = !show;
+          });
+          if (visitNote) {
+            visitNote.hidden = !showingFiltered;
+          }
+          filterButton.textContent = showingFiltered
+            ? "Show all releases"
+            : "Show since last visit";
+        });
+      }
+
+      localStorage.setItem(storageKey, nowIso);
     </script>
   )}
 </BookLayout>

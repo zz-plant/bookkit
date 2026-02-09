@@ -1,9 +1,12 @@
-# Engine source
+# Engine source map
 
-Place book-agnostic engine code here:
+Core source directories:
 
-- `compiler/` for ordering and compilation utilities.
-- `frames/` for structure definitions.
-- `schemas/` for content validation schemas.
-- `styles/` for shared styling.
-- `validators/` for validation rules.
+- `compiler/` — compile graph, ordering, export orchestration
+- `frames/` — enforceable structural models
+- `schemas/` — content schema definitions
+- `validators/` — validation logic and guidance messages
+- `styles/` — shared style primitives
+- `releases/` — release note and integration helpers
+
+When adding capabilities, prefer general mechanisms over book-specific exceptions.

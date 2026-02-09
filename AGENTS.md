@@ -1,131 +1,89 @@
-# AGENTS.md — Architectural Invariants (Humans + AI)
+# AGENTS.md — Architectural Invariants and Guardrails
 
-This file defines the **non-negotiable rules** that keep the system recompilable, coherent, and governable over time.
-
-These rules apply to humans and automated agents equally.
+This file defines non-negotiable rules for human and AI contributors. If guidance conflicts across docs, this file wins for invariants.
 
 ---
 
+## Canonical document roles
 
-## Documentation governance
+- `README.md` → architecture + operational commands
+- `CONTRIBUTING.md` → contribution workflow + lanes
+- `AGENTS.md` → hard invariants + risk boundaries
+- app/package READMEs → local orientation only
 
-To keep developer/agent guidance coherent:
-
-- `README.md` is canonical for architecture and operational commands.
-- `CONTRIBUTING.md` is canonical for contribution workflow.
-- `AGENTS.md` is canonical for architectural invariants and agent guardrails.
-- App/package READMEs should stay local in scope and link back to canonical docs.
-
-When docs conflict, apply this file for invariants and prefer linking over duplicated policy text.
+Prefer linking over policy duplication.
 
 ---
 
-## Core invariant
+## Core invariant: strict separation of concerns
 
-This repo enforces a strict separation of concerns:
-
-1. **Author decisions (scarce, irreversible)**
-   `apps/<book>/src/book.config.ts`
-2. **Engine / compiler logic (reusable)**
-   `packages/astro-bookkit/**`
-3. **Bindings (replaceable content)**
-   `apps/<book>/src/content/book/**`
+1. **Author decisions** (`apps/<book>/src/book.config.ts`)
+2. **Engine/compiler logic** (`packages/astro-bookkit/**`)
+3. **Replaceable content bindings** (`apps/<book>/src/content/book/**`)
 
 ### Hard rule
 
 **Never implement book-specific logic inside content files.**
 
-If behavior is needed:
+If behavior is needed, either:
 
-- add it to the engine, or
-- make it a frame option.
-
-Do not hack around the architecture.
+- implement engine capability, or
+- express it as a frame/config option.
 
 ---
 
-## What belongs where
+## Placement rules
 
-### Change structure or requirements
+### Structure or requirements changes
 
-✅ `packages/astro-bookkit/`
+✅ put in `packages/astro-bookkit/` (frames, schemas, validators, compiler)
 
-- frames
-- schemas
-- validators
-- compiler logic
+❌ do not implement as book-app conditional rendering
 
-❌ Not inside a book app as conditional rendering.
+### Book-specific content/config changes
 
-### Add or modify a book
+✅ put in `apps/<book>/` (`book.config.ts`, content, routes, layout)
 
-✅ `apps/<book>/`
+❌ do not fork engine code
 
-- `book.config.ts`
-- content records
-- routes and layout
+### New named concepts
 
-❌ Do not fork the engine.
+✅ register as mechanisms or glossary terms
 
-### Add new concepts
-
-✅ Register them as **mechanisms** or **glossary terms**
-
-❌ Do not introduce floating named concepts in prose.
+❌ do not introduce floating concepts in prose
 
 ---
 
 ## Primary invariants (do not break)
 
-### 1) Mechanism identity is stable
-
-- Slugs are stable identifiers.
-- A mechanism must always mean the same thing.
-- Redefinitions are breaking changes.
-
-### 2) Frames are enforceable
-
-- Required steps must be structurally detectable.
-- “It’s implied in prose” is not sufficient.
-
-### 3) Examples are replaceable
-
-- Swapping examples must not change the module’s function.
-- Current events must never define a mechanism.
-
-### 4) Ordering is a graph
-
-- No single canonical outline.
-- Use dependencies and constraints instead.
-
-### 5) Action primitives are executable
-
-- ≤10 minutes
-- no heroics
-- works even if it fails
-
-If a tool requires courage, expertise, or perfect compliance, it is invalid.
+1. **Mechanism identity is stable**
+   - slugs are durable identifiers
+   - redefinition is a breaking change
+2. **Frames are enforceable**
+   - required steps must be structurally detectable
+   - implied prose is insufficient
+3. **Examples are replaceable**
+   - changing examples must not change module function
+   - current events cannot define mechanisms
+4. **Ordering is graph-based**
+   - avoid single canonical sequence assumptions
+   - encode dependencies and constraints
+5. **Action primitives are executable**
+   - ≤10 minutes, no heroics, failure-resilient
 
 ---
 
-## Validation expectations
+## Validation obligations
 
-When modifying:
+When modifying schemas, validators, frames, or compiler behavior:
 
-- schemas
-- validation rules
-- compiler logic
-- frame requirements
+- ensure validations pass, **or**
+- update errors with clear, actionable guidance
 
-You must ensure:
+Breaking schema/validator changes must include:
 
-- validations still pass, or
-- validation errors are updated with actionable guidance
-
-Breaking schema changes require:
-
-- clear error messages
-- migration notes (README or commit message)
+- explicit error messaging
+- migration notes in README, commit message, or PR body
 
 ---
 
@@ -133,35 +91,46 @@ Breaking schema changes require:
 
 ### Generally safe
 
-- adding new books
-- adding content
-- styling changes
-- new UI atoms
+- new books
+- content additions/edits
+- styling updates
+- UI atoms
 
-### Risky (requires care)
+### Risky (extra care required)
 
-- changing mechanism schemas
-- altering frame requirements
-- modifying ordering logic
-- changing validation strictness defaults
+- mechanism schema changes
+- frame requirement changes
+- ordering logic changes
+- validation strictness default changes
 
 For risky changes, include:
 
-- a short rationale in code comments
-- a before/after explanation in the commit or PR
+- rationale in comments and/or PR notes
+- short before/after behavior explanation
 
 ---
 
 ## Failure modes to avoid
 
-- letting chapters drift into therapy, outrage, or abstraction
-- introducing one-off exceptions for a single book
-- weakening validation “just to make it pass”
-- expanding mechanism sets beyond what can be governed
+- one-off exceptions for a single book
+- weakening validation to force pass
+- concept sprawl beyond governance capacity
+- content drift into abstraction/outrage/therapy while losing executable utility
 
 ---
 
-## Ownership (optional)
+## Agent execution checklist
+
+Before finalizing work:
+
+1. confirm files changed in the correct layer
+2. run relevant checks (`validate`, lint, typecheck)
+3. summarize risks and migration impact for risky changes
+4. avoid introducing duplicate policy docs
+
+---
+
+## Ownership map
 
 - Engine: `packages/astro-bookkit/*`
-- Books: `apps/<book>/*`
+- Book apps: `apps/<book>/*`

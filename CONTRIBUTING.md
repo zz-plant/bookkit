@@ -1,221 +1,141 @@
 # Contributing to Bookkit
 
-You do **not** need to understand the full architecture to contribute.
+You do not need full-system context to contribute safely. Pick a lane, run checks, and keep architecture boundaries intact.
 
-This repo is designed to support different contribution styles — including vibe-coding — without breaking the book.
-
-Choose the lane that matches what you want to do.
+For architecture + commands see [`README.md`](./README.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
 
 ---
 
-## Documentation boundaries (rationalized)
+## Fast-start workflow
 
-To keep contributor-facing docs coherent:
-
-- `README.md` is the canonical source for architecture and operational commands.
-- `CONTRIBUTING.md` is the canonical source for contribution workflow and lane selection.
-- `AGENTS.md` is the canonical source for non-negotiable invariants (humans + AI).
-- App/package READMEs should stay lightweight and point back to these canonical docs.
-
-When updating docs, prefer linking to canonical sections instead of duplicating long guidance.
+1. Install dependencies: `bun install`
+2. Make a focused change.
+3. Run checks:
+   - `bun run validate`
+   - `bun run lint`
+   - `bun run check:types`
+4. For release-critical work, also run:
+   - `bun run validate:release`
+   - `bun run check:upgrade -- --release`
 
 ---
 
-## Choose your lane
+## Choose a contribution lane
 
-### Lane A — Add prose, examples, or cases (lowest friction)
+## Lane A — Content improvements (low risk)
 
-Good if you want to:
+Examples:
 
-- add an example
-- tell a story
-- contribute a case study
-- add a citation or reference
+- chapter edits
+- case/example additions
+- glossary polish
+- copy/style improvements
 
-Where to work:
+Typical paths:
 
-- `apps/<book>/src/content/book/examples/`
-- `apps/<book>/src/content/book/chapters/`
-- `apps/<book>/src/content/book/cases/`
+- `apps/<book>/src/content/book/chapters/**`
+- `apps/<book>/src/content/book/examples/**`
+- `apps/<book>/src/content/book/glossary/**`
 
 Rules:
 
-- Do **not** invent new named concepts
-- Do **not** change mechanism definitions
-- Assume examples are replaceable
+- Do not introduce floating named concepts.
+- Do not redefine mechanisms from prose.
+- Keep examples replaceable.
 
-If validation fails, it should tell you exactly what to fix.
+## Lane B — Mechanisms and tools (medium risk)
 
----
+Examples:
 
-### Lane B — Propose a new mechanism or tool (guided)
+- adding a mechanism
+- adding an action primitive/tool
+- clarifying mechanism boundaries
 
-Good if you’re naming a pattern or adding an action.
+Typical paths:
 
-Before you start:
+- `apps/<book>/src/content/book/mechanisms/**`
+- `apps/<book>/src/content/book/toolkit/**`
 
-- Ask: “Is this actually new, or an example of an existing mechanism?”
+Mechanism quality bar:
 
-How to do it:
+- stable slug identifier
+- one-sentence definition
+- explicit boundaries (`is` / `is not`)
+- 1–3 testable predictions
 
-- Add a new file under `mechanisms/` **or**
-- Add a new file under `toolkit/`
+Tool quality bar:
 
-Mechanisms must include:
+- explicit trigger
+- executable steps (≤10 minutes)
+- clear failure mode
+- legitimate demand unlocked
 
-- a stable slug
-- a one-sentence definition
-- clear boundaries (is / is not)
-- 1–3 predictions readers can test
+If meaning changes for an existing mechanism, treat it as breaking and document migration guidance.
 
-Tools must include:
+## Lane C — Engine / schema / frame changes (high risk)
 
-- a trigger condition
-- steps (≤10 minutes)
-- what failure looks like
-- the legitimate demand it unlocks
+Examples:
 
-Validation will guide you if something is missing.
+- frame requirement changes
+- schema shape changes
+- validation strictness updates
+- compiler ordering logic
 
-**If you need to change an existing mechanism:**
+Typical paths:
 
-- Treat it as a breaking change.
-- Add a short “mechanism change note” in your PR summary or commit message
-  (what changed, why it’s still the same mechanism, and migration advice if any).
-- If the meaning shifts, create a new mechanism instead of redefining.
+- `packages/astro-bookkit/src/frames/**`
+- `packages/astro-bookkit/src/schemas/**`
+- `packages/astro-bookkit/src/validators/**`
+- `packages/astro-bookkit/src/compiler/**`
 
----
+Requirements:
 
-### Lane C — Engine / frame work (restricted)
-
-Good if you’re:
-
-- changing schemas
-- modifying validation
-- adding or changing frames
-
-Rules:
-
-- Changes must be book-agnostic
-- Include rationale in code comments
-- Expect review and iteration
-
-If you’re not sure you’re in this lane, you probably aren’t.
+- stay book-agnostic
+- keep validation errors actionable
+- include rationale in comments or PR notes
+- include before/after behavior in commit/PR description
 
 ---
 
-## How validation works (and how to read it)
+## Validation modes
 
-Validation errors are not judgments. They mean:
+- `bun run validate` → warn mode for active drafting.
+- `bun run validate:release` → error mode for release gates.
 
-> “The compiler can’t guarantee the book still works.”
+If validation fails, fix the structure; do not weaken rules just to pass.
 
-Typical fixes:
+Common fixes:
 
-- register a concept instead of floating it in prose
-- add a missing action primitive
-- fill a required frame step
-- mark something as `draft: true`
-
-If an error message is unclear, that’s a bug — please flag it.
-
-### Validation expectations (decision guide)
-
-Use this as a quick decision tree for running validation:
-
-1. **Drafting or collaboration?**  
-   Run `bun run validate` (warn mode). Fix what you can; mark drafts as `draft: true`
-   to keep work visible while iterating.
-2. **Pre-release or merging?**  
-   Run `bun run validate:release` (error mode). All errors must be resolved before
-   release.
-3. **Changed schemas, validation rules, or frames?**  
-   Ensure any new errors have actionable guidance, and document breaking changes
-   (README or commit message).
-
-Common failure patterns and fixes:
-
-- **Missing action primitive** → add a ≤10 minute, failure-resilient step.
-- **Unregistered concept** → register a mechanism or glossary term.
-- **Missing frame step** → add a required section (don’t imply it in prose).
-
-### Upgrade safety net (full repo checks)
-
-When upgrading dependencies or compiler logic, run the full safety net:
-
-- `bun run check:upgrade` (warn-mode validation)
-- `bun run check:upgrade -- --release` (error-mode validation)
-
-This bundles linting, TypeScript type checks across `apps/*` and `packages/*`,
-book validation, and the architectural checks for separation and floating concepts.
+- missing action primitive → add executable ≤10-minute tool step
+- missing frame step → add required structural section
+- unregistered concept → register as mechanism or glossary term
 
 ---
 
-## Drafts are allowed
+## New book scaffold checklist
 
-You can mark content as draft to reduce strictness during collaboration.
+After running `bun run new:book -- --book <slug> --title "..."`:
 
-Drafts:
-
-- compile in warn mode
-- do not ship in release mode
-- make work visible without weakening the system
-
----
-
-## TypeScript config hierarchy
-
-This repo uses a shared base config with per-package overrides:
-
-- **Root base**: `tsconfig.base.json` defines modern defaults like `moduleResolution: "bundler"`, `strict: true`, and `resolveJsonModule`.
-- **Astro app**: `apps/bad-people/tsconfig.json` extends the base and adds Astro-specific compiler options (including `types: ["astro/client"]` and Astro JSX settings).
-- **Engine package**: `packages/astro-bookkit/tsconfig.json` extends the base and scopes TypeScript to `src/` and `specs/`.
-
-If you add another app or package, extend the base config and only add framework-specific overrides where needed.
+- update `src/book.config.ts`
+- replace starter files in `chapters/`, `mechanisms/`, `toolkit/`, `examples/`, `glossary/`, `releases/`
+- run `bun run validate` and `bun run validate:release`
+- verify `bun run dev:<book>` and `bun run build:<book>` (or equivalent filter commands)
 
 ---
 
-## Scaffold placeholder checklist (new books)
+## Submission expectations
 
-If you used `bun run new:book`, replace the starter placeholders before publish:
-
-- `src/content/book/chapters/00-overview.mdx` → update the Purpose + Outline bullets.
-- `src/content/book/mechanisms/starter-mechanism.mdx` → replace definition, boundaries, predictions, and tests.
-- `src/content/book/toolkit/starter-mechanism--starter-tool.mdx` → replace trigger, steps, failure mode, and legitimate demand.
-- `src/content/book/examples/starter-mechanism/starter-example.mdx` → replace the domain and the example narrative.
-- `src/content/book/glossary/starter-term.mdx` → replace the term and definition.
-- `src/content/book/releases/<date>-initial-draft.mdx` → replace the release note summary and highlights.
+- Keep PRs scoped and reviewable.
+- Explain intent and risk level (low/medium/high).
+- For risky changes, include a short before/after summary.
+- If you change schemas/validation, include migration notes when needed.
 
 ---
 
-## What not to do
+## Documentation governance
 
-- Don’t add conditional logic inside content files
-- Don’t weaken validation to “get unstuck”
-- Don’t rename mechanisms casually
-- Don’t optimize for vibes at the cost of clarity
+- `README.md` = architecture and operations
+- `CONTRIBUTING.md` = workflow and lane selection
+- `AGENTS.md` = invariants and guardrails
 
-The system exists to protect future readers — and future contributors.
-
----
-
-## Example checklist (keep examples replaceable)
-
-Before you submit an example or case:
-
-- Does it illustrate an existing mechanism without redefining it?
-- Could we swap this example without changing the module’s function?
-- Does it avoid introducing new named concepts?
-- Is any current event treated as context, not as a mechanism definition?
-
----
-
-## Getting help
-
-If you’re unsure:
-
-- open a PR and say “this is exploratory”
-- leave a TODO in the content
-- ask whether something should be a mechanism or an example
-
-We’d rather help shape a contribution than reject it.
+Link to canonical sections instead of duplicating long policy text.

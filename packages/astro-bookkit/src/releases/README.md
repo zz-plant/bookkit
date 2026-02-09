@@ -1,13 +1,13 @@
-# Release notes integrations
+# Release integration helpers
 
-Bookkit ships shared helpers for release notes workflows:
+Shared utilities support release-note workflows across books:
 
-- **Release notes data** via `createReleaseNotes()`.
-- **RSS feed generation** via `createReleaseNotesRss()` and the endpoint helper.
-- **Webhook delivery** via `sendReleaseWebhooks()` and the endpoint helper.
-- **Email integration hook** via `sendReleaseEmailHooks()` and the endpoint helper.
+- `createReleaseNotes()` for normalized release data
+- `createReleaseNotesRss()` + endpoint helper for RSS feeds
+- `sendReleaseWebhooks()` + endpoint helper for webhook notifications
+- `sendReleaseEmailHooks()` + endpoint helper for email integrations
 
-## Endpoint helpers
+## Endpoint usage
 
 ```ts
 import {
@@ -16,26 +16,26 @@ import {
   createReleaseEmailEndpoint,
 } from "@bookkit/astro-bookkit";
 
+// Example for an RSS feed endpoint (e.g., pages/rss.xml.ts)
 export const { GET } = createReleaseNotesRssEndpoint({
   modules: releaseModules,
   siteUrl,
   bookTitle,
 });
 
+// Example for a webhook endpoint (e.g., pages/api/webhooks.ts)
 export const { POST } = createReleaseWebhookEndpoint({
-  modules: releaseModules,
-  book: { slug: bookConfig.slug, title: bookConfig.title },
-});
-
-export const { POST } = createReleaseEmailEndpoint({
   modules: releaseModules,
   book: { slug: bookConfig.slug, title: bookConfig.title },
 });
 ```
 
-### Config
+## Environment variables
 
-- `BOOKKIT_RELEASE_WEBHOOKS`: JSON array or comma-separated list of webhook URLs.
-- `BOOKKIT_RELEASE_EMAIL_TARGETS`: JSON array or comma-separated list of email integration URLs.
+- `BOOKKIT_RELEASE_WEBHOOKS`
+- `BOOKKIT_RELEASE_EMAIL_TARGETS`
 
-Targets can optionally include `{ url, name, headers, secret, enabled, provider }`.
+Each variable supports JSON arrays or comma-separated values. Objects may include:
+`url`, `name`, `headers`, `secret`, `enabled`, `provider`.
+
+For repo-wide contribution rules, see root `CONTRIBUTING.md` and `AGENTS.md`.

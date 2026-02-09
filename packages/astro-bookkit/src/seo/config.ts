@@ -18,6 +18,12 @@ export type SeoInput = {
   ogTitle?: string;
   ogDescription?: string;
   ogImage?: string;
+  ogType?: string;
+  twitterCard?: "summary" | "summary_large_image" | "app" | "player";
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
   robots?: string;
   canonicalPath?: string;
   canonicalUrl?: string;
@@ -87,6 +93,12 @@ export const buildSeoProps = ({
   ogTitle,
   ogDescription,
   ogImage,
+  ogType,
+  twitterCard,
+  twitterTitle,
+  twitterDescription,
+  twitterImage,
+  structuredData,
   robots,
   canonicalPath,
   canonicalUrl,
@@ -103,6 +115,12 @@ export const buildSeoProps = ({
     ogTitle,
     ogDescription,
     ogImage: resolvedOgImage,
+    ogType,
+    twitterCard,
+    twitterTitle,
+    twitterDescription,
+    twitterImage: resolveOgImage(twitterImage, siteUrl),
+    structuredData,
     canonicalPath,
     canonicalUrl: resolvedCanonicalUrl,
     robots: resolvedRobots,

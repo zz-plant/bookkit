@@ -1,12 +1,12 @@
 # Book content records
 
-Store structured content for the Bad People book instance in subfolders under this directory.
+Structured content for the `bad-people` book lives here.
 
-- `chapters/` for chapter drafts and sequences.
-- `examples/` for replaceable examples and cases.
-- `glossary/` for glossary entries.
-- `mechanisms/` for mechanism definitions.
-- `releases/` for versioned release notes and changelog entries.
-- `toolkit/` for action primitives and tools.
+- `chapters/` — chapter modules
+- `examples/` — replaceable examples/cases
+- `glossary/` — term definitions
+- `mechanisms/` — mechanism specifications
+- `toolkit/` — executable action primitives
+- `releases/` — release notes/changelog entries
 
-Keep book-specific content here. Engine logic belongs in `packages/astro-bookkit/`.
+Keep this directory content-focused. Do not add engine logic here.

@@ -1,29 +1,28 @@
-# Bad People (book instance)
+# Bad People (Book App)
 
-This directory hosts the **Bad People** book instance.
+This is a concrete Bookkit book instance.
 
-## Scope
+## What belongs here
 
-Use this app for:
+- `src/book.config.ts` (book-specific objective function and constraints)
+- `src/content/book/**` (replaceable content records)
+- `src/pages/**`, `src/layouts/**`, `src/lib/**` (book runtime + presentation)
 
-- `src/book.config.ts` (book-level objectives, constraints, and mechanisms)
-- `src/content/book/**` (replaceable content bindings)
-- `src/pages/**` and `src/layouts/**` (book routes and presentation)
+## What does not belong here
 
-Do **not** place reusable engine/compiler logic in this directory.
+- reusable engine/compiler logic
+- schema/frame hacks specific to this one book
+
+If behavior should apply across books, implement it in `packages/astro-bookkit/`.
+
+## Local notes
+
+- Analytics dashboard stores anonymized browser-side events only (views/time/scroll).
+- No user-level identities are tracked.
+- Retention window is 90 days.
 
 ## Canonical docs
 
-For contributor guidance, use these canonical docs instead of duplicating policy here:
-
-- Repo architecture + commands: [`README.md`](../../README.md)
-- Contribution workflow and lanes: [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
-- Non-negotiable invariants (humans + AI): [`AGENTS.md`](../../AGENTS.md)
-
-## Analytics retention policy
-
-The author analytics dashboard stores anonymized session events locally in the browser:
-
-- Events include page views, time-on-page, and scroll depth only.
-- No personal identifiers or user-level profiles are captured.
-- Events expire after 90 days to minimize retention.
+- Architecture + commands: [`../../README.md`](../../README.md)
+- Contribution workflow: [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)
+- Invariants + guardrails: [`../../AGENTS.md`](../../AGENTS.md)

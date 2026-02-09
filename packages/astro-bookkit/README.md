@@ -1,23 +1,24 @@
-# Astro Bookkit (engine)
+# Astro Bookkit (Engine Package)
 
-This directory hosts the reusable Bookkit engine.
+This package contains the reusable, book-agnostic compiler engine.
 
-## Scope
+## What belongs here
 
-Use this package for book-agnostic logic only:
+- frames and structural requirements
+- schemas and validation rules
+- compiler/orchestration utilities
+- shared components/styles reused by multiple books
 
-- frames
-- schemas
-- validators
-- compiler and orchestration utilities
-- shared styles/components used across books
+## What does not belong here
 
-Book-specific configuration/content belongs under `apps/<book>/`.
+- book-specific narrative content
+- one-off behavior for a single title
+- content-level hacks that should be modeled as schema/frame rules
 
 ## Canonical docs
 
-For contributor guidance, use these canonical docs instead of duplicating policy here:
+- Architecture + commands: [`../../README.md`](../../README.md)
+- Contribution workflow: [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md)
+- Invariants + guardrails: [`../../AGENTS.md`](../../AGENTS.md)
 
-- Repo architecture + commands: [`README.md`](../../README.md)
-- Contribution workflow and lanes: [`CONTRIBUTING.md`](../../CONTRIBUTING.md)
-- Non-negotiable invariants (humans + AI): [`AGENTS.md`](../../AGENTS.md)
+Keep this README local in scope; link outward for policy.

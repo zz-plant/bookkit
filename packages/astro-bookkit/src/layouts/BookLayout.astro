@@ -230,7 +230,7 @@ const previewDetails = [
           >
             Search <span aria-hidden="true">⌘K</span>
           </button>
-          <details class="site-nav__more">
+          <details class="site-nav__more" data-site-nav-more open>
             <summary class="site-nav__more-toggle">More</summary>
             <div class="site-nav__overflow">
               <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
@@ -531,6 +531,8 @@ const previewDetails = [
       const qaDisableButton = document.querySelector("[data-qa-disable]");
       const qaEnableButton = document.querySelector("[data-qa-enable]");
       const qaSuggestions = Array.from(document.querySelectorAll("[data-qa-suggestion]"));
+      const siteNavMore = document.querySelector("[data-site-nav-more]");
+      const desktopNavMedia = window.matchMedia("(min-width: 721px)");
       const qaEnabled = document.body?.dataset?.qaEnabled === "true";
       let lastFocused = null;
       let pendingSequence = null;
@@ -575,6 +577,15 @@ const previewDetails = [
         if (visible >= 0) {
           activeHeadingIndex = visible;
         }
+      };
+
+      const syncSiteNavOverflow = (matchesDesktop) => {
+        if (!siteNavMore) return;
+        if (matchesDesktop) {
+          siteNavMore.setAttribute("open", "");
+          return;
+        }
+        siteNavMore.removeAttribute("open");
       };
 
       const openHelp = () => {
@@ -1070,6 +1081,17 @@ const previewDetails = [
       });
 
       warmSearchIndex();
+      syncSiteNavOverflow(desktopNavMedia.matches);
+
+      if ("addEventListener" in desktopNavMedia) {
+        desktopNavMedia.addEventListener("change", (event) => {
+          syncSiteNavOverflow(event.matches);
+        });
+      } else {
+        desktopNavMedia.addListener((event) => {
+          syncSiteNavOverflow(event.matches);
+        });
+      }
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {

@@ -59,6 +59,8 @@ function hasPrettierConfig(dir: string): boolean {
 }
 
 function isCiEnvironment(): boolean {
+  if (process.env.GITHUB_ACTIONS) return true;
+
   const ci = process.env.CI?.trim().toLowerCase();
   if (ci) {
     if (["1", "true", "yes", "on"].includes(ci)) return true;
@@ -66,5 +68,5 @@ function isCiEnvironment(): boolean {
     return true;
   }
 
-  return Boolean(process.env.GITHUB_ACTIONS);
+  return false;
 }

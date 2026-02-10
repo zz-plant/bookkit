@@ -59,5 +59,7 @@ function hasPrettierConfig(dir: string): boolean {
 }
 
 function isCiEnvironment(): boolean {
-  return process.env.CI === "true" || Boolean(process.env.GITHUB_ACTIONS);
+  const ciValue = process.env.CI;
+  const hasCiFlag = typeof ciValue === "string" ? ciValue.trim().length > 0 && ciValue !== "false" : Boolean(ciValue);
+  return hasCiFlag || Boolean(process.env.GITHUB_ACTIONS);
 }

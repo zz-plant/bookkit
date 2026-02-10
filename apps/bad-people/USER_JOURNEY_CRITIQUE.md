@@ -1,72 +1,88 @@
-# User Journey Critique (Bad People book app)
+# Mobile User Journey Critique (Bad People)
 
-This review walks through three typical reader journeys and offers constructive, implementation-ready suggestions.
+This review traverses three common reader journeys on a narrow mobile viewport and critiques them constructively.
 
-## 1) New reader discovery: Home → Reading hub → Chapters
+## Scope and method
 
-### What works well
-- The home page gives a clear “Start reading” call to action and a concise map of major reading surfaces. (`/`, then `/read`) 
-- The reading hub uses consistent cards, item counts, and keyboard-shortcut hints, which lowers navigation friction for repeat visitors.
-- The chapter index reuses a clean list pattern and adds export options in context (PDF/EPUB), which is good for readers who prefer offline reading.
-
-### Friction observed
-- The home page and reading hub both present several entry points at once, but there is no opinionated “recommended first path” for first-time readers.
-- Chapter status is shown as small eyebrow metadata (“draft”), but the UX does not explain what draft status means for reliability.
-- Export actions appear on chapter index pages but are not previewed earlier, so users may discover offline options late.
-
-### Suggested improvements
-1. Add a “Start with this chapter” primary CTA on `/read` that deep-links to the first foundational chapter (or a curated start module).
-2. Add a compact “What draft means” inline help tooltip near status labels to set expectations.
-3. Surface export affordances once on the reading hub with a short explanation (“Prefer offline? Download PDF/EPUB”).
+- Traversed these route sequences in a running local app:
+  1. Home (`/`) → Reading hub (`/read`) → Chapters (`/read/chapters`)
+  2. Reading hub (`/read`) → Mechanisms index (`/read/mechanisms`) → Mechanism detail (`/read/mechanisms/delay-as-force`)
+  3. Home/Read entry → Release notes (`/release-notes`)
+- Verified rendered route structure with local requests and extracted heading/link affordances from each page.
+- Focus of critique: information scent, tap efficiency, orientation, and continuity on phone-sized screens.
 
 ---
 
-## 2) Concept understanding: Reading hub → Mechanism detail → Related actions/examples
+## Journey 1: New reader onboarding
 
-### What works well
-- Mechanism detail pages are structurally strong: definition, recognition cues, tests, and then related toolkit/examples.
-- “Next steps” and “Keep going” links support continuation instead of dead-ending on a single concept page.
-- Breadcrumb + back link provides two orientation methods, which helps users who enter from deep links.
+**Path:** `/` → `/read` → `/read/chapters`
+
+### What works well on mobile
+- Home gives a clear pair of top-level choices (“Open the reading hub” and “Browse release notes”), limiting decision overload for first tap.
+- Reading hub now includes an explicit “Recommended paths” band with a framing chapter CTA, which reduces first-session uncertainty.
+- Chapters list is compact and scan-friendly; export actions are grouped in the same screen so users can switch to offline quickly.
 
 ### Friction observed
-- Mechanism index pages rely on list scanning and may not quickly communicate “difficulty,” “importance,” or “where to start.”
-- The detail page can become long when multiple sections are present, but there is no in-page table of contents/jump links.
-- Related items are useful but not ranked, so novice users may not know which action/example is the best first move.
+- The global header has many actions (Read, Release notes, Downloads, Search, Ask, Shortcuts). On small screens this wraps into multiple rows, competing with page content before a user starts reading.
+- Chapter status labels (e.g., `draft`) are visible but low-context; a first-time reader may not know whether draft means incomplete, unstable, or lightly edited.
+- Export links appear as utility rows with file size/date metadata, but the “when should I use this?” cue is not explicit.
 
-### Suggested improvements
-1. Add optional mechanism index metadata chips (e.g., “core,” “advanced,” “high leverage”) for scanability.
-2. Add a generated in-page mini TOC (Definition / Recognize / Quick tests / Next steps) at top of mechanism pages.
-3. Rank related toolkit actions with a simple heuristic such as shortest timebox first, then show others as alternatives.
+### Constructive improvements
+1. Prioritize mobile header actions via progressive disclosure (e.g., keep Read + Search visible, move secondary controls behind a “More” control).
+2. Add one-line draft-state helper copy near the first draft label in chapter lists (e.g., “Draft = content may change, concepts remain stable”).
+3. Add a tiny decision hint for exports (“PDF for print/share, EPUB for long-form mobile reading”).
 
 ---
 
-## 3) Returning reader updates: Home/Read → Release notes → Version awareness
+## Journey 2: Problem-focused concept lookup
 
-### What works well
-- Release notes are first-class (dedicated page + RSS), which is excellent for return engagement.
-- Version data is included alongside releases, making change tracking possible without leaving the app.
-- A clear release-notes card on the home page gives users a non-reading path when they just want “what changed.”
+**Path:** `/read` → `/read/mechanisms` → `/read/mechanisms/delay-as-force`
+
+### What works well on mobile
+- Mechanism index has lightweight metadata chips (“core”, “high leverage”, etc.) that improve scanability.
+- Mechanism detail includes immediate in-page jump links (Definition / How to recognize it / Next steps / Keep going), which is highly mobile-friendly for long documents.
+- Breadcrumb/back affordances are present, so users can recover context after deep-linking.
 
 ### Friction observed
-- The path to “what’s new since my last visit” depends on user memory; no explicit filtering or highlight state is visible from entry pages.
-- There is no obvious “changes impacting readers” summary view separate from full note detail.
-- The reading hub does not appear to show a lightweight “latest update” banner, so update visibility is separated from reading flow.
+- The alphabet nav at top of mechanisms is useful for dense catalogs, but in this small list it consumes vertical space before first meaningful card.
+- Card descriptions in mechanism index are informative but long; on narrow widths, more text means fewer items visible per scroll segment.
+- “Keep going” links are helpful but look similar in visual hierarchy to section links; priority action may not be obvious.
 
-### Suggested improvements
-1. Add a “Since last visit” affordance (cookie/localStorage-backed) on release notes and optionally the reading hub.
-2. Add a short “Reader-impact summary” block at the top of each release entry.
-3. Show a subtle “Updated in vX.Y” pill on relevant reading hub cards when a section changed recently.
+### Constructive improvements
+1. Collapse or conditionally show alphabet nav only when list size crosses a threshold (or after user scrolls).
+2. Clamp mechanism card description to 2 lines on mobile with a stronger first sentence.
+3. Elevate one recommended “next action” style (primary pill/button) and keep other continuation links secondary.
 
 ---
 
-## Prioritization (quick wins first)
+## Journey 3: Returning user checking updates
 
-1. **High impact / low effort:** Add a single recommended starting path on `/read`.
-2. **High impact / medium effort:** Add “Since last visit” release filtering/highlighting.
-3. **Medium impact / low effort:** Explain draft status meaning where status is displayed.
-4. **Medium impact / medium effort:** Add mechanism-page mini TOC and rank related actions.
+**Path:** `/` or `/read` → `/release-notes`
 
-## Review method
+### What works well on mobile
+- Release notes are first-class and easy to find from both home and reading hub.
+- Latest release summary is already surfaced in reading hub (`Latest update: v...`), reducing the hop cost for return readers.
+- RSS link is explicit and useful for users who prefer push-like update tracking.
 
-- Journey review performed by traversing route/page implementations and shared rendering components for home, read hub, chapters, mechanisms, and release notes.
-- Runtime browser traversal was attempted, but local dev server failed in this environment due to an Astro middleware module resolution issue (`Cannot find module 'astro:middleware'`).
+### Friction observed
+- “What changed for me” still requires manual scanning across entries; there is no “since last visit” state on the release list.
+- Release entries are content-rich, but the user-impact takeaway is not consistently front-loaded for skim reading on phones.
+- Update awareness is present on hub cards (“Updated in v...”), but no quick filter exists to show only recently changed reading surfaces.
+
+### Constructive improvements
+1. Add a lightweight “since last visit” marker/filter on release notes and optionally the reading hub cards.
+2. Standardize a short “reader impact” sentence at top of each release entry.
+3. Add a quick toggle on the reading hub (e.g., “Show updated only”) to reduce scanning cost.
+
+---
+
+## Priority recommendations
+
+1. **Highest impact:** Simplify mobile header action density (primary vs secondary actions).
+2. **High impact:** Add “since last visit” highlighting/filtering for updates.
+3. **Medium impact:** Clarify draft-state meaning inline in chapter lists.
+4. **Medium impact:** Reduce mechanism-index above-the-fold overhead (conditional alpha nav).
+
+## Notes
+
+- Local browser automation for screenshots was attempted but failed in this environment due a Playwright Chromium crash (SIGSEGV), so this critique is based on route traversal plus rendered HTML structure checks.

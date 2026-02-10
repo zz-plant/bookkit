@@ -1,4 +1,4 @@
-import { sequence } from "astro:middleware";
+import { sequence } from "astro/middleware";
 import type { MiddlewareHandler } from "astro";
 import { createVersionRoutingMiddleware } from "../releases/middleware";
 import type { BookVersionEntry } from "../releases/versions";

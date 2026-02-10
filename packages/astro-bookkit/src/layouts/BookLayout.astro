@@ -220,8 +220,6 @@ const previewDetails = [
         </div>
         <nav class="site-nav" aria-label="Primary">
           <a href="/read" aria-keyshortcuts="g r">Read</a>
-          <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
-          <a href="/read/chapters">Downloads</a>
           <button
             class="search-toggle"
             type="button"
@@ -232,27 +230,34 @@ const previewDetails = [
           >
             Search <span aria-hidden="true">⌘K</span>
           </button>
-          {aiQaEnabled && (
-            <button
-              class="qa-toggle"
-              type="button"
-              aria-expanded="false"
-              aria-controls="qa-panel"
-              data-qa-toggle
-            >
-              Ask <span aria-hidden="true">the book</span>
-            </button>
-          )}
-          <button
-            class="kbd-toggle"
-            type="button"
-            aria-keyshortcuts="?"
-            aria-expanded="false"
-            aria-controls="keyboard-help"
-            data-kbd-toggle
-          >
-            Shortcuts <span aria-hidden="true">?</span>
-          </button>
+          <details class="site-nav__more">
+            <summary class="site-nav__more-toggle">More</summary>
+            <div class="site-nav__overflow">
+              <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
+              <a href="/read/chapters">Downloads</a>
+              {aiQaEnabled && (
+                <button
+                  class="qa-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="qa-panel"
+                  data-qa-toggle
+                >
+                  Ask <span aria-hidden="true">the book</span>
+                </button>
+              )}
+              <button
+                class="kbd-toggle"
+                type="button"
+                aria-keyshortcuts="?"
+                aria-expanded="false"
+                aria-controls="keyboard-help"
+                data-kbd-toggle
+              >
+                Shortcuts <span aria-hidden="true">?</span>
+              </button>
+            </div>
+          </details>
         </nav>
         {hasVersions && (
           <VersionSwitcher

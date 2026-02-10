@@ -14,11 +14,29 @@ if (hasPrettierConfig(root)) {
   process.exit(res.status ?? 1);
 }
 
-console.log("No lint/format config found. Add Biome or Prettier to enable linting.");
+const message = "No lint/format config found. Add Biome or Prettier to enable linting.";
+
+if (isCiEnvironment()) {
+  console.error(`${message} Failing because CI requires an enforced lint policy.`);
+  process.exit(1);
+}
+
+console.log(message);
 process.exit(0);
 
 function hasBiomeConfig(dir: string): boolean {
-  return ["biome.json", "biome.jsonc"].some((file) => existsSync(join(dir, file)));
+  if (["biome.json", "biome.jsonc"].some((file) => existsSync(join(dir, file)))) {
+    return true;
+  }
+
+  const pkgPath = join(dir, "package.json");
+  if (!existsSync(pkgPath)) return false;
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { biome?: unknown };
+    return Boolean(pkg.biome);
+  } catch {
+    return false;
+  }
 }
 
 function hasPrettierConfig(dir: string): boolean {
@@ -38,4 +56,8 @@ function hasPrettierConfig(dir: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isCiEnvironment(): boolean {
+  return process.env.CI === "true" || Boolean(process.env.GITHUB_ACTIONS);
 }

@@ -105,6 +105,8 @@ const readerSections = [
   },
 ];
 
+const hasUpdatedSections = readerSections.some((section) => Boolean(section.updatedIn));
+
 const authorSections = [
   {
     title: "Analytics dashboard",
@@ -155,13 +157,26 @@ const authorSections = [
     </details>
   )}
 
-  <div class="card-grid">
+  <div class="link-group" style="margin-bottom: 1rem;">
+    {hasUpdatedSections && (
+      <button class="button" type="button" data-updated-filter>
+        Show updated only
+      </button>
+    )}
+  </div>
+
+  <div class="card-grid" data-reader-sections>
     {readerSections.map((section) => {
       const label = section.count === 1 ? "item" : "items";
       const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
       const completenessLabel = formatTranslationCompleteness(section.completeness);
       return (
-        <a class="card" href={section.href} aria-keyshortcuts={keyShortcut}>
+        <a
+          class="card"
+          href={section.href}
+          aria-keyshortcuts={keyShortcut}
+          data-updated={section.updatedIn ? "true" : "false"}
+        >
           <div class="eyebrow">
             {section.count} {label}
             {completenessLabel ? ` • ${completenessLabel}` : ""}
@@ -183,6 +198,24 @@ const authorSections = [
       );
     })}
   </div>
+
+  {hasUpdatedSections && (
+    <script>
+      const filterButton = document.querySelector("[data-updated-filter]");
+      const cards = Array.from(document.querySelectorAll("[data-reader-sections] [data-updated]"));
+      if (filterButton && cards.length > 0) {
+        let showUpdatedOnly = false;
+        filterButton.addEventListener("click", () => {
+          showUpdatedOnly = !showUpdatedOnly;
+          cards.forEach((card) => {
+            const isUpdated = card.getAttribute("data-updated") === "true";
+            card.hidden = showUpdatedOnly && !isUpdated;
+          });
+          filterButton.textContent = showUpdatedOnly ? "Show all sections" : "Show updated only";
+        });
+      }
+    </script>
+  )}
 
   <section class="content-block">
     <div class="eyebrow">Author tools</div>

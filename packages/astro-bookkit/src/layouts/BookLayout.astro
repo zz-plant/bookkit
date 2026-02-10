@@ -221,6 +221,7 @@ const previewDetails = [
         <nav class="site-nav" aria-label="Primary">
           <a href="/read" aria-keyshortcuts="g r">Read</a>
           <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
+          <a href="/read/chapters">Downloads</a>
           <button
             class="search-toggle"
             type="button"
@@ -332,6 +333,7 @@ const previewDetails = [
             >
               Type to search across the book.
             </span>
+            <span class="meta">Uses local book index only.</span>
             <span class="kbd-hint" aria-hidden="true">
               <kbd>⌘</kbd><kbd>K</kbd> / <kbd>/</kbd>
             </span>
@@ -391,7 +393,7 @@ const previewDetails = [
                 aria-live="polite"
                 data-qa-status
               >
-                Try a question to see cited answers.
+                Try a question to see cited answers. Uses local book index only.
               </div>
               <div class="qa-panel__suggestions">
                 <div class="eyebrow">Sample prompts</div>
@@ -451,6 +453,10 @@ const previewDetails = [
             <li>
               <span>Go to release notes</span>
               <span class="kbd-hint"><kbd>g</kbd><kbd>n</kbd></span>
+            </li>
+            <li>
+              <span>Open downloads</span>
+              <span class="kbd-hint">Use top nav link</span>
             </li>
             <li>
               <span>Go to overview</span>
@@ -716,6 +722,20 @@ const previewDetails = [
           searchIndex = [];
         }
         return searchIndex;
+      };
+
+
+      const warmSearchIndex = () => {
+        if (!searchPanel || searchIndex) return;
+        if ("requestIdleCallback" in window) {
+          window.requestIdleCallback(() => {
+            loadSearchIndex().catch(() => {});
+          });
+          return;
+        }
+        window.setTimeout(() => {
+          loadSearchIndex().catch(() => {});
+        }, 800);
       };
 
       const recordQaEvent = (payload) => {
@@ -1043,6 +1063,8 @@ const previewDetails = [
         recordQaEvent({ type: "citation_click", id: target.dataset.qaCitationId, query: qaQuery });
         closeQa();
       });
+
+      warmSearchIndex();
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {

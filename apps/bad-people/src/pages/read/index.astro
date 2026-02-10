@@ -53,7 +53,7 @@ const latestVersion =
 const startingChapter =
   chapters.entries.find((entry) => entry.slug === "overview") ?? chapters.entries[0];
 
-const sections = [
+const readerSections = [
   {
     title: "Overview",
     description: "Objectives, frame, and constraints for this draft.",
@@ -103,12 +103,13 @@ const sections = [
     keyHint: ["g", "e"],
     updatedIn: latestVersion,
   },
+];
+
+const authorSections = [
   {
-    title: "Analytics",
+    title: "Analytics dashboard",
     description: "Author-only engagement dashboard and drop-off insights.",
     href: readRoutes.analytics,
-    count: 1,
-    badge: "Author-only",
   },
 ];
 ---
@@ -120,29 +121,42 @@ const sections = [
     </p>
   </div>
 
-  {latestRelease && (
     <section class="content-block" style="margin-top: 0;">
-      <div class="eyebrow">Latest update</div>
-      <h2>What changed in v{latestRelease.version}</h2>
-      <p class="meta">{latestRelease.summary}</p>
-      <a class="next-steps__link" href="/release-notes">See full release notes</a>
-    </section>
-  )}
-
-  <section class="content-block" style="margin-top: 0;">
-    <div class="eyebrow">Recommended path</div>
-    <h2>Start here</h2>
-    <p class="meta">New reader? Begin with the foundational chapter before diving into mechanisms.</p>
-    {startingChapter && (
-      <a class="next-steps__link" href={readItemPath("chapters", startingChapter.slug)}>
-        Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}
+    <div class="eyebrow">Recommended paths</div>
+    <h2>Start where your intent is clear</h2>
+    <p class="meta">Choose the entry point that best matches what you need right now.</p>
+    <div class="card-grid" style="margin-top: 1rem;">
+      {startingChapter && (
+        <a class="card" href={readItemPath("chapters", startingChapter.slug)}>
+          <div class="eyebrow">Foundations</div>
+          <h3>Read the framing chapter first</h3>
+          <p class="meta">Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}</p>
+        </a>
+      )}
+      <a class="card" href={readRoutes.overview}>
+        <div class="eyebrow">Orientation</div>
+        <h3>Understand the frame quickly</h3>
+        <p class="meta">Review objectives, constraints, and module boundaries before diving in.</p>
       </a>
-    )}
-    <p class="meta">Prefer offline reading? Download PDF/EPUB from the Chapters page.</p>
+      <a class="card" href={readRoutes.mechanisms}>
+        <div class="eyebrow">Problem-solving</div>
+        <h3>Jump to a named mechanism</h3>
+        <p class="meta">Start with concrete system patterns when you already have a specific issue.</p>
+      </a>
+    </div>
+    <p class="meta">Prefer offline reading? Download PDF/EPUB from the Chapters page or the global Downloads link.</p>
   </section>
 
+  {latestRelease && (
+    <details class="content-block" style="margin-top: 0;">
+      <summary><strong>Latest update: v{latestRelease.version}</strong></summary>
+      <p class="meta" style="margin-top: 0.75rem;">{latestRelease.summary}</p>
+      <a class="next-steps__link" href="/release-notes">See full release notes</a>
+    </details>
+  )}
+
   <div class="card-grid">
-    {sections.map((section) => {
+    {readerSections.map((section) => {
       const label = section.count === 1 ? "item" : "items";
       const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
       const completenessLabel = formatTranslationCompleteness(section.completeness);
@@ -169,4 +183,18 @@ const sections = [
       );
     })}
   </div>
+
+  <section class="content-block">
+    <div class="eyebrow">Author tools</div>
+    <h2>Publishing and diagnostics</h2>
+    <div class="card-grid" style="margin-top: 1rem;">
+      {authorSections.map((section) => (
+        <a class="card" href={section.href}>
+          <span class="pill">Author-only</span>
+          <h3>{section.title}</h3>
+          <p class="meta">{section.description}</p>
+        </a>
+      ))}
+    </div>
+  </section>
 </BaseLayout>

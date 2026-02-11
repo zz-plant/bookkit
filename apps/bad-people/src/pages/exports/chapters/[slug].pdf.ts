@@ -1,5 +1,10 @@
 import { createExportResponse } from "@bookkit/astro-bookkit/exports";
-import { getChapterExportBundle } from "../../../lib/exports";
+import { chapterExportSlugs, getChapterExportBundle } from "../../../lib/exports";
+
+export const getStaticPaths = () =>
+  chapterExportSlugs.map((slug) => ({
+    params: { slug },
+  }));
 
 export async function GET({ params }: { params: { slug?: string } }) {
   const slug = params.slug ?? "";

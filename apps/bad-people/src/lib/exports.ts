@@ -7,6 +7,16 @@ const exportHelpers = createBookExportHelpersFromConfig({
   modules: bookEntryPoints.contentRawModules.chapters,
 });
 
+const chapterModules = Object.values(bookEntryPoints.contentModules.chapters ?? {}) as Array<{
+  frontmatter?: {
+    slug?: string;
+  };
+}>;
+
+export const chapterExportSlugs = chapterModules
+  .map((module) => module.frontmatter?.slug)
+  .filter((slug): slug is string => typeof slug === "string" && slug.length > 0);
+
 export const {
   getBookExportBundle,
   getChapterExportBundle,

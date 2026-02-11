@@ -1,3 +1,6 @@
+const isProduction = process.env.NODE_ENV === "production";
+const forceNoindex = process.env.BOOKKIT_NOINDEX === "true";
+
 export const bookConfig = {
   slug: "bad-people",
   title: "Bad People",
@@ -5,7 +8,7 @@ export const bookConfig = {
   site: {
     url: "https://bad-people.book",
     enforceHttps: true,
-    indexable: false,
+    indexable: isProduction && !forceNoindex,
     defaultMeta: {
       description:
         "A draft book instance exploring how systems normalize harm and how readers can respond with small, reversible actions.",

@@ -20,6 +20,10 @@ type BookLayoutAstroProps = {
   twitterTitle?: string;
   twitterDescription?: string;
   twitterImage?: string;
+  ogSiteName?: string;
+  ogLocale?: string;
+  ogImageAlt?: string;
+  twitterImageAlt?: string;
   structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
   robots?: string;
   canonicalPath?: string;
@@ -97,6 +101,10 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
     twitterTitle: props.twitterTitle,
     twitterDescription: props.twitterDescription,
     twitterImage: props.twitterImage,
+    ogSiteName: props.ogSiteName,
+    ogLocale: props.ogLocale,
+    ogImageAlt: props.ogImageAlt,
+    twitterImageAlt: props.twitterImageAlt,
     structuredData: props.structuredData,
     robots: props.robots,
     canonicalPath: props.canonicalPath,

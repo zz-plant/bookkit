@@ -26,6 +26,10 @@ const {
   twitterTitle,
   twitterDescription,
   twitterImage,
+  ogSiteName,
+  ogLocale,
+  ogImageAlt,
+  twitterImageAlt,
   structuredData,
   robots,
   aiQaEnabled = true,
@@ -111,6 +115,10 @@ const resolvedTwitterCard = twitterCard ?? (twitterImage || ogImage ? "summary_l
 const resolvedTwitterTitle = twitterTitle ?? resolvedOgTitle;
 const resolvedTwitterDescription = twitterDescription ?? resolvedOgDescription;
 const resolvedTwitterImage = twitterImage ?? ogImage;
+const resolvedOgSiteName = ogSiteName ?? bookTitle;
+const resolvedOgLocale = ogLocale ?? activeLocale;
+const resolvedOgImageAlt = ogImageAlt;
+const resolvedTwitterImageAlt = twitterImageAlt ?? ogImageAlt;
 const defaultStructuredData = [
   resolvedCanonical
     ? {
@@ -184,11 +192,15 @@ const previewDetails = [
     {resolvedOgDescription && <meta property="og:description" content={resolvedOgDescription} />}
     {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
     {ogType && <meta property="og:type" content={ogType} />}
+    {resolvedOgSiteName && <meta property="og:site_name" content={resolvedOgSiteName} />}
+    {resolvedOgLocale && <meta property="og:locale" content={resolvedOgLocale} />}
     {ogImage && <meta property="og:image" content={ogImage} />}
+    {resolvedOgImageAlt && <meta property="og:image:alt" content={resolvedOgImageAlt} />}
     {resolvedTwitterCard && <meta name="twitter:card" content={resolvedTwitterCard} />}
     {resolvedTwitterTitle && <meta name="twitter:title" content={resolvedTwitterTitle} />}
     {resolvedTwitterDescription && <meta name="twitter:description" content={resolvedTwitterDescription} />}
     {resolvedTwitterImage && <meta name="twitter:image" content={resolvedTwitterImage} />}
+    {resolvedTwitterImageAlt && <meta name="twitter:image:alt" content={resolvedTwitterImageAlt} />}
     {hreflangEntries.map((entry) => (
       <link rel="alternate" hreflang={entry.locale} href={entry.href} />
     ))}

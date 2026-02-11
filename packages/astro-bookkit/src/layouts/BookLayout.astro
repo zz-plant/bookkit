@@ -259,30 +259,32 @@ const previewDetails = [
             </div>
           </details>
         </nav>
-        <details class="site-settings" data-site-settings open>
-          <summary class="site-settings__toggle">View settings</summary>
-          <div class="site-settings__panel">
-            {hasVersions && (
-              <VersionSwitcher
-                versions={versionEntries}
-                currentPath={Astro.url.pathname}
-                currentVersion={resolvedVersion}
-                prefixSegment={versionPrefix}
-                archivePath={versionArchivePath}
-              />
-            )}
-            {localeEntries.length > 1 && (
-              <LanguageSwitcher
-                locales={localeEntries}
-                currentPath={Astro.url.pathname}
-                currentLocale={activeLocale}
-                defaultLocale={resolvedDefaultLocale}
-                includeDefaultPrefix={includeDefaultLocalePrefix}
-                label={localeLabel}
-              />
-            )}
-          </div>
-        </details>
+        {(hasVersions || localeEntries.length > 1) && (
+          <details class="site-settings" data-site-settings open>
+            <summary class="site-settings__toggle">View settings</summary>
+            <div class="site-settings__panel">
+              {hasVersions && (
+                <VersionSwitcher
+                  versions={versionEntries}
+                  currentPath={Astro.url.pathname}
+                  currentVersion={resolvedVersion}
+                  prefixSegment={versionPrefix}
+                  archivePath={versionArchivePath}
+                />
+              )}
+              {localeEntries.length > 1 && (
+                <LanguageSwitcher
+                  locales={localeEntries}
+                  currentPath={Astro.url.pathname}
+                  currentLocale={activeLocale}
+                  defaultLocale={resolvedDefaultLocale}
+                  includeDefaultPrefix={includeDefaultLocalePrefix}
+                  label={localeLabel}
+                />
+              )}
+            </div>
+          </details>
+        )}
       </header>
       {showTranslationNotice && (
         <div class="translation-notice" role="status">

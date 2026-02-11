@@ -231,7 +231,7 @@ const previewDetails = [
           {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
         </div>
         <nav class="site-nav" aria-label="Primary">
-          <a href="/read" aria-keyshortcuts="g r">Read</a>
+          <a href="/read" aria-keyshortcuts="g r">Start reading</a>
           <button
             class="search-toggle"
             type="button"
@@ -242,11 +242,11 @@ const previewDetails = [
           >
             Search <span aria-hidden="true">⌘K</span>
           </button>
-          <details class="site-nav__more" data-site-nav-more open>
+          <details class="site-nav__more" data-site-nav-more id="site-nav-more" open>
             <summary class="site-nav__more-toggle">More</summary>
             <div class="site-nav__overflow">
               <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
-              <a href="/read/chapters">Downloads</a>
+              <a href="/downloads" aria-keyshortcuts="g d">Offline reading</a>
               {aiQaEnabled && (
                 <button
                   class="qa-toggle"
@@ -271,24 +271,31 @@ const previewDetails = [
             </div>
           </details>
         </nav>
-        {hasVersions && (
-          <VersionSwitcher
-            versions={versionEntries}
-            currentPath={Astro.url.pathname}
-            currentVersion={resolvedVersion}
-            prefixSegment={versionPrefix}
-            archivePath={versionArchivePath}
-          />
-        )}
-        {localeEntries.length > 1 && (
-          <LanguageSwitcher
-            locales={localeEntries}
-            currentPath={Astro.url.pathname}
-            currentLocale={activeLocale}
-            defaultLocale={resolvedDefaultLocale}
-            includeDefaultPrefix={includeDefaultLocalePrefix}
-            label={localeLabel}
-          />
+        {(hasVersions || localeEntries.length > 1) && (
+          <details class="site-settings" data-site-settings open>
+            <summary class="site-settings__toggle">View settings</summary>
+            <div class="site-settings__panel">
+              {hasVersions && (
+                <VersionSwitcher
+                  versions={versionEntries}
+                  currentPath={Astro.url.pathname}
+                  currentVersion={resolvedVersion}
+                  prefixSegment={versionPrefix}
+                  archivePath={versionArchivePath}
+                />
+              )}
+              {localeEntries.length > 1 && (
+                <LanguageSwitcher
+                  locales={localeEntries}
+                  currentPath={Astro.url.pathname}
+                  currentLocale={activeLocale}
+                  defaultLocale={resolvedDefaultLocale}
+                  includeDefaultPrefix={includeDefaultLocalePrefix}
+                  label={localeLabel}
+                />
+              )}
+            </div>
+          </details>
         )}
       </header>
       {showTranslationNotice && (
@@ -315,6 +322,11 @@ const previewDetails = [
       <footer class="site-footer">
         <span>{footerText}</span>
       </footer>
+      <div class="mobile-cta" data-mobile-cta>
+        <a href="/read" aria-keyshortcuts="g r">Read</a>
+        <button type="button" data-mobile-search aria-controls="search-panel" aria-expanded="false">Search</button>
+        <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">Menu</button>
+      </div>
       <div class="search-panel" id="search-panel" data-search-panel hidden>
         <div
           class="search-panel__content"
@@ -473,7 +485,7 @@ const previewDetails = [
             </li>
             <li>
               <span>Open downloads</span>
-              <span class="kbd-hint">Use top nav link</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>d</kbd></span>
             </li>
             <li>
               <span>Go to overview</span>
@@ -544,6 +556,9 @@ const previewDetails = [
       const qaEnableButton = document.querySelector("[data-qa-enable]");
       const qaSuggestions = Array.from(document.querySelectorAll("[data-qa-suggestion]"));
       const siteNavMore = document.querySelector("[data-site-nav-more]");
+      const siteSettings = document.querySelector("[data-site-settings]");
+      const mobileSearchToggle = document.querySelector("[data-mobile-search]");
+      const mobileMenuToggle = document.querySelector("[data-mobile-menu]");
       const desktopNavMedia = window.matchMedia("(min-width: 721px)");
       const qaEnabled = document.body?.dataset?.qaEnabled === "true";
       let lastFocused = null;
@@ -595,9 +610,11 @@ const previewDetails = [
         if (!siteNavMore) return;
         if (matchesDesktop) {
           siteNavMore.setAttribute("open", "");
+          siteSettings?.setAttribute("open", "");
           return;
         }
         siteNavMore.removeAttribute("open");
+        siteSettings?.removeAttribute("open");
       };
 
       const openHelp = () => {
@@ -1032,6 +1049,11 @@ const previewDetails = [
         }
       });
       searchToggle?.addEventListener("click", toggleSearch);
+      mobileSearchToggle?.addEventListener("click", () => {
+        toggleSearch();
+        const expanded = searchPanel && !searchPanel.hidden;
+        mobileSearchToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+      });
       searchClose?.addEventListener("click", closeSearch);
       searchPanel?.addEventListener("click", (event) => {
         if (event.target instanceof HTMLElement && !event.target.closest("[data-search-content]")) {
@@ -1092,6 +1114,18 @@ const previewDetails = [
         closeQa();
       });
 
+      mobileMenuToggle?.addEventListener("click", () => {
+        if (!siteNavMore) return;
+        const isOpen = siteNavMore.hasAttribute("open");
+        if (isOpen) {
+          siteNavMore.removeAttribute("open");
+          mobileMenuToggle.setAttribute("aria-expanded", "false");
+          return;
+        }
+        siteNavMore.setAttribute("open", "");
+        mobileMenuToggle.setAttribute("aria-expanded", "true");
+      });
+
       warmSearchIndex();
       syncSiteNavOverflow(desktopNavMedia.matches);
 
@@ -1143,6 +1177,7 @@ const previewDetails = [
           if (key === "h") navigateTo("/");
           if (key === "r") navigateTo("/read");
           if (key === "n") navigateTo("/release-notes");
+          if (key === "d") navigateTo("/downloads");
           if (key === "o") navigateTo("/read/overview");
           if (key === "c") navigateTo("/read/chapters");
           if (key === "m") navigateTo("/read/mechanisms");

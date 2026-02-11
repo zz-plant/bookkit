@@ -80,6 +80,28 @@ const stats = [
     <p class="lede">{metaDescription}</p>
   </div>
   <section class="content-block">
+    <div class="eyebrow">New reader</div>
+    <h2>Start in 3 minutes</h2>
+    <p class="meta">Pick one path and get to useful content fast.</p>
+    <div class="card-grid">
+      <a class="card" href={readRoutes.overview}>
+        <div class="eyebrow">Step 1</div>
+        <h3>Read the framing chapter</h3>
+        <p class="meta">Start with core framing so later modules make sense.</p>
+      </a>
+      <a class="card" href={readRoutes.mechanisms}>
+        <div class="eyebrow">Step 2</div>
+        <h3>Pick one mechanism</h3>
+        <p class="meta">Name the system pattern you are seeing right now.</p>
+      </a>
+      <a class="card" href={readRoutes.toolkit}>
+        <div class="eyebrow">Step 3</div>
+        <h3>Run one 10-minute action</h3>
+        <p class="meta">Move from insight to action with a concrete toolkit entry.</p>
+      </a>
+    </div>
+  </section>
+  <section class="content-block">
     <div class="eyebrow">At a glance</div>
     <h2>Book snapshot</h2>
     <p class="meta">
@@ -116,11 +138,11 @@ const stats = [
         <p class="meta">Review recent updates and follow what changes between versions.</p>
         <span class="kbd-hint" aria-hidden="true"><kbd>g</kbd><kbd>n</kbd></span>
       </a>
-      <div class="card card--static">
+      <a class="card" href="/release-notes">
         <div class="eyebrow">Status</div>
-        <h3>Draft build</h3>
-        <p class="meta">This is an in-progress draft; content and structure will keep improving.</p>
-      </div>
+        <h3>Track draft changes</h3>
+        <p class="meta">Prefer stable updates? Review release notes for what changed and why.</p>
+      </a>
     </div>
   </section>
 </BaseLayout>

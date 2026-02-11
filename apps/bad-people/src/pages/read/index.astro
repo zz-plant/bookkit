@@ -146,7 +146,7 @@ const authorSections = [
         <p class="meta">Start with concrete system patterns when you already have a specific issue.</p>
       </a>
     </div>
-    <p class="meta">Prefer offline reading? Download PDF/EPUB from the Chapters page or the global Downloads link.</p>
+    <p class="meta">Prefer offline reading? Visit the dedicated Offline reading page for full-book and chapter exports.</p>
   </section>
 
   {latestRelease && (
@@ -154,6 +154,7 @@ const authorSections = [
       <summary><strong>Latest update: v{latestRelease.version}</strong></summary>
       <p class="meta" style="margin-top: 0.75rem;">{latestRelease.summary}</p>
       <a class="next-steps__link" href="/release-notes">See full release notes</a>
+      <p class="meta" style="margin-top: 0.5rem;">Prefer stable context first? Scan the latest release summary before diving into updated sections.</p>
     </details>
   )}
 
@@ -217,9 +218,9 @@ const authorSections = [
     </script>
   )}
 
-  <section class="content-block">
-    <div class="eyebrow">Author tools</div>
-    <h2>Publishing and diagnostics</h2>
+  <details class="content-block" style="margin-top: 1.5rem;">
+    <summary><strong>Author tools (optional)</strong></summary>
+    <p class="meta" style="margin-top: 0.75rem;">Reader mode hides publishing diagnostics by default.</p>
     <div class="card-grid" style="margin-top: 1rem;">
       {authorSections.map((section) => (
         <a class="card" href={section.href}>
@@ -229,5 +230,5 @@ const authorSections = [
         </a>
       ))}
     </div>
-  </section>
+  </details>
 </BaseLayout>

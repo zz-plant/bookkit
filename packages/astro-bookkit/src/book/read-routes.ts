@@ -1,6 +1,7 @@
 export const readRoutes = {
   root: "/read",
   overview: "/read/overview",
+  tools: "/read/tools",
   analytics: "/read/analytics",
   chapters: "/read/chapters",
   mechanisms: "/read/mechanisms",

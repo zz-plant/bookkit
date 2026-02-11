@@ -16,23 +16,28 @@ const contentModules: BookContentModules = {
 const contentRawModules: BookContentRawModules = {
   chapters: import.meta.glob<string>("../content/book/chapters/*.mdx", {
     eager: true,
-    as: "raw",
+    query: "?raw",
+    import: "default",
   }),
   mechanisms: import.meta.glob<string>("../content/book/mechanisms/*.mdx", {
     eager: true,
-    as: "raw",
+    query: "?raw",
+    import: "default",
   }),
   toolkit: import.meta.glob<string>("../content/book/toolkit/*.mdx", {
     eager: true,
-    as: "raw",
+    query: "?raw",
+    import: "default",
   }),
   glossary: import.meta.glob<string>("../content/book/glossary/*.mdx", {
     eager: true,
-    as: "raw",
+    query: "?raw",
+    import: "default",
   }),
   examples: import.meta.glob<string>("../content/book/examples/**/*.mdx", {
     eager: true,
-    as: "raw",
+    query: "?raw",
+    import: "default",
   }),
 };
 

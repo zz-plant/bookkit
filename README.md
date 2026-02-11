@@ -27,6 +27,7 @@ For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | [`AGENTS.md`](./AGENTS.md) | Architectural invariants + risk boundaries | Agents + reviewers |
 | [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md) | Engine-local orientation | Engine contributors |
 | [`apps/bad-people/README.md`](./apps/bad-people/README.md) | Book-app-local orientation | Book contributors |
+| [`docs/mcp-agent-skills-research.md`](./docs/mcp-agent-skills-research.md) | MCP + agent-skill adoption options | Maintainers + AI workflow designers |
 
 Prefer linking to canonical docs over duplicating policy text.
 

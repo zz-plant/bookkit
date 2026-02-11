@@ -5,6 +5,15 @@ type McpEndpointOptions = {
   bookDescription?: string;
   contentRawModules: BookContentRawModules;
   resourcePrefix?: string;
+  governanceResources?: McpResourceInput[];
+};
+
+export type McpResourceInput = {
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+  text: string;
 };
 
 type JsonRpcRequest = {
@@ -30,6 +39,7 @@ type JsonRpcError = {
 };
 
 type ContentTypeKey = keyof BookContentRawModules;
+type ToolName = "bookkit.list_content" | "bookkit.list_mechanisms";
 
 const DEFAULT_RESOURCE_PREFIX = "bookkit://content/";
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---/;
@@ -118,8 +128,9 @@ const createJsonRpcError = (
 const listResources = (
   contentRawModules: BookContentRawModules,
   resourcePrefix: string,
+  governanceResources: McpResourceInput[] = [],
 ) => {
-  const resources = CONTENT_TYPES.flatMap((type) => {
+  const contentResources = CONTENT_TYPES.flatMap((type) => {
     return Object.entries(contentRawModules[type]).map(([moduleKey, raw]) => {
       const slug = normalizeModuleSlug(moduleKey, type);
       const title = resolveResourceTitle(raw, slug);
@@ -131,14 +142,31 @@ const listResources = (
       };
     });
   });
-  return resources;
+
+  const governance = governanceResources.map((resource) => ({
+    uri: resource.uri,
+    name: resource.name,
+    description: resource.description ?? "governance entry",
+    mimeType: resource.mimeType ?? "text/markdown",
+  }));
+
+  return [...contentResources, ...governance];
 };
 
 const readResource = (
   contentRawModules: BookContentRawModules,
   resourcePrefix: string,
   uri: string,
+  governanceResources: McpResourceInput[] = [],
 ) => {
+  const governanceMatch = governanceResources.find((resource) => resource.uri === uri);
+  if (governanceMatch) {
+    return {
+      mimeType: governanceMatch.mimeType ?? "text/markdown",
+      text: governanceMatch.text,
+    };
+  }
+
   const parsed = parseResourceUri(resourcePrefix, uri);
   if (!parsed) return null;
   const { type, slug } = parsed;
@@ -147,7 +175,53 @@ const readResource = (
     return normalizeModuleSlug(moduleKey, type) === slug;
   });
   if (!match) return null;
-  return match[1];
+  return {
+    mimeType: "text/markdown",
+    text: match[1],
+  };
+};
+
+const createInvalidParamsError = (id: JsonRpcError["id"], detail: string): JsonRpcError => {
+  return createJsonRpcError(id, -32602, `Invalid params: ${detail}`);
+};
+
+const runTool = (
+  options: McpEndpointOptions,
+  name: ToolName,
+  args: Record<string, unknown> | undefined,
+): unknown => {
+  if (name === "bookkit.list_content") {
+    const sections = CONTENT_TYPES.map((section) => ({
+      section,
+      count: Object.keys(options.contentRawModules[section]).length,
+    }));
+
+    return {
+      bookTitle: options.bookTitle,
+      sections,
+      total: sections.reduce((sum, entry) => sum + entry.count, 0),
+    };
+  }
+
+  const section = args?.section;
+  if (section && section !== "mechanisms") {
+    throw new Error("Only section=\"mechanisms\" is supported.");
+  }
+
+  const mechanisms = Object.entries(options.contentRawModules.mechanisms).map(([moduleKey, raw]) => {
+    const slug = normalizeModuleSlug(moduleKey, "mechanisms");
+    return {
+      slug,
+      title: resolveResourceTitle(raw, slug),
+      uri: buildResourceUri(options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX, "mechanisms", slug),
+    };
+  });
+
+  return {
+    bookTitle: options.bookTitle,
+    mechanisms,
+    count: mechanisms.length,
+  };
 };
 
 const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): JsonRpcSuccess | JsonRpcError => {
@@ -167,7 +241,9 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
           },
           capabilities: {
             resources: {},
-            tools: {},
+            tools: {
+              listChanged: false,
+            },
           },
         },
       };
@@ -176,7 +252,11 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         jsonrpc: "2.0",
         id,
         result: {
-          resources: listResources(options.contentRawModules, options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX),
+          resources: listResources(
+            options.contentRawModules,
+            options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX,
+            options.governanceResources,
+          ),
           nextCursor: null,
         },
       };
@@ -188,6 +268,7 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         options.contentRawModules,
         options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX,
         uri,
+        options.governanceResources,
       );
       if (!resource) return createJsonRpcError(id, -32602, "Resource not found.");
       return {
@@ -197,8 +278,8 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
           contents: [
             {
               uri,
-              mimeType: "text/markdown",
-              text: resource,
+              mimeType: resource.mimeType,
+              text: resource.text,
             },
           ],
         },
@@ -209,11 +290,67 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         jsonrpc: "2.0",
         id,
         result: {
-          tools: [],
+          tools: [
+            {
+              name: "bookkit.list_content",
+              description: "List available content section counts for this book.",
+              inputSchema: {
+                type: "object",
+                properties: {},
+                additionalProperties: false,
+              },
+            },
+            {
+              name: "bookkit.list_mechanisms",
+              description: "List mechanism slugs, titles, and MCP resource URIs.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  section: {
+                    type: "string",
+                    enum: ["mechanisms"],
+                    description: "Optional. Currently only mechanisms are supported.",
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          ],
         },
       };
-    case "tools/call":
-      return createJsonRpcError(id, -32601, "No tools are available.");
+    case "tools/call": {
+      const params = request.params as
+        | {
+            name?: string;
+            arguments?: Record<string, unknown>;
+          }
+        | undefined;
+
+      const name = params?.name;
+      if (!name) return createInvalidParamsError(id, "Missing tool name.");
+      if (name !== "bookkit.list_content" && name !== "bookkit.list_mechanisms") {
+        return createJsonRpcError(id, -32601, `Unknown tool: ${name}.`);
+      }
+
+      try {
+        const result = runTool(options, name, params?.arguments);
+        return {
+          jsonrpc: "2.0",
+          id,
+          result: {
+            content: [
+              {
+                type: "json",
+                json: result,
+              },
+            ],
+          },
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Tool execution failed.";
+        return createInvalidParamsError(id, message);
+      }
+    }
     default:
       return createJsonRpcError(id, -32601, "Method not found.");
   }
@@ -224,12 +361,13 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 
   return {
     GET: () => {
-      const resources = listResources(options.contentRawModules, resourcePrefix);
+      const resources = listResources(options.contentRawModules, resourcePrefix, options.governanceResources);
       return createJsonResponse({
         ok: true,
         bookTitle: options.bookTitle,
         description: options.bookDescription ?? null,
         resourceCount: resources.length,
+        tools: ["bookkit.list_content", "bookkit.list_mechanisms"],
       });
     },
     POST: async ({ request }: { request: Request }) => {

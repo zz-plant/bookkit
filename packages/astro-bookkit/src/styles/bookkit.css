@@ -1795,6 +1795,13 @@ p {
     justify-content: center;
   }
 
+  .mobile-cta .mobile-cta__primary {
+    background: var(--color-accent-strong);
+    border-color: var(--color-accent-strong);
+    color: #fff;
+    font-weight: 600;
+  }
+
   .site-main {
     padding: var(--space-6) var(--space-4) calc(var(--space-9) + 4.5rem);
   }

@@ -242,7 +242,7 @@ const previewDetails = [
           >
             Search <span aria-hidden="true">⌘K</span>
           </button>
-          <details class="site-nav__more" data-site-nav-more id="site-nav-more" open>
+          <details class="site-nav__more" data-site-nav-more id="site-nav-more">
             <summary class="site-nav__more-toggle">More</summary>
             <div class="site-nav__overflow">
               <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
@@ -272,7 +272,7 @@ const previewDetails = [
           </details>
         </nav>
         {(hasVersions || localeEntries.length > 1) && (
-          <details class="site-settings" data-site-settings open>
+          <details class="site-settings" data-site-settings>
             <summary class="site-settings__toggle">View settings</summary>
             <div class="site-settings__panel">
               {hasVersions && (
@@ -323,7 +323,7 @@ const previewDetails = [
         <span>{footerText}</span>
       </footer>
       <div class="mobile-cta" data-mobile-cta>
-        <a href="/read" aria-keyshortcuts="g r">Read</a>
+        <a class="mobile-cta__primary" href="/read" aria-keyshortcuts="g r">Read</a>
         <button type="button" data-mobile-search aria-controls="search-panel" aria-expanded="false">Search</button>
         <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">Menu</button>
       </div>
@@ -609,12 +609,12 @@ const previewDetails = [
       const syncSiteNavOverflow = (matchesDesktop) => {
         if (!siteNavMore) return;
         if (matchesDesktop) {
-          siteNavMore.setAttribute("open", "");
-          siteSettings?.setAttribute("open", "");
+          mobileMenuToggle?.setAttribute("aria-expanded", "false");
           return;
         }
         siteNavMore.removeAttribute("open");
         siteSettings?.removeAttribute("open");
+        mobileMenuToggle?.setAttribute("aria-expanded", "false");
       };
 
       const openHelp = () => {

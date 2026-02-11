@@ -79,33 +79,35 @@ const stats = [
     <h1>{bookConfig.title}</h1>
     <p class="lede">{metaDescription}</p>
   </div>
+
   <section class="content-block">
-    <div class="eyebrow">New reader</div>
-    <h2>Start in 3 minutes</h2>
-    <p class="meta">Pick one path and get to useful content fast.</p>
+    <div class="eyebrow">Start reading now</div>
+    <h2>Pick one path in under 3 minutes</h2>
+    <p class="meta">Choose the fastest route based on what you need right now.</p>
     <div class="card-grid">
+      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r">
+        <div class="eyebrow">Primary</div>
+        <h3>Open the reading hub</h3>
+        <p class="meta">Browse every section from one place.</p>
+      </a>
       <a class="card" href={readRoutes.overview}>
-        <div class="eyebrow">Step 1</div>
+        <div class="eyebrow">Orientation</div>
         <h3>Read the framing chapter</h3>
-        <p class="meta">Start with core framing so later modules make sense.</p>
+        <p class="meta">Understand intent, constraints, and boundaries first.</p>
       </a>
       <a class="card" href={readRoutes.mechanisms}>
-        <div class="eyebrow">Step 2</div>
-        <h3>Pick one mechanism</h3>
-        <p class="meta">Name the system pattern you are seeing right now.</p>
-      </a>
-      <a class="card" href={readRoutes.toolkit}>
-        <div class="eyebrow">Step 3</div>
-        <h3>Run one 10-minute action</h3>
-        <p class="meta">Move from insight to action with a concrete toolkit entry.</p>
+        <div class="eyebrow">Problem-solving</div>
+        <h3>Jump to a mechanism</h3>
+        <p class="meta">Name the pattern before choosing an action.</p>
       </a>
     </div>
   </section>
+
   <section class="content-block">
-    <div class="eyebrow">At a glance</div>
-    <h2>Book snapshot</h2>
+    <div class="eyebrow">Book snapshot</div>
+    <h2>What’s available now</h2>
     <p class="meta">
-      Get a quick view of what is available now. Translation completeness reflects the active locale.
+      Counts and translation coverage for the active locale.
     </p>
     <div class="stats-grid">
       {stats.map((stat) => (
@@ -118,31 +120,8 @@ const stats = [
         </div>
       ))}
     </div>
-  </section>
-  <section class="content-block">
-    <div class="eyebrow">Start here</div>
-    <h2>Start reading</h2>
-    <p>
-      Explore the book by chapter, mechanism, toolkit entry, glossary term, or example.
-    </p>
-    <div class="card-grid">
-      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r">
-        <div class="eyebrow">Read</div>
-        <h3>Open the reading hub</h3>
-        <p class="meta">Enter the book and navigate every reading surface in one place.</p>
-        <span class="kbd-hint" aria-hidden="true"><kbd>g</kbd><kbd>r</kbd></span>
-      </a>
-      <a class="card" href="/release-notes" aria-keyshortcuts="g n">
-        <div class="eyebrow">Updates</div>
-        <h3>Browse release notes</h3>
-        <p class="meta">Review recent updates and follow what changes between versions.</p>
-        <span class="kbd-hint" aria-hidden="true"><kbd>g</kbd><kbd>n</kbd></span>
-      </a>
-      <a class="card" href="/release-notes">
-        <div class="eyebrow">Status</div>
-        <h3>Track draft changes</h3>
-        <p class="meta">Prefer stable updates? Review release notes for what changed and why.</p>
-      </a>
+    <div class="link-group" style="margin-top: 1rem;">
+      <a class="next-steps__link" href="/release-notes" aria-keyshortcuts="g n">See release notes</a>
     </div>
   </section>
 </BaseLayout>

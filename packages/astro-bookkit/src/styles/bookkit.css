@@ -2,8 +2,8 @@
   color-scheme: light;
   --font-sans: "Inter", system-ui, sans-serif;
   --font-serif: "Merriweather", "Georgia", serif;
-  --color-ink: #1b1b1b;
-  --color-muted: #5a5a5a;
+  --color-ink: #1f1f1f;
+  --color-muted: #4f4f4f;
   --color-bg: #f7f6f3;
   --color-surface: #ffffff;
   --color-surface-muted: #fdfcf9;
@@ -26,7 +26,7 @@
   --space-9: 5rem;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
-  --text-md: 1rem;
+  --text-md: 1.0625rem;
   --text-lg: 1.25rem;
   --text-xl: 1.75rem;
   --text-2xl: 2.25rem;
@@ -34,7 +34,7 @@
   --text-4xl: 3.5rem;
   --leading-tight: 1.15;
   --leading-snug: 1.35;
-  --leading-body: 1.65;
+  --leading-body: 1.75;
   --tracking-wide: 0.1em;
   font-family: var(--font-sans);
   color: var(--color-ink);
@@ -188,8 +188,7 @@ a,
   display: flex;
   gap: var(--space-4);
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.01em;
   align-items: center;
 }
 
@@ -340,8 +339,7 @@ a,
 
 .version-switcher__archive {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.03em;
 }
 
 .language-switcher {
@@ -372,7 +370,7 @@ a,
   gap: var(--space-2);
   align-items: center;
   justify-content: center;
-  max-width: 900px;
+  max-width: 76ch;
   margin: var(--space-4) auto 0;
   padding: var(--space-2) var(--space-4);
   border-radius: 999px;
@@ -383,8 +381,7 @@ a,
 
 .translation-notice__badge {
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   font-size: var(--text-xs);
 }
 
@@ -398,7 +395,7 @@ a,
   gap: var(--space-2);
   align-items: center;
   justify-content: center;
-  max-width: 900px;
+  max-width: 76ch;
   margin: var(--space-3) auto 0;
   padding: var(--space-2) var(--space-4);
   border-radius: 999px;
@@ -410,8 +407,7 @@ a,
 
 .preview-notice__badge {
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   font-size: var(--text-xs);
 }
 
@@ -421,13 +417,12 @@ a,
 
 .preview-notice__meta {
   font-size: var(--text-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--color-muted);
 }
 
 .site-main {
-  max-width: 900px;
+  max-width: 76ch;
   width: 100%;
   margin: 0 auto;
   padding: var(--space-7) var(--space-6) var(--space-9);
@@ -506,8 +501,7 @@ p {
 
 .stat-label {
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.02em;
   color: var(--color-muted);
 }
 
@@ -599,17 +593,18 @@ p {
 
 .card .meta {
   font-size: var(--text-sm);
+  line-height: 1.6;
   color: var(--color-muted);
 }
 
 .meta {
   font-size: var(--text-sm);
+  line-height: 1.6;
   color: var(--color-muted);
 }
 
 .eyebrow {
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.02em;
   font-size: var(--text-xs);
   color: var(--color-muted);
   margin-bottom: var(--space-2);
@@ -775,8 +770,7 @@ p {
 
 .list-filter__label {
   color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.02em;
   font-size: var(--text-xs);
 }
 
@@ -809,8 +803,7 @@ p {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.02em;
 }
 
 .alpha-nav__label {
@@ -891,8 +884,7 @@ p {
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.02em;
   color: var(--color-muted);
   margin-bottom: var(--space-5);
 }
@@ -907,8 +899,7 @@ p {
   gap: var(--space-2);
   align-items: center;
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.02em;
   color: var(--color-muted);
   margin-bottom: var(--space-3);
   position: sticky;
@@ -1417,8 +1408,7 @@ p {
 
 .version-card__link {
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
 }
 
 .analytics-section {

@@ -1,3 +1,14 @@
+export const RELEASE_SECTION_SLUGS = [
+  "overview",
+  "chapters",
+  "mechanisms",
+  "toolkit",
+  "glossary",
+  "examples",
+] as const;
+
+export type ReleaseSectionSlug = (typeof RELEASE_SECTION_SLUGS)[number];
+
 export type ReleaseNote = {
   slug: string;
   title: string;
@@ -5,12 +16,24 @@ export type ReleaseNote = {
   date: string;
   summary: string;
   highlights: string[];
+  changedSections: ReleaseSectionSlug[];
   Content?: unknown;
 };
 
 export type ReleaseModule = {
-  frontmatter?: Partial<ReleaseNote>;
+  frontmatter?: Partial<ReleaseNote> & {
+    changedSections?: unknown;
+  };
   default?: unknown;
+};
+
+const normalizeChangedSections = (value: unknown): ReleaseSectionSlug[] => {
+  if (!Array.isArray(value)) return [];
+
+  const allowed = new Set<string>(RELEASE_SECTION_SLUGS);
+  return value
+    .map((item) => (typeof item === "string" ? item.trim().toLowerCase() : ""))
+    .filter((item): item is ReleaseSectionSlug => Boolean(item) && allowed.has(item));
 };
 
 export const createReleaseNotes = (
@@ -27,11 +50,31 @@ export const createReleaseNotes = (
         date: frontmatter.date ?? "",
         summary: frontmatter.summary ?? "",
         highlights: Array.isArray(frontmatter.highlights) ? frontmatter.highlights : [],
+        changedSections: normalizeChangedSections(frontmatter.changedSections),
         Content: module.default,
       };
     })
     .filter((release) => release.version && release.date)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+export const createLatestSectionChangeMap = (
+  releases: ReleaseNote[],
+): Record<ReleaseSectionSlug, { version: string; date: string }> => {
+  const latestBySection = {} as Record<ReleaseSectionSlug, { version: string; date: string }>;
+
+  for (const release of releases) {
+    for (const section of release.changedSections) {
+      if (!latestBySection[section]) {
+        latestBySection[section] = {
+          version: release.version,
+          date: release.date,
+        };
+      }
+    }
+  }
+
+  return latestBySection;
 };
 
 export const formatReleaseDate = (value: string): string => {

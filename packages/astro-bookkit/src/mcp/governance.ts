@@ -26,6 +26,18 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
     description: "Architectural invariants and risk boundaries.",
     relativePath: "AGENTS.md",
   },
+  {
+    uri: "bookkit://governance/STACK_CAPABILITIES_RESEARCH.md",
+    name: "Bookkit stack capability research",
+    description: "Operational dependency capability snapshot and version scan.",
+    relativePath: "STACK_CAPABILITIES_RESEARCH.md",
+  },
+  {
+    uri: "bookkit://governance/docs/mcp-agent-skills-research.md",
+    name: "Bookkit MCP and agent skills research",
+    description: "MCP/skill adoption options and phased implementation guidance.",
+    relativePath: "docs/mcp-agent-skills-research.md",
+  },
 ];
 
 export const createGovernanceResourcesFromFiles = (

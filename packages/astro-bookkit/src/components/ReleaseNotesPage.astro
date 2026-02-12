@@ -122,6 +122,9 @@ const {
           </header>
           <p class="eyebrow">Reader impact summary</p>
           <p class="release-summary">{release.summary}</p>
+          {release.changedSections.length > 0 && (
+            <p class="meta">Updated sections: {release.changedSections.join(", ")}</p>
+          )}
           {release.highlights.length > 0 && (
             <ul class="release-highlights">
               {release.highlights.map((item) => (

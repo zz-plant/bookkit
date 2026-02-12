@@ -130,9 +130,10 @@ This is often more reliable than either mechanism alone.
 
 ## Current gaps
 
-- MCP tools are not implemented yet (`tools/list` is empty)
 - no dedicated contributor/agent skills inside the repo
+- tool execution metadata is still limited (runtime/side-effect/retry contracts can be richer)
 - no explicit "agent onboarding" flow for external browsing agents
+- resource pagination/filtering for larger corpora is still minimal
 
 ---
 

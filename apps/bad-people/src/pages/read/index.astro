@@ -5,7 +5,8 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
-import { formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { createLatestSectionChangeMap, formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { getReleaseNotes } from "../../lib/release-notes";
 import bookConfig from "../../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
@@ -47,6 +48,8 @@ const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
 const startingChapter =
   chapters.entries.find((entry) => entry.slug === "overview") ?? chapters.entries[0];
 
+const releaseNotes = getReleaseNotes();
+const latestSectionChanges = createLatestSectionChangeMap(releaseNotes);
 const readerSections = [
   {
     title: "Overview",
@@ -54,6 +57,7 @@ const readerSections = [
     href: readRoutes.overview,
     count: 1,
     keyHint: ["g", "o"],
+    sectionKey: "overview",
   },
   {
     title: "Chapters",
@@ -62,6 +66,7 @@ const readerSections = [
     count: chapters.entries.length,
     completeness: chapters.completeness,
     keyHint: ["g", "c"],
+    sectionKey: "chapters",
   },
   {
     title: "Mechanisms",
@@ -70,6 +75,7 @@ const readerSections = [
     count: mechanisms.entries.length,
     completeness: mechanisms.completeness,
     keyHint: ["g", "m"],
+    sectionKey: "mechanisms",
   },
   {
     title: "Toolkit",
@@ -78,6 +84,7 @@ const readerSections = [
     count: toolkit.entries.length,
     completeness: toolkit.completeness,
     keyHint: ["g", "t"],
+    sectionKey: "toolkit",
   },
   {
     title: "Glossary",
@@ -86,6 +93,7 @@ const readerSections = [
     count: glossary.entries.length,
     completeness: glossary.completeness,
     keyHint: ["g", "l"],
+    sectionKey: "glossary",
   },
   {
     title: "Examples",
@@ -94,6 +102,7 @@ const readerSections = [
     count: examples.entries.length,
     completeness: examples.completeness,
     keyHint: ["g", "e"],
+    sectionKey: "examples",
   },
 ];
 ---
@@ -107,10 +116,10 @@ const readerSections = [
           This guide is designed for real situations. Pick the entry point that matches what you need right now.
         </p>
       </div>
-      <div class="read-hero__quicklinks" aria-label="Quick ways to start">
-        <a class="read-pill" href={readRoutes.overview}>Need orientation</a>
-        <a class="read-pill" href={readRoutes.mechanisms}>Need a diagnosis</a>
-        <a class="read-pill" href={readRoutes.toolkit}>Need an action now</a>
+      <div class="read-hero__quicklinks" aria-label="Quick ways to start" data-funnel-group="read-start">
+        <a class="read-pill" href={readRoutes.overview} data-funnel-step="read_to_overview">Need orientation</a>
+        <a class="read-pill" href={readRoutes.mechanisms} data-funnel-step="read_to_mechanisms">Need a diagnosis</a>
+        <a class="read-pill" href={readRoutes.toolkit} data-funnel-step="read_to_toolkit">Need an action now</a>
       </div>
     </section>
 
@@ -156,6 +165,7 @@ const readerSections = [
           const label = section.count === 1 ? "item" : "items";
           const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
           const completenessLabel = formatTranslationCompleteness(section.completeness);
+          const changeMeta = latestSectionChanges[section.sectionKey];
           return (
             <a
               class="card read-surface-card"
@@ -165,6 +175,7 @@ const readerSections = [
               <div class="eyebrow">
                 {section.count} {label}
                 {completenessLabel ? ` • ${completenessLabel}` : ""}
+                {changeMeta ? ` • Updated in v${changeMeta.version}` : ""}
               </div>
               <h2>{section.title}</h2>
               <p class="meta">{section.description}</p>
@@ -180,22 +191,43 @@ const readerSections = [
       </div>
     </section>
 
-    <section class="read-utility-grid">
-      <article class="content-block read-section" style="margin-top: 0;">
-        <div class="eyebrow">Updates</div>
-        <h2>What changed recently</h2>
-        <p class="meta">See the change log and version summary in release notes.</p>
-        <a class="next-steps__link" href="/release-notes">Open release notes</a>
-      </article>
-
-      <article class="content-block read-section" style="margin-top: 0;">
-        <div class="eyebrow">Utilities</div>
-        <h2>Author and publishing tools</h2>
-        <p class="meta">Reader navigation is separated from diagnostics and publishing workflows.</p>
-        <a class="next-steps__link" href={readRoutes.tools}>Open tools and diagnostics</a>
-      </article>
+    <section class="content-block read-section" style="margin-top: 0;">
+      <div class="eyebrow">Need updates or publishing utilities?</div>
+      <h2>Reader extras</h2>
+      <p class="meta">Release notes and diagnostics are available when you need them, without crowding the reading flow.</p>
+      <div class="read-hero__quicklinks">
+        <a class="read-pill" href="/release-notes">Release notes</a>
+        <a class="read-pill" href={readRoutes.tools}>Tools and diagnostics</a>
+      </div>
     </section>
   </div>
+  <script>
+    const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    funnelLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        const step = link.getAttribute("data-funnel-step");
+        if (!step) return;
+        const payload = JSON.stringify({
+          type: "engagement",
+          title: `funnel:${step}`,
+          path: window.location.pathname,
+          durationSeconds: 0,
+          scrollDepth: 0,
+          timestamp: Date.now(),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          return;
+        }
+        fetch("/api/analytics.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => undefined);
+      });
+    });
+  </script>
 </BaseLayout>
 
 <style>
@@ -284,20 +316,10 @@ const readerSections = [
     border-top: 1px solid rgba(91, 76, 230, 0.12);
   }
 
-  .read-utility-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
-  }
-
   @media (max-width: 900px) {
     .read-section__intro {
       flex-direction: column;
       align-items: flex-start;
-    }
-
-    .read-utility-grid {
-      grid-template-columns: 1fr;
     }
   }
 </style>

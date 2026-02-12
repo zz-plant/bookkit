@@ -38,8 +38,10 @@ const workspaceRoot = findWorkspaceRoot(currentDir);
 
 const { GET, POST } = createBookMcpEndpoint({
   bookTitle: bookConfig.title,
+  bookSlug: bookConfig.slug,
   bookDescription: bookConfig.site.defaultMeta.description,
   contentRawModules: bookEntryPoints.contentRawModules,
+  workspaceRoot,
   governanceResources: createGovernanceResourcesFromFiles(workspaceRoot),
 });
 

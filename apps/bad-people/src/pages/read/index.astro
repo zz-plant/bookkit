@@ -98,76 +98,206 @@ const readerSections = [
 ];
 ---
 <BaseLayout title={`Read • ${bookConfig.title}`}>
-  <div class="section-header">
-    <h1>Reading hub</h1>
-    <p class="lede">
-      Pick one path, start quickly, then browse sections as needed.
-    </p>
-  </div>
+  <div class="read-hub">
+    <section class="content-block read-hero" style="margin-top: 0;">
+      <div class="read-hero__copy">
+        <div class="eyebrow">Reading hub</div>
+        <h1>Start where you are, not where a syllabus says to begin.</h1>
+        <p class="lede">
+          This guide is designed for real situations. Pick the entry point that matches what you need right now.
+        </p>
+      </div>
+      <div class="read-hero__quicklinks" aria-label="Quick ways to start">
+        <a class="read-pill" href={readRoutes.overview}>Need orientation</a>
+        <a class="read-pill" href={readRoutes.mechanisms}>Need a diagnosis</a>
+        <a class="read-pill" href={readRoutes.toolkit}>Need an action now</a>
+      </div>
+    </section>
 
-  <section class="content-block" style="margin-top: 0;">
-    <div class="eyebrow">Recommended start</div>
-    <h2>Choose one path and begin</h2>
-    <p class="meta">Fastest entry points for first-time readers.</p>
-    <div class="card-grid" style="margin-top: 1rem;">
-      {startingChapter && (
-        <a class="card" href={readItemPath("chapters", startingChapter.slug)}>
-          <div class="eyebrow">Foundations</div>
-          <h3>Read the framing chapter first</h3>
-          <p class="meta">Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}</p>
-        </a>
-      )}
-      <a class="card" href={readRoutes.overview}>
-        <div class="eyebrow">Orientation</div>
-        <h3>Understand the frame quickly</h3>
-        <p class="meta">Review objectives and constraints before diving in.</p>
-      </a>
-      <a class="card" href={readRoutes.mechanisms}>
-        <div class="eyebrow">Problem-solving</div>
-        <h3>Jump to a named mechanism</h3>
-        <p class="meta">Start with the pattern that matches your current issue.</p>
-      </a>
-    </div>
-  </section>
-
-  <section class="content-block" style="margin-top: 1rem;">
-    <div class="eyebrow">Browse all sections</div>
-    <h2>Reading surfaces</h2>
-    <p class="meta">Pick a section; each opens an index and individual item pages.</p>
-    <div class="card-grid" data-reader-sections>
-      {readerSections.map((section) => {
-        const label = section.count === 1 ? "item" : "items";
-        const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
-        const completenessLabel = formatTranslationCompleteness(section.completeness);
-        return (
-          <a
-            class="card"
-            href={section.href}
-            aria-keyshortcuts={keyShortcut}
-          >
-            <div class="eyebrow">
-              {section.count} {label}
-              {completenessLabel ? ` • ${completenessLabel}` : ""}
-            </div>
-            <h2>{section.title}</h2>
-            <p class="meta">{section.description}</p>
+    <section class="content-block read-section">
+      <div class="read-section__intro">
+        <div>
+          <div class="eyebrow">Recommended start</div>
+          <h2>Choose one path and begin</h2>
+        </div>
+        <p class="meta">Fastest entry points for first-time readers.</p>
+      </div>
+      <div class="card-grid read-card-grid">
+        {startingChapter && (
+          <a class="card read-card" href={readItemPath("chapters", startingChapter.slug)}>
+            <div class="eyebrow">Foundations</div>
+            <h3>Read the framing chapter first</h3>
+            <p class="meta">Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}</p>
           </a>
-        );
-      })}
-    </div>
-  </section>
+        )}
+        <a class="card read-card" href={readRoutes.overview}>
+          <div class="eyebrow">Orientation</div>
+          <h3>Understand the frame quickly</h3>
+          <p class="meta">Review objectives and constraints before diving in.</p>
+        </a>
+        <a class="card read-card" href={readRoutes.mechanisms}>
+          <div class="eyebrow">Problem-solving</div>
+          <h3>Jump to a named mechanism</h3>
+          <p class="meta">Start with the pattern that matches your current issue.</p>
+        </a>
+      </div>
+    </section>
 
-  <section class="content-block" style="margin-top: 1rem;">
-    <div class="eyebrow">Updates</div>
-    <h2>What changed recently</h2>
-    <p class="meta">See a dedicated change log and version summary in release notes.</p>
-    <a class="next-steps__link" href="/release-notes">Open release notes</a>
-  </section>
+    <section class="content-block read-section">
+      <div class="read-section__intro">
+        <div>
+          <div class="eyebrow">Browse all sections</div>
+          <h2>Reading surfaces</h2>
+        </div>
+        <p class="meta">Each section opens an index and then individual item pages.</p>
+      </div>
+      <div class="card-grid" data-reader-sections>
+        {readerSections.map((section) => {
+          const label = section.count === 1 ? "item" : "items";
+          const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
+          const completenessLabel = formatTranslationCompleteness(section.completeness);
+          return (
+            <a
+              class="card read-surface-card"
+              href={section.href}
+              aria-keyshortcuts={keyShortcut}
+            >
+              <div class="eyebrow">
+                {section.count} {label}
+                {completenessLabel ? ` • ${completenessLabel}` : ""}
+              </div>
+              <h2>{section.title}</h2>
+              <p class="meta">{section.description}</p>
+              {section.keyHint && (
+                <div class="read-surface-card__footer">
+                  <span class="meta">Shortcut</span>
+                  <span class="kbd-hint"><kbd>{section.keyHint[0]}</kbd><kbd>{section.keyHint[1]}</kbd></span>
+                </div>
+              )}
+            </a>
+          );
+        })}
+      </div>
+    </section>
 
-  <section class="content-block" style="margin-top: 1.5rem;">
-    <div class="eyebrow">Utilities</div>
-    <h2>Author and publishing tools</h2>
-    <p class="meta">Reader-facing navigation is kept separate from diagnostics.</p>
-    <a class="next-steps__link" href={readRoutes.tools}>Open tools and diagnostics</a>
-  </section>
+    <section class="read-utility-grid">
+      <article class="content-block read-section" style="margin-top: 0;">
+        <div class="eyebrow">Updates</div>
+        <h2>What changed recently</h2>
+        <p class="meta">See the change log and version summary in release notes.</p>
+        <a class="next-steps__link" href="/release-notes">Open release notes</a>
+      </article>
+
+      <article class="content-block read-section" style="margin-top: 0;">
+        <div class="eyebrow">Utilities</div>
+        <h2>Author and publishing tools</h2>
+        <p class="meta">Reader navigation is separated from diagnostics and publishing workflows.</p>
+        <a class="next-steps__link" href={readRoutes.tools}>Open tools and diagnostics</a>
+      </article>
+    </section>
+  </div>
 </BaseLayout>
+
+<style>
+  .read-hub {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .read-hero {
+    background: linear-gradient(145deg, rgba(91, 76, 230, 0.08), rgba(255, 255, 255, 0.98));
+    border-color: rgba(91, 76, 230, 0.24);
+    display: grid;
+    gap: 1rem;
+  }
+
+  .read-hero h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    margin-bottom: 0.5rem;
+    max-width: 22ch;
+  }
+
+  .read-hero .lede {
+    max-width: 62ch;
+    font-size: 1.125rem;
+    color: var(--color-ink);
+  }
+
+  .read-hero__quicklinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .read-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(91, 76, 230, 0.25);
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--color-accent-strong);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .read-pill:hover {
+    background: rgba(91, 76, 230, 0.12);
+  }
+
+  .read-section {
+    margin-top: 0;
+  }
+
+  .read-section__intro {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .read-section__intro .meta {
+    max-width: 34ch;
+  }
+
+  .read-card-grid {
+    margin-top: 0.75rem;
+  }
+
+  .read-card,
+  .read-surface-card {
+    background: linear-gradient(180deg, #fff, #fcfcff);
+    border-color: rgba(91, 76, 230, 0.15);
+  }
+
+  .read-surface-card {
+    position: relative;
+  }
+
+  .read-surface-card__footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(91, 76, 230, 0.12);
+  }
+
+  .read-utility-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  @media (max-width: 900px) {
+    .read-section__intro {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .read-utility-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

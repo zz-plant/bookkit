@@ -31,9 +31,21 @@ const normalizeChangedSections = (value: unknown): ReleaseSectionSlug[] => {
   if (!Array.isArray(value)) return [];
 
   const allowed = new Set<string>(RELEASE_SECTION_SLUGS);
+  return Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === "string" ? item.trim().toLowerCase() : ""))
+        .filter((item): item is ReleaseSectionSlug => Boolean(item) && allowed.has(item))
+    )
+  );
+};
+
+const normalizeHighlights = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+
   return value
-    .map((item) => (typeof item === "string" ? item.trim().toLowerCase() : ""))
-    .filter((item): item is ReleaseSectionSlug => Boolean(item) && allowed.has(item));
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item) => item.length > 0);
 };
 
 export const createReleaseNotes = (
@@ -49,7 +61,7 @@ export const createReleaseNotes = (
         version: frontmatter.version ?? "",
         date: frontmatter.date ?? "",
         summary: frontmatter.summary ?? "",
-        highlights: Array.isArray(frontmatter.highlights) ? frontmatter.highlights : [],
+        highlights: normalizeHighlights(frontmatter.highlights),
         changedSections: normalizeChangedSections(frontmatter.changedSections),
         Content: module.default,
       };

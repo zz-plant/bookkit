@@ -11,8 +11,8 @@ describe("release note section change mapping", () => {
           version: "0.2.0",
           date: "2024-09-15",
           summary: "Summary",
-          highlights: ["one"],
-          changedSections: ["toolkit", "mechanisms", "invalid_section"],
+          highlights: ["one", " one ", "", 42],
+          changedSections: ["toolkit", "mechanisms", " TOOLKIT ", "invalid_section"],
         },
       },
       "src/content/book/releases/2024-08-22.mdx": {
@@ -28,6 +28,7 @@ describe("release note section change mapping", () => {
     });
 
     expect(releases[0].changedSections).toEqual(["toolkit", "mechanisms"]);
+    expect(releases[0].highlights).toEqual(["one", "one"]);
 
     const latestBySection = createLatestSectionChangeMap(releases);
     expect(latestBySection.toolkit.version).toBe("0.2.0");

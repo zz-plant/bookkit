@@ -1,11 +1,14 @@
 import type { BookContentRawModules } from "../book/entrypoints";
+import { spawnSync } from "node:child_process";
 
 type McpEndpointOptions = {
   bookTitle: string;
+  bookSlug?: string;
   bookDescription?: string;
   contentRawModules: BookContentRawModules;
   resourcePrefix?: string;
   governanceResources?: McpResourceInput[];
+  workspaceRoot?: string;
 };
 
 export type McpResourceInput = {
@@ -38,8 +41,19 @@ type JsonRpcError = {
   };
 };
 
+type ResourceReadParams = {
+  uri?: string;
+  startLine?: number;
+  endLine?: number;
+};
+
 type ContentTypeKey = keyof BookContentRawModules;
-type ToolName = "bookkit.list_content" | "bookkit.list_mechanisms";
+type ToolName =
+  | "bookkit.list_books"
+  | "bookkit.list_content"
+  | "bookkit.list_mechanisms"
+  | "bookkit.validate_book"
+  | "bookkit.check_separation";
 
 const DEFAULT_RESOURCE_PREFIX = "bookkit://content/";
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---/;
@@ -181,8 +195,54 @@ const readResource = (
   };
 };
 
+
+
+type ResourceChunk = {
+  text: string;
+  startLine: number;
+  endLine: number;
+  totalLines: number;
+  chunkId: string;
+};
+
+const buildResourceChunk = (uri: string, text: string, params: ResourceReadParams): ResourceChunk => {
+  const lines = text.split("\n");
+  const totalLines = lines.length;
+  const startRaw = typeof params.startLine === "number" ? Math.floor(params.startLine) : 1;
+  const endRaw = typeof params.endLine === "number" ? Math.floor(params.endLine) : totalLines;
+  const startLine = Math.min(Math.max(startRaw, 1), totalLines || 1);
+  const endLine = Math.min(Math.max(endRaw, startLine), totalLines || startLine);
+  const chunkText = lines.slice(startLine - 1, endLine).join("\n");
+  return {
+    text: chunkText,
+    startLine,
+    endLine,
+    totalLines,
+    chunkId: `${uri}#L${startLine}-L${endLine}`,
+  };
+};
 const createInvalidParamsError = (id: JsonRpcError["id"], detail: string): JsonRpcError => {
   return createJsonRpcError(id, -32602, `Invalid params: ${detail}`);
+};
+
+const runWorkspaceCommand = (
+  workspaceRoot: string | undefined,
+  args: string[],
+): { ok: boolean; command: string; stdout: string; stderr: string; exitCode: number } => {
+  const cwd = workspaceRoot ?? process.cwd();
+  const result = spawnSync("bun", args, {
+    cwd,
+    encoding: "utf8",
+    timeout: 10 * 60 * 1000,
+  });
+
+  return {
+    ok: result.status === 0,
+    command: `bun ${args.join(" ")}`,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    exitCode: result.status ?? -1,
+  };
 };
 
 const runTool = (
@@ -190,6 +250,27 @@ const runTool = (
   name: ToolName,
   args: Record<string, unknown> | undefined,
 ): unknown => {
+  if (name === "bookkit.list_books") {
+    const command = runWorkspaceCommand(options.workspaceRoot, ["run", "list:books"]);
+    if (!command.ok) {
+      throw new Error(
+        `list:books failed (exit ${command.exitCode}). ${command.stderr || command.stdout || "No output."}`,
+      );
+    }
+
+    const books = command.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => !line.startsWith("$ "));
+
+    return {
+      books,
+      count: books.length,
+      command: command.command,
+    };
+  }
+
   if (name === "bookkit.list_content") {
     const sections = CONTENT_TYPES.map((section) => ({
       section,
@@ -200,6 +281,43 @@ const runTool = (
       bookTitle: options.bookTitle,
       sections,
       total: sections.reduce((sum, entry) => sum + entry.count, 0),
+    };
+  }
+
+  if (name === "bookkit.validate_book") {
+    const rawBook = args?.book;
+    const book = typeof rawBook === "string" && rawBook.trim().length ? rawBook.trim() : options.bookSlug;
+    if (!book) {
+      throw new Error("Provide a book slug in arguments.book.");
+    }
+
+    const command = runWorkspaceCommand(options.workspaceRoot, ["run", "validate:book", "--", "--book", book]);
+
+    return {
+      book,
+      ok: command.ok,
+      command: command.command,
+      exitCode: command.exitCode,
+      stdout: command.stdout.trim(),
+      stderr: command.stderr.trim(),
+      remediation: command.ok
+        ? null
+        : "Fix the reported validation errors, then re-run bun run validate:book -- --book <slug>.",
+    };
+  }
+
+  if (name === "bookkit.check_separation") {
+    const command = runWorkspaceCommand(options.workspaceRoot, ["run", "check:separation"]);
+
+    return {
+      ok: command.ok,
+      command: command.command,
+      exitCode: command.exitCode,
+      stdout: command.stdout.trim(),
+      stderr: command.stderr.trim(),
+      remediation: command.ok
+        ? null
+        : "Resolve boundary violations, then re-run bun run check:separation.",
     };
   }
 
@@ -240,7 +358,9 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
             bookTitle: options.bookTitle,
           },
           capabilities: {
-            resources: {},
+            resources: {
+              readRanges: true,
+            },
             tools: {
               listChanged: false,
             },
@@ -261,7 +381,7 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         },
       };
     case "resources/read": {
-      const params = request.params as { uri?: string } | undefined;
+      const params = request.params as ResourceReadParams | undefined;
       const uri = params?.uri;
       if (!uri) return createJsonRpcError(id, -32602, "Missing resource URI.");
       const resource = readResource(
@@ -271,6 +391,7 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         options.governanceResources,
       );
       if (!resource) return createJsonRpcError(id, -32602, "Resource not found.");
+      const chunk = buildResourceChunk(uri, resource.text, params ?? {});
       return {
         jsonrpc: "2.0",
         id,
@@ -279,7 +400,13 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
             {
               uri,
               mimeType: resource.mimeType,
-              text: resource.text,
+              text: chunk.text,
+              metadata: {
+                chunkId: chunk.chunkId,
+                startLine: chunk.startLine,
+                endLine: chunk.endLine,
+                totalLines: chunk.totalLines,
+              },
             },
           ],
         },
@@ -291,6 +418,15 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         id,
         result: {
           tools: [
+            {
+              name: "bookkit.list_books",
+              description: "List available book slugs in this workspace.",
+              inputSchema: {
+                type: "object",
+                properties: {},
+                additionalProperties: false,
+              },
+            },
             {
               name: "bookkit.list_content",
               description: "List available content section counts for this book.",
@@ -315,6 +451,29 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
                 additionalProperties: false,
               },
             },
+            {
+              name: "bookkit.validate_book",
+              description: "Run book validation and return structured command output.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  book: {
+                    type: "string",
+                    description: "Optional book slug. Defaults to the current endpoint book when omitted.",
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+            {
+              name: "bookkit.check_separation",
+              description: "Run architecture-boundary checks for the workspace.",
+              inputSchema: {
+                type: "object",
+                properties: {},
+                additionalProperties: false,
+              },
+            },
           ],
         },
       };
@@ -328,7 +487,13 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
 
       const name = params?.name;
       if (!name) return createInvalidParamsError(id, "Missing tool name.");
-      if (name !== "bookkit.list_content" && name !== "bookkit.list_mechanisms") {
+      if (
+        name !== "bookkit.list_books" &&
+        name !== "bookkit.list_content" &&
+        name !== "bookkit.list_mechanisms" &&
+        name !== "bookkit.validate_book" &&
+        name !== "bookkit.check_separation"
+      ) {
         return createJsonRpcError(id, -32601, `Unknown tool: ${name}.`);
       }
 
@@ -367,7 +532,17 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
         bookTitle: options.bookTitle,
         description: options.bookDescription ?? null,
         resourceCount: resources.length,
-        tools: ["bookkit.list_content", "bookkit.list_mechanisms"],
+        resourceReadOptions: {
+          supportsLineRanges: true,
+          params: ["startLine", "endLine"],
+        },
+        tools: [
+          "bookkit.list_books",
+          "bookkit.list_content",
+          "bookkit.list_mechanisms",
+          "bookkit.validate_book",
+          "bookkit.check_separation",
+        ],
       });
     },
     POST: async ({ request }: { request: Request }) => {

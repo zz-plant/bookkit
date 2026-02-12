@@ -231,7 +231,7 @@ const previewDetails = [
           {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
         </div>
         <nav class="site-nav" aria-label="Primary">
-          <a href="/read" aria-keyshortcuts="g r">Read the guide</a>
+          <a class="site-nav__primary" href="/read" aria-keyshortcuts="g r">Start reading</a>
           <button
             class="search-toggle"
             type="button"
@@ -247,6 +247,32 @@ const previewDetails = [
             <div class="site-nav__overflow">
               <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
               <a href="/downloads" aria-keyshortcuts="g d">Offline reading</a>
+              {(hasVersions || localeEntries.length > 1) && (
+                <details class="site-settings" data-site-settings>
+                  <summary class="site-settings__toggle">View settings</summary>
+                  <div class="site-settings__panel">
+                    {hasVersions && (
+                      <VersionSwitcher
+                        versions={versionEntries}
+                        currentPath={Astro.url.pathname}
+                        currentVersion={resolvedVersion}
+                        prefixSegment={versionPrefix}
+                        archivePath={versionArchivePath}
+                      />
+                    )}
+                    {localeEntries.length > 1 && (
+                      <LanguageSwitcher
+                        locales={localeEntries}
+                        currentPath={Astro.url.pathname}
+                        currentLocale={activeLocale}
+                        defaultLocale={resolvedDefaultLocale}
+                        includeDefaultPrefix={includeDefaultLocalePrefix}
+                        label={localeLabel}
+                      />
+                    )}
+                  </div>
+                </details>
+              )}
               {aiQaEnabled && (
                 <button
                   class="qa-toggle"
@@ -271,32 +297,6 @@ const previewDetails = [
             </div>
           </details>
         </nav>
-        {(hasVersions || localeEntries.length > 1) && (
-          <details class="site-settings" data-site-settings>
-            <summary class="site-settings__toggle">Language &amp; version</summary>
-            <div class="site-settings__panel">
-              {hasVersions && (
-                <VersionSwitcher
-                  versions={versionEntries}
-                  currentPath={Astro.url.pathname}
-                  currentVersion={resolvedVersion}
-                  prefixSegment={versionPrefix}
-                  archivePath={versionArchivePath}
-                />
-              )}
-              {localeEntries.length > 1 && (
-                <LanguageSwitcher
-                  locales={localeEntries}
-                  currentPath={Astro.url.pathname}
-                  currentLocale={activeLocale}
-                  defaultLocale={resolvedDefaultLocale}
-                  includeDefaultPrefix={includeDefaultLocalePrefix}
-                  label={localeLabel}
-                />
-              )}
-            </div>
-          </details>
-        )}
       </header>
       {showTranslationNotice && (
         <div class="translation-notice" role="status">

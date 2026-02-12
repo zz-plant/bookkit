@@ -4,8 +4,14 @@ export type { FrameDefinition, FrameStep } from "./frames/types";
 export { validateFrameDefinition, validateFrameSteps } from "./validators/frame";
 export { recordReleaseEvent } from "./releases/analytics";
 export type { ReleaseEvent } from "./releases/analytics";
-export { createReleaseNotes, escapeXml, formatReleaseDate } from "./releases/notes";
-export type { ReleaseModule, ReleaseNote } from "./releases/notes";
+export {
+  createLatestSectionChangeMap,
+  createReleaseNotes,
+  escapeXml,
+  formatReleaseDate,
+  RELEASE_SECTION_SLUGS,
+} from "./releases/notes";
+export type { ReleaseModule, ReleaseNote, ReleaseSectionSlug } from "./releases/notes";
 export {
   buildVersionPath,
   createVersionEntries,

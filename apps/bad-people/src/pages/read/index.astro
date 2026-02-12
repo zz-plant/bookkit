@@ -116,10 +116,10 @@ const readerSections = [
           This guide is designed for real situations. Pick the entry point that matches what you need right now.
         </p>
       </div>
-      <div class="read-hero__quicklinks" aria-label="Quick ways to start">
-        <a class="read-pill" href={readRoutes.overview}>Need orientation</a>
-        <a class="read-pill" href={readRoutes.mechanisms}>Need a diagnosis</a>
-        <a class="read-pill" href={readRoutes.toolkit}>Need an action now</a>
+      <div class="read-hero__quicklinks" aria-label="Quick ways to start" data-funnel-group="read-start">
+        <a class="read-pill" href={readRoutes.overview} data-funnel-step="read_to_overview">Need orientation</a>
+        <a class="read-pill" href={readRoutes.mechanisms} data-funnel-step="read_to_mechanisms">Need a diagnosis</a>
+        <a class="read-pill" href={readRoutes.toolkit} data-funnel-step="read_to_toolkit">Need an action now</a>
       </div>
     </section>
 
@@ -201,6 +201,33 @@ const readerSections = [
       </div>
     </section>
   </div>
+  <script>
+    const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    funnelLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        const step = link.getAttribute("data-funnel-step");
+        if (!step) return;
+        const payload = JSON.stringify({
+          type: "engagement",
+          title: `funnel:${step}`,
+          path: window.location.pathname,
+          durationSeconds: 0,
+          scrollDepth: 0,
+          timestamp: Date.now(),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          return;
+        }
+        fetch("/api/analytics.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => undefined);
+      });
+    });
+  </script>
 </BaseLayout>
 
 <style>

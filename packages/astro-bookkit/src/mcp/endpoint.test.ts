@@ -62,7 +62,7 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.content[0].json.mechanisms[0].slug).toBe("sample");
   });
 
-  it("lists P0 toolset in tools/list", async () => {
+  it("lists tool metadata in tools/list", async () => {
     const endpoint = createFixtureEndpoint();
     const response = await endpoint.POST({
       request: new Request("http://localhost/api/mcp.json", {
@@ -72,12 +72,40 @@ describe("createBookMcpEndpoint", () => {
       }),
     });
 
-    const body = (await response.json()) as { result: { tools: Array<{ name: string }> } };
-    const names = body.result.tools.map((tool) => tool.name);
+    const body = (await response.json()) as {
+      result: {
+        tools: Array<{ name: string; sideEffectLevel: string; expectedRuntime: string; retryGuidance: string }>;
+      };
+    };
 
-    expect(names).toContain("bookkit.list_books");
-    expect(names).toContain("bookkit.validate_book");
-    expect(names).toContain("bookkit.check_separation");
+    const listBooks = body.result.tools.find((tool) => tool.name === "bookkit.list_books");
+    expect(listBooks?.sideEffectLevel).toBe("read-only");
+    expect(listBooks?.expectedRuntime).toBe("<10s");
+    expect(listBooks?.retryGuidance).toContain("retry");
+  });
+
+  it("supports resources/list pagination and filtering", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 4,
+          method: "resources/list",
+          params: { kind: "content", limit: 1, cursor: "0" },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as {
+      result: { resources: Array<{ kind: string }>; nextCursor: string | null };
+    };
+
+    expect(body.result.resources.length).toBe(1);
+    expect(body.result.resources[0].kind).toBe("content");
+    expect(body.result.nextCursor).toBe("1");
   });
 
   it("returns actionable invalid params when validate_book is missing book context", async () => {
@@ -98,7 +126,7 @@ describe("createBookMcpEndpoint", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           jsonrpc: "2.0",
-          id: 4,
+          id: 5,
           method: "tools/call",
           params: { name: "bookkit.validate_book", arguments: {} },
         }),
@@ -109,7 +137,6 @@ describe("createBookMcpEndpoint", () => {
     expect(body.error.message).toContain("arguments.book");
   });
 
-
   it("supports citation-ready ranged reads with stable chunk metadata", async () => {
     const endpoint = createFixtureEndpoint();
     const response = await endpoint.POST({
@@ -118,7 +145,7 @@ describe("createBookMcpEndpoint", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           jsonrpc: "2.0",
-          id: 5,
+          id: 6,
           method: "resources/read",
           params: { uri: "bookkit://content/chapters/00-overview", startLine: 1, endLine: 3 },
         }),
@@ -139,4 +166,14 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.contents[0].metadata.totalLines).toBeGreaterThanOrEqual(3);
   });
 
+  it("publishes agent profile in GET discovery", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = endpoint.GET();
+    const body = (await response.json()) as {
+      agentProfile: { recommendedQueryOrder: string[]; resources: { supportsListPagination: boolean } };
+    };
+
+    expect(body.agentProfile.recommendedQueryOrder[0]).toBe("bookkit://governance/AGENTS.md");
+    expect(body.agentProfile.resources.supportsListPagination).toBe(true);
+  });
 });

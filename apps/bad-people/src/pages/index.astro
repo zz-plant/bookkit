@@ -84,18 +84,18 @@ const stats = [
     <div class="eyebrow">Start reading now</div>
     <h2>Pick one path in under 3 minutes</h2>
     <p class="meta">Choose the fastest route based on what you need right now.</p>
-    <div class="card-grid">
-      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r">
+    <div class="card-grid" data-funnel-group="home-start">
+      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r" data-funnel-step="home_to_read_hub">
         <div class="eyebrow">Primary</div>
         <h3>Open the reading hub</h3>
         <p class="meta">Browse every section from one place.</p>
       </a>
-      <a class="card" href={readRoutes.overview}>
+      <a class="card" href={readRoutes.overview} data-funnel-step="home_to_overview">
         <div class="eyebrow">Orientation</div>
         <h3>Read the framing chapter</h3>
         <p class="meta">Understand intent, constraints, and boundaries first.</p>
       </a>
-      <a class="card" href={readRoutes.mechanisms}>
+      <a class="card" href={readRoutes.mechanisms} data-funnel-step="home_to_mechanisms">
         <div class="eyebrow">Problem-solving</div>
         <h3>Jump to a mechanism</h3>
         <p class="meta">Name the pattern before choosing an action.</p>
@@ -124,4 +124,31 @@ const stats = [
       <a class="next-steps__link" href="/release-notes" aria-keyshortcuts="g n">See release notes</a>
     </div>
   </section>
+  <script>
+    const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    funnelLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        const step = link.getAttribute("data-funnel-step");
+        if (!step) return;
+        const payload = JSON.stringify({
+          type: "engagement",
+          title: `funnel:${step}`,
+          path: window.location.pathname,
+          durationSeconds: 0,
+          scrollDepth: 0,
+          timestamp: Date.now(),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          return;
+        }
+        fetch("/api/analytics.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => undefined);
+      });
+    });
+  </script>
 </BaseLayout>

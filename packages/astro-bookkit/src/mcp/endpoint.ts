@@ -47,6 +47,13 @@ type ResourceReadParams = {
   endLine?: number;
 };
 
+type ResourceListParams = {
+  cursor?: string;
+  limit?: number;
+  kind?: "content" | "governance";
+  section?: string;
+};
+
 type ContentTypeKey = keyof BookContentRawModules;
 type ToolName =
   | "bookkit.list_books"
@@ -65,6 +72,85 @@ const CONTENT_TYPES: ContentTypeKey[] = [
   "glossary",
   "examples",
 ];
+
+const TOOL_DEFINITIONS = [
+  {
+    name: "bookkit.list_books",
+    description: "List available book slugs in this workspace.",
+    expectedRuntime: "<10s",
+    sideEffectLevel: "read-only",
+    idempotent: true,
+    retryGuidance: "Safe to retry on timeout or transient command errors.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.list_content",
+    description: "List available content section counts for this book.",
+    expectedRuntime: "<1s",
+    sideEffectLevel: "read-only",
+    idempotent: true,
+    retryGuidance: "Safe to retry.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.list_mechanisms",
+    description: "List mechanism slugs, titles, and MCP resource URIs.",
+    expectedRuntime: "<1s",
+    sideEffectLevel: "read-only",
+    idempotent: true,
+    retryGuidance: "Safe to retry.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        section: {
+          type: "string",
+          enum: ["mechanisms"],
+          description: "Optional. Currently only mechanisms are supported.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.validate_book",
+    description: "Run book validation and return structured command output.",
+    expectedRuntime: "<=10m",
+    sideEffectLevel: "local-read/compute",
+    idempotent: true,
+    retryGuidance: "Retry after fixing validation errors or transient command failures.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        book: {
+          type: "string",
+          description: "Optional book slug. Defaults to the current endpoint book when omitted.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.check_separation",
+    description: "Run architecture-boundary checks for the workspace.",
+    expectedRuntime: "<30s",
+    sideEffectLevel: "local-read/compute",
+    idempotent: true,
+    retryGuidance: "Retry after resolving separation violations.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+] as const;
 
 const extractFrontmatterField = (raw: string, field: string): string | null => {
   const match = raw.match(FRONTMATTER_PATTERN);
@@ -153,6 +239,8 @@ const listResources = (
         name: title,
         description: `${type} entry`,
         mimeType: "text/markdown",
+        kind: "content",
+        section: type,
       };
     });
   });
@@ -162,9 +250,34 @@ const listResources = (
     name: resource.name,
     description: resource.description ?? "governance entry",
     mimeType: resource.mimeType ?? "text/markdown",
+    kind: "governance",
+    section: undefined,
   }));
 
   return [...contentResources, ...governance];
+};
+
+
+const listPagedResources = (
+  resources: ReturnType<typeof listResources>,
+  params: ResourceListParams = {},
+): { resources: ReturnType<typeof listResources>; nextCursor: string | null } => {
+  const kind = params.kind;
+  const section = params.section;
+  const filtered = resources.filter((resource) => {
+    if (kind && resource.kind !== kind) return false;
+    if (section && resource.section !== section) return false;
+    return true;
+  });
+
+  const offset = Number.parseInt(params.cursor ?? "0", 10);
+  const start = Number.isFinite(offset) && offset >= 0 ? offset : 0;
+  const limitRaw = typeof params.limit === "number" ? Math.floor(params.limit) : 50;
+  const limit = Math.max(1, Math.min(200, limitRaw));
+  const page = filtered.slice(start, start + limit);
+  const nextCursor = start + limit < filtered.length ? String(start + limit) : null;
+
+  return { resources: page, nextCursor };
 };
 
 const readResource = (
@@ -194,8 +307,6 @@ const readResource = (
     text: match[1],
   };
 };
-
-
 
 type ResourceChunk = {
   text: string;
@@ -360,26 +471,33 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
           capabilities: {
             resources: {
               readRanges: true,
+              listFiltering: true,
+              listPagination: true,
             },
             tools: {
               listChanged: false,
+              metadata: true,
             },
           },
         },
       };
-    case "resources/list":
+    case "resources/list": {
+      const params = request.params as ResourceListParams | undefined;
+      const listed = listResources(
+        options.contentRawModules,
+        options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX,
+        options.governanceResources,
+      );
+      const paged = listPagedResources(listed, params);
       return {
         jsonrpc: "2.0",
         id,
         result: {
-          resources: listResources(
-            options.contentRawModules,
-            options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX,
-            options.governanceResources,
-          ),
-          nextCursor: null,
+          resources: paged.resources,
+          nextCursor: paged.nextCursor,
         },
       };
+    }
     case "resources/read": {
       const params = request.params as ResourceReadParams | undefined;
       const uri = params?.uri;
@@ -417,64 +535,7 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         jsonrpc: "2.0",
         id,
         result: {
-          tools: [
-            {
-              name: "bookkit.list_books",
-              description: "List available book slugs in this workspace.",
-              inputSchema: {
-                type: "object",
-                properties: {},
-                additionalProperties: false,
-              },
-            },
-            {
-              name: "bookkit.list_content",
-              description: "List available content section counts for this book.",
-              inputSchema: {
-                type: "object",
-                properties: {},
-                additionalProperties: false,
-              },
-            },
-            {
-              name: "bookkit.list_mechanisms",
-              description: "List mechanism slugs, titles, and MCP resource URIs.",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  section: {
-                    type: "string",
-                    enum: ["mechanisms"],
-                    description: "Optional. Currently only mechanisms are supported.",
-                  },
-                },
-                additionalProperties: false,
-              },
-            },
-            {
-              name: "bookkit.validate_book",
-              description: "Run book validation and return structured command output.",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  book: {
-                    type: "string",
-                    description: "Optional book slug. Defaults to the current endpoint book when omitted.",
-                  },
-                },
-                additionalProperties: false,
-              },
-            },
-            {
-              name: "bookkit.check_separation",
-              description: "Run architecture-boundary checks for the workspace.",
-              inputSchema: {
-                type: "object",
-                properties: {},
-                additionalProperties: false,
-              },
-            },
-          ],
+          tools: TOOL_DEFINITIONS,
         },
       };
     case "tools/call": {
@@ -536,13 +597,22 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
           supportsLineRanges: true,
           params: ["startLine", "endLine"],
         },
-        tools: [
-          "bookkit.list_books",
-          "bookkit.list_content",
-          "bookkit.list_mechanisms",
-          "bookkit.validate_book",
-          "bookkit.check_separation",
-        ],
+        tools: TOOL_DEFINITIONS.map((tool) => tool.name),
+        toolMetadata: TOOL_DEFINITIONS,
+        agentProfile: {
+          safetyMode: "safe-first",
+          mutatingTools: [],
+          recommendedQueryOrder: [
+            "bookkit://governance/AGENTS.md",
+            "bookkit://governance/CONTRIBUTING.md",
+            "bookkit://governance/README.md",
+          ],
+          resources: {
+            supportsLineRanges: true,
+            supportsListFiltering: true,
+            supportsListPagination: true,
+          },
+        },
       });
     },
     POST: async ({ request }: { request: Request }) => {

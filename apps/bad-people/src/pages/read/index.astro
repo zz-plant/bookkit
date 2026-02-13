@@ -192,12 +192,31 @@ const readerSections = [
     </section>
 
     <section class="content-block read-section" style="margin-top: 0;">
-      <div class="eyebrow">Need updates or publishing utilities?</div>
-      <h2>Reader extras</h2>
-      <p class="meta">Release notes and diagnostics are available when you need them, without crowding the reading flow.</p>
-      <div class="read-hero__quicklinks">
-        <a class="read-pill" href="/release-notes">Release notes</a>
-        <a class="read-pill" href={readRoutes.tools}>Tools and diagnostics</a>
+      <div class="read-section__intro">
+        <div>
+          <div class="eyebrow">Need updates or publishing help?</div>
+          <h2>Choose tools by role</h2>
+        </div>
+        <p class="meta">Reader links stay simple, while author diagnostics live in a separate lane.</p>
+      </div>
+      <div class="card-grid read-tools-grid">
+        <article class="card read-tools-card">
+          <div class="eyebrow">Reader tools</div>
+          <h3>Reader tools</h3>
+          <p class="meta">Check what changed or download a copy without leaving the reading path.</p>
+          <div class="read-hero__quicklinks">
+            <a class="read-pill" href="/release-notes">See what changed</a>
+            <a class="read-pill" href="/downloads">Download for offline reading</a>
+          </div>
+        </article>
+        <article class="card read-tools-card">
+          <div class="eyebrow">Author tools</div>
+          <h3>Author tools</h3>
+          <p class="meta">Open analytics and publishing diagnostics for maintenance work.</p>
+          <div class="read-hero__quicklinks">
+            <a class="read-pill" href={readRoutes.tools}>Open author diagnostics</a>
+          </div>
+        </article>
       </div>
     </section>
   </div>
@@ -305,6 +324,14 @@ const readerSections = [
 
   .read-surface-card {
     position: relative;
+  }
+
+  .read-tools-grid {
+    margin-top: 0.75rem;
+  }
+
+  .read-tools-card {
+    gap: 0.75rem;
   }
 
   .read-surface-card__footer {

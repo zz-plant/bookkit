@@ -75,8 +75,8 @@ This keeps books recompilable while allowing iterative content edits.
 
 ## Prerequisites
 
-- **Bun** (workspace package manager + task runner)
-- **Node.js 18.17+** (recommended 20+) for Astro 5 compatibility
+- **Bun 1.2.14+** (workspace package manager + task runner)
+- **Node.js 20.11+** (recommended 22+) for current Astro 5 compatibility
 
 Install dependencies:
 

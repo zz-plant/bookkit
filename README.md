@@ -133,6 +133,56 @@ bun run check:concepts
 bun run stack:capabilities
 ```
 
+### Task-driven command recipes
+
+| If you need to… | Run | Why |
+| --- | --- | --- |
+| iterate on one book UI quickly | `bun run dev:bad-people` | Fast local feedback loop for content + layout work |
+| verify architecture invariants before review | `bun run validate && bun run check:separation` | Catches frame/content boundary regressions |
+| sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
+| test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
+| rebuild end-user artifacts | `bun run build:all && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
+
+---
+
+## Developer decision guide
+
+When deciding where to implement a change, use this quick rubric:
+
+| Change intent | Correct layer | Example |
+| --- | --- | --- |
+| alter pedagogical strategy or constraints for one title | `apps/<book>/src/book.config.ts` | changing chapter prerequisite policy for one book |
+| enforce structure or validation across all books | `packages/astro-bookkit/**` | requiring a frame section for every mechanism |
+| update examples, chapter prose, or glossary entries | `apps/<book>/src/content/book/**` | swapping case studies without changing mechanism meaning |
+
+If your first instinct is “just special-case this one book,” stop and re-evaluate. The intended alternatives are: new engine capability, or explicit configuration at the book layer.
+
+---
+
+## Troubleshooting and diagnostics
+
+### Validation fails but content "looks right"
+
+- Re-check required frame sections (headings/fields must be structurally present, not implied in prose).
+- Run `bun run validate:release` to see stricter failure output.
+- Fix the failing record rather than relaxing validator strictness.
+
+### Build passes but outputs feel semantically off
+
+- Run `bun run check:concepts` and review glossary/mechanism drift.
+- Confirm example edits did not mutate mechanism definitions.
+- Re-run `bun run compile:book -- --book bad-people --mode error --no-drafts` to catch hidden assumptions.
+
+### Unsure whether a change is risky
+
+Use this rule of thumb:
+
+- **Low risk:** content edits, copy changes, presentational styling.
+- **Medium risk:** mechanism/tool definitions and boundaries.
+- **High risk:** schemas, validators, frames, compiler ordering.
+
+For medium/high risk changes, add a short before/after behavior note in your commit/PR.
+
 ---
 
 ## How compile-time governance works

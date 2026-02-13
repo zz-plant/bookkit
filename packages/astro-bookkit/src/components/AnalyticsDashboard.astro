@@ -67,13 +67,14 @@ const {
   <div class="analytics-table-wrap" data-analytics-table>
     <h2>Chapter engagement</h2>
     <table class="analytics-table">
+      <caption class="analytics-table__caption">Sorted by views. Values are aggregated for the selected date range.</caption>
       <thead>
         <tr>
-          <th>Chapter</th>
-          <th>Views</th>
-          <th>Avg. time</th>
-          <th>Avg. scroll</th>
-          <th>Drop-off</th>
+          <th scope="col">Chapter</th>
+          <th scope="col">Views</th>
+          <th scope="col">Avg. time</th>
+          <th scope="col">Avg. scroll</th>
+          <th scope="col">Drop-off</th>
         </tr>
       </thead>
       <tbody data-analytics-rows></tbody>
@@ -83,13 +84,14 @@ const {
   <div class="analytics-table-wrap" data-analytics-versions hidden>
     <h2>Version comparison</h2>
     <table class="analytics-table">
+      <caption class="analytics-table__caption">Sorted by views. Compare versions without changing frame or chapter structure.</caption>
       <thead>
         <tr>
-          <th>Version</th>
-          <th>Views</th>
-          <th>Avg. time</th>
-          <th>Avg. scroll</th>
-          <th>Drop-off</th>
+          <th scope="col">Version</th>
+          <th scope="col">Views</th>
+          <th scope="col">Avg. time</th>
+          <th scope="col">Avg. scroll</th>
+          <th scope="col">Drop-off</th>
         </tr>
       </thead>
       <tbody data-analytics-version-rows></tbody>
@@ -99,11 +101,12 @@ const {
   <div class="analytics-table-wrap" data-analytics-locales hidden>
     <h2>Locale usage</h2>
     <table class="analytics-table">
+      <caption class="analytics-table__caption">Locale share based on page views in the selected range.</caption>
       <thead>
         <tr>
-          <th>Locale</th>
-          <th>Views</th>
-          <th>Share</th>
+          <th scope="col">Locale</th>
+          <th scope="col">Views</th>
+          <th scope="col">Share</th>
         </tr>
       </thead>
       <tbody data-analytics-locale-rows></tbody>
@@ -337,11 +340,11 @@ const {
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${row.chapter.replace(/-/g, " ")}</td>
-          <td>${row.views}</td>
-          <td>${formatSeconds(avgTime)}</td>
-          <td>${formatPercent(avgScroll)}</td>
-          <td>${formatPercent(dropOff)}</td>
+          <th scope="row" class="analytics-table__label">${row.chapter.replace(/-/g, " ")}</th>
+          <td class="analytics-table__metric">${row.views}</td>
+          <td class="analytics-table__metric">${formatSeconds(avgTime)}</td>
+          <td class="analytics-table__metric">${formatPercent(avgScroll)}</td>
+          <td class="analytics-table__metric">${formatPercent(dropOff)}</td>
         `;
         rowsTarget.appendChild(tr);
       });
@@ -382,11 +385,11 @@ const {
         const dropOff = clamp(1 - avgScroll, 0, 1);
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${row.version}</td>
-          <td>${row.views}</td>
-          <td>${formatSeconds(avgTime)}</td>
-          <td>${formatPercent(avgScroll)}</td>
-          <td>${formatPercent(dropOff)}</td>
+          <th scope="row" class="analytics-table__label">${row.version}</th>
+          <td class="analytics-table__metric">${row.views}</td>
+          <td class="analytics-table__metric">${formatSeconds(avgTime)}</td>
+          <td class="analytics-table__metric">${formatPercent(avgScroll)}</td>
+          <td class="analytics-table__metric">${formatPercent(dropOff)}</td>
         `;
         versionRowsTarget.appendChild(tr);
       });
@@ -420,9 +423,9 @@ const {
         const share = totalViews ? row.views / totalViews : 0;
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${row.locale}</td>
-          <td>${row.views}</td>
-          <td>${formatPercent(share)}</td>
+          <th scope="row" class="analytics-table__label">${row.locale}</th>
+          <td class="analytics-table__metric">${row.views}</td>
+          <td class="analytics-table__metric">${formatPercent(share)}</td>
         `;
         localeRowsTarget.appendChild(tr);
       });

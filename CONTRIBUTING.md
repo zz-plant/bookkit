@@ -18,6 +18,15 @@ For architecture + commands see [`README.md`](./README.md). For hard invariants 
    - `bun run validate:release`
    - `bun run check:upgrade -- --release`
 
+### Pre-flight: classify the change before coding
+
+Use this sequence to reduce rework:
+
+1. **Pick risk level** (low / medium / high).
+2. **Choose lane** (A/B/C below).
+3. **Decide test depth** using the matrix in [Verification matrix](#verification-matrix).
+4. **Write one-line intent note** (helps reviewers validate scope quickly).
+
 ---
 
 ## Choose a contribution lane
@@ -97,6 +106,20 @@ Requirements:
 
 ---
 
+## Verification matrix
+
+Run the smallest complete check set for your lane.
+
+| Lane | Minimum checks | Escalate to |
+| --- | --- | --- |
+| A (content) | `bun run validate`, `bun run lint` | `bun run validate:release` when editing mechanism-adjacent prose |
+| B (mechanisms/tools) | `bun run validate`, `bun run lint`, `bun run check:types` | `bun run validate:release` when changing definitions/boundaries |
+| C (engine/schema/frame) | `bun run validate`, `bun run validate:release`, `bun run lint`, `bun run check:types` | `bun run check:upgrade -- --release` for behavior-affecting changes |
+
+If checks fail due to intended strictness changes, update error text so it stays actionable.
+
+---
+
 ## Validation modes
 
 - `bun run validate` → warn mode for active drafting.
@@ -129,6 +152,17 @@ After running `bun run new:book -- --book <slug> --title "..."`:
 - Explain intent and risk level (low/medium/high).
 - For risky changes, include a short before/after summary.
 - If you change schemas/validation, include migration notes when needed.
+
+### Recommended PR description structure
+
+Use a concise structure to improve review speed:
+
+1. **What changed** (2–5 bullets)
+2. **Why now** (problem being solved)
+3. **Risk level** (low/medium/high)
+4. **Before/after behavior** (required for medium/high)
+5. **Validation run** (exact commands)
+6. **Migration notes** (only when schema/validator behavior changes)
 
 ---
 

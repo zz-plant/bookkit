@@ -178,6 +178,8 @@ const previewDetails = [
   previewTokenHint ? `Link ending in ${previewTokenHint}` : null,
   previewExpiresLabel ? `Expires ${previewExpiresLabel}` : null,
 ].filter(Boolean);
+const showVersionHint = Boolean(hasVersions && !currentVersionEntry?.isLatest);
+const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
 ---
 <!doctype html>
 <html lang={activeLocale ?? "en"}>
@@ -314,6 +316,25 @@ const previewDetails = [
           {previewDetails.length ? (
             <span class="preview-notice__meta">{previewDetails.join(" • ")}</span>
           ) : null}
+        </div>
+      )}
+      {showStatusActions && (
+        <div class="status-actions" role="status" aria-live="polite">
+          {showVersionHint && (
+            <a class="status-actions__link" href="/release-notes">
+              You are viewing v{resolvedVersion}. Open release notes to compare with the latest version.
+            </a>
+          )}
+          {showTranslationNotice && (
+            <a class="status-actions__link" href="/release-notes">
+              Translation is still in progress. Check release notes for the most stable update before sharing.
+            </a>
+          )}
+          {isPreview && (
+            <a class="status-actions__link" href="/downloads">
+              Using preview mode? Download an offline copy if you need to read without access interruptions.
+            </a>
+          )}
         </div>
       )}
       <main id="main-content" class="site-main" tabindex="-1">

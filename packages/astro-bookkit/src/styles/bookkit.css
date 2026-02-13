@@ -421,6 +421,33 @@ a,
   color: var(--color-muted);
 }
 
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  max-width: 76ch;
+  margin: var(--space-3) auto 0;
+  padding: 0 var(--space-4);
+}
+
+.status-actions__link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 76, 230, 0.18);
+  background: rgba(91, 76, 230, 0.08);
+  color: var(--color-accent-strong);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 0.3rem 0.7rem;
+}
+
+.status-actions__link:hover {
+  background: rgba(91, 76, 230, 0.14);
+}
+
 .site-main {
   max-width: 76ch;
   width: 100%;

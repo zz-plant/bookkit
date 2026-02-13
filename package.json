@@ -1,6 +1,11 @@
 {
   "name": "bookkit-workspace",
   "private": true,
+  "packageManager": "bun@1.2.14",
+  "engines": {
+    "node": ">=20.11.0",
+    "bun": ">=1.2.14"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -34,7 +39,7 @@
     "validate:release:seo": "BOOKKIT_REQUIRE_INDEXABLE_PROD=true bun run scripts/validate-all.ts --mode error --no-drafts"
   },
   "devDependencies": {
-    "@types/node": "^25.2.2",
+    "@types/node": "^25.2.3",
     "typescript": "^5.9.3"
   }
 }

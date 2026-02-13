@@ -121,9 +121,14 @@ const readerSections = [
         <a class="read-pill" href={readRoutes.mechanisms} data-funnel-step="read_to_mechanisms">Need a diagnosis</a>
         <a class="read-pill" href={readRoutes.toolkit} data-funnel-step="read_to_toolkit">Need an action now</a>
       </div>
+      <nav class="read-hero__jumpnav" aria-label="Jump to section">
+        <a class="read-jump-link" href="#recommended-start">Recommended start</a>
+        <a class="read-jump-link" href="#reading-surfaces">Reading surfaces</a>
+        <a class="read-jump-link" href="#tools-by-role">Tools by role</a>
+      </nav>
     </section>
 
-    <section class="content-block read-section">
+    <section id="recommended-start" class="content-block read-section">
       <div class="read-section__intro">
         <div>
           <div class="eyebrow">Recommended start</div>
@@ -152,7 +157,7 @@ const readerSections = [
       </div>
     </section>
 
-    <section class="content-block read-section">
+    <section id="reading-surfaces" class="content-block read-section">
       <div class="read-section__intro">
         <div>
           <div class="eyebrow">Browse all sections</div>
@@ -191,7 +196,7 @@ const readerSections = [
       </div>
     </section>
 
-    <section class="content-block read-section" style="margin-top: 0;">
+    <section id="tools-by-role" class="content-block read-section" style="margin-top: 0;">
       <div class="read-section__intro">
         <div>
           <div class="eyebrow">Need updates or publishing help?</div>
@@ -262,6 +267,11 @@ const readerSections = [
     gap: 1rem;
   }
 
+  .read-hero__copy {
+    display: grid;
+    gap: 0.25rem;
+  }
+
   .read-hero h1 {
     font-size: clamp(2rem, 4vw, 3rem);
     margin-bottom: 0.5rem;
@@ -280,6 +290,26 @@ const readerSections = [
     gap: 0.6rem;
   }
 
+  .read-hero__jumpnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-top: 0.25rem;
+  }
+
+  .read-jump-link {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    text-decoration: underline;
+    text-decoration-color: rgba(91, 76, 230, 0.35);
+    text-underline-offset: 0.18rem;
+  }
+
+  .read-jump-link:hover {
+    color: var(--color-accent-strong);
+    text-decoration-color: var(--color-accent);
+  }
+
   .read-pill {
     display: inline-flex;
     align-items: center;
@@ -294,6 +324,14 @@ const readerSections = [
 
   .read-pill:hover {
     background: rgba(91, 76, 230, 0.12);
+  }
+
+  .read-pill:focus-visible,
+  .read-jump-link:focus-visible,
+  .read-card:focus-visible,
+  .read-surface-card:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .read-section {
@@ -322,6 +360,12 @@ const readerSections = [
     border-color: rgba(91, 76, 230, 0.15);
   }
 
+  .read-card:hover,
+  .read-surface-card:hover {
+    border-color: rgba(91, 76, 230, 0.35);
+    transform: translateY(-3px);
+  }
+
   .read-surface-card {
     position: relative;
   }
@@ -347,6 +391,14 @@ const readerSections = [
     .read-section__intro {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .read-hero {
+      padding: 1.25rem;
+    }
+
+    .read-hero .lede {
+      font-size: 1rem;
     }
   }
 </style>

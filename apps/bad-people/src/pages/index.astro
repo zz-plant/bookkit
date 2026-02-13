@@ -75,9 +75,17 @@ const stats = [
 ];
 ---
 <BaseLayout title={bookConfig.title}>
-  <div class="section-header">
-    <h1>{bookConfig.title}</h1>
-    <p class="lede">{metaDescription}</p>
+  <div class="hero-shell">
+    <p class="hero-kicker">Recompilable field guide</p>
+    <div class="section-header hero-shell__header">
+      <h1>{bookConfig.title}</h1>
+      <p class="lede">{metaDescription}</p>
+    </div>
+    <div class="hero-quick-links" data-funnel-group="home-hero-links">
+      <a href={readRoutes.root} class="pill" data-funnel-step="hero_to_read_hub">Reading hub</a>
+      <a href={readRoutes.overview} class="pill" data-funnel-step="hero_to_overview">Overview</a>
+      <a href={readRoutes.mechanisms} class="pill" data-funnel-step="hero_to_mechanisms">Mechanisms</a>
+    </div>
   </div>
 
   <section class="content-block">

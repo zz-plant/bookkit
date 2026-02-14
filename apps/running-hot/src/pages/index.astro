@@ -73,6 +73,20 @@ const stats = [
     completeness: examples.completeness,
   },
 ];
+const availableBooks = [
+  {
+    slug: "bad-people",
+    title: "Bad People",
+    description: "How systems normalize harm and how to respond with small, reversible actions.",
+    href: "https://bad-people.book",
+  },
+  {
+    slug: "running-hot",
+    title: "Don't Turn People Into Infrastructure",
+    description: "Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
+    href: "https://running-hot.book",
+  },
+];
 ---
 <BaseLayout title={bookConfig.title}>
   <div class="hero-shell">
@@ -108,6 +122,26 @@ const stats = [
         <h3>Jump to a mechanism</h3>
         <p class="meta">Name the pattern before choosing an action.</p>
       </a>
+    </div>
+  </section>
+
+  <section class="content-block">
+    <div class="eyebrow">Bookshelf</div>
+    <h2>Choose which book you want to read</h2>
+    <p class="meta">Start in this book or jump to another title in the Bookkit workspace.</p>
+    <div class="card-grid">
+      {availableBooks.map((book) => (
+        <a
+          class="card"
+          href={book.slug === bookConfig.slug ? readRoutes.root : book.href}
+          target={book.slug === bookConfig.slug ? undefined : "_blank"}
+          rel={book.slug === bookConfig.slug ? undefined : "noreferrer"}
+        >
+          <div class="eyebrow">{book.slug === bookConfig.slug ? "Current book" : "Other book"}</div>
+          <h3>{book.title}</h3>
+          <p class="meta">{book.description}</p>
+        </a>
+      ))}
     </div>
   </section>
 

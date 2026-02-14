@@ -1,0 +1,478 @@
+---
+const {
+  title = "Create a new book",
+  description = "Answer a few questions in plain language. We’ll generate a starter plan you can share with a technical helper or an AI agent.",
+} = Astro.props;
+---
+<section class="studio" aria-labelledby="studio-title">
+  <div class="section-header">
+    <h1 id="studio-title">{title}</h1>
+    <p class="lede">{description}</p>
+  </div>
+
+  <div class="studio__intro" role="note">
+    <p><strong>Who this is for:</strong> editors, operators, founders, and subject-matter experts.</p>
+    <p><strong>No coding needed:</strong> you can complete this and hand the generated plan to someone technical.</p>
+  </div>
+
+  <form class="studio__form" data-new-book-form>
+    <fieldset>
+      <legend>1) Name and purpose</legend>
+      <label>
+        Working title
+        <input name="bookTitle" required placeholder="Operational Clarity" />
+      </label>
+      <label>
+        Short promise (one sentence)
+        <textarea name="promise" rows="3" required placeholder="Help teams identify delivery bottlenecks and fix them within one sprint."></textarea>
+      </label>
+      <label>
+        Who is this for?
+        <input name="audience" placeholder="New managers, team leads, and staff engineers" />
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>2) Practical structure</legend>
+      <label>
+        Topic tags (one per line)
+        <textarea name="mechanisms" rows="4" placeholder="failure-triage\nsignal-budget\nhandoff-contract"></textarea>
+        <small>Use simple slugs or short labels. We’ll clean formatting in the generated files.</small>
+      </label>
+      <label>
+        Chapter ideas (one per line)
+        <textarea name="chapters" rows="4" placeholder="overview\ncore-loops\naction-playbooks"></textarea>
+      </label>
+      <label>
+        Languages needed
+        <input name="locales" placeholder="English only (default) or e.g. en, es" />
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>3) Optional technical details</legend>
+      <label>
+        Internal ID (letters, numbers, dashes)
+        <input name="bookKey" pattern="[a-z0-9-]+" placeholder="operator-playbook" />
+        <small>If left blank, we auto-generate one from your title.</small>
+      </label>
+    </fieldset>
+
+    <div class="studio__actions">
+      <button type="submit">Create my starter plan</button>
+      <button type="button" data-fill-example>Fill with example</button>
+    </div>
+  </form>
+
+  <section class="studio__output" data-studio-output hidden>
+    <h2>Your starter package</h2>
+    <p class="meta">Share this with a collaborator, or use it directly with an AI coding agent.</p>
+
+    <article>
+      <div class="studio__output-header">
+        <h3>Plain-language brief</h3>
+        <button type="button" data-copy-target="brief">Copy</button>
+      </div>
+      <pre data-output="brief"></pre>
+    </article>
+
+    <article>
+      <div class="studio__output-header">
+        <h3>Action checklist</h3>
+        <button type="button" data-copy-target="checklist">Copy</button>
+      </div>
+      <pre data-output="checklist"></pre>
+    </article>
+
+    <article>
+      <div class="studio__output-header">
+        <h3><code>book.config.ts</code> starter</h3>
+        <button type="button" data-copy-target="config">Copy</button>
+      </div>
+      <pre data-output="config"></pre>
+    </article>
+
+    <details class="studio__advanced">
+      <summary>Advanced: agent payload + commands</summary>
+
+      <article>
+        <div class="studio__output-header">
+          <h3>Agent payload (JSON)</h3>
+          <button type="button" data-copy-target="payload">Copy</button>
+        </div>
+        <pre data-output="payload"></pre>
+      </article>
+
+      <article>
+        <div class="studio__output-header">
+          <h3>Technical command sequence</h3>
+          <button type="button" data-copy-target="commands">Copy</button>
+        </div>
+        <pre data-output="commands"></pre>
+      </article>
+    </details>
+
+    <div class="studio__actions">
+      <button type="button" data-download-package>Download package (.json)</button>
+    </div>
+  </section>
+</section>
+
+<script>
+  const form = document.querySelector("[data-new-book-form]");
+  const output = document.querySelector("[data-studio-output]");
+
+  const nodes = {
+    brief: document.querySelector('[data-output="brief"]'),
+    checklist: document.querySelector('[data-output="checklist"]'),
+    config: document.querySelector('[data-output="config"]'),
+    payload: document.querySelector('[data-output="payload"]'),
+    commands: document.querySelector('[data-output="commands"]'),
+  };
+
+  let latestPackage = null;
+
+  const toLines = (value) =>
+    value
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+  const toSlug = (value) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+
+  const prettyTitle = (value) => value.trim() || "Untitled Book";
+
+  const normalizeInput = (formData) => {
+    const bookTitle = prettyTitle(String(formData.get("bookTitle") || ""));
+    const bookKeyRaw = String(formData.get("bookKey") || "").trim();
+    const bookKey = toSlug(bookKeyRaw || bookTitle || "new-book");
+
+    return {
+      bookTitle,
+      bookKey,
+      promise: String(formData.get("promise") || "").trim(),
+      audience: String(formData.get("audience") || "").trim() || "General readers",
+      mechanisms: toLines(String(formData.get("mechanisms") || "")).map(toSlug),
+      chapters: toLines(String(formData.get("chapters") || "")).map(toSlug),
+      locales: toLines(String(formData.get("locales") || "")).map((locale) => locale.toLowerCase()),
+    };
+  };
+
+  const buildConfig = ({ bookKey, bookTitle, promise, audience, locales }) => {
+    const localeObjects = locales.length
+      ? locales.map((locale, index) => ({
+          code: locale,
+          label: locale.toUpperCase(),
+          isDefault: index === 0,
+        }))
+      : [{ code: "en", label: "English", isDefault: true }];
+
+    const localeText = localeObjects
+      .map(
+        (locale) =>
+          `    { code: "${locale.code}", label: "${locale.label}", isDefault: ${locale.isDefault} },`
+      )
+      .join("\n");
+
+    return `import { defineBookConfig } from "@bookkit/astro-bookkit";
+
+export default defineBookConfig({
+  key: "${bookKey}",
+  title: "${bookTitle}",
+  summary: "${promise}",
+  audience: "${audience}",
+  locales: [
+${localeText}
+  ],
+});`;
+  };
+
+  const buildBrief = ({ bookTitle, promise, audience, chapters, mechanisms, locales }) => {
+    const chapterList = chapters.length ? chapters.join(", ") : "(to be defined)";
+    const mechanismList = mechanisms.length ? mechanisms.join(", ") : "(to be defined)";
+    const localeList = locales.length ? locales.join(", ") : "en";
+
+    return [
+      `Title: ${bookTitle}`,
+      `Promise: ${promise}`,
+      `Audience: ${audience}`,
+      `Chapter ideas: ${chapterList}`,
+      `Topic tags: ${mechanismList}`,
+      `Languages: ${localeList}`,
+    ].join("\n");
+  };
+
+  const buildChecklist = ({ bookKey, chapters, mechanisms }) => {
+    const chapterNote = chapters.length
+      ? `Create starter chapter files for: ${chapters.join(", ")}.`
+      : "Create at least one starter chapter file.";
+    const mechanismNote = mechanisms.length
+      ? `Create starter mechanism files for: ${mechanisms.join(", ")}.`
+      : "Create at least one starter mechanism file.";
+
+    return [
+      "1. Create the new app scaffold.",
+      `2. Set app key to \"${bookKey}\" in book.config.ts.`,
+      `3. ${chapterNote}`,
+      `4. ${mechanismNote}`,
+      "5. Run validation and confirm no errors.",
+      "6. Open the app locally and review /read pages.",
+    ].join("\n");
+  };
+
+  const buildPayload = ({ bookKey, bookTitle, promise, audience, mechanisms, chapters, locales }) =>
+    {
+      return {
+        task: "bookkit.scaffold_book",
+        book: {
+          key: bookKey,
+          title: bookTitle,
+          promise,
+          audience,
+          locales: locales.length ? locales : ["en"],
+        },
+        contentSeeds: {
+          mechanisms,
+          chapters,
+        },
+        acceptanceCriteria: [
+          "book.config.ts exists and validates",
+          "starter mechanisms include required frame fields",
+          "starter chapters compile and appear in /read/chapters",
+        ],
+      };
+    };
+
+  const buildCommands = ({ bookKey }) =>
+    `bun run new:book -- --key ${bookKey}\n` +
+    `bun run validate -- --book ${bookKey}\n` +
+    `bun run dev:${bookKey}`;
+
+  const setText = (node, value) => {
+    if (node) node.textContent = value;
+  };
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const values = normalizeInput(new FormData(form));
+
+    if (!values.bookTitle || !values.promise) {
+      return;
+    }
+
+    const payloadObject = buildPayload(values);
+    latestPackage = {
+      createdAt: new Date().toISOString(),
+      brief: buildBrief(values),
+      checklist: buildChecklist(values),
+      config: buildConfig(values),
+      payload: payloadObject,
+      commands: buildCommands(values),
+    };
+
+    setText(nodes.brief, latestPackage.brief);
+    setText(nodes.checklist, latestPackage.checklist);
+    setText(nodes.config, latestPackage.config);
+    setText(nodes.payload, JSON.stringify(payloadObject, null, 2));
+    setText(nodes.commands, latestPackage.commands);
+
+    output?.removeAttribute("hidden");
+    output?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  document.querySelector("[data-fill-example]")?.addEventListener("click", () => {
+    if (!form) return;
+    const defaults = {
+      bookTitle: "Operator Playbook",
+      promise: "Help modern teams identify delivery bottlenecks and resolve them within one sprint.",
+      audience: "Engineering managers and technical program leaders",
+      mechanisms: "constraint-mapping\nfeedback-cadence\nrisk-budgeting",
+      chapters: "overview\noperating-rhythm\nrecovery-patterns",
+      locales: "en, es",
+      bookKey: "operator-playbook",
+    };
+    Object.entries(defaults).forEach(([name, value]) => {
+      const field = form.elements.namedItem(name);
+      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+        field.value = value;
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-copy-target]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const target = button.getAttribute("data-copy-target");
+      if (!target) return;
+
+      const node = document.querySelector(`[data-output="${target}"]`);
+      if (!node?.textContent) return;
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(node.textContent);
+        } else {
+          const temp = document.createElement("textarea");
+          temp.value = node.textContent;
+          document.body.appendChild(temp);
+          temp.select();
+          document.execCommand("copy");
+          temp.remove();
+        }
+
+        const originalLabel = button.textContent;
+        button.textContent = "Copied";
+        window.setTimeout(() => {
+          button.textContent = originalLabel || "Copy";
+        }, 1500);
+      } catch {
+        // No-op fallback: leave text visible for manual copy.
+      }
+    });
+  });
+
+  document.querySelector("[data-download-package]")?.addEventListener("click", () => {
+    if (!latestPackage) return;
+    const blob = new Blob([JSON.stringify(latestPackage, null, 2)], {
+      type: "application/json",
+    });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `book-starter-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(href);
+  });
+</script>
+
+<style>
+  .studio {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .studio__intro {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: color-mix(in oklab, var(--surface), #7cc5ff 10%);
+    padding: 1rem;
+  }
+
+  .studio__intro p {
+    margin: 0;
+  }
+
+  .studio__intro p + p {
+    margin-top: 0.5rem;
+  }
+
+  .studio__form {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 0.65rem;
+    padding: 0.9rem;
+    margin: 0;
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  legend {
+    padding: 0 0.35rem;
+    font-weight: 700;
+  }
+
+  .studio__form label {
+    display: grid;
+    gap: 0.4rem;
+    font-weight: 600;
+  }
+
+  .studio__form small {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .studio__form input,
+  .studio__form textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--bg);
+    color: inherit;
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+  }
+
+  .studio__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .studio__actions button,
+  .studio__output-header button {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    background: var(--bg);
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .studio__output {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .studio__advanced {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.8rem;
+    background: var(--surface);
+  }
+
+  .studio__advanced summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: 0.9rem;
+  }
+
+  .studio__output article {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: var(--surface);
+  }
+
+  .studio__output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .studio__output pre {
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklab, var(--bg), #000 8%);
+  }
+</style>

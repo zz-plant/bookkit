@@ -62,9 +62,9 @@ export const bookConfig = {
     readerStart:
       "Feels isolated, over-responsible, and unsure how to act when harm is normalized.",
     readerEnd:
-      "Can name the mechanism at play, route responsibility correctly, and execute a small, reversible move.",
+      "Can follow the load, price recourse, spot hidden buffers, and execute a small, reversible move that routes ownership correctly.",
     transformation:
-      "From personalized blame to system-aware leverage with concrete, low-risk actions.",
+      "From personalized blame to reflexive load-tracing and volatility allocation with concrete, low-risk actions.",
   },
   frame: {
     slug: "intervention",
@@ -119,6 +119,9 @@ export const bookConfig = {
     "delay as force",
     "reputation membrane",
     "reversal capacity",
+    "repair clock",
+    "recourse cost",
+    "volatility allocation",
   ],
 } as const;
 

@@ -38,6 +38,30 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
     description: "MCP/skill adoption options and phased implementation guidance.",
     relativePath: "docs/mcp-agent-skills-research.md",
   },
+  {
+    uri: "bookkit://governance/.codex/skills/README.md",
+    name: "Bookkit local skills index",
+    description: "Local skill registry for lane-based contributor workflows.",
+    relativePath: ".codex/skills/README.md",
+  },
+  {
+    uri: "bookkit://governance/.codex/skills/content-edit/SKILL.md",
+    name: "Bookkit skill: content-edit",
+    description: "Checklist for content and book-app lane edits.",
+    relativePath: ".codex/skills/content-edit/SKILL.md",
+  },
+  {
+    uri: "bookkit://governance/.codex/skills/engine-change/SKILL.md",
+    name: "Bookkit skill: engine-change",
+    description: "Checklist for engine, schema, and validator changes.",
+    relativePath: ".codex/skills/engine-change/SKILL.md",
+  },
+  {
+    uri: "bookkit://governance/.codex/skills/release/SKILL.md",
+    name: "Bookkit skill: release",
+    description: "Checklist for release and versioning updates.",
+    relativePath: ".codex/skills/release/SKILL.md",
+  },
 ];
 
 export const createGovernanceResourcesFromFiles = (

@@ -18,6 +18,11 @@ const createFixtureEndpoint = () => {
         name: "README",
         text: "# Test",
       },
+      {
+        uri: "bookkit://governance/.codex/skills/content-edit/SKILL.md",
+        name: "content-edit",
+        text: "# content-edit skill\n\nUse this skill.",
+      },
     ],
   });
 };
@@ -166,14 +171,40 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.contents[0].metadata.totalLines).toBeGreaterThanOrEqual(3);
   });
 
+
+  it("lists local skills through bookkit.list_skills", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 7,
+          method: "tools/call",
+          params: { name: "bookkit.list_skills", arguments: {} },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as {
+      result: { content: Array<{ json: { skills: Array<{ slug: string }> } }> };
+    };
+
+    expect(body.result.content[0].json.skills[0].slug).toBe("content-edit");
+  });
+
   it("publishes agent profile in GET discovery", async () => {
     const endpoint = createFixtureEndpoint();
     const response = endpoint.GET();
     const body = (await response.json()) as {
       agentProfile: { recommendedQueryOrder: string[]; resources: { supportsListPagination: boolean } };
+      tools: string[];
     };
 
     expect(body.agentProfile.recommendedQueryOrder[0]).toBe("bookkit://governance/AGENTS.md");
+    expect(body.agentProfile.recommendedQueryOrder).toContain("bookkit://governance/.codex/skills/README.md");
+    expect(body.tools).toContain("bookkit.list_skills");
     expect(body.agentProfile.resources.supportsListPagination).toBe(true);
   });
 });

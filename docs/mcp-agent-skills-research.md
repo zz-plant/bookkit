@@ -2,7 +2,17 @@
 
 ## Why this research exists
 
-Bookkit already exposes a minimal MCP endpoint for book content (`/api/mcp.json`) through `createBookMcpEndpoint`, with resource listing/reading and no tools yet. This creates a strong foundation for AI-assisted contributor workflows and browsing agents.
+## Decision (adopted)
+
+Bookkit should use a **MCP-first + skills-backed** approach:
+
+1. expose governance + skill docs as MCP resources for grounding
+2. expose deterministic, auditable tools for repo operations
+3. keep mutating actions out of default tooling unless explicitly guarded
+
+This keeps agent integrations callable by generic MCP clients while preserving Bookkit's strict layer boundaries.
+
+Bookkit exposes an MCP endpoint for book content (`/api/mcp.json`) through `createBookMcpEndpoint`, including resource listing/reading plus deterministic tool metadata and calls. This creates a strong foundation for AI-assisted contributor workflows and browsing agents.
 
 This note summarizes current practical patterns AI developers are using with **Model Context Protocol (MCP)** and **agent skills**, and proposes implementation options that fit Bookkit's architecture.
 

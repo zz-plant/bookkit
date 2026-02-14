@@ -133,6 +133,17 @@ bun run check:concepts
 bun run stack:capabilities
 ```
 
+### MCP endpoint for agentic clients
+
+Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp.json.ts`) so agentic LLM clients can:
+
+- list/read content and governance resources
+- discover lane skills under `.codex/skills/**`
+- call deterministic workspace tools (`bookkit.list_books`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
+
+Use this as the default machine interface instead of ad-hoc repository scraping.
+
+
 ### Task-driven command recipes
 
 | If you need to… | Run | Why |

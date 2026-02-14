@@ -1,0 +1,20 @@
+---
+slug: attrition-by-queue--handoff-continuity-check
+status: draft
+mechanism: attrition-by-queue
+name: "Handoff continuity check"
+trigger: "When a person is told to restart from intake after waiting or submitting materials."
+timeboxMinutes: 10
+steps:
+  - "Capture current stage, wait duration, and handoff point where reset occurred."
+  - "Ask whether prior steps can be honored without restart and who authorizes that exception."
+  - "Request one continuity owner across the next two stages."
+  - "Escalate if restart is mandatory without reason code tied to policy."
+failureLooksLike:
+  - "Every handoff behaves like a new case with no continuity obligation."
+  - "Drop-off is treated as user choice instead of system loss."
+legitimateDemand:
+  - "Continuity guarantees that preserve queue position and prior evidence across handoffs."
+---
+
+Most attrition is engineered by resets. Continuity ownership is the countermeasure.

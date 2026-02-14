@@ -58,6 +58,7 @@ type ContentTypeKey = keyof BookContentRawModules;
 type ToolName =
   | "bookkit.list_books"
   | "bookkit.list_content"
+  | "bookkit.list_skills"
   | "bookkit.list_mechanisms"
   | "bookkit.validate_book"
   | "bookkit.check_separation";
@@ -90,6 +91,19 @@ const TOOL_DEFINITIONS = [
   {
     name: "bookkit.list_content",
     description: "List available content section counts for this book.",
+    expectedRuntime: "<1s",
+    sideEffectLevel: "read-only",
+    idempotent: true,
+    retryGuidance: "Safe to retry.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.list_skills",
+    description: "List local agent skills that can guide contribution workflows.",
     expectedRuntime: "<1s",
     sideEffectLevel: "read-only",
     idempotent: true,
@@ -395,6 +409,35 @@ const runTool = (
     };
   }
 
+  if (name === "bookkit.list_skills") {
+    const skills = (options.governanceResources ?? [])
+      .filter((resource) => resource.uri.startsWith("bookkit://governance/.codex/skills/"))
+      .map((resource) => {
+        const slug = resource.uri
+          .replace("bookkit://governance/.codex/skills/", "")
+          .replace(/\/SKILL\.md$/, "")
+          .replace("README.md", "README");
+        const firstLine = resource.text
+          .split("\n")
+          .find((line) => line.trim().startsWith("#"))
+          ?.replace(/^#+\s*/, "")
+          .trim();
+
+        return {
+          slug,
+          name: firstLine || slug,
+          uri: resource.uri,
+        };
+      })
+      .filter((skill) => skill.slug !== "README");
+
+    return {
+      skills,
+      count: skills.length,
+      guidance: "Read each skill URI for lane-specific checklists before making changes.",
+    };
+  }
+
   if (name === "bookkit.validate_book") {
     const rawBook = args?.book;
     const book = typeof rawBook === "string" && rawBook.trim().length ? rawBook.trim() : options.bookSlug;
@@ -551,6 +594,7 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
       if (
         name !== "bookkit.list_books" &&
         name !== "bookkit.list_content" &&
+        name !== "bookkit.list_skills" &&
         name !== "bookkit.list_mechanisms" &&
         name !== "bookkit.validate_book" &&
         name !== "bookkit.check_separation"
@@ -606,6 +650,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
             "bookkit://governance/AGENTS.md",
             "bookkit://governance/CONTRIBUTING.md",
             "bookkit://governance/README.md",
+            "bookkit://governance/.codex/skills/README.md",
           ],
           resources: {
             supportsLineRanges: true,

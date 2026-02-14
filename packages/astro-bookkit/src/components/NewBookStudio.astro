@@ -1,0 +1,286 @@
+---
+const {
+  title = "New book studio",
+  description = "Capture the core inputs once, then generate the scaffold payload agents and humans can execute.",
+} = Astro.props;
+---
+<section class="studio" aria-labelledby="studio-title">
+  <div class="section-header">
+    <h1 id="studio-title">{title}</h1>
+    <p class="lede">{description}</p>
+  </div>
+
+  <form class="studio__form" data-new-book-form>
+    <label>
+      Book key
+      <input name="bookKey" required pattern="[a-z0-9-]+" placeholder="team-operations" />
+      <small>Used for folder names and analytics IDs. Lowercase kebab-case only.</small>
+    </label>
+    <label>
+      Book title
+      <input name="bookTitle" required placeholder="Operational Clarity" />
+    </label>
+    <label>
+      One-sentence promise
+      <textarea name="promise" rows="3" required placeholder="Help operators identify process failures and recover outcomes in under one sprint."></textarea>
+    </label>
+    <label>
+      Primary audience
+      <input name="audience" placeholder="Team leads, new managers, and staff engineers" />
+    </label>
+    <label>
+      Mechanism slugs (one per line)
+      <textarea name="mechanisms" rows="5" placeholder="failure-triage\nsignal-budget\nhandoff-contract"></textarea>
+    </label>
+    <label>
+      Starter chapters (one per line)
+      <textarea name="chapters" rows="5" placeholder="overview\ncore-loops\naction-playbooks"></textarea>
+    </label>
+    <label>
+      Locales (comma separated)
+      <input name="locales" placeholder="en, es" />
+    </label>
+
+    <div class="studio__actions">
+      <button type="submit">Generate scaffold plan</button>
+      <button type="button" data-fill-example>Load sample</button>
+    </div>
+  </form>
+
+  <section class="studio__output" data-studio-output hidden>
+    <h2>Generated outputs</h2>
+    <p class="meta">Use these snippets to scaffold a new app, then let agents execute deterministic tasks from the JSON payload.</p>
+
+    <article>
+      <div class="studio__output-header">
+        <h3><code>book.config.ts</code> seed</h3>
+        <button type="button" data-copy-target="config">Copy</button>
+      </div>
+      <pre data-output="config"></pre>
+    </article>
+
+    <article>
+      <div class="studio__output-header">
+        <h3>Scaffold task payload</h3>
+        <button type="button" data-copy-target="payload">Copy</button>
+      </div>
+      <pre data-output="payload"></pre>
+    </article>
+
+    <article>
+      <div class="studio__output-header">
+        <h3>Recommended command sequence</h3>
+      </div>
+      <pre data-output="commands"></pre>
+    </article>
+  </section>
+</section>
+
+<script>
+  const form = document.querySelector("[data-new-book-form]");
+  const output = document.querySelector("[data-studio-output]");
+  const configNode = document.querySelector('[data-output="config"]');
+  const payloadNode = document.querySelector('[data-output="payload"]');
+  const commandsNode = document.querySelector('[data-output="commands"]');
+
+  const toLines = (value) =>
+    value
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+  const buildConfig = ({ bookKey, bookTitle, promise, audience, locales }) => {
+    const localeObjects = locales.length
+      ? locales.map((locale, index) => ({
+          code: locale,
+          label: locale.toUpperCase(),
+          isDefault: index === 0,
+        }))
+      : [{ code: "en", label: "English", isDefault: true }];
+
+    const localeText = localeObjects
+      .map(
+        (locale) =>
+          `    { code: "${locale.code}", label: "${locale.label}", isDefault: ${locale.isDefault} },`
+      )
+      .join("\n");
+
+    return `import { defineBookConfig } from "@bookkit/astro-bookkit";
+
+export default defineBookConfig({
+  key: "${bookKey}",
+  title: "${bookTitle}",
+  summary: "${promise}",
+  audience: "${audience || "General readers"}",
+  locales: [
+${localeText}
+  ],
+});`;
+  };
+
+  const buildPayload = ({ bookKey, bookTitle, promise, audience, mechanisms, chapters, locales }) =>
+    JSON.stringify(
+      {
+        task: "bookkit.scaffold_book",
+        book: {
+          key: bookKey,
+          title: bookTitle,
+          promise,
+          audience: audience || "General readers",
+          locales: locales.length ? locales : ["en"],
+        },
+        contentSeeds: {
+          mechanisms,
+          chapters,
+        },
+        acceptanceCriteria: [
+          "book.config.ts exists and validates",
+          "starter mechanisms include required frame fields",
+          "starter chapters compile and appear in /read/chapters",
+        ],
+      },
+      null,
+      2
+    );
+
+  const buildCommands = ({ bookKey }) => `bun run new:book -- --key ${bookKey}\n` +
+    `bun run validate -- --book ${bookKey}\n` +
+    `bun run dev:${bookKey}`;
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const values = {
+      bookKey: String(formData.get("bookKey") || "").trim(),
+      bookTitle: String(formData.get("bookTitle") || "").trim(),
+      promise: String(formData.get("promise") || "").trim(),
+      audience: String(formData.get("audience") || "").trim(),
+      mechanisms: toLines(String(formData.get("mechanisms") || "")),
+      chapters: toLines(String(formData.get("chapters") || "")),
+      locales: toLines(String(formData.get("locales") || "")),
+    };
+
+    if (!values.bookKey || !values.bookTitle || !values.promise) {
+      return;
+    }
+
+    if (configNode) configNode.textContent = buildConfig(values);
+    if (payloadNode) payloadNode.textContent = buildPayload(values);
+    if (commandsNode) commandsNode.textContent = buildCommands(values);
+    output?.removeAttribute("hidden");
+  });
+
+  document.querySelector("[data-fill-example]")?.addEventListener("click", () => {
+    if (!form) return;
+    const defaults = {
+      bookKey: "operator-playbook",
+      bookTitle: "Operator Playbook",
+      promise: "Help modern teams identify delivery bottlenecks and resolve them within one sprint.",
+      audience: "Engineering managers and technical program leaders",
+      mechanisms: "constraint-mapping\nfeedback-cadence\nrisk-budgeting",
+      chapters: "overview\noperating-rhythm\nrecovery-patterns",
+      locales: "en, es",
+    };
+    Object.entries(defaults).forEach(([name, value]) => {
+      const field = form.elements.namedItem(name);
+      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+        field.value = value;
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-copy-target]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const target = button.getAttribute("data-copy-target");
+      if (!target) return;
+      const node = document.querySelector(`[data-output="${target}"]`);
+      if (!node?.textContent) return;
+      await navigator.clipboard.writeText(node.textContent);
+      button.textContent = "Copied";
+      window.setTimeout(() => {
+        button.textContent = "Copy";
+      }, 1500);
+    });
+  });
+</script>
+
+<style>
+  .studio {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .studio__form {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+
+  .studio__form label {
+    display: grid;
+    gap: 0.4rem;
+    font-weight: 600;
+  }
+
+  .studio__form small {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .studio__form input,
+  .studio__form textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--bg);
+    color: inherit;
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+  }
+
+  .studio__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .studio__actions button,
+  .studio__output-header button {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    background: var(--bg);
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .studio__output {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .studio__output article {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: var(--surface);
+  }
+
+  .studio__output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .studio__output pre {
+    overflow: auto;
+    padding: 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklab, var(--bg), #000 8%);
+  }
+</style>

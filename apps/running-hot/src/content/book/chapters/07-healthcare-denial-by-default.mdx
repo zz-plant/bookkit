@@ -4,13 +4,31 @@ status: draft
 title: "Healthcare: Denial by Default"
 ---
 
-## Case file protocol
+## Scene
 
-- Scene
-- Load map
-- Transfer tally
-- Redesign
+A member loses medication access after an automated coverage mismatch. Prior authorization and eligibility corrections route through separate teams. Each team can delay the case, but no single team owns restoration.
 
-## Focus
+## Load map
 
-Homework economies and prior authorization.
+- **Volatility input:** data mismatch + high clinical urgency.
+- **Routing path:** eligibility queue -> prior-auth queue -> appeals queue.
+- **Human sink:** patient and caregiver perform cross-team coordination.
+- **Failure point:** instant denial state with slow restoration capability.
+
+## Transfer tally
+
+- Pharmacy rejection events increase immediately after mismatch.
+- Out-of-pocket spending rises during pending review windows.
+- Clinical risk escalates while appeal status remains informational only.
+- Staff effort shifts from treatment to paperwork and callback loops.
+
+## Redesign standard
+
+- Require provisional reinstatement when dispute evidence is verified.
+- Bind each case to one continuity owner across eligibility and authorization teams.
+- Publish a maximum time-to-repair threshold with automatic escalation.
+- Track and compensate delay-caused costs.
+
+## Why this matters
+
+Healthcare systems often measure denial rate but not denial duration. Harm is dominated by duration when treatment interruption is time-sensitive.

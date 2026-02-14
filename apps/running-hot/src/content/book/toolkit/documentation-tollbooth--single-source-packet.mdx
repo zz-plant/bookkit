@@ -1,0 +1,20 @@
+---
+slug: documentation-tollbooth--single-source-packet
+status: draft
+mechanism: documentation-tollbooth
+name: "Single-source packet"
+trigger: "When the same records are repeatedly requested across teams or channels."
+timeboxMinutes: 10
+steps:
+  - "Create one canonical packet with date, case identifier, and document index."
+  - "Log each submission event with recipient and timestamp."
+  - "On duplicate request, respond with packet index and prior submission proof."
+  - "Ask for explicit reason if additional documentation is required."
+failureLooksLike:
+  - "Staff insist on resubmission without specifying what is missing."
+  - "No shared case identifier is recognized across teams."
+legitimateDemand:
+  - "Durable record linkage that treats prior submissions as valid unless materially changed."
+---
+
+The goal is not more paperwork skill. The goal is to make repetition visible and contestable.

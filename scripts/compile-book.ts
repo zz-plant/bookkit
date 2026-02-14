@@ -12,13 +12,39 @@ const mode = optionalArg("--mode") ?? "warn";
 const noDrafts = process.argv.includes("--no-drafts");
 const skipValidate = process.argv.includes("--skip-validate");
 const exportTarget = optionalArg("--export");
+const createIfMissing = process.argv.includes("--create-if-missing");
+const titleArg = optionalArg("--title");
+const template = optionalArg("--template");
 
 const books = listBookDirs();
-if (!books.includes(book)) {
+const hasBook = books.includes(book);
+
+if (!hasBook && !createIfMissing) {
   console.error(`Unknown book: ${book}`);
   console.error("Available books:");
   for (const entry of books) console.error(`- ${entry}`);
+  console.error("\nTip: pass --create-if-missing to scaffold automatically before compile.");
   process.exit(1);
+}
+
+if (!hasBook && createIfMissing) {
+  const inferredTitle =
+    titleArg ??
+    book
+      .split("-")
+      .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+      .join(" ");
+
+  runStep("scaffold", [
+    "run",
+    "new:book",
+    "--",
+    "--book",
+    book,
+    "--title",
+    inferredTitle,
+    ...(template ? ["--template", template] : []),
+  ]);
 }
 
 if (!skipValidate) {
@@ -65,6 +91,9 @@ Options:
   --no-drafts           Disallow draft examples in validation
   --skip-validate       Skip validation step
   --export <target>     Optional export target (gitbook)
+  --create-if-missing   Scaffold the book if it does not exist
+  --title <value>       Title for --create-if-missing (defaults from slug)
+  --template <book>     Template book for --create-if-missing
   -h, --help            Show this help message
 `);
 }

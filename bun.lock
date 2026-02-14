@@ -17,6 +17,15 @@
         "astro": "^5.17.1",
       },
     },
+    "apps/running-hot": {
+      "name": "@books/running-hot",
+      "version": "0.0.0",
+      "dependencies": {
+        "@astrojs/mdx": "^4.3.13",
+        "@bookkit/astro-bookkit": "workspace:*",
+        "astro": "^5.17.1",
+      },
+    },
     "packages/astro-bookkit": {
       "name": "@bookkit/astro-bookkit",
       "version": "0.0.0",
@@ -53,6 +62,8 @@
     "@bookkit/astro-bookkit": ["@bookkit/astro-bookkit@workspace:packages/astro-bookkit"],
 
     "@books/bad-people": ["@books/bad-people@workspace:apps/bad-people"],
+
+    "@books/running-hot": ["@books/running-hot@workspace:apps/running-hot"],
 
     "@braintree/sanitize-url": ["@braintree/sanitize-url@7.1.2", "", {}, "sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA=="],
 

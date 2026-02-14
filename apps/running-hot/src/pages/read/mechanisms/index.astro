@@ -1,0 +1,45 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import bookConfig from "../../../book.config";
+
+const modules = bookEntryPoints.contentModules.mechanisms;
+const coreMechanismSlugs = new Set(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
+const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
+  defaultLocale: "en",
+  locale: Astro.locals?.locale,
+  mapEntry: ({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    const tags = [
+      coreMechanismSlugs.has(slug) ? "core" : null,
+      "high leverage",
+      isFallback ? "fallback" : null,
+    ].filter(Boolean);
+    return {
+      href: readItemPath("mechanisms", slug),
+      title: frontmatter.title ?? "Untitled mechanism",
+      eyebrow: tags.join(" • "),
+      meta: frontmatter.definition ?? "",
+    };
+  },
+  sort: (a, b) => a.title.localeCompare(b.title),
+});
+const localizedLede = buildTranslationLede(
+  "Stable patterns that explain how harm stays normalized.",
+  completeness
+);
+---
+<BaseLayout title={`Mechanisms • ${bookConfig.title}`}>
+  <ContentIndexList
+    title="Mechanisms"
+    lede={localizedLede}
+    items={mechanismItems}
+    filterMode="always"
+    filterPlaceholder="Filter by mechanism name or definition..."
+    filterHint="Search by name, definition, or domain signal."
+    alphaMode="auto"
+  />
+</BaseLayout>

@@ -1,0 +1,197 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+  resolveLocalizedModule,
+} from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
+import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+
+export async function getStaticPaths() {
+  const modules = bookEntryPoints.contentModules.mechanisms;
+  const localizedIndex = buildLocalizedContentIndex(modules, {
+    defaultLocale: "en",
+  });
+
+  return localizedIndex.slugs.map((slug) => ({
+    params: { slug },
+  }));
+}
+
+const modules = bookEntryPoints.contentModules.mechanisms;
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
+});
+const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+  locale: Astro.locals?.locale,
+});
+
+if (!module) {
+  throw new Error(`Missing mechanism for slug: ${Astro.params.slug}`);
+}
+
+const { frontmatter, default: Content } = module;
+const metaDescription = frontmatter.definition;
+const isFallback = missingSlugs.includes(frontmatter.slug);
+const hasPredictions =
+  Array.isArray(frontmatter.predictions) && frontmatter.predictions.length > 0;
+const hasTests = Array.isArray(frontmatter.tests) && frontmatter.tests.length > 0;
+const hasIs = Array.isArray(frontmatter.is) && frontmatter.is.length > 0;
+const hasIsNot = Array.isArray(frontmatter.isNot) && frontmatter.isNot.length > 0;
+const toolkitIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.toolkit,
+  {
+    defaultLocale: "en",
+  }
+);
+const exampleIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.examples,
+  {
+    defaultLocale: "en",
+  }
+);
+const { entries: toolkitEntries } = resolveLocalizedContent(toolkitIndex, {
+  locale: Astro.locals?.locale,
+});
+const { entries: exampleEntries } = resolveLocalizedContent(exampleIndex, {
+  locale: Astro.locals?.locale,
+});
+const relatedToolkit = toolkitEntries
+  .map(({ slug, module: toolkitModule }) => ({
+    slug,
+    frontmatter: toolkitModule.frontmatter ?? {},
+  }))
+  .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug)
+  .sort(
+    (a, b) =>
+      (a.frontmatter.timeboxMinutes ?? 10) - (b.frontmatter.timeboxMinutes ?? 10)
+  );
+const relatedExamples = exampleEntries
+  .map(({ slug, module: exampleModule }) => ({
+    slug,
+    frontmatter: exampleModule.frontmatter ?? {},
+  }))
+  .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
+---
+<BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} description={metaDescription}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href={readRoutes.root}>Reading hub</a>
+    <span>›</span>
+    <a href={readRoutes.mechanisms}>Mechanisms</a>
+    <span>›</span>
+    <span>{frontmatter.title}</span>
+  </nav>
+  <a class="back-link" href={readRoutes.mechanisms}>← Mechanisms</a>
+  <div class="eyebrow">Mechanism{isFallback ? " • fallback" : ""}</div>
+  <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
+  <p class="lede" id="definition">{frontmatter.definition}</p>
+
+  <section class="content-block" style="margin-top: 0;">
+    <h2>On this page</h2>
+    <div class="stack">
+      <a class="list-link" href="#definition"><strong>Definition</strong></a>
+      {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+        <a class="list-link" href="#recognize"><strong>How to recognize it</strong></a>
+      )}
+      {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+        <a class="list-link" href="#next-steps"><strong>Next steps</strong></a>
+      )}
+      <a class="list-link" href="#keep-going"><strong>Keep going</strong></a>
+    </div>
+  </section>
+
+  <section class="content-block">
+    <Content />
+  </section>
+  {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+    <section class="content-block" id="recognize">
+      <h2>How to recognize it</h2>
+      {hasIs && (
+        <>
+          <div class="eyebrow">This is</div>
+          <ul>
+            {frontmatter.is.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasIsNot && (
+        <>
+          <div class="eyebrow">This is not</div>
+          <ul>
+            {frontmatter.isNot.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasPredictions && (
+        <>
+          <div class="eyebrow">Predictions</div>
+          <ul>
+            {frontmatter.predictions.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasTests && (
+        <>
+          <div class="eyebrow">Quick tests</div>
+          <ul>
+            {frontmatter.tests.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  )}
+  {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+    <section class="content-block" id="next-steps">
+      <h2>Next steps</h2>
+      {relatedToolkit.length > 0 && (
+        <>
+          <div class="eyebrow">Related actions (shortest first)</div>
+          <div class="stack">
+            {relatedToolkit.map((entry) => (
+              <a class="list-link" href={readItemPath("toolkit", entry.slug)}>
+                <strong>{entry.frontmatter.name ?? "Untitled action"}</strong>
+                <span class="meta">
+                  {entry.frontmatter.timeboxMinutes ?? 10} min
+                </span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+      {relatedExamples.length > 0 && (
+        <>
+          <div class="eyebrow">Related examples</div>
+          <div class="stack">
+            {relatedExamples.map((entry) => (
+              <a class="list-link" href={readItemPath("examples", entry.slug)}>
+                <strong>{entry.frontmatter.title ?? "Untitled example"}</strong>
+                <span class="meta">{entry.frontmatter.domain ?? "unknown domain"}</span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )}
+  <section class="next-steps" id="keep-going">
+    <h2>Keep going</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href={readRoutes.toolkit}>Explore toolkit actions</a>
+      <a class="next-steps__link" href={readRoutes.examples}>Browse examples</a>
+      <a class="next-steps__link" href={readRoutes.chapters}>Read the next chapter</a>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,162 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../lib/book-entrypoints";
+import { formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+
+const chapterIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.chapters,
+  {
+    defaultLocale: "en",
+  }
+);
+const mechanismIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.mechanisms,
+  {
+    defaultLocale: "en",
+  }
+);
+const toolkitIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.toolkit,
+  {
+    defaultLocale: "en",
+  }
+);
+const glossaryIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.glossary,
+  {
+    defaultLocale: "en",
+  }
+);
+const exampleIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.examples,
+  {
+    defaultLocale: "en",
+  }
+);
+const localeKey = Astro.locals?.locale;
+const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
+const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey });
+const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
+const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
+const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const metaDescription =
+  bookConfig.site?.defaultMeta?.description ?? "Draft book instance content.";
+const stats = [
+  {
+    label: "Chapters",
+    count: chapters.entries.length,
+    completeness: chapters.completeness,
+  },
+  {
+    label: "Mechanisms",
+    count: mechanisms.entries.length,
+    completeness: mechanisms.completeness,
+  },
+  {
+    label: "Toolkit entries",
+    count: toolkit.entries.length,
+    completeness: toolkit.completeness,
+  },
+  {
+    label: "Glossary terms",
+    count: glossary.entries.length,
+    completeness: glossary.completeness,
+  },
+  {
+    label: "Examples",
+    count: examples.entries.length,
+    completeness: examples.completeness,
+  },
+];
+---
+<BaseLayout title={bookConfig.title}>
+  <div class="hero-shell">
+    <p class="hero-kicker">Recompilable field guide</p>
+    <div class="section-header hero-shell__header">
+      <h1>{bookConfig.title}</h1>
+      <p class="lede">{metaDescription}</p>
+    </div>
+    <div class="hero-quick-links" data-funnel-group="home-hero-links">
+      <a href={readRoutes.root} class="pill" data-funnel-step="hero_to_read_hub">Reading hub</a>
+      <a href={readRoutes.overview} class="pill" data-funnel-step="hero_to_overview">Overview</a>
+      <a href={readRoutes.mechanisms} class="pill" data-funnel-step="hero_to_mechanisms">Mechanisms</a>
+    </div>
+  </div>
+
+  <section class="content-block">
+    <div class="eyebrow">Start reading now</div>
+    <h2>Pick one path in under 3 minutes</h2>
+    <p class="meta">Choose the fastest route based on what you need right now.</p>
+    <div class="card-grid" data-funnel-group="home-start">
+      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r" data-funnel-step="home_to_read_hub">
+        <div class="eyebrow">Primary</div>
+        <h3>Open the reading hub</h3>
+        <p class="meta">Browse every section from one place.</p>
+      </a>
+      <a class="card" href={readRoutes.overview} data-funnel-step="home_to_overview">
+        <div class="eyebrow">Orientation</div>
+        <h3>Read the framing chapter</h3>
+        <p class="meta">Understand intent, constraints, and boundaries first.</p>
+      </a>
+      <a class="card" href={readRoutes.mechanisms} data-funnel-step="home_to_mechanisms">
+        <div class="eyebrow">Problem-solving</div>
+        <h3>Jump to a mechanism</h3>
+        <p class="meta">Name the pattern before choosing an action.</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="content-block">
+    <div class="eyebrow">Book snapshot</div>
+    <h2>What’s available now</h2>
+    <p class="meta">
+      Counts and translation coverage for the active locale.
+    </p>
+    <div class="stats-grid">
+      {stats.map((stat) => (
+        <div class="stat-card">
+          <div class="stat-value">{stat.count}</div>
+          <div class="stat-label">{stat.label}</div>
+          {formatTranslationCompleteness(stat.completeness) && (
+            <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
+          )}
+        </div>
+      ))}
+    </div>
+    <div class="link-group" style="margin-top: 1rem;">
+      <a class="next-steps__link" href="/release-notes" aria-keyshortcuts="g n">See release notes</a>
+    </div>
+  </section>
+  <script>
+    const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    funnelLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        const step = link.getAttribute("data-funnel-step");
+        if (!step) return;
+        const payload = JSON.stringify({
+          type: "engagement",
+          title: `funnel:${step}`,
+          path: window.location.pathname,
+          durationSeconds: 0,
+          scrollDepth: 0,
+          timestamp: Date.now(),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          return;
+        }
+        fetch("/api/analytics.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => undefined);
+      });
+    });
+  </script>
+</BaseLayout>

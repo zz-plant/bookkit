@@ -1,0 +1,23 @@
+---
+import VersionArchivePage from "@bookkit/astro-bookkit/components/VersionArchivePage.astro";
+import { buildSeoProps } from "@bookkit/astro-bookkit";
+import { getVersionEntries } from "../lib/versions";
+import bookConfig from "../book.config";
+
+const versionEntries = getVersionEntries();
+const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version ?? bookConfig.status;
+const seoProps = buildSeoProps({
+  site: bookConfig.site,
+  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+  description: "Browse current and archived versions of the book.",
+});
+---
+<VersionArchivePage
+  title={`Version archive • ${bookConfig.title}`}
+  bookTitle={bookConfig.title}
+  bookVersion={latestVersion}
+  bookKey={bookConfig.slug ?? "book"}
+  versions={versionEntries}
+  description={seoProps.metaDescription}
+  {...seoProps}
+/>

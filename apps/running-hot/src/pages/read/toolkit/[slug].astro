@@ -1,0 +1,111 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+  resolveLocalizedModule,
+} from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import bookConfig from "../../../book.config";
+import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+
+export async function getStaticPaths() {
+  const modules = bookEntryPoints.contentModules.toolkit;
+  const localizedIndex = buildLocalizedContentIndex(modules, {
+    defaultLocale: "en",
+  });
+
+  return localizedIndex.slugs.map((slug) => ({
+    params: { slug },
+  }));
+}
+
+const modules = bookEntryPoints.contentModules.toolkit;
+const localizedIndex = buildLocalizedContentIndex(modules, {
+  defaultLocale: "en",
+});
+const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+  locale: Astro.locals?.locale,
+});
+const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+  locale: Astro.locals?.locale,
+});
+
+if (!module) {
+  throw new Error(`Missing toolkit entry for slug: ${Astro.params.slug}`);
+}
+
+const { frontmatter, default: Content } = module;
+const isFallback = missingSlugs.includes(frontmatter.slug);
+const hasSteps = Array.isArray(frontmatter.steps) && frontmatter.steps.length > 0;
+const hasFailureLooks = Array.isArray(frontmatter.failureLooksLike) && frontmatter.failureLooksLike.length > 0;
+const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatter.legitimateDemand.length > 0;
+---
+<BaseLayout title={`${frontmatter.name} • ${bookConfig.title}`}>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href={readRoutes.root}>Reading hub</a>
+    <span>›</span>
+    <a href={readRoutes.toolkit}>Toolkit</a>
+    <span>›</span>
+    <span>{frontmatter.name}</span>
+  </nav>
+  <a class="back-link" href={readRoutes.toolkit}>← Toolkit</a>
+  <div class="eyebrow">Toolkit{isFallback ? " • fallback" : ""}</div>
+  <h1 id={frontmatter.slug}>{frontmatter.name}</h1>
+  <div class="pill">{frontmatter.timeboxMinutes ?? 10} min action</div>
+  <p class="lede">
+    {frontmatter.mechanism} • {frontmatter.timeboxMinutes ?? 10} min
+  </p>
+  {frontmatter.trigger && (
+    <section class="content-block">
+      <h2>When to use this</h2>
+      <p>{frontmatter.trigger}</p>
+    </section>
+  )}
+  {hasSteps && (
+    <section class="content-block">
+      <h2>Steps</h2>
+      <ol class="step-list">
+        {frontmatter.steps.map((step, index) => (
+          <li class="step-card">
+            <span class="step-card__number">{index + 1}</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+  {hasFailureLooks && (
+    <section class="content-block">
+      <h2>Failure looks like</h2>
+      <ul>
+        {frontmatter.failureLooksLike.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  {hasLegitDemand && (
+    <section class="content-block">
+      <h2>Legitimate demand</h2>
+      <ul>
+        {frontmatter.legitimateDemand.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  <section class="content-block">
+    <Content />
+  </section>
+  <section class="next-steps">
+    <h2>Next steps</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href={readItemPath("mechanisms", frontmatter.mechanism)}>
+        Review the {frontmatter.mechanism} mechanism
+      </a>
+      <a class="next-steps__link" href={readRoutes.examples}>Find related examples</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Pick another action</a>
+    </div>
+  </section>
+</BaseLayout>

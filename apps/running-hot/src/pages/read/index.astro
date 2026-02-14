@@ -1,0 +1,404 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import {
+  buildLocalizedContentIndex,
+  resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../lib/book-entrypoints";
+import { createLatestSectionChangeMap, formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { getReleaseNotes } from "../../lib/release-notes";
+import bookConfig from "../../book.config";
+
+const chapterIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.chapters,
+  {
+    defaultLocale: "en",
+  }
+);
+const mechanismIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.mechanisms,
+  {
+    defaultLocale: "en",
+  }
+);
+const toolkitIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.toolkit,
+  {
+    defaultLocale: "en",
+  }
+);
+const glossaryIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.glossary,
+  {
+    defaultLocale: "en",
+  }
+);
+const exampleIndex = buildLocalizedContentIndex(
+  bookEntryPoints.contentModules.examples,
+  {
+    defaultLocale: "en",
+  }
+);
+const localeKey = Astro.locals?.locale;
+const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
+const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey });
+const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
+const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
+const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const startingChapter =
+  chapters.entries.find((entry) => entry.slug === "overview") ?? chapters.entries[0];
+
+const releaseNotes = getReleaseNotes();
+const latestSectionChanges = createLatestSectionChangeMap(releaseNotes);
+const readerSections = [
+  {
+    title: "Overview",
+    description: "Objectives, frame, and constraints for this draft.",
+    href: readRoutes.overview,
+    count: 1,
+    keyHint: ["g", "o"],
+    sectionKey: "overview",
+  },
+  {
+    title: "Chapters",
+    description: "Core modules and the intervention frame.",
+    href: readRoutes.chapters,
+    count: chapters.entries.length,
+    completeness: chapters.completeness,
+    keyHint: ["g", "c"],
+    sectionKey: "chapters",
+  },
+  {
+    title: "Mechanisms",
+    description: "Named system patterns with stable definitions.",
+    href: readRoutes.mechanisms,
+    count: mechanisms.entries.length,
+    completeness: mechanisms.completeness,
+    keyHint: ["g", "m"],
+    sectionKey: "mechanisms",
+  },
+  {
+    title: "Toolkit",
+    description: "Action primitives that fit inside ten minutes.",
+    href: readRoutes.toolkit,
+    count: toolkit.entries.length,
+    completeness: toolkit.completeness,
+    keyHint: ["g", "t"],
+    sectionKey: "toolkit",
+  },
+  {
+    title: "Glossary",
+    description: "Short definitions to keep shared language consistent.",
+    href: readRoutes.glossary,
+    count: glossary.entries.length,
+    completeness: glossary.completeness,
+    keyHint: ["g", "l"],
+    sectionKey: "glossary",
+  },
+  {
+    title: "Examples",
+    description: "Replaceable cases that ground the modules.",
+    href: readRoutes.examples,
+    count: examples.entries.length,
+    completeness: examples.completeness,
+    keyHint: ["g", "e"],
+    sectionKey: "examples",
+  },
+];
+---
+<BaseLayout title={`Read • ${bookConfig.title}`}>
+  <div class="read-hub">
+    <section class="content-block read-hero" style="margin-top: 0;">
+      <div class="read-hero__copy">
+        <div class="eyebrow">Reading hub</div>
+        <h1>Start where you are, not where a syllabus says to begin.</h1>
+        <p class="lede">
+          This guide is designed for real situations. Pick the entry point that matches what you need right now.
+        </p>
+      </div>
+      <div class="read-hero__quicklinks" aria-label="Quick ways to start" data-funnel-group="read-start">
+        <a class="read-pill" href={readRoutes.overview} data-funnel-step="read_to_overview">Need orientation</a>
+        <a class="read-pill" href={readRoutes.mechanisms} data-funnel-step="read_to_mechanisms">Need a diagnosis</a>
+        <a class="read-pill" href={readRoutes.toolkit} data-funnel-step="read_to_toolkit">Need an action now</a>
+      </div>
+      <nav class="read-hero__jumpnav" aria-label="Jump to section">
+        <a class="read-jump-link" href="#recommended-start">Recommended start</a>
+        <a class="read-jump-link" href="#reading-surfaces">Reading surfaces</a>
+        <a class="read-jump-link" href="#tools-by-role">Tools by role</a>
+      </nav>
+    </section>
+
+    <section id="recommended-start" class="content-block read-section">
+      <div class="read-section__intro">
+        <div>
+          <div class="eyebrow">Recommended start</div>
+          <h2>Choose one path and begin</h2>
+        </div>
+        <p class="meta">Fastest entry points for first-time readers.</p>
+      </div>
+      <div class="card-grid read-card-grid">
+        {startingChapter && (
+          <a class="card read-card" href={readItemPath("chapters", startingChapter.slug)}>
+            <div class="eyebrow">Foundations</div>
+            <h3>Read the framing chapter first</h3>
+            <p class="meta">Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}</p>
+          </a>
+        )}
+        <a class="card read-card" href={readRoutes.overview}>
+          <div class="eyebrow">Orientation</div>
+          <h3>Understand the frame quickly</h3>
+          <p class="meta">Review objectives and constraints before diving in.</p>
+        </a>
+        <a class="card read-card" href={readRoutes.mechanisms}>
+          <div class="eyebrow">Problem-solving</div>
+          <h3>Jump to a named mechanism</h3>
+          <p class="meta">Start with the pattern that matches your current issue.</p>
+        </a>
+      </div>
+    </section>
+
+    <section id="reading-surfaces" class="content-block read-section">
+      <div class="read-section__intro">
+        <div>
+          <div class="eyebrow">Browse all sections</div>
+          <h2>Reading surfaces</h2>
+        </div>
+        <p class="meta">Each section opens an index and then individual item pages.</p>
+      </div>
+      <div class="card-grid" data-reader-sections>
+        {readerSections.map((section) => {
+          const label = section.count === 1 ? "item" : "items";
+          const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
+          const completenessLabel = formatTranslationCompleteness(section.completeness);
+          const changeMeta = latestSectionChanges[section.sectionKey];
+          return (
+            <a
+              class="card read-surface-card"
+              href={section.href}
+              aria-keyshortcuts={keyShortcut}
+            >
+              <div class="eyebrow">
+                {section.count} {label}
+                {completenessLabel ? ` • ${completenessLabel}` : ""}
+                {changeMeta ? ` • Updated in v${changeMeta.version}` : ""}
+              </div>
+              <h2>{section.title}</h2>
+              <p class="meta">{section.description}</p>
+              {section.keyHint && (
+                <div class="read-surface-card__footer">
+                  <span class="meta">Shortcut</span>
+                  <span class="kbd-hint"><kbd>{section.keyHint[0]}</kbd><kbd>{section.keyHint[1]}</kbd></span>
+                </div>
+              )}
+            </a>
+          );
+        })}
+      </div>
+    </section>
+
+    <section id="tools-by-role" class="content-block read-section" style="margin-top: 0;">
+      <div class="read-section__intro">
+        <div>
+          <div class="eyebrow">Need updates or publishing help?</div>
+          <h2>Choose tools by role</h2>
+        </div>
+        <p class="meta">Reader links stay simple, while author diagnostics live in a separate lane.</p>
+      </div>
+      <div class="card-grid read-tools-grid">
+        <article class="card read-tools-card">
+          <div class="eyebrow">Reader tools</div>
+          <h3>Reader tools</h3>
+          <p class="meta">Check what changed or download a copy without leaving the reading path.</p>
+          <div class="read-hero__quicklinks">
+            <a class="read-pill" href="/release-notes">See what changed</a>
+            <a class="read-pill" href="/downloads">Download for offline reading</a>
+          </div>
+        </article>
+        <article class="card read-tools-card">
+          <div class="eyebrow">Author tools</div>
+          <h3>Author tools</h3>
+          <p class="meta">Open analytics and publishing diagnostics for maintenance work.</p>
+          <div class="read-hero__quicklinks">
+            <a class="read-pill" href={readRoutes.tools}>Open author diagnostics</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+  <script>
+    const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    funnelLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        const step = link.getAttribute("data-funnel-step");
+        if (!step) return;
+        const payload = JSON.stringify({
+          type: "engagement",
+          title: `funnel:${step}`,
+          path: window.location.pathname,
+          durationSeconds: 0,
+          scrollDepth: 0,
+          timestamp: Date.now(),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          return;
+        }
+        fetch("/api/analytics.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => undefined);
+      });
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  .read-hub {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .read-hero {
+    background: linear-gradient(145deg, rgba(91, 76, 230, 0.08), rgba(255, 255, 255, 0.98));
+    border-color: rgba(91, 76, 230, 0.24);
+    display: grid;
+    gap: 1rem;
+  }
+
+  .read-hero__copy {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .read-hero h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    margin-bottom: 0.5rem;
+    max-width: 22ch;
+  }
+
+  .read-hero .lede {
+    max-width: 62ch;
+    font-size: 1.125rem;
+    color: var(--color-ink);
+  }
+
+  .read-hero__quicklinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .read-hero__jumpnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-top: 0.25rem;
+  }
+
+  .read-jump-link {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    text-decoration: underline;
+    text-decoration-color: rgba(91, 76, 230, 0.35);
+    text-underline-offset: 0.18rem;
+  }
+
+  .read-jump-link:hover {
+    color: var(--color-accent-strong);
+    text-decoration-color: var(--color-accent);
+  }
+
+  .read-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(91, 76, 230, 0.25);
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--color-accent-strong);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .read-pill:hover {
+    background: rgba(91, 76, 230, 0.12);
+  }
+
+  .read-pill:focus-visible,
+  .read-jump-link:focus-visible,
+  .read-card:focus-visible,
+  .read-surface-card:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .read-section {
+    margin-top: 0;
+  }
+
+  .read-section__intro {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .read-section__intro .meta {
+    max-width: 34ch;
+  }
+
+  .read-card-grid {
+    margin-top: 0.75rem;
+  }
+
+  .read-card,
+  .read-surface-card {
+    background: linear-gradient(180deg, #fff, #fcfcff);
+    border-color: rgba(91, 76, 230, 0.15);
+  }
+
+  .read-card:hover,
+  .read-surface-card:hover {
+    border-color: rgba(91, 76, 230, 0.35);
+    transform: translateY(-3px);
+  }
+
+  .read-surface-card {
+    position: relative;
+  }
+
+  .read-tools-grid {
+    margin-top: 0.75rem;
+  }
+
+  .read-tools-card {
+    gap: 0.75rem;
+  }
+
+  .read-surface-card__footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(91, 76, 230, 0.12);
+  }
+
+  @media (max-width: 900px) {
+    .read-section__intro {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .read-hero {
+      padding: 1.25rem;
+    }
+
+    .read-hero .lede {
+      font-size: 1rem;
+    }
+  }
+</style>

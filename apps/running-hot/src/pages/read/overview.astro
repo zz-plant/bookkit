@@ -1,0 +1,64 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import bookConfig from "../../book.config";
+import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+
+const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
+---
+<BaseLayout title={`Overview • ${bookConfig.title}`}>
+  <a class="back-link" href={readRoutes.root}>← Reading hub</a>
+  <div class="section-header">
+    <h1>Book overview</h1>
+    <p class="lede">Intent, frame, and constraints that anchor the draft.</p>
+  </div>
+  <section class="content-block">
+    <h2>Objectives</h2>
+    <ul>
+      <li><strong>Reader start:</strong> {objectives.readerStart}</li>
+      <li><strong>Reader end:</strong> {objectives.readerEnd}</li>
+      <li><strong>Transformation:</strong> {objectives.transformation}</li>
+    </ul>
+
+    <h2>Intervention frame</h2>
+    <p class="meta">{frame.intent}</p>
+    <ul>
+      {frame.steps.map((step) => (
+        <li>{step}</li>
+      ))}
+    </ul>
+
+    <h2>Causal stance</h2>
+    <p>{causalStance}</p>
+
+    <h2>Constraints</h2>
+    <ul>
+      <li>
+        <strong>Mechanism target:</strong> {constraints.mechanismCountTarget[0]}-
+        {constraints.mechanismCountTarget[1]}
+      </li>
+      <li>
+        <strong>Action primitive cap:</strong> {constraints.actionPrimitiveMaxMinutes}
+        minutes
+      </li>
+      <li>
+        <strong>Examples swappable:</strong>{" "}
+        {constraints.examplesMustBeSwappable ? "yes" : "no"}
+      </li>
+      <li>
+        <strong>Ordering model:</strong> {constraints.orderingModel}
+      </li>
+    </ul>
+
+    <h2>Core mechanisms</h2>
+    <ul>
+      {mechanisms.map((mechanism) => (
+        <li>
+          <strong>
+            <a href={readItemPath("mechanisms", mechanism.slug)}>{mechanism.slug}</a>:
+          </strong>{" "}
+          {mechanism.focus}
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

@@ -36,7 +36,9 @@
     "export:smoke": "bun run scripts/export-smoke.ts",
     "check:separation": "bun run scripts/check-separation.ts",
     "stack:capabilities": "bun run scripts/stack-capabilities.ts --write STACK_CAPABILITIES_RESEARCH.md",
-    "validate:release:seo": "BOOKKIT_REQUIRE_INDEXABLE_PROD=true bun run scripts/validate-all.ts --mode error --no-drafts"
+    "validate:release:seo": "BOOKKIT_REQUIRE_INDEXABLE_PROD=true bun run scripts/validate-all.ts --mode error --no-drafts",
+    "dev:running-hot": "bun run --filter @books/running-hot dev",
+    "build:running-hot": "bun run --filter @books/running-hot build"
   },
   "devDependencies": {
     "@types/node": "^25.2.3",

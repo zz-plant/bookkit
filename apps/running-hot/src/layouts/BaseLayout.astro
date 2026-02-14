@@ -1,0 +1,57 @@
+---
+import BookLayout from "@bookkit/astro-bookkit/layouts/BookLayout.astro";
+import {
+  createBookLayoutState,
+} from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+import { bookEntryPoints } from "../lib/book-entrypoints";
+import { getVersionEntries } from "../lib/versions";
+
+const versionEntries = getVersionEntries();
+const layoutState = createBookLayoutState({
+  astro: {
+    props: Astro.props,
+    locals: Astro.locals,
+    url: Astro.url,
+  },
+  bookConfig,
+  versionEntries,
+  localizedContentModules: bookEntryPoints.localizedContentModules,
+  versionPrefix: "v",
+});
+const {
+  seoProps,
+  previewContext,
+  previewRobots,
+  resolvedVersion,
+  resolvedLocales,
+  bookTitle,
+  bookKey,
+  aiQaEnabled,
+  currentLocale,
+  defaultLocale,
+  includeDefaultLocalePrefix,
+  localeLabel,
+} = layoutState;
+---
+<BookLayout
+  title={Astro.props.title}
+  bookTitle={bookTitle}
+  bookVersion={resolvedVersion}
+  bookKey={bookKey}
+  aiQaEnabled={aiQaEnabled}
+  versions={versionEntries}
+  locales={resolvedLocales}
+  currentLocale={currentLocale}
+  defaultLocale={defaultLocale}
+  includeDefaultLocalePrefix={includeDefaultLocalePrefix}
+  localeLabel={localeLabel}
+  {...seoProps}
+  robots={previewRobots ?? seoProps.robots}
+  isPreview={previewContext?.isPreview ?? false}
+  previewLabel={previewContext?.label ?? "Preview"}
+  previewTokenHint={previewContext?.tokenHint}
+  previewExpiresAt={previewContext?.expiresAt}
+>
+  <slot />
+</BookLayout>

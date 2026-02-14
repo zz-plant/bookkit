@@ -1,0 +1,51 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import { getBookExportLinks } from "../../../lib/exports";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import bookConfig from "../../../book.config";
+
+const modules = bookEntryPoints.contentModules.chapters;
+const { items: chapterItems, completeness } = createLocalizedContentList(modules, {
+  defaultLocale: "en",
+  locale: Astro.locals?.locale,
+  mapEntry: ({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    const status = frontmatter.status ?? "draft";
+    return {
+      href: readItemPath("chapters", slug),
+      title: frontmatter.title ?? "Untitled chapter",
+      eyebrow: isFallback ? `${status} · fallback` : status,
+    };
+  },
+});
+const exportLinks = getBookExportLinks();
+const localizedLede = buildTranslationLede(
+  "Module outlines that define the intervention frame.",
+  completeness
+);
+---
+<BaseLayout title={`Chapters • ${bookConfig.title}`}>
+  <ContentIndexList
+    title="Chapters"
+    lede={localizedLede}
+    items={chapterItems}
+  >
+    <details slot="after-header" class="content-block" style="margin-top: 0;">
+      <summary><strong>What draft status means</strong></summary>
+      <p class="meta">
+        Draft chapters are readable and useful, but examples, wording, and ordering can still
+        change as validation improves.
+      </p>
+    </details>
+    <ExportPanel
+      slot="after-list"
+      title="Download exports"
+      description="Grab a print-ready PDF or an EPUB for offline reading. Need chapter-specific options? Visit Offline reading."
+      links={exportLinks}
+    />
+  </ContentIndexList>
+</BaseLayout>

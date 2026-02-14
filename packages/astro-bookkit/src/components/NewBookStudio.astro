@@ -173,24 +173,68 @@ const {
         }))
       : [{ code: "en", label: "English", isDefault: true }];
 
+    const defaultLocale = localeObjects.find((locale) => locale.isDefault)?.code ?? "en";
     const localeText = localeObjects
       .map(
         (locale) =>
-          `    { code: "${locale.code}", label: "${locale.label}", isDefault: ${locale.isDefault} },`
+          `      { code: "${locale.code}", label: "${locale.label}", isDefault: ${locale.isDefault}, completeness: ${
+            locale.isDefault ? 1 : 0.5
+          } },`
       )
       .join("\n");
 
-    return `import { defineBookConfig } from "@bookkit/astro-bookkit";
-
-export default defineBookConfig({
-  key: "${bookKey}",
+    return `export const bookConfig = {
+  slug: "${bookKey}",
   title: "${bookTitle}",
-  summary: "${promise}",
-  audience: "${audience}",
-  locales: [
+  status: "draft",
+  site: {
+    url: "https://${bookKey}.book",
+    enforceHttps: true,
+    indexable: false,
+    defaultMeta: {
+      description: ${JSON.stringify(promise)},
+      ogImage: "/og/default.svg",
+    },
+  },
+  localization: {
+    defaultLocale: "${defaultLocale}",
+    includeDefaultPrefix: false,
+    label: "Language",
+    locales: [
 ${localeText}
-  ],
-});`;
+    ],
+  },
+  previewAccess: {
+    enabled: false,
+    paramName: "preview",
+    protectedPaths: ["/"],
+    tokens: [],
+  },
+  features: {
+    aiQa: true,
+  },
+  objectives: {
+    readerStart: ${JSON.stringify(`Needs a clearer first move for ${bookTitle}.`)},
+    readerEnd: ${JSON.stringify(`Can apply ${bookTitle} ideas with a concrete next step.`)},
+    transformation: ${JSON.stringify(`From uncertainty to practical action for ${audience}.`)},
+  },
+  frame: {
+    slug: "intervention",
+    steps: ["recognition", "exoneration", "mechanism", "agency"],
+    intent: "Move readers from recognition to executable agency.",
+  },
+  causalStance: "Outcomes are shaped by incentives and constraints.",
+  constraints: {
+    mechanismCountTarget: [6, 8],
+    actionPrimitiveMaxMinutes: 10,
+    examplesMustBeSwappable: true,
+    orderingModel: "constraint-graph",
+  },
+  mechanisms: [],
+  glossaryFocus: [],
+} as const;
+
+export default bookConfig;`;
   };
 
   const buildBrief = ({ bookTitle, promise, audience, chapters, mechanisms, locales }) => {
@@ -217,11 +261,11 @@ ${localeText}
       : "Create at least one starter mechanism file.";
 
     return [
-      "1. Create the new app scaffold.",
-      `2. Set app key to \"${bookKey}\" in book.config.ts.`,
+      "1. Run compile with auto-scaffold if the app does not exist.",
+      `2. Set book slug to \"${bookKey}\" in book.config.ts.`,
       `3. ${chapterNote}`,
       `4. ${mechanismNote}`,
-      "5. Run validation and confirm no errors.",
+      "5. Re-run compile after content edits and confirm no errors.",
       "6. Open the app locally and review /read pages.",
     ].join("\n");
   };
@@ -231,7 +275,7 @@ ${localeText}
       return {
         task: "bookkit.scaffold_book",
         book: {
-          key: bookKey,
+          slug: bookKey,
           title: bookTitle,
           promise,
           audience,
@@ -246,12 +290,15 @@ ${localeText}
           "starter mechanisms include required frame fields",
           "starter chapters compile and appear in /read/chapters",
         ],
+        commands: {
+          compile: `bun run compile:book -- --book ${bookKey} --create-if-missing --title ${JSON.stringify(bookTitle)}`,
+          dev: `bun run dev:${bookKey}`,
+        },
       };
     };
 
-  const buildCommands = ({ bookKey }) =>
-    `bun run new:book -- --key ${bookKey}\n` +
-    `bun run validate -- --book ${bookKey}\n` +
+  const buildCommands = ({ bookKey, bookTitle }) =>
+    `bun run compile:book -- --book ${bookKey} --create-if-missing --title ${JSON.stringify(bookTitle)}\n` +
     `bun run dev:${bookKey}`;
 
   const setText = (node, value) => {

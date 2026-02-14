@@ -7,13 +7,13 @@ trigger: "A decision is stalled until your options shrink."
 timeboxMinutes: 10
 steps:
   - "Name the decision you need and the date it must be made."
-  - "Send a written request with that date and the consequence of no response."
+  - "Send a written request with that date, the consequence of no response, and the repair clock fields (owner, deadline, remedy)."
   - "Prepare one alternative path you can take if the date passes."
   - "If no response arrives, take the alternative without further negotiation."
 failureLooksLike:
-  - "You continue waiting without setting a deadline or alternative."
+  - "You continue waiting without setting a deadline, alternative, or repair clock owner."
 legitimateDemand:
-  - "Respond by the stated date or accept that you will proceed with the alternative."
+  - "Respond by the stated date with a named repair owner and remedy, or accept that you will proceed with the alternative."
 ---
 
 The point is to reintroduce time control in a low-drama way.

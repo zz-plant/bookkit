@@ -95,17 +95,15 @@ const availableBooks = [
       <h1>{bookConfig.title}</h1>
       <p class="lede">{metaDescription}</p>
     </div>
-    <div class="hero-quick-links" data-funnel-group="home-hero-links">
-      <a href={readRoutes.root} class="pill" data-funnel-step="hero_to_read_hub">Reading hub</a>
-      <a href={readRoutes.overview} class="pill" data-funnel-step="hero_to_overview">Overview</a>
-      <a href={readRoutes.mechanisms} class="pill" data-funnel-step="hero_to_mechanisms">Mechanisms</a>
+    <div class="hero-primary-cta" data-funnel-group="home-hero-links">
+      <a href={readRoutes.root} class="pill" data-funnel-step="hero_to_read_hub">Step 1: Start reading</a>
     </div>
   </div>
 
   <section class="content-block">
-    <div class="eyebrow">Start reading now</div>
-    <h2>Pick one path in under 3 minutes</h2>
-    <p class="meta">Choose the fastest route based on what you need right now.</p>
+    <div class="eyebrow">Step 2</div>
+    <h2>Choose a route that matches your need</h2>
+    <p class="meta">After entering the reading hub, pick the shortest route for your current context.</p>
     <div class="card-grid" data-funnel-group="home-start">
       <a class="card" href={readRoutes.root} aria-keyshortcuts="g r" data-funnel-step="home_to_read_hub">
         <div class="eyebrow">Primary</div>

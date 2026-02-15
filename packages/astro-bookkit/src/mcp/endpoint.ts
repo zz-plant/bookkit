@@ -1,6 +1,8 @@
 import type { BookContentRawModules } from "../book/entrypoints";
 import { spawnSync } from "node:child_process";
 
+import { jsonResponse, tryParseJsonBody } from "../utils/http";
+
 type McpEndpointOptions = {
   bookTitle: string;
   bookSlug?: string;
@@ -55,14 +57,6 @@ type ResourceListParams = {
 };
 
 type ContentTypeKey = keyof BookContentRawModules;
-type ToolName =
-  | "bookkit.list_books"
-  | "bookkit.list_content"
-  | "bookkit.list_skills"
-  | "bookkit.list_mechanisms"
-  | "bookkit.validate_book"
-  | "bookkit.check_separation";
-
 const DEFAULT_RESOURCE_PREFIX = "bookkit://content/";
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---/;
 const FRONTMATTER_LINE_PATTERN = /^([A-Za-z0-9_-]+)\s*:\s*(.+)$/;
@@ -166,6 +160,15 @@ const TOOL_DEFINITIONS = [
   },
 ] as const;
 
+const TOOL_NAMES = TOOL_DEFINITIONS.map((tool) => tool.name);
+const TOOL_NAME_SET: ReadonlySet<string> = new Set(TOOL_NAMES);
+
+type ToolName = (typeof TOOL_DEFINITIONS)[number]["name"];
+
+const isToolName = (value: unknown): value is ToolName => {
+  return typeof value === "string" && TOOL_NAME_SET.has(value);
+};
+
 const extractFrontmatterField = (raw: string, field: string): string | null => {
   const match = raw.match(FRONTMATTER_PATTERN);
   if (!match) return null;
@@ -215,13 +218,6 @@ const parseResourceUri = (
   if (!type || rest.length === 0) return null;
   if (!CONTENT_TYPES.includes(type as ContentTypeKey)) return null;
   return { type: type as ContentTypeKey, slug: rest.join("/") };
-};
-
-const createJsonResponse = (payload: unknown, status = 200) => {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-  });
 };
 
 const createJsonRpcError = (
@@ -591,14 +587,7 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
 
       const name = params?.name;
       if (!name) return createInvalidParamsError(id, "Missing tool name.");
-      if (
-        name !== "bookkit.list_books" &&
-        name !== "bookkit.list_content" &&
-        name !== "bookkit.list_skills" &&
-        name !== "bookkit.list_mechanisms" &&
-        name !== "bookkit.validate_book" &&
-        name !== "bookkit.check_separation"
-      ) {
+      if (!isToolName(name)) {
         return createJsonRpcError(id, -32601, `Unknown tool: ${name}.`);
       }
 
@@ -632,7 +621,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
   return {
     GET: () => {
       const resources = listResources(options.contentRawModules, resourcePrefix, options.governanceResources);
-      return createJsonResponse({
+      return jsonResponse({
         ok: true,
         bookTitle: options.bookTitle,
         description: options.bookDescription ?? null,
@@ -641,7 +630,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
           supportsLineRanges: true,
           params: ["startLine", "endLine"],
         },
-        tools: TOOL_DEFINITIONS.map((tool) => tool.name),
+        tools: TOOL_NAMES,
         toolMetadata: TOOL_DEFINITIONS,
         agentProfile: {
           safetyMode: "safe-first",
@@ -661,26 +650,25 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
       });
     },
     POST: async ({ request }: { request: Request }) => {
-      let payload: unknown = null;
-      try {
-        payload = await request.json();
-      } catch (error) {
-        return createJsonResponse(createJsonRpcError(null, -32700, "Invalid JSON payload."), 400);
+      const parsed = await tryParseJsonBody(request);
+      if (!parsed.ok) {
+        return jsonResponse(createJsonRpcError(null, -32700, "Invalid JSON payload."), 400);
       }
 
+      const payload = parsed.value;
       if (!payload) {
-        return createJsonResponse(createJsonRpcError(null, -32600, "Missing JSON-RPC payload."), 400);
+        return jsonResponse(createJsonRpcError(null, -32600, "Missing JSON-RPC payload."), 400);
       }
 
       if (Array.isArray(payload)) {
         const responses = payload
           .filter((item): item is JsonRpcRequest => Boolean(item))
           .map((item) => handleRequest(options, item));
-        return createJsonResponse(responses);
+        return jsonResponse(responses);
       }
 
       const response = handleRequest(options, payload as JsonRpcRequest);
-      return createJsonResponse(response);
+      return jsonResponse(response);
     },
   };
 };

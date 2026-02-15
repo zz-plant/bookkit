@@ -11,6 +11,7 @@ import {
   sendReleaseEmailHooks,
   type ReleaseEmailTarget,
 } from "./email";
+import { jsonResponse } from "../utils/http";
 
 export type ReleaseEndpointOptions = {
   modules: Record<string, ReleaseModule>;
@@ -61,12 +62,6 @@ const resolveEmailTargets = (
   return parseReleaseEmailTargets(rawEnv);
 };
 
-const respondJson = (payload: unknown, status = 200): Response =>
-  new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-
 export const createReleaseNotesRssEndpoint = ({
   modules,
   siteUrl,
@@ -99,13 +94,13 @@ export const createReleaseWebhookEndpoint = ({
         typeof process !== "undefined" ? process.env.BOOKKIT_RELEASE_WEBHOOKS : undefined
       );
       if (!targets.length) {
-        return respondJson({ ok: false, error: "No webhook targets configured." }, 400);
+        return jsonResponse({ ok: false, error: "No webhook targets configured." }, 400);
       }
 
       const releases = createReleaseNotes(modules);
       const [latest] = releases;
       if (!latest) {
-        return respondJson({ ok: false, error: "No releases available." }, 404);
+        return jsonResponse({ ok: false, error: "No releases available." }, 404);
       }
 
       const results = await sendReleaseWebhooks({
@@ -114,7 +109,7 @@ export const createReleaseWebhookEndpoint = ({
         targets,
       });
 
-      return respondJson({ ok: true, delivered: results });
+      return jsonResponse({ ok: true, delivered: results });
     },
   };
 };
@@ -135,13 +130,13 @@ export const createReleaseEmailEndpoint = ({
         typeof process !== "undefined" ? process.env.BOOKKIT_RELEASE_EMAIL_TARGETS : undefined
       );
       if (!targets.length) {
-        return respondJson({ ok: false, error: "No email targets configured." }, 400);
+        return jsonResponse({ ok: false, error: "No email targets configured." }, 400);
       }
 
       const releases = createReleaseNotes(modules);
       const [latest] = releases;
       if (!latest) {
-        return respondJson({ ok: false, error: "No releases available." }, 404);
+        return jsonResponse({ ok: false, error: "No releases available." }, 404);
       }
 
       const results = await sendReleaseEmailHooks({
@@ -150,7 +145,7 @@ export const createReleaseEmailEndpoint = ({
         targets,
       });
 
-      return respondJson({ ok: true, delivered: results });
+      return jsonResponse({ ok: true, delivered: results });
     },
   };
 };

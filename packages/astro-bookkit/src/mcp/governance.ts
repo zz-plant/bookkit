@@ -64,11 +64,51 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
   },
 ];
 
+type PackageScriptsMetadata = {
+  scripts?: Record<string, string>;
+};
+
+const COMMAND_REFERENCE_URI = "bookkit://governance/commands/root-scripts";
+
+const createRootScriptsCommandReference = (rootDir: string): McpResourceInput => {
+  const packageJsonPath = resolve(rootDir, "package.json");
+  const packageJsonRaw = readFileSync(packageJsonPath, "utf8");
+
+  let packageJson: PackageScriptsMetadata;
+  try {
+    packageJson = JSON.parse(packageJsonRaw) as PackageScriptsMetadata;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown error";
+    throw new Error(
+      `Unable to parse scripts metadata from ${packageJsonPath}: ${reason}. Validate package.json and retry.`,
+    );
+  }
+
+  const scripts = packageJson.scripts ?? {};
+  const lines = [
+    "# Root command reference",
+    "",
+    "Generated from `package.json#scripts`.",
+    "",
+    "| Command | Script |",
+    "| --- | --- |",
+    ...Object.entries(scripts).map(([command, script]) => `| \`bun run ${command}\` | \`${script}\` |`),
+  ];
+
+  return {
+    uri: COMMAND_REFERENCE_URI,
+    name: "Bookkit root command reference",
+    description: "Deterministic command list generated from root package scripts metadata.",
+    mimeType: "text/markdown",
+    text: lines.join("\n"),
+  };
+};
+
 export const createGovernanceResourcesFromFiles = (
   rootDir: string,
   definitions: GovernanceFileResource[] = DEFAULT_GOVERNANCE_FILE_RESOURCES,
 ): McpResourceInput[] => {
-  return definitions.map((definition) => {
+  const fileResources = definitions.map((definition) => {
     const filePath = resolve(rootDir, definition.relativePath);
 
     try {
@@ -86,4 +126,6 @@ export const createGovernanceResourcesFromFiles = (
       );
     }
   });
+
+  return [...fileResources, createRootScriptsCommandReference(rootDir)];
 };

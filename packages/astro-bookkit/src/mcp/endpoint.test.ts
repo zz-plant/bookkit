@@ -219,6 +219,26 @@ describe("createBookMcpEndpoint", () => {
     expect(body.error.message).toContain("Unknown tool");
   });
 
+  it("returns actionable guidance for unknown resource URIs", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 9,
+          method: "resources/read",
+          params: { uri: "bookkit://content/chapters/missing" },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(-32602);
+    expect(body.error.message).toContain("Call resources/list");
+  });
+
   it("publishes agent profile in GET discovery", async () => {
     const endpoint = createFixtureEndpoint();
     const response = endpoint.GET();

@@ -604,7 +604,13 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         uri,
         options.governanceResources,
       );
-      if (!resource) return createJsonRpcError(id, -32602, "Resource not found.");
+      if (!resource) {
+        return createJsonRpcError(
+          id,
+          -32602,
+          `Resource not found for URI: ${uri}. Call resources/list to discover valid URIs, then retry resources/read.`,
+        );
+      }
       const chunk = buildResourceChunk(uri, resource.text, params ?? {});
       return {
         jsonrpc: "2.0",

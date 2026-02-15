@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { jsonResponse, parseJsonBody } from "../utils/http";
+
 export type FeedbackEvent = {
   id: string;
   eventType: "impression" | "feedback";
@@ -141,40 +143,23 @@ export const createFeedbackEndpoint = (options: FeedbackEndpointOptions = {}) =>
         return true;
       });
 
-      return new Response(JSON.stringify({ ok: true, events: filtered.slice(-limit) }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      });
+      return jsonResponse({ ok: true, events: filtered.slice(-limit) });
     },
     POST: async ({ request }: { request: Request }) => {
-      let payload: unknown = null;
-      try {
-        payload = await request.json();
-      } catch (error) {
-        payload = null;
-      }
+      const payload = await parseJsonBody(request);
 
       const events = parsePayload(payload);
       if (!events.length) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid feedback payload." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid feedback payload." }, 400);
       }
 
       try {
         await persistEvents(storagePath, events, maxEvents);
       } catch (error) {
-        return new Response(JSON.stringify({ ok: false, error: "Unable to store feedback." }), {
-          status: 500,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Unable to store feedback." }, 500);
       }
 
-      return new Response(JSON.stringify({ ok: true, stored: events.length }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      });
+      return jsonResponse({ ok: true, stored: events.length });
     },
   };
 };

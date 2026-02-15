@@ -1,4 +1,5 @@
 import { recordExportEvent, type ExportAnalyticsEvent } from "./analytics";
+import { jsonResponse, parseJsonBody } from "../utils/http";
 
 export type ExportAnalyticsEndpointOptions = {
   onRecord?: (event: ExportAnalyticsEvent) => Promise<void> | void;
@@ -63,41 +64,24 @@ export const createExportAnalyticsEndpoint = (options: ExportAnalyticsEndpointOp
 
   return {
     POST: async ({ request }: { request: Request }) => {
-      let payload: unknown = null;
-      try {
-        payload = await request.json();
-      } catch (error) {
-        payload = null;
-      }
+      const payload = await parseJsonBody(request);
 
       if (!isRecord(payload)) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid payload." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
       }
 
       const event = normalizeEvent(payload, request);
       if (!event) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid export event." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid export event." }, 400);
       }
 
       try {
         await onRecord(event);
       } catch (error) {
-        return new Response(JSON.stringify({ ok: false, error: "Unable to store export event." }), {
-          status: 500,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Unable to store export event." }, 500);
       }
 
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      });
+      return jsonResponse({ ok: true });
     },
   };
 };

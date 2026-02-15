@@ -194,6 +194,27 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.content[0].json.skills[0].slug).toBe("content-edit");
   });
 
+
+  it("returns method-not-found error for unknown tool names", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 8,
+          method: "tools/call",
+          params: { name: "bookkit.unknown_tool", arguments: {} },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(-32601);
+    expect(body.error.message).toContain("Unknown tool");
+  });
+
   it("publishes agent profile in GET discovery", async () => {
     const endpoint = createFixtureEndpoint();
     const response = endpoint.GET();

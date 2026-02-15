@@ -1,18 +1,60 @@
-# content-edit skill
+---
+name: content-edit
+description: Use for Lane A/B changes in apps/<book> content and book-app surfaces; enforces replaceable examples, stable mechanism identity, and lane-appropriate checks.
+---
 
-Use this skill when editing `apps/<book>/src/content/book/**` or related book-app copy/routes.
+# content-edit
+
+## When to use
+
+Use for changes under `apps/<book>/**`, especially:
+
+- `apps/<book>/src/content/book/**`
+- `apps/<book>/src/book.config.ts`
+- `apps/<book>/src/pages/**`
+- `apps/<book>/src/layouts/**`
+
+Do **not** use this skill for engine/schema/compiler changes in `packages/astro-bookkit/**`.
+
+## Allowed file paths
+
+- ✅ `apps/<book>/**`
+- ❌ `packages/astro-bookkit/**`
+
+## Risk guidance
+
+- **Low risk (Lane A):** chapter/example/glossary/copy and styling edits.
+- **Medium risk (Lane B):** mechanism/toolkit definition and boundary edits.
+
+Escalate to `engine-change` if you need new validation, frame, or compiler behavior.
 
 ## Guardrails
-- Never add book-specific behavior in content files.
-- Keep mechanism slugs stable; do not rename existing slugs.
-- Keep examples replaceable and not mechanism-defining.
 
-## Required checklist
-1. Confirm file scope is app/content lane only.
-2. Run:
-   - `bun run validate:book -- --book <book>`
-3. If glossary/mechanism content changed, ensure terminology stays aligned.
+- Never implement book-specific runtime behavior inside content files.
+- Keep mechanism slug identity stable.
+- Keep examples replaceable; examples cannot redefine mechanisms.
+- Register new named concepts as mechanisms or glossary terms.
 
-## Output expectations
-- Summarize changed modules and user-facing impact.
-- If mechanism definitions changed, flag as potentially breaking.
+## Required checks
+
+Map checks to `CONTRIBUTING.md` verification matrix:
+
+1. Lane A minimum:
+   - `bun run validate`
+   - `bun run lint`
+2. Lane B minimum:
+   - `bun run validate`
+   - `bun run lint`
+   - `bun run check:types`
+3. Lane B escalation (definition/boundary shifts):
+   - `bun run validate:release`
+
+## PR note template
+
+- **Lane:** A (low) or B (medium)
+- **What changed:**
+- **Why:**
+- **Boundary check:** confirmed no engine logic added to app/content files
+- **Before/after behavior:** (required for Lane B boundary/definition edits)
+- **Checks run:** list exact commands and outcomes
+- **Migration notes:** only if mechanism meaning changed

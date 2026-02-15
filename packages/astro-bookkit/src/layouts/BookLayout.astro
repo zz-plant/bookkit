@@ -742,7 +742,11 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       };
 
       const saveReaderPreferences = (prefs) => {
-        localStorage.setItem(readerPrefsKey, JSON.stringify(prefs));
+        try {
+          localStorage.setItem(readerPrefsKey, JSON.stringify(prefs));
+        } catch (error) {
+          // Ignore storage write failures so reader setup continues.
+        }
       };
 
       const setReaderDensity = (density) => {

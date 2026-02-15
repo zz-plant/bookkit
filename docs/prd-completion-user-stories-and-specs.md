@@ -223,9 +223,39 @@ Dependencies:
 - (6) builds on MCP resource model introduced in (1).
 - (7) depends on release artifact consistency.
 
+## Ownership and milestone map
+
+| Initiative | Owner | Milestone |
+| --- | --- | --- |
+| 1. MCP governance resources | Engine team | v0.8.0 |
+| 2. Deterministic MCP tools | Engine team | v0.8.1 |
+| 3. Repository-native lane skills | Contributor experience | v0.8.1 |
+| 4. First-run navigation UX | Book app team | v0.8.2 |
+| 5. Route semantics cleanup | Book app team | v0.8.2 |
+| 6. MCP citation chunking | Engine team | v0.8.3 |
+| 7. Section-level change detection | Release systems | v0.9.0 |
+
+## Migration and compatibility notes
+
+- `bookkit.validate_book` depends on `bun run validate:book -- --book <slug>`. Workspace scripts now include `validate:book` as a first-class command to keep MCP tool execution backward-compatible with published tool docs.
+- MCP clients that call `tools/list` and `tools/call` continue to use the same tool names and response envelope (`ok`, `summary`, `data|error`). No schema changes required for existing clients.
+- UX route labels remain stable (`/`, `/read`, `/read/chapters/[slug]`, `/downloads`, `/read/tools`) and semantics are clarified through hierarchy and copy rather than route removals.
+
+## UX verification checks
+
+- Home route has one explicit primary action: **Start reading**.
+- Reading hub groups routes into **Start here**, **Solve now**, **Reference**, and demotes maintenance links to **Meta**.
+- Chapter detail keeps download actions in a side meta panel and provides branching exits (next chapter, mechanisms, toolkit).
+
+## MCP backward-compatibility checks
+
+- Confirm `tools/list` still returns `bookkit.validate_book` and related deterministic tools.
+- Confirm `tools/call` for `bookkit.validate_book` succeeds when `validate:book` script exists.
+- Confirm invalid tool arguments still return actionable `ok: false` responses.
+
 ## Release readiness checklist for this PRD
 
-- [ ] Each scoped initiative has owner + milestone.
-- [ ] Engine-facing work has migration/error messaging notes where relevant.
-- [ ] UX items include measurable task-completion checks.
-- [ ] MCP items include backward-compatibility tests.
+- [x] Each scoped initiative has owner + milestone.
+- [x] Engine-facing work has migration/error messaging notes where relevant.
+- [x] UX items include measurable task-completion checks.
+- [x] MCP items include backward-compatibility tests.

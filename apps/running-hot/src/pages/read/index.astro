@@ -5,7 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
-import { createLatestSectionChangeMap, formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { createLatestSectionChangeMap, formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
 import { getReleaseNotes } from "../../lib/release-notes";
 import bookConfig from "../../book.config";
 
@@ -45,8 +45,6 @@ const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey }
 const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
-const startingChapter =
-  chapters.entries.find((entry) => entry.slug === "overview") ?? chapters.entries[0];
 
 const releaseNotes = getReleaseNotes();
 const latestSectionChanges = createLatestSectionChangeMap(releaseNotes);
@@ -105,68 +103,57 @@ const readerSections = [
     sectionKey: "examples",
   },
 ];
+const sectionBuckets = [
+  {
+    title: "Start here",
+    description: "Orientation and first-pass reading.",
+    sections: ["overview", "chapters"],
+  },
+  {
+    title: "Solve now",
+    description: "Diagnose patterns and pick a ten-minute action.",
+    sections: ["mechanisms", "toolkit"],
+  },
+  {
+    title: "Reference",
+    description: "Shared language and replaceable examples.",
+    sections: ["glossary", "examples"],
+  },
+];
 ---
 <BaseLayout title={`Read • ${bookConfig.title}`}>
   <div class="read-hub">
     <section class="content-block read-hero" style="margin-top: 0;">
       <div class="read-hero__copy">
         <div class="eyebrow">Reading hub</div>
-        <h1>Start where you are, not where a syllabus says to begin.</h1>
+        <h1>Pick a route, then move forward in one click.</h1>
         <p class="lede">
-          This guide is designed for real situations. Pick the entry point that matches what you need right now.
+          Use the buckets below: start, solve, or reference. Each path keeps labels and next actions consistent.
         </p>
       </div>
       <div class="read-hero__quicklinks" aria-label="Quick ways to start" data-funnel-group="read-start">
-        <a class="read-pill" href={readRoutes.overview} data-funnel-step="read_to_overview">Need orientation</a>
-        <a class="read-pill" href={readRoutes.mechanisms} data-funnel-step="read_to_mechanisms">Need a diagnosis</a>
-        <a class="read-pill" href={readRoutes.toolkit} data-funnel-step="read_to_toolkit">Need an action now</a>
-      </div>
-      <nav class="read-hero__jumpnav" aria-label="Jump to section">
-        <a class="read-jump-link" href="#recommended-start">Recommended start</a>
-        <a class="read-jump-link" href="#reading-surfaces">Reading surfaces</a>
-        <a class="read-jump-link" href="#tools-by-role">Tools by role</a>
-      </nav>
-    </section>
-
-    <section id="recommended-start" class="content-block read-section">
-      <div class="read-section__intro">
-        <div>
-          <div class="eyebrow">Recommended start</div>
-          <h2>Choose one path and begin</h2>
-        </div>
-        <p class="meta">Fastest entry points for first-time readers.</p>
-      </div>
-      <div class="card-grid read-card-grid">
-        {startingChapter && (
-          <a class="card read-card" href={readItemPath("chapters", startingChapter.slug)}>
-            <div class="eyebrow">Foundations</div>
-            <h3>Read the framing chapter first</h3>
-            <p class="meta">Start with: {startingChapter.module.frontmatter?.title ?? "Foundational chapter"}</p>
-          </a>
-        )}
-        <a class="card read-card" href={readRoutes.overview}>
-          <div class="eyebrow">Orientation</div>
-          <h3>Understand the frame quickly</h3>
-          <p class="meta">Review objectives and constraints before diving in.</p>
-        </a>
-        <a class="card read-card" href={readRoutes.mechanisms}>
-          <div class="eyebrow">Problem-solving</div>
-          <h3>Jump to a named mechanism</h3>
-          <p class="meta">Start with the pattern that matches your current issue.</p>
-        </a>
+        <a class="read-pill" href="#start-here" data-funnel-step="read_to_start_here">Start here</a>
+        <a class="read-pill" href="#solve-now" data-funnel-step="read_to_solve_now">Solve now</a>
+        <a class="read-pill" href="#reference" data-funnel-step="read_to_reference">Reference</a>
       </div>
     </section>
 
-    <section id="reading-surfaces" class="content-block read-section">
+    <section class="content-block read-section" id="reading-surfaces">
       <div class="read-section__intro">
         <div>
-          <div class="eyebrow">Browse all sections</div>
-          <h2>Reading surfaces</h2>
+          <div class="eyebrow">Route buckets</div>
+          <h2>Choose one bucket and begin</h2>
         </div>
-        <p class="meta">Each section opens an index and then individual item pages.</p>
+        <p class="meta">Start, solve, and reference routes are intentionally separated.</p>
       </div>
-      <div class="card-grid" data-reader-sections>
-        {readerSections.map((section) => {
+      <div class="bucket-grid">
+        {sectionBuckets.map((bucket) => (
+          <article class="card bucket-card" id={bucket.title.toLowerCase().replace(" ", "-")}>
+            <div class="eyebrow">{bucket.title}</div>
+            <h3>{bucket.title}</h3>
+            <p class="meta">{bucket.description}</p>
+            <div class="card-grid" data-reader-sections>
+              {readerSections.filter((section) => bucket.sections.includes(section.sectionKey)).map((section) => {
           const label = section.count === 1 ? "item" : "items";
           const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
           const completenessLabel = formatTranslationCompleteness(section.completeness);
@@ -177,47 +164,49 @@ const readerSections = [
               href={section.href}
               aria-keyshortcuts={keyShortcut}
             >
-              <div class="eyebrow">
+              <div class="eyebrow read-surface-card__meta">
                 {section.count} {label}
                 {completenessLabel ? ` • ${completenessLabel}` : ""}
                 {changeMeta ? ` • Updated in v${changeMeta.version}` : ""}
               </div>
-              <h2>{section.title}</h2>
+              <h4>{section.title}</h4>
               <p class="meta">{section.description}</p>
               {section.keyHint && (
-                <div class="read-surface-card__footer">
-                  <span class="meta">Shortcut</span>
+                <div class="read-surface-card__shortcut" aria-label="Keyboard shortcut">
                   <span class="kbd-hint"><kbd>{section.keyHint[0]}</kbd><kbd>{section.keyHint[1]}</kbd></span>
                 </div>
               )}
             </a>
           );
         })}
+            </div>
+          </article>
+        ))}
       </div>
     </section>
 
     <section id="tools-by-role" class="content-block read-section" style="margin-top: 0;">
       <div class="read-section__intro">
         <div>
-          <div class="eyebrow">Need updates or publishing help?</div>
-          <h2>Choose tools by role</h2>
+          <div class="eyebrow">Meta</div>
+          <h2>Release and maintenance links</h2>
         </div>
-        <p class="meta">Reader links stay simple, while author diagnostics live in a separate lane.</p>
+        <p class="meta">Lower-priority utilities live here so reading routes stay focused.</p>
       </div>
       <div class="card-grid read-tools-grid">
         <article class="card read-tools-card">
-          <div class="eyebrow">Reader tools</div>
-          <h3>Reader tools</h3>
-          <p class="meta">Check what changed or download a copy without leaving the reading path.</p>
+          <div class="eyebrow">Reader meta</div>
+          <h3>Reader updates</h3>
+          <p class="meta">Track changes or download an offline copy.</p>
           <div class="read-hero__quicklinks">
             <a class="read-pill" href="/release-notes">See what changed</a>
             <a class="read-pill" href="/downloads">Download for offline reading</a>
           </div>
         </article>
         <article class="card read-tools-card">
-          <div class="eyebrow">Author tools</div>
-          <h3>Author tools</h3>
-          <p class="meta">Open analytics and publishing diagnostics for maintenance work.</p>
+          <div class="eyebrow">Author meta</div>
+          <h3>Author diagnostics</h3>
+          <p class="meta">Open analytics and publishing diagnostics.</p>
           <div class="read-hero__quicklinks">
             <a class="read-pill" href={readRoutes.tools}>Open author diagnostics</a>
           </div>
@@ -290,26 +279,6 @@ const readerSections = [
     gap: 0.6rem;
   }
 
-  .read-hero__jumpnav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding-top: 0.25rem;
-  }
-
-  .read-jump-link {
-    font-size: 0.85rem;
-    color: var(--color-muted);
-    text-decoration: underline;
-    text-decoration-color: rgba(91, 76, 230, 0.35);
-    text-underline-offset: 0.18rem;
-  }
-
-  .read-jump-link:hover {
-    color: var(--color-accent-strong);
-    text-decoration-color: var(--color-accent);
-  }
-
   .read-pill {
     display: inline-flex;
     align-items: center;
@@ -327,7 +296,6 @@ const readerSections = [
   }
 
   .read-pill:focus-visible,
-  .read-jump-link:focus-visible,
   .read-card:focus-visible,
   .read-surface-card:focus-visible {
     outline: 2px solid var(--color-accent);
@@ -354,6 +322,15 @@ const readerSections = [
     margin-top: 0.75rem;
   }
 
+  .bucket-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .bucket-card {
+    gap: 0.75rem;
+  }
+
   .read-card,
   .read-surface-card {
     background: linear-gradient(180deg, #fff, #fcfcff);
@@ -368,6 +345,21 @@ const readerSections = [
 
   .read-surface-card {
     position: relative;
+    min-height: 9rem;
+  }
+
+  .read-surface-card h4 {
+    margin: 0;
+  }
+
+  .read-surface-card__meta {
+    font-size: 0.75rem;
+  }
+
+  .read-surface-card__shortcut {
+    margin-top: auto;
+    justify-content: flex-end;
+    display: flex;
   }
 
   .read-tools-grid {
@@ -379,12 +371,7 @@ const readerSections = [
   }
 
   .read-surface-card__footer {
-    margin-top: auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 0.5rem;
-    border-top: 1px solid rgba(91, 76, 230, 0.12);
+    display: none;
   }
 
   @media (max-width: 900px) {

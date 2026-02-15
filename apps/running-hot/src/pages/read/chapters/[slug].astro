@@ -49,6 +49,13 @@ const chapterOrder = entries
   .sort((a, b) => a.slug.localeCompare(b.slug));
 const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
 const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
+const chapterSteps = [
+  { label: "Purpose", href: "#purpose" },
+  { label: "Recognition", href: "#recognition" },
+  { label: "Mechanism", href: "#mechanism" },
+  { label: "Agency", href: "#agency" },
+  { label: "Next steps", href: "#next-steps" },
+];
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -59,29 +66,46 @@ const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
     <span>{frontmatter.title}</span>
   </nav>
   <a class="back-link" href={readRoutes.chapters}>← Chapters</a>
-  <div class="eyebrow">
-    {frontmatter.status ?? "draft"}
-    {isFallback ? " • fallback" : ""}
+  <div class="chapter-shell">
+    <aside class="chapter-meta-panel">
+      <div class="eyebrow">Chapter map</div>
+      <h2>Progress steps</h2>
+      <ol class="chapter-step-list">
+        {chapterSteps.map((step, index) => (
+          <li>
+            <a href={step.href}><span>{index + 1}.</span> {step.label}</a>
+          </li>
+        ))}
+      </ol>
+      <ExportPanel
+        title="Download chapter"
+        description="Keep a focused export for offline sharing."
+        links={exportLinks}
+      />
+    </aside>
+
+    <article>
+      <div class="eyebrow">
+        {frontmatter.status ?? "draft"}
+        {isFallback ? " • fallback" : ""}
+      </div>
+      <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
+      <section class="content-block chapter-content" data-chapter-sections>
+        <Content />
+      </section>
+    </article>
   </div>
-  <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
-  <ExportPanel
-    title="Download this chapter"
-    description="Share or save a focused export of this chapter."
-    links={exportLinks}
-  />
-  <section class="content-block">
-    <Content />
-  </section>
-  <section class="next-steps">
-    <h2>Next steps</h2>
-    <div class="next-steps__links">
+
+  <section class="next-steps" id="next-steps">
+    <h2>Choose your next move</h2>
+    <div class="next-steps__links next-steps__branches">
       {nextChapter && (
         <a class="next-steps__link" href={readItemPath("chapters", nextChapter.slug)}>
-          Next chapter: {nextChapter.title}
+          Continue chapter path → {nextChapter.title}
         </a>
       )}
-      <a class="next-steps__link" href={readRoutes.mechanisms}>Review mechanisms</a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Browse toolkit</a>
+      <a class="next-steps__link" href={readRoutes.mechanisms}>Branch to mechanism diagnosis</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Branch to ten-minute toolkit action</a>
     </div>
   </section>
   <FeedbackWidget
@@ -91,3 +115,61 @@ const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
     endpoint="/api/feedback.json"
   />
 </BaseLayout>
+
+<style>
+  .chapter-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .chapter-meta-panel {
+    position: sticky;
+    top: 1rem;
+    border: 1px solid rgba(91, 76, 230, 0.16);
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .chapter-meta-panel h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .chapter-step-list {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .chapter-step-list a {
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  .chapter-step-list a:hover {
+    color: var(--color-accent-strong);
+    text-decoration: underline;
+  }
+
+  .next-steps__branches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 900px) {
+    .chapter-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .chapter-meta-panel {
+      position: static;
+    }
+  }
+</style>

@@ -96,20 +96,24 @@ const availableBooks = [
       <p class="lede">{metaDescription}</p>
     </div>
     <div class="hero-primary-cta" data-funnel-group="home-hero-links">
-      <a href={readRoutes.overview} class="pill" data-funnel-step="hero_to_overview">I'm new — start with overview (3 min)</a>
-      <a href={readRoutes.mechanisms} class="pill" data-funnel-step="hero_to_mechanisms">I need help now — find a mechanism</a>
+      <a href={readRoutes.root} class="pill" data-funnel-step="hero_to_read_hub">Start reading</a>
     </div>
   </div>
 
   <section class="content-block">
-    <div class="eyebrow">Alternative entry</div>
-    <h2>Choose a route that matches your need</h2>
-    <p class="meta">If you want the full map first, start in the reading hub.</p>
+    <div class="eyebrow">Choose a route</div>
+    <h2>Pick a path that matches what you need right now</h2>
+    <p class="meta">After you start reading, use one of these branches to move quickly.</p>
     <div class="card-grid" data-funnel-group="home-start">
-      <a class="card" href={readRoutes.root} aria-keyshortcuts="g r" data-funnel-step="home_to_read_hub">
-        <div class="eyebrow">Primary</div>
-        <h3>Open the reading hub</h3>
-        <p class="meta">Browse every section from one place.</p>
+      <a class="card" href={readRoutes.overview} data-funnel-step="home_to_overview">
+        <div class="eyebrow">Orientation</div>
+        <h3>Read the framing chapter</h3>
+        <p class="meta">Understand intent, constraints, and boundaries first.</p>
+      </a>
+      <a class="card" href={readRoutes.mechanisms} data-funnel-step="home_to_mechanisms">
+        <div class="eyebrow">Problem-solving</div>
+        <h3>Jump to a mechanism</h3>
+        <p class="meta">Name the pattern before choosing an action.</p>
       </a>
     </div>
   </section>

@@ -1,18 +1,55 @@
-# release skill
+---
+name: release
+description: Use for release/versioning updates and release-readiness verification; requires strict validation and upgrade checks before merge.
+---
 
-Use this skill for release-note, version, and integration updates.
+# release
+
+## When to use
+
+Use for release operations and versioned publication changes, such as:
+
+- release notes/content under `apps/<book>/src/content/book/releases/**`
+- release metadata/version switching surfaces
+- release-oriented scripts or docs
+
+## Allowed file paths
+
+- ✅ `apps/<book>/src/content/book/releases/**`
+- ✅ release-related app/lib wiring (`src/lib/release-notes.ts`, `src/lib/versions.ts`)
+- ✅ release docs and ops notes
+- ⚠️ If engine release pipeline behavior changes, also run `engine-change` lane checks.
+
+## Risk guidance
+
+- **Medium risk** for release content only.
+- **High risk** if touching release validation/engine behavior.
 
 ## Guardrails
-- Release notes should be factual, section-scoped, and auditable.
-- Do not use vague "updated" labels without metadata backing.
 
-## Required checklist
-1. Ensure release frontmatter has `version`, `date`, `summary`.
-2. If section-level updates are used, include `changedSections`.
-3. Run:
-   - `bun run validate:release`
-   - `bun run validate`
+- Keep release notes factual and auditable.
+- Avoid coarse or misleading “updated” language not supported by metadata.
+- Preserve reader-safe navigation semantics when route labels change.
 
-## Output expectations
-- Summarize release impact by section.
-- Note any webhook/RSS behavior changes.
+## Required checks
+
+Minimum release lane checks:
+
+- `bun run validate`
+- `bun run validate:release`
+- `bun run check:upgrade -- --release`
+
+Recommended for route/UI release changes:
+
+- `bun run lint`
+- `bun run check:types`
+
+## PR note template
+
+- **Lane:** release (medium/high)
+- **Release scope:** book(s), version(s), affected routes/artifacts
+- **What changed:**
+- **Reader impact:**
+- **Before/after behavior:** (required if release UX/routes changed)
+- **Checks run:** include `validate:release` and `check:upgrade -- --release`
+- **Migration/compatibility notes:** redirects, deprecations, or schema implications

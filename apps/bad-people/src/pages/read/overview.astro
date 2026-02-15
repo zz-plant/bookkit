@@ -9,7 +9,7 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
   <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
     <h1>Book overview</h1>
-    <p class="lede">Intent, frame, and constraints that anchor the draft.</p>
+    <p class="lede">Intent, frame, and constraints that anchor the draft. <strong>Estimated read time:</strong> 3–5 minutes.</p>
   </div>
   <section class="content-block">
     <h2>Objectives</h2>
@@ -18,6 +18,7 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
       <li><strong>Reader end:</strong> {objectives.readerEnd}</li>
       <li><strong>Transformation:</strong> {objectives.transformation}</li>
     </ul>
+    <p class="meta"><strong>Next step:</strong> Open <a href={readRoutes.mechanisms}>Mechanisms</a> to map these objectives to concrete pattern diagnosis.</p>
 
     <h2>Intervention frame</h2>
     <p class="meta">{frame.intent}</p>
@@ -26,9 +27,11 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
         <li>{step}</li>
       ))}
     </ul>
+    <p class="meta"><strong>Next step:</strong> Continue to <a href={readRoutes.chapters}>Chapters</a> for the full intervention walkthrough.</p>
 
     <h2>Causal stance</h2>
     <p>{causalStance}</p>
+    <p class="meta"><strong>Next step:</strong> If you need immediate action, jump to <a href={readRoutes.toolkit}>Toolkit</a>.</p>
 
     <h2>Constraints</h2>
     <ul>
@@ -48,6 +51,7 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
         <strong>Ordering model:</strong> {constraints.orderingModel}
       </li>
     </ul>
+    <p class="meta"><strong>Next step:</strong> Review <a href={readRoutes.examples}>Examples</a> to see these constraints in replaceable cases.</p>
 
     <h2>Core mechanisms</h2>
     <ul>
@@ -60,5 +64,6 @@ const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
         </li>
       ))}
     </ul>
+    <p class="meta"><strong>Next step:</strong> Start with <a href={readRoutes.mechanisms}>Mechanisms</a> and pick one pattern that best matches your current situation.</p>
   </section>
 </BaseLayout>

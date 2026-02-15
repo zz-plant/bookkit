@@ -8,6 +8,14 @@ import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
 const coreMechanismSlugs = new Set(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
+const urgencyBySlug: Record<string, string> = {
+  "delay-as-force": "urgent",
+  "compliance-trap": "urgent",
+  "transfer-success": "urgent",
+  "bureaucracy-moral-technology": "high-leverage",
+  "reputation-membrane": "high-leverage",
+  "reversal-capacity": "stabilize",
+};
 const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,
@@ -15,20 +23,23 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
     const frontmatter = module.frontmatter ?? {};
     const tags = [
       coreMechanismSlugs.has(slug) ? "core" : null,
-      "high leverage",
+      urgencyBySlug[slug],
       isFallback ? "fallback" : null,
     ].filter(Boolean);
+    const predictions = Array.isArray(frontmatter.predictions) ? frontmatter.predictions : [];
+    const quickTrigger = typeof predictions[0] === "string" ? predictions[0] : null;
+    const definition = typeof frontmatter.definition === "string" ? frontmatter.definition : "";
     return {
       href: readItemPath("mechanisms", slug),
       title: frontmatter.title ?? "Untitled mechanism",
       eyebrow: tags.join(" • "),
-      meta: frontmatter.definition ?? "",
+      meta: quickTrigger ? `Use this when: ${quickTrigger}` : definition,
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Stable patterns that explain how harm stays normalized.",
+  "Stable patterns that explain how harm stays normalized. Pick one by trigger language, then open its next action.",
   completeness
 );
 ---
@@ -38,8 +49,8 @@ const localizedLede = buildTranslationLede(
     lede={localizedLede}
     items={mechanismItems}
     filterMode="always"
-    filterPlaceholder="Filter by mechanism name or definition..."
-    filterHint="Search by name, definition, or domain signal."
+    filterPlaceholder="Filter by mechanism, urgency tag, or trigger language..."
+    filterHint="Try tags like urgent, high-leverage, stabilize, or phrases from your situation."
     alphaMode="auto"
   />
 </BaseLayout>

@@ -96,29 +96,20 @@ const availableBooks = [
       <p class="lede">{metaDescription}</p>
     </div>
     <div class="hero-primary-cta" data-funnel-group="home-hero-links">
-      <a href={readRoutes.root} class="pill" data-funnel-step="hero_to_read_hub">Step 1: Start reading</a>
+      <a href={readRoutes.overview} class="pill" data-funnel-step="hero_to_overview">I'm new — start with overview (3 min)</a>
+      <a href={readRoutes.mechanisms} class="pill" data-funnel-step="hero_to_mechanisms">I need help now — find a mechanism</a>
     </div>
   </div>
 
   <section class="content-block">
-    <div class="eyebrow">Step 2</div>
+    <div class="eyebrow">Alternative entry</div>
     <h2>Choose a route that matches your need</h2>
-    <p class="meta">After entering the reading hub, pick the shortest route for your current context.</p>
+    <p class="meta">If you want the full map first, start in the reading hub.</p>
     <div class="card-grid" data-funnel-group="home-start">
       <a class="card" href={readRoutes.root} aria-keyshortcuts="g r" data-funnel-step="home_to_read_hub">
         <div class="eyebrow">Primary</div>
         <h3>Open the reading hub</h3>
         <p class="meta">Browse every section from one place.</p>
-      </a>
-      <a class="card" href={readRoutes.overview} data-funnel-step="home_to_overview">
-        <div class="eyebrow">Orientation</div>
-        <h3>Read the framing chapter</h3>
-        <p class="meta">Understand intent, constraints, and boundaries first.</p>
-      </a>
-      <a class="card" href={readRoutes.mechanisms} data-funnel-step="home_to_mechanisms">
-        <div class="eyebrow">Problem-solving</div>
-        <h3>Jump to a mechanism</h3>
-        <p class="meta">Name the pattern before choosing an action.</p>
       </a>
     </div>
   </section>
@@ -126,7 +117,7 @@ const availableBooks = [
   <section class="content-block">
     <div class="eyebrow">Bookshelf</div>
     <h2>Choose which book you want to read</h2>
-    <p class="meta">Start in this book or jump to another title in the Bookkit workspace.</p>
+    <p class="meta">Start in this book or switch context to another title in the Bookkit workspace.</p>
     <div class="card-grid">
       {availableBooks.map((book) => (
         <a
@@ -135,7 +126,7 @@ const availableBooks = [
           target={book.slug === bookConfig.slug ? undefined : "_blank"}
           rel={book.slug === bookConfig.slug ? undefined : "noreferrer"}
         >
-          <div class="eyebrow">{book.slug === bookConfig.slug ? "Current book" : "Other book"}</div>
+          <div class="eyebrow">{book.slug === bookConfig.slug ? "Current book" : "Switch book (external)"}</div>
           <h3>{book.title}</h3>
           <p class="meta">{book.description}</p>
         </a>

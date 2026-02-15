@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { jsonResponse, parseJsonBody } from "./http";
+import { jsonResponse, parseJsonBody, tryParseJsonBody } from "./http";
 
 describe("http utils", () => {
   it("returns JSON responses with status and content type", async () => {
@@ -29,5 +29,25 @@ describe("http utils", () => {
     });
 
     await expect(parseJsonBody(request)).resolves.toBeNull();
+  });
+
+  it("returns parse status for valid JSON", async () => {
+    const request = new Request("http://localhost/test", {
+      method: "POST",
+      body: JSON.stringify({ ok: true }),
+      headers: { "content-type": "application/json" },
+    });
+
+    await expect(tryParseJsonBody(request)).resolves.toEqual({ ok: true, value: { ok: true } });
+  });
+
+  it("returns parse status for invalid JSON", async () => {
+    const request = new Request("http://localhost/test", {
+      method: "POST",
+      body: "not json",
+      headers: { "content-type": "application/json" },
+    });
+
+    await expect(tryParseJsonBody(request)).resolves.toEqual({ ok: false });
   });
 });

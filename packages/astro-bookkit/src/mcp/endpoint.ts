@@ -1,6 +1,8 @@
 import type { BookContentRawModules } from "../book/entrypoints";
 import { spawnSync } from "node:child_process";
 
+import { jsonResponse, tryParseJsonBody } from "../utils/http";
+
 type McpEndpointOptions = {
   bookTitle: string;
   bookSlug?: string;
@@ -215,13 +217,6 @@ const parseResourceUri = (
   if (!type || rest.length === 0) return null;
   if (!CONTENT_TYPES.includes(type as ContentTypeKey)) return null;
   return { type: type as ContentTypeKey, slug: rest.join("/") };
-};
-
-const createJsonResponse = (payload: unknown, status = 200) => {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-  });
 };
 
 const createJsonRpcError = (
@@ -632,7 +627,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
   return {
     GET: () => {
       const resources = listResources(options.contentRawModules, resourcePrefix, options.governanceResources);
-      return createJsonResponse({
+      return jsonResponse({
         ok: true,
         bookTitle: options.bookTitle,
         description: options.bookDescription ?? null,
@@ -661,26 +656,25 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
       });
     },
     POST: async ({ request }: { request: Request }) => {
-      let payload: unknown = null;
-      try {
-        payload = await request.json();
-      } catch (error) {
-        return createJsonResponse(createJsonRpcError(null, -32700, "Invalid JSON payload."), 400);
+      const parsed = await tryParseJsonBody(request);
+      if (!parsed.ok) {
+        return jsonResponse(createJsonRpcError(null, -32700, "Invalid JSON payload."), 400);
       }
 
+      const payload = parsed.value;
       if (!payload) {
-        return createJsonResponse(createJsonRpcError(null, -32600, "Missing JSON-RPC payload."), 400);
+        return jsonResponse(createJsonRpcError(null, -32600, "Missing JSON-RPC payload."), 400);
       }
 
       if (Array.isArray(payload)) {
         const responses = payload
           .filter((item): item is JsonRpcRequest => Boolean(item))
           .map((item) => handleRequest(options, item));
-        return createJsonResponse(responses);
+        return jsonResponse(responses);
       }
 
       const response = handleRequest(options, payload as JsonRpcRequest);
-      return createJsonResponse(response);
+      return jsonResponse(response);
     },
   };
 };

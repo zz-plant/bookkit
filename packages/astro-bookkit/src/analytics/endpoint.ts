@@ -4,6 +4,7 @@ import {
   recordReaderAnalyticsEvent,
   type ReaderAnalyticsEvent,
 } from "./analytics";
+import { jsonResponse, parseJsonBody } from "../utils/http";
 
 export type ReaderAnalyticsEndpointOptions = {
   onRecord?: (event: ReaderAnalyticsEvent) => Promise<void> | void;
@@ -110,47 +111,27 @@ export const createReaderAnalyticsEndpoint = (options: ReaderAnalyticsEndpointOp
     GET: async ({ request }: { request: Request }) => {
       const events = await onRead();
       const filtered = filterByQuery(events, request);
-      return new Response(JSON.stringify({ ok: true, total: filtered.length, events: filtered }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      });
+      return jsonResponse({ ok: true, total: filtered.length, events: filtered });
     },
     POST: async ({ request }: { request: Request }) => {
-      let payload: unknown = null;
-      try {
-        payload = await request.json();
-      } catch (error) {
-        payload = null;
-      }
+      const payload = await parseJsonBody(request);
 
       if (!isRecord(payload)) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid payload." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
       }
 
       const event = normalizeEvent(payload, request);
       if (!event) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid analytics event." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid analytics event." }, 400);
       }
 
       try {
         await onRecord(event);
       } catch (error) {
-        return new Response(JSON.stringify({ ok: false, error: "Unable to store analytics event." }), {
-          status: 500,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Unable to store analytics event." }, 500);
       }
 
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      });
+      return jsonResponse({ ok: true });
     },
   };
 };

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { getPreviewAnalyticsLogPath, recordPreviewEvent, type PreviewAnalyticsEvent } from "./analytics";
+import { jsonResponse, parseJsonBody } from "../utils/http";
 
 export type PreviewAnalyticsEndpointOptions = {
   onRecord?: (event: PreviewAnalyticsEvent) => Promise<void> | void;
@@ -83,55 +84,32 @@ export const createPreviewAnalyticsEndpoint = (options: PreviewAnalyticsEndpoint
     GET: async () => {
       const events = await onRead();
       const { counts, latest } = buildPreviewCounts(events);
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          totals: counts,
-          latest,
-          total: events.length,
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        }
-      );
+      return jsonResponse({
+        ok: true,
+        totals: counts,
+        latest,
+        total: events.length,
+      });
     },
     POST: async ({ request }: { request: Request }) => {
-      let payload: unknown = null;
-      try {
-        payload = await request.json();
-      } catch (error) {
-        payload = null;
-      }
+      const payload = await parseJsonBody(request);
 
       if (!isRecord(payload)) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid payload." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
       }
 
       const event = normalizeEvent(payload, request);
       if (!event) {
-        return new Response(JSON.stringify({ ok: false, error: "Invalid preview event." }), {
-          status: 400,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Invalid preview event." }, 400);
       }
 
       try {
         await onRecord(event);
       } catch (error) {
-        return new Response(JSON.stringify({ ok: false, error: "Unable to store preview event." }), {
-          status: 500,
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-        });
+        return jsonResponse({ ok: false, error: "Unable to store preview event." }, 500);
       }
 
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      });
+      return jsonResponse({ ok: true });
     },
   };
 };

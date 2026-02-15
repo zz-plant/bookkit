@@ -234,6 +234,12 @@ Then:
 
 Do not fork the engine to customize one book.
 
+To remove a scaffolded book app (and its root dev/build scripts):
+
+```bash
+bun run remove:book -- --book <book-slug>
+```
+
 ---
 
 ## Contribution model

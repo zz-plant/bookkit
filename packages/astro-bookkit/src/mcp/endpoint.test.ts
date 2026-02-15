@@ -6,7 +6,17 @@ const createFixtureEndpoint = () => {
   return createBookMcpEndpoint({
     bookTitle: "Fixture Book",
     contentRawModules: {
-      chapters: { "src/content/book/chapters/00-overview.mdx": "---\ntitle: Overview\n---\n# Intro" },
+      chapters: {
+        "src/content/book/chapters/00-overview.mdx": [
+          "---",
+          "title: Overview",
+          "---",
+          "# Intro",
+          "Intro body",
+          "## Details",
+          "Details body",
+        ].join("\n"),
+      },
       mechanisms: { "src/content/book/mechanisms/sample.mdx": "---\ntitle: Sample Mechanism\n---\nBody" },
       toolkit: {},
       glossary: {},
@@ -173,6 +183,54 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.contents[0].text).toContain("title: Overview");
     expect(body.result.contents[0].metadata.chunkId).toBe("bookkit://content/chapters/00-overview#L1-L3");
     expect(body.result.contents[0].metadata.totalLines).toBeGreaterThanOrEqual(3);
+  });
+
+  it("supports section-based resource reads with stable section chunk IDs", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 61,
+          method: "resources/read",
+          params: { uri: "bookkit://content/chapters/00-overview", section: "intro" },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as {
+      result: {
+        contents: Array<{ text: string; metadata: { chunkId: string; startLine: number; endLine: number } }>;
+      };
+    };
+
+    expect(body.result.contents[0].text).toContain("# Intro");
+    expect(body.result.contents[0].text).toContain("## Details");
+    expect(body.result.contents[0].metadata.chunkId).toBe("bookkit://content/chapters/00-overview#section:intro");
+    expect(body.result.contents[0].metadata.startLine).toBe(4);
+  });
+
+  it("returns actionable invalid-params error for invalid ranges", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 62,
+          method: "resources/read",
+          params: { uri: "bookkit://content/chapters/00-overview", startLine: 8, endLine: 9 },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(-32602);
+    expect(body.error.message).toContain("exceeds total lines");
+    expect(body.error.message).toContain("retry within bounds");
   });
 
 

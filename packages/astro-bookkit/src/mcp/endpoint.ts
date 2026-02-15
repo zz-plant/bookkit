@@ -47,6 +47,7 @@ type ResourceReadParams = {
   uri?: string;
   startLine?: number;
   endLine?: number;
+  section?: string;
 };
 
 type ResourceListParams = {
@@ -326,20 +327,156 @@ type ResourceChunk = {
   chunkId: string;
 };
 
-const buildResourceChunk = (uri: string, text: string, params: ResourceReadParams): ResourceChunk => {
+type ResourceChunkError = {
+  detail: string;
+  nextAction: string;
+};
+
+const slugifyHeading = (value: string): string => {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[`*_~]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+};
+
+const resolveSectionRange = (
+  lines: string[],
+  rawSection: string,
+): { startLine: number; endLine: number; chunkLabel: string } | ResourceChunkError => {
+  const section = rawSection.trim();
+  if (!section.length) {
+    return {
+      detail: "section must be a non-empty string.",
+      nextAction: "Provide params.section as a heading title or heading slug.",
+    };
+  }
+
+  const normalizedSection = slugifyHeading(section);
+  const headingPattern = /^(#{1,6})\s+(.+)$/;
+
+  let matchIndex = -1;
+  let matchLevel = 0;
+  let matchHeading = "";
+
+  for (const [index, line] of lines.entries()) {
+    const match = line.match(headingPattern);
+    if (!match) continue;
+    const headingText = match[2].trim();
+    const headingSlug = slugifyHeading(headingText);
+    if (headingSlug === normalizedSection || headingText.toLowerCase() === section.toLowerCase()) {
+      matchIndex = index;
+      matchLevel = match[1].length;
+      matchHeading = headingText;
+      break;
+    }
+  }
+
+  if (matchIndex < 0) {
+    return {
+      detail: `section ${JSON.stringify(section)} was not found in the resource headings.`,
+      nextAction: "Run resources/read without section to inspect headings, then retry with an existing heading title or slug.",
+    };
+  }
+
+  let endIndex = lines.length - 1;
+  for (let index = matchIndex + 1; index < lines.length; index += 1) {
+    const match = lines[index].match(headingPattern);
+    if (!match) continue;
+    const level = match[1].length;
+    if (level <= matchLevel) {
+      endIndex = index - 1;
+      break;
+    }
+  }
+
+  return {
+    startLine: matchIndex + 1,
+    endLine: endIndex + 1,
+    chunkLabel: slugifyHeading(matchHeading) || `line-${matchIndex + 1}`,
+  };
+};
+
+const buildResourceChunk = (
+  uri: string,
+  text: string,
+  params: ResourceReadParams,
+): ResourceChunk | ResourceChunkError => {
   const lines = text.split("\n");
   const totalLines = lines.length;
-  const startRaw = typeof params.startLine === "number" ? Math.floor(params.startLine) : 1;
-  const endRaw = typeof params.endLine === "number" ? Math.floor(params.endLine) : totalLines;
-  const startLine = Math.min(Math.max(startRaw, 1), totalLines || 1);
-  const endLine = Math.min(Math.max(endRaw, startLine), totalLines || startLine);
+
+  const hasRange = typeof params.startLine === "number" || typeof params.endLine === "number";
+  if (params.section && hasRange) {
+    return {
+      detail: "section cannot be combined with startLine/endLine.",
+      nextAction: "Use either params.section or a line range, but not both.",
+    };
+  }
+
+  let startLine = 1;
+  let endLine = totalLines || 1;
+  let chunkLabel = `L${startLine}-L${endLine}`;
+
+  if (params.section) {
+    const sectionRange = resolveSectionRange(lines, params.section);
+    if ("detail" in sectionRange) return sectionRange;
+    startLine = sectionRange.startLine;
+    endLine = sectionRange.endLine;
+    chunkLabel = `section:${sectionRange.chunkLabel}`;
+  } else {
+    const startRaw = typeof params.startLine === "number" ? Math.floor(params.startLine) : 1;
+    const endRaw = typeof params.endLine === "number" ? Math.floor(params.endLine) : totalLines;
+
+    if (startRaw < 1) {
+      return {
+        detail: `startLine must be >= 1; received ${startRaw}.`,
+        nextAction: "Use startLine >= 1, or omit range params to read the full resource.",
+      };
+    }
+
+    if (endRaw < 1) {
+      return {
+        detail: `endLine must be >= 1; received ${endRaw}.`,
+        nextAction: "Use endLine >= 1, or omit range params to read the full resource.",
+      };
+    }
+
+    if (endRaw < startRaw) {
+      return {
+        detail: `endLine must be >= startLine; received startLine=${startRaw}, endLine=${endRaw}.`,
+        nextAction: "Provide a valid inclusive range where endLine is greater than or equal to startLine.",
+      };
+    }
+
+    if (startRaw > totalLines) {
+      return {
+        detail: `startLine ${startRaw} exceeds total lines (${totalLines}).`,
+        nextAction: "Use resources/read without range params to inspect total lines, then retry within bounds.",
+      };
+    }
+
+    if (endRaw > totalLines) {
+      return {
+        detail: `endLine ${endRaw} exceeds total lines (${totalLines}).`,
+        nextAction: "Set endLine to a value <= totalLines, or omit endLine to read until EOF.",
+      };
+    }
+
+    startLine = startRaw;
+    endLine = endRaw;
+    chunkLabel = `L${startLine}-L${endLine}`;
+  }
+
   const chunkText = lines.slice(startLine - 1, endLine).join("\n");
   return {
     text: chunkText,
     startLine,
     endLine,
     totalLines,
-    chunkId: `${uri}#L${startLine}-L${endLine}`,
+    chunkId: `${uri}#${chunkLabel}`,
   };
 };
 const createInvalidParamsError = (id: JsonRpcError["id"], detail: string): JsonRpcError => {
@@ -606,6 +743,9 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
       );
       if (!resource) return createJsonRpcError(id, -32602, "Resource not found.");
       const chunk = buildResourceChunk(uri, resource.text, params ?? {});
+      if ("detail" in chunk) {
+        return createInvalidParamsError(id, `${chunk.detail} ${chunk.nextAction}`);
+      }
       return {
         jsonrpc: "2.0",
         id,

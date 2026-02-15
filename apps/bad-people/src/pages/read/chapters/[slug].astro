@@ -49,13 +49,6 @@ const chapterOrder = entries
   .sort((a, b) => a.slug.localeCompare(b.slug));
 const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
 const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
-const chapterSteps = [
-  { label: "Purpose", href: "#purpose" },
-  { label: "Recognition", href: "#recognition" },
-  { label: "Mechanism", href: "#mechanism" },
-  { label: "Agency", href: "#agency" },
-  { label: "Next steps", href: "#next-steps" },
-];
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`}>
   <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -70,13 +63,7 @@ const chapterSteps = [
     <aside class="chapter-meta-panel">
       <div class="eyebrow">Chapter map</div>
       <h2>Progress steps</h2>
-      <ol class="chapter-step-list">
-        {chapterSteps.map((step, index) => (
-          <li>
-            <a href={step.href}><span>{index + 1}.</span> {step.label}</a>
-          </li>
-        ))}
-      </ol>
+      <ol class="chapter-step-list" data-chapter-step-list></ol>
       <ExportPanel
         title="Download chapter"
         description="Keep a focused export for offline sharing."
@@ -115,6 +102,33 @@ const chapterSteps = [
     endpoint="/api/feedback.json"
   />
 </BaseLayout>
+
+<script is:inline>
+  const chapterStepList = document.querySelector("[data-chapter-step-list]");
+  const chapterSections = document.querySelector("[data-chapter-sections]");
+
+  if (chapterStepList && chapterSections) {
+    const sectionHeadings = Array.from(chapterSections.querySelectorAll("h2[id], h3[id]"));
+    const nextStepsHeading = document.querySelector(".next-steps h2[id], .next-steps[id]");
+    const orderedHeadings =
+      nextStepsHeading && "id" in nextStepsHeading && nextStepsHeading.id
+        ? [...sectionHeadings, nextStepsHeading]
+        : sectionHeadings;
+
+    orderedHeadings.forEach((heading, index) => {
+      if (!("id" in heading) || !heading.id) return;
+
+      const stepItem = document.createElement("li");
+      const stepLink = document.createElement("a");
+      const stepNumber = document.createElement("span");
+      stepNumber.textContent = `${index + 1}.`;
+      stepLink.href = `#${heading.id}`;
+      stepLink.append(stepNumber, ` ${heading.textContent?.trim() ?? "Section"}`);
+      stepItem.append(stepLink);
+      chapterStepList.append(stepItem);
+    });
+  }
+</script>
 
 <style>
   .chapter-shell {

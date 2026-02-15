@@ -276,6 +276,27 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
                   </div>
                 </details>
               )}
+              <details class="reader-settings" data-reader-settings>
+                <summary class="reader-settings__toggle">Reading view</summary>
+                <div class="reader-settings__panel">
+                  <p class="reader-settings__hint">Tune text spacing and font for this device.</p>
+                  <div class="reader-settings__group" role="group" aria-label="Reading density">
+                    <span class="reader-settings__label">Density</span>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-density="compact">Compact</button>
+                      <button type="button" data-reader-density="comfortable">Comfortable</button>
+                      <button type="button" data-reader-density="relaxed">Relaxed</button>
+                    </div>
+                  </div>
+                  <div class="reader-settings__group" role="group" aria-label="Reading font">
+                    <span class="reader-settings__label">Font</span>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-font="serif">Serif</button>
+                      <button type="button" data-reader-font="sans">Sans</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
               {aiQaEnabled && (
                 <button
                   class="qa-toggle"
@@ -581,8 +602,11 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       const siteSettings = document.querySelector("[data-site-settings]");
       const mobileSearchToggle = document.querySelector("[data-mobile-search]");
       const mobileMenuToggle = document.querySelector("[data-mobile-menu]");
+      const readerDensityButtons = Array.from(document.querySelectorAll("[data-reader-density]"));
+      const readerFontButtons = Array.from(document.querySelectorAll("[data-reader-font]"));
       const desktopNavMedia = window.matchMedia("(min-width: 721px)");
       const qaEnabled = document.body?.dataset?.qaEnabled === "true";
+      const readerPrefsKey = `${analyticsKeyPrefix}.reader.prefs`;
       let lastFocused = null;
       let pendingSequence = null;
       let sequenceTimeout = null;
@@ -692,6 +716,59 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           (target.isContentEditable ||
             ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
         );
+      };
+
+      const updateReaderButtonState = (buttons, selectedValue) => {
+        buttons.forEach((button) => {
+          const isActive =
+            button instanceof HTMLElement &&
+            (button.dataset.readerDensity === selectedValue || button.dataset.readerFont === selectedValue);
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
+          button.classList.toggle("is-active", isActive);
+        });
+      };
+
+      const loadReaderPreferences = () => {
+        try {
+          const stored = localStorage.getItem(readerPrefsKey);
+          const parsed = stored ? JSON.parse(stored) : null;
+          return {
+            density: parsed?.density,
+            font: parsed?.font,
+          };
+        } catch (error) {
+          return { density: null, font: null };
+        }
+      };
+
+      const saveReaderPreferences = (prefs) => {
+        localStorage.setItem(readerPrefsKey, JSON.stringify(prefs));
+      };
+
+      const setReaderDensity = (density) => {
+        if (!["compact", "comfortable", "relaxed"].includes(density)) return;
+        document.body.dataset.readerDensity = density;
+        const prefs = loadReaderPreferences();
+        saveReaderPreferences({ ...prefs, density });
+        updateReaderButtonState(readerDensityButtons, density);
+      };
+
+      const setReaderFont = (font) => {
+        if (!["serif", "sans"].includes(font)) return;
+        document.body.dataset.readerFont = font;
+        const prefs = loadReaderPreferences();
+        saveReaderPreferences({ ...prefs, font });
+        updateReaderButtonState(readerFontButtons, font);
+      };
+
+      const initializeReaderPreferences = () => {
+        const prefs = loadReaderPreferences();
+        const density =
+          prefs.density ??
+          (window.matchMedia("(max-width: 720px)").matches ? "relaxed" : "comfortable");
+        const font = prefs.font ?? "serif";
+        setReaderDensity(density);
+        setReaderFont(font);
       };
 
       const escapeHtml = (value) => {
@@ -1148,7 +1225,22 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         mobileMenuToggle.setAttribute("aria-expanded", "true");
       });
 
+      readerDensityButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!button.dataset.readerDensity) return;
+          setReaderDensity(button.dataset.readerDensity);
+        });
+      });
+
+      readerFontButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!button.dataset.readerFont) return;
+          setReaderFont(button.dataset.readerFont);
+        });
+      });
+
       warmSearchIndex();
+      initializeReaderPreferences();
       syncSiteNavOverflow(desktopNavMedia.matches);
 
       if ("addEventListener" in desktopNavMedia) {

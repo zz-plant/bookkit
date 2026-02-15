@@ -7,6 +7,13 @@ const slug = slugify(rawBook);
 const skipRootScripts = process.argv.includes("--skip-root-scripts");
 const dryRun = process.argv.includes("--dry-run");
 
+if (!slug) {
+  console.error(
+    `Invalid --book value "${rawBook}". Provide a value that slugifies to at least one alphanumeric character.`,
+  );
+  process.exit(1);
+}
+
 if (slug !== rawBook) {
   console.warn(`⚠️ Normalizing book slug from "${rawBook}" to "${slug}".`);
 }

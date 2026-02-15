@@ -17,14 +17,46 @@ export type ReleaseNote = {
   summary: string;
   highlights: string[];
   changedSections: ReleaseSectionSlug[];
+  sectionSnapshots: Partial<Record<ReleaseSectionSlug, string>>;
+  sectionChangeSource: "manual" | "snapshot-diff";
   Content?: unknown;
 };
 
 export type ReleaseModule = {
   frontmatter?: Partial<ReleaseNote> & {
     changedSections?: unknown;
+    sectionSnapshots?: unknown;
   };
   default?: unknown;
+};
+
+const normalizeSectionSnapshots = (value: unknown): Partial<Record<ReleaseSectionSlug, string>> => {
+  if (!value || typeof value !== "object") return {};
+
+  const allowed = new Set<string>(RELEASE_SECTION_SLUGS);
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, raw]) => [key.trim().toLowerCase(), typeof raw === "string" ? raw.trim() : ""] as const)
+      .filter(([key, fingerprint]) => allowed.has(key) && fingerprint.length > 0)
+  ) as Partial<Record<ReleaseSectionSlug, string>>;
+};
+
+const deriveChangedSectionsFromSnapshots = (
+  current: Partial<Record<ReleaseSectionSlug, string>>,
+  previous: Partial<Record<ReleaseSectionSlug, string>>,
+): ReleaseSectionSlug[] => {
+  const changed: ReleaseSectionSlug[] = [];
+
+  for (const section of RELEASE_SECTION_SLUGS) {
+    const currentFingerprint = current[section];
+    const previousFingerprint = previous[section];
+    if (!currentFingerprint && !previousFingerprint) continue;
+    if (!previousFingerprint || !currentFingerprint || currentFingerprint !== previousFingerprint) {
+      changed.push(section);
+    }
+  }
+
+  return changed;
 };
 
 const normalizeChangedSections = (value: unknown): ReleaseSectionSlug[] => {
@@ -51,7 +83,7 @@ const normalizeHighlights = (value: unknown): string[] => {
 export const createReleaseNotes = (
   releaseModules: Record<string, ReleaseModule>
 ): ReleaseNote[] => {
-  return Object.entries(releaseModules)
+  const releases = Object.entries(releaseModules)
     .map(([path, module]) => {
       const slug = path.split("/").pop()?.replace(/\.mdx$/, "") ?? "";
       const frontmatter = module.frontmatter ?? {};
@@ -63,11 +95,27 @@ export const createReleaseNotes = (
         summary: frontmatter.summary ?? "",
         highlights: normalizeHighlights(frontmatter.highlights),
         changedSections: normalizeChangedSections(frontmatter.changedSections),
+        sectionSnapshots: normalizeSectionSnapshots(frontmatter.sectionSnapshots),
+        sectionChangeSource: "manual" as const,
         Content: module.default,
       };
     })
     .filter((release) => release.version && release.date)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const chronological = [...releases].reverse();
+  let previousSnapshots: Partial<Record<ReleaseSectionSlug, string>> = {};
+
+  for (const release of chronological) {
+    const hasSnapshots = Object.keys(release.sectionSnapshots).length > 0;
+    if (!hasSnapshots) continue;
+
+    release.changedSections = deriveChangedSectionsFromSnapshots(release.sectionSnapshots, previousSnapshots);
+    release.sectionChangeSource = "snapshot-diff";
+    previousSnapshots = release.sectionSnapshots;
+  }
+
+  return releases;
 };
 
 export const createLatestSectionChangeMap = (

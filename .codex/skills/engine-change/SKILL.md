@@ -1,19 +1,63 @@
-# engine-change skill
+---
+name: engine-change
+description: Use for Lane C changes in packages/astro-bookkit (frames, schemas, validators, compiler, shared components) with actionable errors and migration impact notes.
+---
 
-Use this skill for `packages/astro-bookkit/**` changes (schemas, validators, compiler, shared components).
+# engine-change
+
+## When to use
+
+Use for changes in engine internals, including:
+
+- `packages/astro-bookkit/src/frames/**`
+- `packages/astro-bookkit/src/schemas/**`
+- `packages/astro-bookkit/src/validators/**`
+- `packages/astro-bookkit/src/compiler/**`
+- `packages/astro-bookkit/src/mcp/**`
+
+## Allowed file paths
+
+- ✅ `packages/astro-bookkit/**`
+- ✅ tests/specs/docs supporting engine behavior updates
+- ❌ book-specific app exceptions for one title
+
+## Risk guidance
+
+This lane is **high risk** by default.
+
+Extra-care areas:
+
+- mechanism schema changes
+- frame requirement changes
+- ordering logic changes
+- validation strictness default changes
 
 ## Guardrails
-- No book-specific conditionals in engine.
-- Keep validation errors actionable.
-- For risky changes (schema/frame/ordering/strictness), include before/after behavior notes.
 
-## Required checklist
-1. Confirm no app-specific fork logic in engine code.
-2. Run:
-   - `bun test`
-   - `bun run validate`
-   - `bun run check:types`
-3. If validation behavior changed, add migration notes in PR body.
+- Keep engine behavior book-agnostic.
+- Keep validation errors explicit and actionable.
+- Do not weaken validation to force pass.
+- For behavior-affecting changes, include short before/after notes and migration impact.
 
-## Output expectations
-- Include risk level and migration impact explicitly.
+## Required checks
+
+Lane C baseline from `CONTRIBUTING.md`:
+
+- `bun run validate`
+- `bun run validate:release`
+- `bun run lint`
+- `bun run check:types`
+
+Escalation for behavior-affecting changes:
+
+- `bun run check:upgrade -- --release`
+
+## PR note template
+
+- **Lane:** C (high)
+- **Risk rationale:**
+- **What changed:**
+- **Before/after behavior:**
+- **Validation UX impact:** updated error messages and remediation text
+- **Checks run:**
+- **Migration notes:** required for schema/validator/frame contract changes

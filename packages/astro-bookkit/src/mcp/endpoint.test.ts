@@ -61,10 +61,10 @@ describe("createBookMcpEndpoint", () => {
     });
 
     const body = (await response.json()) as {
-      result: { content: Array<{ json: { mechanisms: Array<{ slug: string }> } }> };
+      result: { content: Array<{ json: { ok: boolean; payload: { mechanisms: Array<{ slug: string }> } } }> };
     };
 
-    expect(body.result.content[0].json.mechanisms[0].slug).toBe("sample");
+    expect(body.result.content[0].json.payload.mechanisms[0].slug).toBe("sample");
   });
 
   it("lists tool metadata in tools/list", async () => {
@@ -113,7 +113,7 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.nextCursor).toBe("1");
   });
 
-  it("returns actionable invalid params when validate_book is missing book context", async () => {
+  it("returns actionable tool payload when validate_book is missing book context", async () => {
     const endpoint = createBookMcpEndpoint({
       bookTitle: "No Slug",
       contentRawModules: {
@@ -138,8 +138,12 @@ describe("createBookMcpEndpoint", () => {
       }),
     });
 
-    const body = (await response.json()) as { error: { message: string } };
-    expect(body.error.message).toContain("arguments.book");
+    const body = (await response.json()) as {
+      result: { content: Array<{ json: { ok: boolean; error: { cause: string; nextAction: string } } }> };
+    };
+    expect(body.result.content[0].json.ok).toBe(false);
+    expect(body.result.content[0].json.error.cause).toContain("arguments.book");
+    expect(body.result.content[0].json.error.nextAction).toContain("Provide a book slug");
   });
 
   it("supports citation-ready ranged reads with stable chunk metadata", async () => {
@@ -188,10 +192,10 @@ describe("createBookMcpEndpoint", () => {
     });
 
     const body = (await response.json()) as {
-      result: { content: Array<{ json: { skills: Array<{ slug: string }> } }> };
+      result: { content: Array<{ json: { ok: boolean; payload: { skills: Array<{ slug: string }> } } }> };
     };
 
-    expect(body.result.content[0].json.skills[0].slug).toBe("content-edit");
+    expect(body.result.content[0].json.payload.skills[0].slug).toBe("content-edit");
   });
 
 
@@ -213,6 +217,26 @@ describe("createBookMcpEndpoint", () => {
     const body = (await response.json()) as { error: { code: number; message: string } };
     expect(body.error.code).toBe(-32601);
     expect(body.error.message).toContain("Unknown tool");
+  });
+
+  it("returns actionable guidance for unknown resource URIs", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 9,
+          method: "resources/read",
+          params: { uri: "bookkit://content/chapters/missing" },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(-32602);
+    expect(body.error.message).toContain("Call resources/list");
   });
 
   it("publishes agent profile in GET discovery", async () => {

@@ -366,17 +366,32 @@ const runWorkspaceCommand = (
   };
 };
 
+type ToolResponse = {
+  ok: boolean;
+  summary: string;
+  payload?: Record<string, unknown>;
+  error?: {
+    cause: string;
+    nextAction: string;
+  };
+};
+
 const runTool = (
   options: McpEndpointOptions,
   name: ToolName,
   args: Record<string, unknown> | undefined,
-): unknown => {
+): ToolResponse => {
   if (name === "bookkit.list_books") {
     const command = runWorkspaceCommand(options.workspaceRoot, ["run", "list:books"]);
     if (!command.ok) {
-      throw new Error(
-        `list:books failed (exit ${command.exitCode}). ${command.stderr || command.stdout || "No output."}`,
-      );
+      return {
+        ok: false,
+        summary: "Unable to list books.",
+        error: {
+          cause: `list:books failed (exit ${command.exitCode}). ${command.stderr || command.stdout || "No output."}`,
+          nextAction: "Run bun run list:books locally and fix the reported issue before retrying.",
+        },
+      };
     }
 
     const books = command.stdout
@@ -386,9 +401,13 @@ const runTool = (
       .filter((line) => !line.startsWith("$ "));
 
     return {
-      books,
-      count: books.length,
-      command: command.command,
+      ok: true,
+      summary: `Found ${books.length} books in the workspace.`,
+      payload: {
+        books,
+        count: books.length,
+        command: command.command,
+      },
     };
   }
 
@@ -399,9 +418,13 @@ const runTool = (
     }));
 
     return {
-      bookTitle: options.bookTitle,
-      sections,
-      total: sections.reduce((sum, entry) => sum + entry.count, 0),
+      ok: true,
+      summary: `Listed content counts for ${options.bookTitle}.`,
+      payload: {
+        bookTitle: options.bookTitle,
+        sections,
+        total: sections.reduce((sum, entry) => sum + entry.count, 0),
+      },
     };
   }
 
@@ -428,9 +451,13 @@ const runTool = (
       .filter((skill) => skill.slug !== "README");
 
     return {
-      skills,
-      count: skills.length,
-      guidance: "Read each skill URI for lane-specific checklists before making changes.",
+      ok: true,
+      summary: `Found ${skills.length} local skills.`,
+      payload: {
+        skills,
+        count: skills.length,
+        guidance: "Read each skill URI for lane-specific checklists before making changes.",
+      },
     };
   }
 
@@ -438,21 +465,34 @@ const runTool = (
     const rawBook = args?.book;
     const book = typeof rawBook === "string" && rawBook.trim().length ? rawBook.trim() : options.bookSlug;
     if (!book) {
-      throw new Error("Provide a book slug in arguments.book.");
+      return {
+        ok: false,
+        summary: "Book validation requires a slug.",
+        error: {
+          cause: "Missing required arguments.book and no default endpoint book slug is configured.",
+          nextAction: "Provide a book slug in arguments.book and rerun bookkit.validate_book.",
+        },
+      };
     }
 
     const command = runWorkspaceCommand(options.workspaceRoot, ["run", "validate:book", "--", "--book", book]);
 
     return {
-      book,
       ok: command.ok,
-      command: command.command,
-      exitCode: command.exitCode,
-      stdout: command.stdout.trim(),
-      stderr: command.stderr.trim(),
-      remediation: command.ok
-        ? null
-        : "Fix the reported validation errors, then re-run bun run validate:book -- --book <slug>.",
+      summary: command.ok ? `Validation passed for ${book}.` : `Validation failed for ${book}.`,
+      payload: {
+        book,
+        command: command.command,
+        exitCode: command.exitCode,
+        stdout: command.stdout.trim(),
+        stderr: command.stderr.trim(),
+      },
+      error: command.ok
+        ? undefined
+        : {
+            cause: `validate:book returned exit code ${command.exitCode}.`,
+            nextAction: "Fix the reported validation errors, then re-run bun run validate:book -- --book <slug>.",
+          },
     };
   }
 
@@ -461,19 +501,32 @@ const runTool = (
 
     return {
       ok: command.ok,
-      command: command.command,
-      exitCode: command.exitCode,
-      stdout: command.stdout.trim(),
-      stderr: command.stderr.trim(),
-      remediation: command.ok
-        ? null
-        : "Resolve boundary violations, then re-run bun run check:separation.",
+      summary: command.ok ? "Separation checks passed." : "Separation checks failed.",
+      payload: {
+        command: command.command,
+        exitCode: command.exitCode,
+        stdout: command.stdout.trim(),
+        stderr: command.stderr.trim(),
+      },
+      error: command.ok
+        ? undefined
+        : {
+            cause: `check:separation returned exit code ${command.exitCode}.`,
+            nextAction: "Resolve boundary violations, then re-run bun run check:separation.",
+          },
     };
   }
 
   const section = args?.section;
   if (section && section !== "mechanisms") {
-    throw new Error("Only section=\"mechanisms\" is supported.");
+    return {
+      ok: false,
+      summary: "Unsupported list_mechanisms section.",
+      error: {
+        cause: `Received section=${JSON.stringify(section)}; only mechanisms are currently supported.`,
+        nextAction: "Remove arguments.section or set it to \"mechanisms\".",
+      },
+    };
   }
 
   const mechanisms = Object.entries(options.contentRawModules.mechanisms).map(([moduleKey, raw]) => {
@@ -486,9 +539,13 @@ const runTool = (
   });
 
   return {
-    bookTitle: options.bookTitle,
-    mechanisms,
-    count: mechanisms.length,
+    ok: true,
+    summary: `Listed ${mechanisms.length} mechanisms.`,
+    payload: {
+      bookTitle: options.bookTitle,
+      mechanisms,
+      count: mechanisms.length,
+    },
   };
 };
 
@@ -591,24 +648,19 @@ const handleRequest = (options: McpEndpointOptions, request: JsonRpcRequest): Js
         return createJsonRpcError(id, -32601, `Unknown tool: ${name}.`);
       }
 
-      try {
-        const result = runTool(options, name, params?.arguments);
-        return {
-          jsonrpc: "2.0",
-          id,
-          result: {
-            content: [
-              {
-                type: "json",
-                json: result,
-              },
-            ],
-          },
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Tool execution failed.";
-        return createInvalidParamsError(id, message);
-      }
+      const result = runTool(options, name, params?.arguments);
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "json",
+              json: result,
+            },
+          ],
+        },
+      };
     }
     default:
       return createJsonRpcError(id, -32601, "Method not found.");

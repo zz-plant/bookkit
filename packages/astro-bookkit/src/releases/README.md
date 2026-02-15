@@ -39,3 +39,22 @@ Each variable supports JSON arrays or comma-separated values. Objects may includ
 `url`, `name`, `headers`, `secret`, `enabled`, `provider`.
 
 For repo-wide contribution rules, see root `CONTRIBUTING.md` and `AGENTS.md`.
+
+## Section-level change metadata
+
+`createReleaseNotes()` now supports optional `sectionSnapshots` frontmatter to derive
+`changedSections` from deterministic per-section fingerprints.
+
+```yaml
+sectionSnapshots:
+  overview: sha256:...
+  chapters: sha256:...
+  mechanisms: sha256:...
+```
+
+When snapshots are present, `changedSections` is computed by diffing each release
+against the previous release snapshot, and `sectionChangeSource` is set to
+`"snapshot-diff"`. This keeps “updated” labels grounded in objective deltas while
+remaining backward-compatible with manual `changedSections` when snapshots are not
+provided.
+

@@ -16,6 +16,7 @@ const {
   filterMode = "auto",
   filterHint,
   alphaMode = "auto",
+  itemActionLabel,
 } = Astro.props;
 
 const resolvedItems = Array.isArray(items) ? items : [];
@@ -91,6 +92,7 @@ const filterId = `list-filter-${String(title ?? "items")
                 {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
                 <strong>{item.title}</strong>
                 {item.meta && <span class="meta">{item.meta}</span>}
+                {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
               </a>
             ))}
           </div>
@@ -106,6 +108,7 @@ const filterId = `list-filter-${String(title ?? "items")
           {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
           <strong>{item.title}</strong>
           {item.meta && <span class="meta">{item.meta}</span>}
+          {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
         </a>
       ))}
 </div>

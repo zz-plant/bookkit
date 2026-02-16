@@ -86,7 +86,7 @@ const entries = versions.map((entry) => ({
   <div class="version-archive">
     {entries.length ? (
       entries.map((entry) => (
-        <article class="version-card">
+        <article class="version-card" data-version-date={entry.date}>
           <div class="version-card__header">
             <div>
               <p class="eyebrow">{entry.isLatest ? "Latest" : "Archived"}</p>
@@ -103,6 +103,13 @@ const entries = versions.map((entry) => ({
             )}
           </div>
           {entry.summary && <p class="version-card__summary">{entry.summary}</p>}
+          <div class="version-card__chips">
+            <span class="version-card__chip">Impact: reader</span>
+            {entry.highlights?.length ? (
+              <span class="version-card__chip">{entry.highlights.length} highlight{entry.highlights.length === 1 ? "" : "s"}</span>
+            ) : null}
+            <span class="version-card__chip version-card__chip--new" data-version-new hidden>Updated since last visit</span>
+          </div>
           {entry.highlights?.length ? (
             <ul class="version-card__highlights">
               {entry.highlights.map((item) => (
@@ -119,4 +126,23 @@ const entries = versions.map((entry) => ({
       <p class="meta">No published versions yet.</p>
     )}
   </div>
+  <script define:vars={{ bookKey }}>
+    const storageKey = `${bookKey}:version:lastVisit`;
+    const previousVisit = localStorage.getItem(storageKey);
+    const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
+    const cards = Array.from(document.querySelectorAll("[data-version-date]"));
+
+    if (Number.isFinite(previousVisitMs)) {
+      cards.forEach((card) => {
+        const dateValue = card.getAttribute("data-version-date");
+        const dateMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+        const newChip = card.querySelector("[data-version-new]");
+        if (newChip) {
+          newChip.hidden = !(Number.isFinite(dateMs) && dateMs > previousVisitMs);
+        }
+      });
+    }
+
+    localStorage.setItem(storageKey, new Date().toISOString());
+  </script>
 </BookLayout>

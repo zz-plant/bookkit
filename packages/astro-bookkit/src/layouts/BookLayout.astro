@@ -104,6 +104,7 @@ const resolvedCanonical =
 const normalizedPath = pathWithoutVersion.replace(/\/$/, "") || "/";
 const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
 const isArchivePage = normalizedPath === normalizedArchivePath;
+const isReadRoute = normalizedPath === "/read" || normalizedPath.startsWith("/read/");
 const resolvedRobots =
   robots ??
   ((pathVersion && !currentVersionEntry?.isLatest) || (versionArchiveNoindex && isArchivePage)
@@ -233,7 +234,14 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
         </div>
         <nav class="site-nav" aria-label="Primary">
-          <a class="site-nav__primary" href="/read" aria-keyshortcuts="g r">Start reading</a>
+          <a
+            class:list={["site-nav__primary", { "site-nav__primary--active-route": isReadRoute }]}
+            href="/read"
+            aria-current={isReadRoute ? "page" : undefined}
+            aria-keyshortcuts="g r"
+          >
+            Start reading
+          </a>
           <button
             class="search-toggle"
             type="button"

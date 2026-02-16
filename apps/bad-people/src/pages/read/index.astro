@@ -164,10 +164,10 @@ const sectionBuckets = [
               href={section.href}
               aria-keyshortcuts={keyShortcut}
             >
-              <div class="eyebrow read-surface-card__meta">
-                {section.count} {label}
-                {completenessLabel ? ` • ${completenessLabel}` : ""}
-                {changeMeta ? ` • Updated in v${changeMeta.version}` : ""}
+              <div class="read-surface-card__meta" aria-label="Section metadata">
+                <span class="read-meta-chip">{section.count} {label}</span>
+                {completenessLabel && <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>}
+                {changeMeta && <span class="read-meta-chip read-meta-chip--update">Updated v{changeMeta.version}</span>}
               </div>
               <h4>{section.title}</h4>
               <p class="meta">{section.description}</p>
@@ -270,8 +270,8 @@ const sectionBuckets = [
 
   .read-hero .lede {
     max-width: 62ch;
-    font-size: 1.125rem;
-    color: var(--color-ink);
+    font-size: 1.05rem;
+    color: color-mix(in srgb, var(--color-ink) 78%, white);
   }
 
   .read-hero__quicklinks {
@@ -296,7 +296,8 @@ const sectionBuckets = [
     background: var(--color-accent-strong);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 10px 24px rgba(61, 43, 220, 0.25);
+    padding-inline: 1rem;
+    box-shadow: 0 12px 28px rgba(61, 43, 220, 0.3);
   }
 
   .read-pill:hover {
@@ -372,7 +373,37 @@ const sectionBuckets = [
   }
 
   .read-surface-card__meta {
-    font-size: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .read-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(31, 31, 31, 0.12);
+    background: rgba(31, 31, 31, 0.04);
+    color: var(--color-muted);
+    font-size: 0.73rem;
+    line-height: 1;
+    padding: 0.25rem 0.5rem;
+    letter-spacing: 0.01em;
+  }
+
+  .read-meta-chip--status {
+    border-color: rgba(61, 43, 220, 0.28);
+    color: var(--color-accent-strong);
+    background: rgba(91, 76, 230, 0.1);
+    font-weight: 600;
+  }
+
+  .read-meta-chip--update {
+    border-color: rgba(43, 104, 220, 0.32);
+    color: #294f8c;
+    background: rgba(43, 104, 220, 0.1);
+    font-weight: 600;
   }
 
   .read-surface-card__shortcut {

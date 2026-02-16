@@ -648,7 +648,24 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       const qaAnalyticsKey = `${analyticsKeyPrefix}.qa.analytics`;
       const qaDisabledKey = `${analyticsKeyPrefix}.qa.disabled`;
       const qaDisplayModeKey = `${analyticsKeyPrefix}.qa.display.mode`;
-      let qaDisplayMode = localStorage.getItem(qaDisplayModeKey) === "citations-first" ? "citations-first" : "answer-first";
+      const getStoredValue = (key) => {
+        try {
+          return localStorage.getItem(key);
+        } catch (error) {
+          return null;
+        }
+      };
+
+      const setStoredValue = (key, value) => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          // Ignore storage write failures so UI initialization keeps running.
+        }
+      };
+
+      let qaDisplayMode =
+        getStoredValue(qaDisplayModeKey) === "citations-first" ? "citations-first" : "answer-first";
       const exportAnalyticsEndpoint = document.body?.dataset?.exportAnalyticsEndpoint;
       const previewAnalyticsEndpoint = document.body?.dataset?.previewAnalyticsEndpoint;
 
@@ -980,7 +997,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         const isCitationsFirst = qaDisplayMode === "citations-first";
         qaPanel.dataset.qaDisplayMode = qaDisplayMode;
         qaDisplayToggle.textContent = isCitationsFirst ? "Show answer first" : "Show citations first";
-        localStorage.setItem(qaDisplayModeKey, qaDisplayMode);
+        setStoredValue(qaDisplayModeKey, qaDisplayMode);
       };
 
       const runQa = async (value) => {

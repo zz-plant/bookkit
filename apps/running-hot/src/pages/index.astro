@@ -81,21 +81,30 @@ const quickStartLinks = [
     eyebrow: "Step 1",
     title: "Read the framing chapter",
     description: "Get the book's scope, constraints, and boundaries first.",
-    href: firstChapter ? readItemPath("chapters", firstChapter.slug) : readRoutes.chapters,
+    href:
+      firstChapter && !firstChapter.isFallback
+        ? readItemPath("chapters", firstChapter.slug)
+        : readRoutes.chapters,
     cta: "Open chapter",
   },
   {
     eyebrow: "Step 2",
     title: "Name one mechanism",
     description: "Use a mechanism definition before deciding how to respond.",
-    href: firstMechanism ? readItemPath("mechanisms", firstMechanism.slug) : readRoutes.mechanisms,
+    href:
+      firstMechanism && !firstMechanism.isFallback
+        ? readItemPath("mechanisms", firstMechanism.slug)
+        : readRoutes.mechanisms,
     cta: "Open mechanism",
   },
   {
     eyebrow: "Step 3",
     title: "Take one ten-minute action",
     description: "Pick a toolkit move you can execute quickly and safely.",
-    href: firstToolkit ? readItemPath("toolkit", firstToolkit.slug) : readRoutes.toolkit,
+    href:
+      firstToolkit && !firstToolkit.isFallback
+        ? readItemPath("toolkit", firstToolkit.slug)
+        : readRoutes.toolkit,
     cta: "Open toolkit",
   },
 ];

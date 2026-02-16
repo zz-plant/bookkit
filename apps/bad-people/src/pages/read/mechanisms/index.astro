@@ -3,7 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
-import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import { buildTranslationLede, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
@@ -16,14 +16,20 @@ const urgencyBySlug: Record<string, string> = {
   "reputation-membrane": "high-leverage",
   "reversal-capacity": "stabilize",
 };
+const urgencyOrder: Record<string, number> = {
+  urgent: 0,
+  "high-leverage": 1,
+  stabilize: 2,
+};
 const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,
   mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
+    const urgency = urgencyBySlug[slug] ?? "stabilize";
     const tags = [
+      urgency,
       coreMechanismSlugs.has(slug) ? "core" : null,
-      urgencyBySlug[slug],
       isFallback ? "fallback" : null,
     ].filter(Boolean);
     const predictions = Array.isArray(frontmatter.predictions) ? frontmatter.predictions : [];
@@ -36,7 +42,12 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
       meta: quickTrigger ? `Use this when: ${quickTrigger}` : definition,
     };
   },
-  sort: (a, b) => a.title.localeCompare(b.title),
+  sort: (a, b) => {
+    const urgencyA = urgencyOrder[a.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
+    const urgencyB = urgencyOrder[b.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
+    if (urgencyA !== urgencyB) return urgencyA - urgencyB;
+    return a.title.localeCompare(b.title);
+  },
 });
 const localizedLede = buildTranslationLede(
   "Stable patterns that explain how harm stays normalized. Pick one by trigger language, then open its next action.",
@@ -51,6 +62,37 @@ const localizedLede = buildTranslationLede(
     filterMode="always"
     filterPlaceholder="Filter by mechanism, urgency tag, or trigger language..."
     filterHint="Try tags like urgent, high-leverage, stabilize, or phrases from your situation."
-    alphaMode="auto"
-  />
+    alphaMode={false}
+    itemActionLabel="Open mechanism"
+  >
+    <Fragment slot="after-list">
+      <section class="content-block mechanisms-tail">
+        <div>
+          <div class="eyebrow">Need a next step?</div>
+          <h2>Turn diagnosis into a ten-minute move</h2>
+          <p class="meta">After naming the pattern, open Toolkit to choose a reversible action you can run now.</p>
+        </div>
+        <div class="link-group">
+          <a class="button" href={readRoutes.toolkit}>Open toolkit</a>
+          <a class="button button--secondary" href={readRoutes.overview}>Review framing constraints</a>
+        </div>
+      </section>
+    </Fragment>
+  </ContentIndexList>
 </BaseLayout>
+
+<style>
+  .mechanisms-tail {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 1rem;
+  }
+
+  .mechanisms-tail h2 {
+    margin-bottom: 0.35rem;
+  }
+
+  .mechanisms-tail .link-group {
+    align-items: center;
+  }
+</style>

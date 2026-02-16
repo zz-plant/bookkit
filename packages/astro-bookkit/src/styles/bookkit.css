@@ -239,6 +239,13 @@ a,
   font-weight: 600;
 }
 
+.site-nav__primary--active-route {
+  background: rgba(91, 76, 230, 0.12) !important;
+  color: var(--color-accent-strong) !important;
+  border: 1px solid rgba(91, 76, 230, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(91, 76, 230, 0.12);
+}
+
 .site-nav > a:first-child:hover {
   background: var(--color-accent);
   color: #ffffff;
@@ -1042,6 +1049,21 @@ p {
   font-size: var(--text-sm);
   background-color: var(--color-accent-soft);
   color: var(--color-accent-strong);
+}
+
+
+.pill--hero-primary {
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  border: 1px solid transparent;
+  font-weight: 700;
+  padding-inline: var(--space-4);
+  box-shadow: 0 10px 24px rgba(61, 43, 220, 0.24);
+}
+
+.pill--hero-primary:hover {
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .button {

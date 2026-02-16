@@ -93,7 +93,7 @@ const {
       </p>
     </div>
     <div class="release-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-      <button class="button" type="button" data-release-filter hidden>
+      <button class="button button--secondary" type="button" data-release-filter hidden>
         Show since last visit
       </button>
       <a
@@ -122,6 +122,16 @@ const {
           </header>
           <p class="eyebrow">Reader impact summary</p>
           <p class="release-summary">{release.summary}</p>
+          <div class="release-chip-row">
+            <span class="release-chip">Impact: reader</span>
+            {release.changedSections.length > 0 && (
+              <span class="release-chip">{release.changedSections.length} updated section{release.changedSections.length === 1 ? "" : "s"}</span>
+            )}
+            {release.highlights.length > 0 && (
+              <span class="release-chip">{release.highlights.length} key highlight{release.highlights.length === 1 ? "" : "s"}</span>
+            )}
+            <span class="release-chip release-chip--new" data-release-new hidden>Updated since last visit</span>
+          </div>
           {release.changedSections.length > 0 && (
             <p class="meta">Updated sections: {release.changedSections.join(", ")}</p>
           )}
@@ -169,6 +179,17 @@ const {
       const previousVisit = localStorage.getItem(storageKey);
       const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
 
+      if (Number.isFinite(previousVisitMs)) {
+        cards.forEach((card) => {
+          const dateValue = card.getAttribute("data-release-date");
+          const releaseMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+          const newChip = card.querySelector("[data-release-new]");
+          if (newChip) {
+            newChip.hidden = !(Number.isFinite(releaseMs) && releaseMs > previousVisitMs);
+          }
+        });
+      }
+
       if (filterButton && Number.isFinite(previousVisitMs) && cards.length > 0) {
         filterButton.hidden = false;
         let showingFiltered = false;
@@ -177,8 +198,13 @@ const {
           cards.forEach((card) => {
             const dateValue = card.getAttribute("data-release-date");
             const releaseMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
-            const show = !showingFiltered || (Number.isFinite(releaseMs) && releaseMs > previousVisitMs);
+            const isNew = Number.isFinite(releaseMs) && releaseMs > previousVisitMs;
+            const show = !showingFiltered || isNew;
             card.hidden = !show;
+            const newChip = card.querySelector("[data-release-new]");
+            if (newChip) {
+              newChip.hidden = !isNew;
+            }
           });
           if (visitNote) {
             visitNote.hidden = !showingFiltered;

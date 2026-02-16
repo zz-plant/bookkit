@@ -136,6 +136,23 @@ const sectionBuckets = [
         <a class="read-pill" href="#solve-now" data-funnel-step="read_to_solve_now">Solve now</a>
         <a class="read-pill" href="#reference" data-funnel-step="read_to_reference">Reference</a>
       </div>
+      <div class="quick-start-grid" aria-label="Quick start paths">
+        <a class="card quick-start-card" href={readRoutes.chapters} data-funnel-step="quickstart_chapter_first">
+          <div class="eyebrow">Start here</div>
+          <h2>Read chapter-first</h2>
+          <p class="meta">Follow the core arc from orientation to action.</p>
+        </a>
+        <a class="card quick-start-card" href={readRoutes.overview} data-funnel-step="quickstart_frame_first">
+          <div class="eyebrow">Understand the frame</div>
+          <h2>Scan objectives and constraints</h2>
+          <p class="meta">Get the model before diving into modules.</p>
+        </a>
+        <a class="card quick-start-card" href={readRoutes.mechanisms} data-funnel-step="quickstart_problem_first">
+          <div class="eyebrow">Solve a specific problem</div>
+          <h2>Jump straight to mechanism matching</h2>
+          <p class="meta">Find the pattern, then move to toolkit actions.</p>
+        </a>
+      </div>
     </section>
 
     <section class="content-block read-section" id="reading-surfaces">
@@ -194,7 +211,7 @@ const sectionBuckets = [
         <p class="meta">Lower-priority utilities live here so reading routes stay focused.</p>
       </div>
       <div class="card-grid read-tools-grid">
-        <article class="card read-tools-card">
+        <article class="card read-tools-card read-tools-card--release" data-release-card>
           <div class="eyebrow">Reader meta</div>
           <h3>Reader updates</h3>
           <p class="meta">Track changes or download an offline copy.</p>
@@ -216,10 +233,36 @@ const sectionBuckets = [
   </div>
   <script>
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    const releaseCard = document.querySelector("[data-release-card]");
+    const onboardingKey = "running-hot.reader.started";
+    const readOnboardingState = () => {
+      try {
+        return localStorage.getItem(onboardingKey) === "true";
+      } catch {
+        return false;
+      }
+    };
+    const markOnboardingStarted = () => {
+      try {
+        localStorage.setItem(onboardingKey, "true");
+      } catch {
+        // no-op: private mode or disabled storage
+      }
+    };
+
+    if (!readOnboardingState() && releaseCard) {
+      releaseCard.classList.add("read-tools-card--deemphasized");
+      releaseCard.insertAdjacentHTML(
+        "beforeend",
+        `<p class="meta" data-release-note>Release notes stay secondary until you start reading.</p>`
+      );
+    }
+
     funnelLinks.forEach((link) => {
       link.addEventListener("click", () => {
         const step = link.getAttribute("data-funnel-step");
         if (!step) return;
+        markOnboardingStarted();
         const payload = JSON.stringify({
           type: "engagement",
           title: `funnel:${step}`,
@@ -254,6 +297,24 @@ const sectionBuckets = [
     border-color: rgba(91, 76, 230, 0.24);
     display: grid;
     gap: 1rem;
+  }
+
+  .quick-start-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .quick-start-card {
+    text-decoration: none;
+    color: inherit;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .quick-start-card h2 {
+    font-size: 1.1rem;
+    margin: 0;
   }
 
   .read-hero__copy {
@@ -367,7 +428,12 @@ const sectionBuckets = [
   }
 
   .read-tools-card {
+    display: grid;
     gap: 0.75rem;
+  }
+
+  .read-tools-card--deemphasized {
+    opacity: 0.82;
   }
 
   .read-surface-card__footer {

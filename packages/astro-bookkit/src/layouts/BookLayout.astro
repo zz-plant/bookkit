@@ -244,6 +244,9 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           >
             Start reading
           </a>
+          <a class="site-nav__primary" href="/downloads" aria-keyshortcuts="g d">
+            Downloads
+          </a>
           <button
             class="search-toggle"
             type="button"
@@ -257,8 +260,12 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           <details class="site-nav__more" data-site-nav-more id="site-nav-more">
             <summary class="site-nav__more-toggle">More options</summary>
             <div class="site-nav__overflow">
+              <p class="site-nav__group-label">Reader tools</p>
               <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
               <a href="/downloads" aria-keyshortcuts="g d">Offline reading</a>
+              <p class="site-nav__group-label">Author tools</p>
+              <a href="/read/tools" aria-keyshortcuts="g a">Author diagnostics</a>
+              <p class="site-nav__group-label">Workspace tools</p>
               <a href="/new-book" aria-keyshortcuts="g b">New book studio</a>
               {(hasVersions || localeEntries.length > 1) && (
                 <details class="site-settings" data-site-settings>
@@ -415,7 +422,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
             >
               Type a word or phrase to find relevant sections.
             </span>
-            <span class="meta">Search stays inside this book.</span>
+            <span class="meta">Uses local book index only.</span>
             <span class="kbd-hint" aria-hidden="true">
               <kbd>⌘</kbd><kbd>K</kbd> / <kbd>/</kbd>
             </span>
@@ -468,6 +475,12 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
                 </label>
                 <button type="submit" class="qa-panel__submit">Get answer</button>
               </form>
+              <div class="qa-panel__display" role="group" aria-label="Answer display mode">
+                <span class="meta">Display mode</span>
+                <button type="button" class="qa-panel__display-toggle" data-qa-display-toggle>
+                  Show citations first
+                </button>
+              </div>
               <div
                 class="qa-panel__meta"
                 id="qa-status"
@@ -541,6 +554,10 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
               <span class="kbd-hint"><kbd>g</kbd><kbd>d</kbd></span>
             </li>
             <li>
+              <span>Open author diagnostics</span>
+              <span class="kbd-hint"><kbd>g</kbd><kbd>a</kbd></span>
+            </li>
+            <li>
               <span>Go to overview</span>
               <span class="kbd-hint"><kbd>g</kbd><kbd>o</kbd></span>
             </li>
@@ -608,6 +625,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       const qaDisableButton = document.querySelector("[data-qa-disable]");
       const qaEnableButton = document.querySelector("[data-qa-enable]");
       const qaSuggestions = Array.from(document.querySelectorAll("[data-qa-suggestion]"));
+      const qaDisplayToggle = document.querySelector("[data-qa-display-toggle]");
       const siteNavMore = document.querySelector("[data-site-nav-more]");
       const siteSettings = document.querySelector("[data-site-settings]");
       const mobileSearchToggle = document.querySelector("[data-mobile-search]");
@@ -629,6 +647,8 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
       const qaAnalyticsKey = `${analyticsKeyPrefix}.qa.analytics`;
       const qaDisabledKey = `${analyticsKeyPrefix}.qa.disabled`;
+      const qaDisplayModeKey = `${analyticsKeyPrefix}.qa.display.mode`;
+      let qaDisplayMode = localStorage.getItem(qaDisplayModeKey) === "citations-first" ? "citations-first" : "answer-first";
       const exportAnalyticsEndpoint = document.body?.dataset?.exportAnalyticsEndpoint;
       const previewAnalyticsEndpoint = document.body?.dataset?.previewAnalyticsEndpoint;
 
@@ -955,6 +975,14 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         qaCitations.appendChild(list);
       };
 
+      const updateQaDisplayMode = () => {
+        if (!qaDisplayToggle || !qaPanel) return;
+        const isCitationsFirst = qaDisplayMode === "citations-first";
+        qaPanel.dataset.qaDisplayMode = qaDisplayMode;
+        qaDisplayToggle.textContent = isCitationsFirst ? "Show answer first" : "Show citations first";
+        localStorage.setItem(qaDisplayModeKey, qaDisplayMode);
+      };
+
       const runQa = async (value) => {
         if (!qaEnabled) return;
         if (isQaDisabled()) {
@@ -1220,6 +1248,10 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           qaInput.focus({ preventScroll: true });
         });
       });
+      qaDisplayToggle?.addEventListener("click", () => {
+        qaDisplayMode = qaDisplayMode === "answer-first" ? "citations-first" : "answer-first";
+        updateQaDisplayMode();
+      });
       qaCitations?.addEventListener("click", (event) => {
         const target = event.target instanceof HTMLElement ? event.target.closest("a") : null;
         if (!target) return;
@@ -1254,6 +1286,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       });
 
       warmSearchIndex();
+      updateQaDisplayMode();
       initializeReaderPreferences();
       syncSiteNavOverflow(desktopNavMedia.matches);
 
@@ -1306,6 +1339,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           if (key === "r") navigateTo("/read");
           if (key === "n") navigateTo("/release-notes");
           if (key === "d") navigateTo("/downloads");
+          if (key === "a") navigateTo("/read/tools");
           if (key === "o") navigateTo("/read/overview");
           if (key === "c") navigateTo("/read/chapters");
           if (key === "m") navigateTo("/read/mechanisms");

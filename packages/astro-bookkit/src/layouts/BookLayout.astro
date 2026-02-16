@@ -102,9 +102,11 @@ const canonicalPathBase =
 const resolvedCanonical =
   canonicalUrl ?? (siteUrl ? new URL(canonicalPathBase, siteUrl).toString() : undefined);
 const normalizedPath = pathWithoutVersion.replace(/\/$/, "") || "/";
+const normalizedLocalePath = (pathWithoutLocale ?? pathWithoutVersion).replace(/\/$/, "") || "/";
 const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
 const isArchivePage = normalizedPath === normalizedArchivePath;
-const isReadRoute = normalizedPath === "/read" || normalizedPath.startsWith("/read/");
+const isReadRoute =
+  normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
 const resolvedRobots =
   robots ??
   ((pathVersion && !currentVersionEntry?.isLatest) || (versionArchiveNoindex && isArchivePage)

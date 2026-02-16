@@ -107,6 +107,7 @@ const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
 const isArchivePage = normalizedPath === normalizedArchivePath;
 const isReadRoute =
   normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
+const isReleaseNotesRoute = normalizedLocalePath === "/release-notes";
 const resolvedRobots =
   robots ??
   ((pathVersion && !currentVersionEntry?.isLatest) || (versionArchiveNoindex && isArchivePage)
@@ -302,7 +303,6 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
                     <div class="reader-settings__options">
                       <button type="button" data-reader-density="compact">Compact</button>
                       <button type="button" data-reader-density="comfortable">Comfortable</button>
-                      <button type="button" data-reader-density="relaxed">Relaxed</button>
                     </div>
                   </div>
                   <div class="reader-settings__group" role="group" aria-label="Reading font">
@@ -383,9 +383,23 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         <span>{footerText}</span>
       </footer>
       <div class="mobile-cta" data-mobile-cta>
-        <a class="mobile-cta__primary" href="/read" aria-keyshortcuts="g r">Read</a>
+        <a
+          class="mobile-cta__primary"
+          href="/read"
+          aria-keyshortcuts="g r"
+          aria-current={isReadRoute ? "page" : undefined}
+        >
+          Read
+        </a>
         <button type="button" data-mobile-search aria-controls="search-panel" aria-expanded="false">Search</button>
-        <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">Menu</button>
+        <a
+          href="/release-notes"
+          aria-keyshortcuts="g n"
+          aria-current={isReleaseNotesRoute ? "page" : undefined}
+        >
+          Updates
+        </a>
+        <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">More</button>
       </div>
       <div class="search-panel" id="search-panel" data-search-panel hidden>
         <div
@@ -816,7 +830,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         const prefs = loadReaderPreferences();
         const density =
           prefs.density ??
-          (window.matchMedia("(max-width: 720px)").matches ? "relaxed" : "comfortable");
+          (window.matchMedia("(max-width: 720px)").matches ? "compact" : "comfortable");
         const font = prefs.font ?? "serif";
         setReaderDensity(density);
         setReaderFont(font);

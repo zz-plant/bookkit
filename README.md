@@ -139,7 +139,8 @@ Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp
 
 - list/read content and governance resources
 - discover lane skills under `.codex/skills/**`
-- call deterministic workspace tools (`bookkit.list_books`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
+- call deterministic workspace tools (`bookkit.list_books`, `bookkit.read_book`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
+- scaffold a new book via guarded mutation tooling (`bookkit.create_book`) when explicit creation is required
 
 Use this as the default machine interface instead of ad-hoc repository scraping.
 

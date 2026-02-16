@@ -70,6 +70,56 @@ const CONTENT_TYPES: ContentTypeKey[] = [
 
 const TOOL_DEFINITIONS = [
   {
+    name: "bookkit.create_book",
+    description: "Scaffold a new book app in apps/<book> using the workspace template command.",
+    expectedRuntime: "<=30s",
+    sideEffectLevel: "local-write",
+    idempotent: false,
+    retryGuidance: "Do not blindly retry. If creation fails, inspect stderr and remove partial output before rerunning.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        book: {
+          type: "string",
+          description: "Required slug for the new book (for example, running-hot).",
+        },
+        title: {
+          type: "string",
+          description: "Optional display title for the generated book config.",
+        },
+        template: {
+          type: "string",
+          description: "Optional template book slug to copy from. Defaults to running-hot.",
+        },
+      },
+      required: ["book"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.read_book",
+    description: "Read current book content records by section and optional slug.",
+    expectedRuntime: "<1s",
+    sideEffectLevel: "read-only",
+    idempotent: true,
+    retryGuidance: "Safe to retry.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        section: {
+          type: "string",
+          enum: CONTENT_TYPES,
+          description: "Optional content section filter.",
+        },
+        slug: {
+          type: "string",
+          description: "Optional slug filter inside the selected section.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "bookkit.list_books",
     description: "List available book slugs in this workspace.",
     expectedRuntime: "<10s",
@@ -381,6 +431,113 @@ const runTool = (
   name: ToolName,
   args: Record<string, unknown> | undefined,
 ): ToolResponse => {
+  if (name === "bookkit.create_book") {
+    const rawBook = args?.book;
+    const book = typeof rawBook === "string" ? rawBook.trim() : "";
+
+    if (!book) {
+      return {
+        ok: false,
+        summary: "Book creation requires a slug.",
+        error: {
+          cause: "Missing required arguments.book.",
+          nextAction: "Provide arguments.book (for example \"my-book\") and rerun bookkit.create_book.",
+        },
+      };
+    }
+
+    const rawTemplate = args?.template;
+    const template = typeof rawTemplate === "string" && rawTemplate.trim().length
+      ? rawTemplate.trim()
+      : "running-hot";
+    const rawTitle = args?.title;
+    const title = typeof rawTitle === "string" && rawTitle.trim().length ? rawTitle.trim() : null;
+
+    const commandArgs = ["run", "new:book", "--", "--book", book, "--template", template];
+    if (title) {
+      commandArgs.push("--title", title);
+    }
+
+    const command = runWorkspaceCommand(options.workspaceRoot, commandArgs);
+
+    return {
+      ok: command.ok,
+      summary: command.ok ? `Created book ${book}.` : `Failed to create book ${book}.`,
+      payload: {
+        book,
+        template,
+        title,
+        command: command.command,
+        exitCode: command.exitCode,
+        stdout: command.stdout.trim(),
+        stderr: command.stderr.trim(),
+      },
+      error: command.ok
+        ? undefined
+        : {
+            cause: `new:book returned exit code ${command.exitCode}.`,
+            nextAction: "Resolve scaffold errors (for example duplicate app slug), then rerun bun run new:book -- --book <slug>.",
+          },
+    };
+  }
+
+  if (name === "bookkit.read_book") {
+    const rawSection = args?.section;
+    const section = typeof rawSection === "string" && rawSection.trim().length ? rawSection.trim() : null;
+    if (section && !CONTENT_TYPES.includes(section as ContentTypeKey)) {
+      return {
+        ok: false,
+        summary: "Unsupported read_book section.",
+        error: {
+          cause: `Received section=${JSON.stringify(section)} but supported sections are ${CONTENT_TYPES.join(", ")}.`,
+          nextAction: "Set arguments.section to a supported section or omit it.",
+        },
+      };
+    }
+
+    const rawSlug = args?.slug;
+    const slug = typeof rawSlug === "string" && rawSlug.trim().length ? rawSlug.trim() : null;
+
+    const records = CONTENT_TYPES.flatMap((type) => {
+      if (section && type !== section) return [];
+      return Object.entries(options.contentRawModules[type]).map(([moduleKey, raw]) => {
+        const normalizedSlug = normalizeModuleSlug(moduleKey, type);
+        return {
+          section: type,
+          slug: normalizedSlug,
+          title: resolveResourceTitle(raw, normalizedSlug),
+          uri: buildResourceUri(options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX, type, normalizedSlug),
+          text: raw,
+        };
+      });
+    }).filter((entry) => !slug || entry.slug === slug);
+
+    if (slug && records.length === 0) {
+      return {
+        ok: false,
+        summary: `No content found for slug ${slug}.`,
+        error: {
+          cause: `No ${section ?? "content"} entry matched slug \"${slug}\" for ${options.bookTitle}.`,
+          nextAction: "Call bookkit.list_content (and resources/list) to find valid sections/slugs, then retry.",
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      summary: `Read ${records.length} content records from ${options.bookTitle}.`,
+      payload: {
+        bookTitle: options.bookTitle,
+        filters: {
+          section,
+          slug,
+        },
+        records,
+        count: records.length,
+      },
+    };
+  }
+
   if (name === "bookkit.list_books") {
     const command = runWorkspaceCommand(options.workspaceRoot, ["run", "list:books"]);
     if (!command.ok) {
@@ -692,7 +849,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
         toolMetadata: TOOL_DEFINITIONS,
         agentProfile: {
           safetyMode: "safe-first",
-          mutatingTools: [],
+          mutatingTools: ["bookkit.create_book"],
           recommendedQueryOrder: [
             "bookkit://governance/AGENTS.md",
             "bookkit://governance/CONTRIBUTING.md",

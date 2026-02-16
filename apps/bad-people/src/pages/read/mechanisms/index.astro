@@ -103,7 +103,10 @@ const localizedLede = buildTranslationLede(
         toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
       });
 
-      meta.insertAdjacentElement("afterend", toggle);
+      const listLink = meta.closest(".list-link");
+      if (listLink instanceof HTMLElement) {
+        listLink.insertAdjacentElement("afterend", toggle);
+      }
     });
   </script>
 

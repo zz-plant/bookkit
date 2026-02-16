@@ -67,6 +67,66 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.content[0].json.payload.mechanisms[0].slug).toBe("sample");
   });
 
+  it("supports read_book for section + slug filtering", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 10,
+          method: "tools/call",
+          params: {
+            name: "bookkit.read_book",
+            arguments: { section: "chapters", slug: "00-overview" },
+          },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as {
+      result: {
+        content: Array<{
+          json: { ok: boolean; payload: { count: number; records: Array<{ slug: string; section: string }> } };
+        }>;
+      };
+    };
+
+    expect(body.result.content[0].json.ok).toBe(true);
+    expect(body.result.content[0].json.payload.count).toBe(1);
+    expect(body.result.content[0].json.payload.records[0].slug).toBe("00-overview");
+    expect(body.result.content[0].json.payload.records[0].section).toBe("chapters");
+  });
+
+  it("returns actionable error when create_book is called without a slug", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 11,
+          method: "tools/call",
+          params: { name: "bookkit.create_book", arguments: {} },
+        }),
+      }),
+    });
+
+    const body = (await response.json()) as {
+      result: {
+        content: Array<{
+          json: { ok: boolean; error: { cause: string; nextAction: string } };
+        }>;
+      };
+    };
+
+    expect(body.result.content[0].json.ok).toBe(false);
+    expect(body.result.content[0].json.error.cause).toContain("arguments.book");
+    expect(body.result.content[0].json.error.nextAction).toContain("bookkit.create_book");
+  });
+
   it("lists tool metadata in tools/list", async () => {
     const endpoint = createFixtureEndpoint();
     const response = await endpoint.POST({
@@ -87,6 +147,9 @@ describe("createBookMcpEndpoint", () => {
     expect(listBooks?.sideEffectLevel).toBe("read-only");
     expect(listBooks?.expectedRuntime).toBe("<10s");
     expect(listBooks?.retryGuidance).toContain("retry");
+
+    const createBook = body.result.tools.find((tool) => tool.name === "bookkit.create_book");
+    expect(createBook?.sideEffectLevel).toBe("local-write");
   });
 
   it("supports resources/list pagination and filtering", async () => {
@@ -250,6 +313,7 @@ describe("createBookMcpEndpoint", () => {
     expect(body.agentProfile.recommendedQueryOrder[0]).toBe("bookkit://governance/AGENTS.md");
     expect(body.agentProfile.recommendedQueryOrder).toContain("bookkit://governance/.codex/skills/README.md");
     expect(body.tools).toContain("bookkit.list_skills");
+    expect(body.tools).toContain("bookkit.read_book");
     expect(body.agentProfile.resources.supportsListPagination).toBe(true);
   });
 });

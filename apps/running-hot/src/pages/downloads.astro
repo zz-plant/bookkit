@@ -20,24 +20,31 @@ const { items: chapterItems } = createLocalizedContentList(modules, {
 });
 
 const bookExportLinks = getBookExportLinks();
-const chapterDownloadItems = chapterItems.map((chapter) => ({
-  href: chapter.href,
-  title: chapter.title,
-  eyebrow: "Chapter exports",
-  meta: getChapterExportLinks(chapter.slug, chapter.title)
-    .map((link) => `${link.format.toUpperCase()}: ${link.href}`)
-    .join(" • "),
-}));
+const chapterDownloadItems = chapterItems.map((chapter) => {
+  const links = getChapterExportLinks(chapter.slug, chapter.title);
+  const hasMetadata = links.some((link) => link.size || link.updatedAt);
+  return {
+    href: chapter.href,
+    title: chapter.title,
+    eyebrow: "Chapter exports",
+    meta: hasMetadata
+      ? links
+          .map((link) => `${link.format.toUpperCase()} • ${link.size ?? "size pending"}${link.updatedAt ? ` • updated ${link.updatedAt}` : ""}`)
+          .join(" | ")
+      : "PDF and EPUB links are generated per chapter.",
+  };
+});
 ---
 <BaseLayout title={`Offline reading • ${bookConfig.title}`}>
   <div class="section-header">
     <h1>Offline reading</h1>
     <p class="lede">Download full-book or chapter-specific exports for focused, offline use.</p>
+    <p class="meta">Tip: PDF is best for print markup. EPUB is best for reflowable mobile reading.</p>
   </div>
 
   <ExportPanel
     title="Full book exports"
-    description="Choose PDF for print-ready formatting or EPUB for flexible reading devices."
+    description="Choose PDF for print-ready formatting or EPUB for flexible reading devices. Metadata shows rough size and freshness when available."
     links={bookExportLinks}
   />
 

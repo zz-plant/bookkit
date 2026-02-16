@@ -5,7 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../lib/book-entrypoints";
-import { formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
+import { formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
@@ -73,6 +73,32 @@ const stats = [
     completeness: examples.completeness,
   },
 ];
+const firstChapter = chapters.entries[0];
+const firstMechanism = mechanisms.entries[0];
+const firstToolkit = toolkit.entries[0];
+const quickStartLinks = [
+  {
+    eyebrow: "Step 1",
+    title: "Read the framing chapter",
+    description: "Get the book's scope, constraints, and boundaries first.",
+    href: firstChapter ? readItemPath("chapters", firstChapter.slug) : readRoutes.chapters,
+    cta: "Open chapter",
+  },
+  {
+    eyebrow: "Step 2",
+    title: "Name one mechanism",
+    description: "Use a mechanism definition before deciding how to respond.",
+    href: firstMechanism ? readItemPath("mechanisms", firstMechanism.slug) : readRoutes.mechanisms,
+    cta: "Open mechanism",
+  },
+  {
+    eyebrow: "Step 3",
+    title: "Take one ten-minute action",
+    description: "Pick a toolkit move you can execute quickly and safely.",
+    href: firstToolkit ? readItemPath("toolkit", firstToolkit.slug) : readRoutes.toolkit,
+    cta: "Open toolkit",
+  },
+];
 const availableBooks = [
   {
     slug: "bad-people",
@@ -101,20 +127,22 @@ const availableBooks = [
   </div>
 
   <section class="content-block">
-    <div class="eyebrow">Choose a route</div>
-    <h2>Pick a path that matches what you need right now</h2>
-    <p class="meta">After you start reading, use one of these branches to move quickly.</p>
+    <div class="eyebrow">New reader path</div>
+    <h2>New reader? Start in 3 minutes</h2>
+    <p class="meta">Three fast steps: orient, name the pattern, and take one small action.</p>
     <div class="card-grid" data-funnel-group="home-start">
-      <a class="card" href={readRoutes.overview} data-funnel-step="home_to_overview">
-        <div class="eyebrow">Orientation</div>
-        <h3>Read the framing chapter</h3>
-        <p class="meta">Understand intent, constraints, and boundaries first.</p>
-      </a>
-      <a class="card" href={readRoutes.mechanisms} data-funnel-step="home_to_mechanisms">
-        <div class="eyebrow">Problem-solving</div>
-        <h3>Jump to a mechanism</h3>
-        <p class="meta">Name the pattern before choosing an action.</p>
-      </a>
+      {quickStartLinks.map((link, index) => (
+        <a
+          class="card"
+          href={link.href}
+          data-funnel-step={`home_quickstart_step_${index + 1}`}
+        >
+          <div class="eyebrow">{link.eyebrow}</div>
+          <h3>{link.title}</h3>
+          <p class="meta">{link.description}</p>
+          <span class="next-steps__link">{link.cta}</span>
+        </a>
+      ))}
     </div>
   </section>
 

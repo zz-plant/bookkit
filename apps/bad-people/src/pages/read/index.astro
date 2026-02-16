@@ -144,7 +144,12 @@ const sectionBuckets = [
           <div class="eyebrow">Route buckets</div>
           <h2>Choose one bucket and begin</h2>
         </div>
-        <p class="meta">Start, solve, and reference routes are intentionally separated.</p>
+        <div class="read-section__controls">
+          <p class="meta">Start, solve, and reference routes are intentionally separated.</p>
+          <button class="button button--secondary" type="button" data-read-updates-filter hidden>
+            Show updated since last visit
+          </button>
+        </div>
       </div>
       <div class="bucket-grid">
         {sectionBuckets.map((bucket) => (
@@ -163,11 +168,18 @@ const sectionBuckets = [
               class="card read-surface-card"
               href={section.href}
               aria-keyshortcuts={keyShortcut}
+              data-section-key={section.sectionKey}
+              data-change-date={changeMeta?.date ?? ""}
             >
               <div class="read-surface-card__meta" aria-label="Section metadata">
                 <span class="read-meta-chip">{section.count} {label}</span>
                 {completenessLabel && <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>}
-                {changeMeta && <span class="read-meta-chip read-meta-chip--update">Updated v{changeMeta.version}</span>}
+                {changeMeta && (
+                  <>
+                    <span class="read-meta-chip read-meta-chip--update">Updated v{changeMeta.version}</span>
+                    <span class="read-meta-chip read-meta-chip--new" data-read-new hidden>New for you</span>
+                  </>
+                )}
               </div>
               <h4>{section.title}</h4>
               <p class="meta">{section.description}</p>
@@ -216,6 +228,38 @@ const sectionBuckets = [
     </section>
   </div>
   <script>
+    const filterButton = document.querySelector("[data-read-updates-filter]");
+    const readCards = Array.from(document.querySelectorAll("[data-section-key]"));
+    const visitStorageKey = `${document.body?.dataset?.analyticsKey || "book"}:read:lastVisit`;
+    const previousVisit = localStorage.getItem(visitStorageKey);
+    const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
+    const nowIso = new Date().toISOString();
+
+    if (Number.isFinite(previousVisitMs) && filterButton && readCards.length > 0) {
+      filterButton.hidden = false;
+      readCards.forEach((card) => {
+        const dateValue = card.getAttribute("data-change-date");
+        const changeMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+        const isNew = Number.isFinite(changeMs) && changeMs > previousVisitMs;
+        const chip = card.querySelector("[data-read-new]");
+        if (chip) chip.hidden = !isNew;
+      });
+
+      let isFiltered = false;
+      filterButton.addEventListener("click", () => {
+        isFiltered = !isFiltered;
+        readCards.forEach((card) => {
+          const dateValue = card.getAttribute("data-change-date");
+          const changeMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+          const isNew = Number.isFinite(changeMs) && changeMs > previousVisitMs;
+          card.hidden = isFiltered ? !isNew : false;
+        });
+        filterButton.textContent = isFiltered ? "Show all sections" : "Show updated since last visit";
+      });
+    }
+
+    localStorage.setItem(visitStorageKey, nowIso);
+
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
     funnelLinks.forEach((link) => {
       link.addEventListener("click", () => {
@@ -338,6 +382,16 @@ const sectionBuckets = [
     max-width: 34ch;
   }
 
+  .read-section__controls {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: end;
+  }
+
+  .read-section__controls .button {
+    margin-top: 0;
+  }
+
   .read-card-grid {
     margin-top: 0.75rem;
   }
@@ -406,6 +460,13 @@ const sectionBuckets = [
     font-weight: 600;
   }
 
+  .read-meta-chip--new {
+    border-color: rgba(35, 128, 74, 0.35);
+    color: #1b6b3f;
+    background: rgba(35, 128, 74, 0.12);
+    font-weight: 700;
+  }
+
   .read-surface-card__shortcut {
     margin-top: auto;
     justify-content: flex-end;
@@ -428,6 +489,11 @@ const sectionBuckets = [
     .read-section__intro {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .read-section__controls {
+      width: 100%;
+      justify-items: start;
     }
 
     .read-hero {

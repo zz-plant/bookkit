@@ -34,13 +34,15 @@ const localizedLede = buildTranslationLede(
     lede={localizedLede}
     items={chapterItems}
   >
-    <details slot="after-header" class="content-block" style="margin-top: 0;">
-      <summary><strong>What draft status means</strong></summary>
-      <p class="meta">
-        Draft chapters are readable and useful, but examples, wording, and ordering can still
-        change as validation improves.
+    <div slot="after-header" class="content-block chapter-status" style="margin-top: 0;">
+      <button class="button button--secondary" type="button" data-status-explainer-toggle aria-expanded="false">
+        Draft status: concept stable, wording evolving
+      </button>
+      <p class="meta" data-status-explainer hidden>
+        Draft chapters are readable and useful. Mechanism identity is stable, while wording, examples,
+        and ordering may still improve as validation continues.
       </p>
-    </details>
+    </div>
     <ExportPanel
       slot="after-list"
       title="Download exports"
@@ -48,4 +50,25 @@ const localizedLede = buildTranslationLede(
       links={exportLinks}
     />
   </ContentIndexList>
+  <script>
+    const statusToggle = document.querySelector("[data-status-explainer-toggle]");
+    const statusCopy = document.querySelector("[data-status-explainer]");
+    statusToggle?.addEventListener("click", () => {
+      if (!statusCopy) return;
+      const isHidden = statusCopy.hasAttribute("hidden");
+      statusCopy.toggleAttribute("hidden", !isHidden);
+      statusToggle.setAttribute("aria-expanded", isHidden ? "true" : "false");
+    });
+  </script>
 </BaseLayout>
+
+<style>
+  .chapter-status {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .chapter-status .button {
+    justify-self: start;
+  }
+</style>

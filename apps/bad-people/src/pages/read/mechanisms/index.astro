@@ -3,7 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
-import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import { buildTranslationLede, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
@@ -64,5 +64,35 @@ const localizedLede = buildTranslationLede(
     filterHint="Try tags like urgent, high-leverage, stabilize, or phrases from your situation."
     alphaMode={false}
     itemActionLabel="Open mechanism"
-  />
+  >
+    <Fragment slot="after-list">
+      <section class="content-block mechanisms-tail">
+        <div>
+          <div class="eyebrow">Need a next step?</div>
+          <h2>Turn diagnosis into a ten-minute move</h2>
+          <p class="meta">After naming the pattern, open Toolkit to choose a reversible action you can run now.</p>
+        </div>
+        <div class="link-group">
+          <a class="button" href={readRoutes.toolkit}>Open toolkit</a>
+          <a class="button button--secondary" href={readRoutes.overview}>Review framing constraints</a>
+        </div>
+      </section>
+    </Fragment>
+  </ContentIndexList>
 </BaseLayout>
+
+<style>
+  .mechanisms-tail {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 1rem;
+  }
+
+  .mechanisms-tail h2 {
+    margin-bottom: 0.35rem;
+  }
+
+  .mechanisms-tail .link-group {
+    align-items: center;
+  }
+</style>

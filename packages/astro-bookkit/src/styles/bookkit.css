@@ -1770,9 +1770,8 @@ p {
   flex-wrap: wrap;
   gap: var(--space-4);
   padding: var(--space-3);
-  border-radius: var(--radius-card);
-  border: 1px solid rgba(91, 76, 230, 0.12);
-  background: rgba(91, 76, 230, 0.04);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .analytics-filter {
@@ -1785,8 +1784,8 @@ p {
 .analytics-filter input,
 .analytics-filter select {
   padding: var(--space-2);
-  border-radius: 8px;
-  border: 1px solid rgba(91, 76, 230, 0.18);
+  border-radius: 0;
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
@@ -1797,10 +1796,10 @@ p {
 }
 
 .analytics-card {
-  padding: var(--space-4);
-  border-radius: var(--radius-card);
-  border: 1px solid rgba(91, 76, 230, 0.1);
-  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-accent-strong) 6%);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .metric-value {
@@ -1815,14 +1814,18 @@ p {
 
 .sparkline {
   width: 100%;
-  height: 40px;
-  opacity: 0.85;
+  height: 30px;
+}
+
+.sparkline-axis {
+  stroke: color-mix(in srgb, var(--color-border) 85%, #000000 15%);
+  stroke-width: 1;
 }
 
 .sparkline polyline {
   fill: none;
-  stroke: var(--color-accent-strong);
-  stroke-width: 2;
+  stroke: var(--color-muted);
+  stroke-width: 1.5;
 }
 
 .analytics-table-wrap {
@@ -1834,6 +1837,7 @@ p {
   border-collapse: collapse;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+  background: var(--color-surface);
 }
 
 .analytics-table__caption {
@@ -1846,7 +1850,7 @@ p {
 .analytics-table th,
 .analytics-table td {
   padding: var(--space-2);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 95%, transparent);
 }
 
 .analytics-table thead th {
@@ -1863,6 +1867,22 @@ p {
 
 .analytics-table__metric {
   text-align: right;
+  white-space: nowrap;
+}
+
+.analytics-table--summary .analytics-table__spark-col {
+  width: 120px;
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+
+.analytics-table--summary .metric-subtext {
+  font-size: var(--text-xs);
+}
+
+.analytics-table__metric.is-emphasis {
+  color: var(--color-accent-strong);
+  font-weight: 600;
 }
 
 .analytics-empty {

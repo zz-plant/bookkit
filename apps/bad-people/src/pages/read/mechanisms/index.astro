@@ -21,6 +21,11 @@ const urgencyOrder: Record<string, number> = {
   "high-leverage": 1,
   stabilize: 2,
 };
+const summarizeMeta = (value: string) => {
+  const firstSentence = value.split(/(?<=[.!?])\s+/)[0] ?? value;
+  if (firstSentence.length <= 110) return firstSentence;
+  return `${firstSentence.slice(0, 107).trimEnd()}…`;
+};
 const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,
@@ -39,7 +44,7 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
       href: readItemPath("mechanisms", slug),
       title: frontmatter.title ?? "Untitled mechanism",
       eyebrow: tags.join(" • "),
-      meta: quickTrigger ? `Use this when: ${quickTrigger}` : definition,
+      meta: summarizeMeta(quickTrigger ? `Use this when: ${quickTrigger}` : definition),
     };
   },
   sort: (a, b) => {
@@ -61,10 +66,19 @@ const localizedLede = buildTranslationLede(
     items={mechanismItems}
     filterMode="always"
     filterPlaceholder="Filter by mechanism, urgency tag, or trigger language..."
-    filterHint="Try tags like urgent, high-leverage, stabilize, or phrases from your situation."
+    filterHint="Use quick filters for urgency/core, then type your situation language."
     alphaMode={false}
     itemActionLabel="Open mechanism"
   >
+    <Fragment slot="after-header">
+      <div class="mechanism-quick-filters" role="group" aria-label="Quick filters">
+        <span class="mechanism-quick-filters__label">Quick filters</span>
+        <button type="button" class="mechanism-filter-pill" data-filter-value="urgent">Urgent</button>
+        <button type="button" class="mechanism-filter-pill" data-filter-value="high-leverage">High leverage</button>
+        <button type="button" class="mechanism-filter-pill" data-filter-value="core">Core</button>
+        <button type="button" class="mechanism-filter-pill mechanism-filter-pill--clear" data-filter-clear>Clear</button>
+      </div>
+    </Fragment>
     <Fragment slot="after-list">
       <section class="content-block mechanisms-tail">
         <div>
@@ -108,11 +122,85 @@ const localizedLede = buildTranslationLede(
         listLink.insertAdjacentElement("afterend", toggle);
       }
     });
+
+    const listFilterInput = document.querySelector("[data-list-filter]");
+    const quickFilterButtons = Array.from(document.querySelectorAll("[data-filter-value]"));
+    const clearButton = document.querySelector("[data-filter-clear]");
+
+    const applyQuickFilter = (value) => {
+      if (!(listFilterInput instanceof HTMLInputElement)) return;
+      listFilterInput.value = value;
+      listFilterInput.dispatchEvent(new Event("input", { bubbles: true }));
+      quickFilterButtons.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        button.classList.toggle("is-active", button.dataset.filterValue === value);
+      });
+    };
+
+    quickFilterButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) return;
+      button.addEventListener("click", () => {
+        const value = button.dataset.filterValue;
+        if (!value) return;
+        applyQuickFilter(value);
+      });
+    });
+
+    if (clearButton instanceof HTMLButtonElement) {
+      clearButton.addEventListener("click", () => {
+        if (!(listFilterInput instanceof HTMLInputElement)) return;
+        listFilterInput.value = "";
+        listFilterInput.dispatchEvent(new Event("input", { bubbles: true }));
+        quickFilterButtons.forEach((button) => {
+          if (!(button instanceof HTMLButtonElement)) return;
+          button.classList.remove("is-active");
+        });
+      });
+    }
   </script>
 
 </BaseLayout>
 
 <style>
+
+  .mechanism-quick-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .mechanism-quick-filters__label {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+    font-weight: 700;
+  }
+
+  .mechanism-filter-pill {
+    border-radius: 999px;
+    border: 1px solid rgba(91, 76, 230, 0.25);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--color-accent-strong);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    cursor: pointer;
+  }
+
+  .mechanism-filter-pill:hover,
+  .mechanism-filter-pill.is-active {
+    background: rgba(91, 76, 230, 0.14);
+    border-color: rgba(91, 76, 230, 0.42);
+  }
+
+  .mechanism-filter-pill--clear {
+    border-color: rgba(31, 31, 31, 0.2);
+    color: var(--color-muted);
+  }
+
   .mechanisms-tail {
     display: grid;
     gap: 0.85rem;

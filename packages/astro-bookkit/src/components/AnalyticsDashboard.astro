@@ -31,32 +31,58 @@ const {
     </label>
   </div>
 
-  <div class="analytics-grid">
-    <article class="analytics-card">
-      <div class="eyebrow">Views</div>
-      <div class="metric-value" data-metric="views">0</div>
-      <div class="metric-subtext" data-metric-detail="views">0 over the last 7 days</div>
-      <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Views trend">
-        <polyline data-sparkline="views" points="0,32 100,32" />
-      </svg>
-    </article>
-    <article class="analytics-card">
-      <div class="eyebrow">Avg. time on page</div>
-      <div class="metric-value" data-metric="time">0s</div>
-      <div class="metric-subtext" data-metric-detail="time">0s median this week</div>
-      <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Time on page trend">
-        <polyline data-sparkline="time" points="0,32 100,32" />
-      </svg>
-    </article>
-    <article class="analytics-card">
-      <div class="eyebrow">Drop-off</div>
-      <div class="metric-value" data-metric="dropoff">0%</div>
-      <div class="metric-subtext" data-metric-detail="dropoff">0% avg. scroll depth</div>
-      <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Drop-off trend">
-        <polyline data-sparkline="dropoff" points="0,32 100,32" />
-      </svg>
-    </article>
-  </div>
+  <article class="analytics-card analytics-summary">
+    <table class="analytics-table analytics-table--summary">
+      <caption class="analytics-table__caption">Topline metrics compared against the immediately prior period.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Metric</th>
+          <th scope="col" class="analytics-table__metric">Current</th>
+          <th scope="col" class="analytics-table__metric">Δ vs prior</th>
+          <th scope="col" class="analytics-table__spark-col">Trend</th>
+          <th scope="col">Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row" class="analytics-table__label">Views</th>
+          <td class="analytics-table__metric" data-metric-current="views">0</td>
+          <td class="analytics-table__metric" data-metric-delta="views">—</td>
+          <td class="analytics-table__spark-col">
+            <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Views trend">
+              <line class="sparkline-axis" x1="0" y1="16" x2="100" y2="16"></line>
+              <polyline data-sparkline="views" points="0,16 100,16" />
+            </svg>
+          </td>
+          <td class="metric-subtext" data-metric-note="views"></td>
+        </tr>
+        <tr>
+          <th scope="row" class="analytics-table__label">Avg. time on page</th>
+          <td class="analytics-table__metric" data-metric-current="time">0.0s</td>
+          <td class="analytics-table__metric" data-metric-delta="time">—</td>
+          <td class="analytics-table__spark-col">
+            <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Time on page trend">
+              <line class="sparkline-axis" x1="0" y1="16" x2="100" y2="16"></line>
+              <polyline data-sparkline="time" points="0,16 100,16" />
+            </svg>
+          </td>
+          <td class="metric-subtext" data-metric-note="time"></td>
+        </tr>
+        <tr>
+          <th scope="row" class="analytics-table__label">Drop-off</th>
+          <td class="analytics-table__metric" data-metric-current="dropoff">0.0%</td>
+          <td class="analytics-table__metric" data-metric-delta="dropoff">—</td>
+          <td class="analytics-table__spark-col">
+            <svg class="sparkline" viewBox="0 0 100 32" role="img" aria-label="Drop-off trend">
+              <line class="sparkline-axis" x1="0" y1="16" x2="100" y2="16"></line>
+              <polyline data-sparkline="dropoff" points="0,16 100,16" />
+            </svg>
+          </td>
+          <td class="metric-subtext" data-metric-note="dropoff"></td>
+        </tr>
+      </tbody>
+    </table>
+  </article>
 
   <div class="analytics-empty" data-analytics-empty hidden>
     <p>
@@ -153,6 +179,43 @@ const {
       return `${minutes}m ${seconds}s`;
     };
 
+    const metricConfigs = {
+      views: { decimals: 0, unit: "", minPctForNote: 0.15, minAbsForNote: 20 },
+      time: { decimals: 1, unit: "s", minPctForNote: 0.1, minAbsForNote: 5 },
+      dropoff: { decimals: 1, unit: "%", scale: 100, minPctForNote: 0.08, minAbsForNote: 2.5 },
+    };
+
+    const formatMetricValue = (metric, value) => {
+      const config = metricConfigs[metric];
+      if (!config) return `${value}`;
+      const normalized = (config.scale ?? 1) * (Number.isFinite(value) ? value : 0);
+      return `${normalized.toFixed(config.decimals)}${config.unit}`;
+    };
+
+    const formatMetricDelta = (metric, current, prior) => {
+      const config = metricConfigs[metric];
+      const safeCurrent = Number.isFinite(current) ? current : 0;
+      const safePrior = Number.isFinite(prior) ? prior : 0;
+      const absoluteDelta = safeCurrent - safePrior;
+      const pctDelta = safePrior === 0 ? (safeCurrent === 0 ? 0 : 1) : absoluteDelta / safePrior;
+      const normalizedAbs = absoluteDelta * (config?.scale ?? 1);
+      const sign = absoluteDelta > 0 ? "+" : "";
+      return {
+        absoluteDelta,
+        pctDelta,
+        text: `${sign}${normalizedAbs.toFixed(config?.decimals ?? 1)}${config?.unit ?? ""} (${sign}${(
+          pctDelta * 100
+        ).toFixed(1)}%)`,
+      };
+    };
+
+    const isStatisticallyNotable = (metric, delta) => {
+      const config = metricConfigs[metric];
+      if (!config) return false;
+      const scaledAbs = Math.abs(delta.absoluteDelta * (config.scale ?? 1));
+      return Math.abs(delta.pctDelta) >= config.minPctForNote && scaledAbs >= config.minAbsForNote;
+    };
+
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
     const formatPercent = (value) => `${Math.round(value * 100)}%`;
@@ -174,7 +237,7 @@ const {
     const renderSparkline = (polyline, values) => {
       if (!polyline) return;
       if (!values.length) {
-        polyline.setAttribute("points", "0,32 100,32");
+        polyline.setAttribute("points", "0,16 100,16");
         return;
       }
       const max = Math.max(...values);
@@ -264,18 +327,49 @@ const {
       if (target) target.textContent = value;
     };
 
-    const renderCards = ({ totalViews, avgTime, avgScroll, pageviews, engagements }) => {
-      setText("[data-metric='views']", totalViews.toString());
-      setText("[data-metric='time']", formatSeconds(avgTime));
-      setText("[data-metric='dropoff']", formatPercent(1 - avgScroll));
+    const renderSummary = ({ current, prior }) => {
+      const metrics = {
+        views: { current: current.totalViews, prior: prior.totalViews },
+        time: { current: current.avgTime, prior: prior.avgTime },
+        dropoff: { current: clamp(1 - current.avgScroll, 0, 1), prior: clamp(1 - prior.avgScroll, 0, 1) },
+      };
 
-      const viewSeries = buildSeries(pageviews, "count");
+      const deltas = Object.entries(metrics).map(([metric, values]) => ({
+        metric,
+        ...formatMetricDelta(metric, values.current, values.prior),
+      }));
+
+      const emphasisMetric = deltas
+        .slice()
+        .sort((a, b) => Math.abs(b.pctDelta) - Math.abs(a.pctDelta))[0]?.metric;
+
+      Object.entries(metrics).forEach(([metric, values]) => {
+        setText(`[data-metric-current='${metric}']`, formatMetricValue(metric, values.current));
+        const delta = formatMetricDelta(metric, values.current, values.prior);
+        setText(`[data-metric-delta='${metric}']`, delta.text);
+
+        const deltaCell = dashboard.querySelector(`[data-metric-delta='${metric}']`);
+        if (deltaCell) {
+          deltaCell.classList.toggle("is-emphasis", metric === emphasisMetric && Math.abs(delta.pctDelta) > 0);
+        }
+
+        const note = dashboard.querySelector(`[data-metric-note='${metric}']`);
+        if (note) {
+          note.textContent = isStatisticallyNotable(metric, delta)
+            ? delta.absoluteDelta > 0
+              ? "Notable increase vs prior period"
+              : "Notable decrease vs prior period"
+            : "";
+        }
+      });
+
+      const viewSeries = buildSeries(current.pageviews, "count");
       const timeSeries = buildSeries(
-        engagements.map((event) => ({ ...event, count: event.durationSeconds ?? 0 })),
+        current.engagements.map((event) => ({ ...event, count: event.durationSeconds ?? 0 })),
         "count"
       );
       const dropSeries = buildSeries(
-        engagements.map((event) => ({ ...event, count: 1 - (event.scrollDepth ?? 0) })),
+        current.engagements.map((event) => ({ ...event, count: 1 - (event.scrollDepth ?? 0) })),
         "count"
       );
 
@@ -283,18 +377,27 @@ const {
       renderSparkline(dashboard.querySelector("[data-sparkline='time']"), timeSeries);
       renderSparkline(dashboard.querySelector("[data-sparkline='dropoff']"), dropSeries);
 
-      setText(
-        "[data-metric-detail='views']",
-        viewSeries.length ? `${viewSeries[viewSeries.length - 1]} today` : "No recent views"
-      );
-      setText(
-        "[data-metric-detail='time']",
-        engagements.length ? `${formatSeconds(avgTime)} avg. engagement` : "No engagement yet"
-      );
-      setText(
-        "[data-metric-detail='dropoff']",
-        engagements.length ? `${formatPercent(avgScroll)} avg. scroll depth` : "No scroll data"
-      );
+    };
+
+    const getPeriods = () => {
+      const startDate = new Date(startInput.value);
+      const endDate = new Date(endInput.value);
+      endDate.setHours(23, 59, 59, 999);
+      const rangeDuration = Math.max(endDate.getTime() - startDate.getTime() + 1, 24 * 60 * 60 * 1000);
+
+      const priorEnd = new Date(startDate.getTime() - 1);
+      const priorStart = new Date(priorEnd.getTime() - rangeDuration + 1);
+
+      return { startDate, endDate, priorStart, priorEnd };
+    };
+
+    const filterEventsForRange = (sourceEvents, startDate, endDate, selectedVersion) => {
+      return sourceEvents.filter((event) => {
+        const timestamp = event.timestamp;
+        const inRange = timestamp >= startDate.getTime() && timestamp <= endDate.getTime();
+        const inVersion = selectedVersion === "all" || event.version === selectedVersion;
+        return inRange && inVersion;
+      });
     };
 
     const renderTable = (pageviews, engagements) => {
@@ -435,19 +538,10 @@ const {
 
     const filterEvents = () => {
       const selectedVersion = versionSelect.value;
-      const startDate = new Date(startInput.value);
-      const endDate = new Date(endInput.value);
-      endDate.setHours(23, 59, 59, 999);
-
-      const inRangeEvents = events.filter((event) => {
-        const timestamp = event.timestamp;
-        return timestamp >= startDate.getTime() && timestamp <= endDate.getTime();
-      });
-
-      const filtered =
-        selectedVersion === "all"
-          ? inRangeEvents
-          : inRangeEvents.filter((event) => event.version === selectedVersion);
+      const { startDate, endDate, priorStart, priorEnd } = getPeriods();
+      const inRangeEvents = events.filter((event) => event.timestamp >= startDate.getTime() && event.timestamp <= endDate.getTime());
+      const filtered = filterEventsForRange(events, startDate, endDate, selectedVersion);
+      const priorFiltered = filterEventsForRange(events, priorStart, priorEnd, selectedVersion);
 
       if (!filtered.length) {
         emptyState.hidden = false;
@@ -460,7 +554,8 @@ const {
       }
 
       const summary = summarize(filtered);
-      renderCards(summary);
+      const priorSummary = summarize(priorFiltered);
+      renderSummary({ current: summary, prior: priorSummary });
       renderTable(summary.pageviews, summary.engagements);
       renderLocaleTable(summary.pageviews);
 

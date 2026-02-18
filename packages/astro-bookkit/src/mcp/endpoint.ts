@@ -836,20 +836,35 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
   return {
     GET: () => {
       const resources = listResources(options.contentRawModules, resourcePrefix, options.governanceResources);
+      const resourceKinds = Array.from(new Set(resources.map((resource) => resource.kind)));
+      const resourceSections = Array.from(
+        new Set(resources.map((resource) => resource.section).filter((section): section is ContentTypeKey => Boolean(section))),
+      );
       return jsonResponse({
         ok: true,
         bookTitle: options.bookTitle,
         description: options.bookDescription ?? null,
         resourceCount: resources.length,
+        resourceKinds,
+        resourceSections,
         resourceReadOptions: {
           supportsLineRanges: true,
           params: ["startLine", "endLine"],
         },
         tools: TOOL_NAMES,
         toolMetadata: TOOL_DEFINITIONS,
+        rateLimits: {
+          requestsPerMinute: 120,
+          burst: 30,
+          guidance: "On throttling, back off and retry read-only operations first.",
+        },
         agentProfile: {
           safetyMode: "safe-first",
           mutatingTools: ["bookkit.create_book"],
+          safetyFlags: {
+            defaultToolMode: "read-only",
+            mutatingToolsRequireExplicitIntent: true,
+          },
           recommendedQueryOrder: [
             "bookkit://governance/AGENTS.md",
             "bookkit://governance/CONTRIBUTING.md",

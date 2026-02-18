@@ -308,6 +308,9 @@ describe("createBookMcpEndpoint", () => {
     const body = (await response.json()) as {
       agentProfile: { recommendedQueryOrder: string[]; resources: { supportsListPagination: boolean } };
       tools: string[];
+      resourceKinds: string[];
+      resourceSections: string[];
+      rateLimits: { requestsPerMinute: number; burst: number };
     };
 
     expect(body.agentProfile.recommendedQueryOrder[0]).toBe("bookkit://governance/AGENTS.md");
@@ -315,5 +318,10 @@ describe("createBookMcpEndpoint", () => {
     expect(body.tools).toContain("bookkit.list_skills");
     expect(body.tools).toContain("bookkit.read_book");
     expect(body.agentProfile.resources.supportsListPagination).toBe(true);
+    expect(body.resourceKinds).toContain("content");
+    expect(body.resourceKinds).toContain("governance");
+    expect(body.resourceSections).toContain("chapters");
+    expect(body.rateLimits.requestsPerMinute).toBe(120);
+    expect(body.rateLimits.burst).toBe(30);
   });
 });

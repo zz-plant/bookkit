@@ -67,15 +67,18 @@ This keeps books recompilable while allowing iterative content edits.
 .
 ├─ package.json
 ├─ apps/
-│  └─ bad-people/
+│  ├─ bad-people/
+│  │  ├─ src/book.config.ts
+│  │  └─ src/content/book/
+│  │     ├─ chapters/
+│  │     ├─ mechanisms/
+│  │     ├─ toolkit/
+│  │     ├─ examples/
+│  │     ├─ glossary/
+│  │     └─ releases/
+│  └─ running-hot/
 │     ├─ src/book.config.ts
 │     └─ src/content/book/
-│        ├─ chapters/
-│        ├─ mechanisms/
-│        ├─ toolkit/
-│        ├─ examples/
-│        ├─ glossary/
-│        └─ releases/
 ├─ packages/
 │  └─ astro-bookkit/
 │     └─ src/
@@ -85,6 +88,8 @@ This keeps books recompilable while allowing iterative content edits.
 │        └─ validators/
 └─ scripts/
 ```
+
+Use `bun run list:books` as the source of truth for currently active books.
 
 ---
 

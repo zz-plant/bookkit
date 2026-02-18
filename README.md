@@ -38,8 +38,8 @@ Prefer linking to canonical docs over duplicating policy text.
 
 Bookkit's highest-priority commercialization path is a hosted product direction that keeps architecture invariants intact:
 
-1. **Bookkit Cloud core** (managed compile + validate + export workflows)
-2. **MCP-ready enterprise workflows** (deterministic tools, discovery profile, auditable metadata)
+1. **Managed platform core** (hosted compile + validate + export workflows)
+2. **Enterprise MCP workflows** (deterministic tools, discovery profile, auditable metadata)
 3. **Governance-first operations** (strict separation, frame checks, actionable validation output)
 
 This positions Bookkit as a compiler + governance + AI-interface platform for high-trust knowledge products.

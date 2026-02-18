@@ -21,12 +21,15 @@ that surfaces the book’s objectives, frame, constraints, and core mechanisms.
 
 ## Requirements
 - Reading hub page that links to each content collection and indicates item counts.
+- Reading hub keeps release/download/author diagnostics in a collapsed utility disclosure by default.
+- Change labels for release-driven metadata to avoid implying true content-level diffs.
 - Overview page that shows objectives, frame steps, causal stance, constraints, and core mechanisms.
 - Back-link from the overview to the hub.
 - Clear, consistent titles and descriptions for each hub card.
 
 ## UX notes
-- Use card-based navigation with short descriptions.
+- Use card-based navigation with short descriptions and one dominant first action per fold.
+- Keep utility actions progressive (collapsed by default) so first-time reading routes stay obvious.
 - Keep the overview as a readable summary, not a marketing page.
 
 ## Risks & mitigations

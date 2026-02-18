@@ -20,7 +20,7 @@ Deliverables:
 
 - clear platform positioning in `README.md`
 - explicit commercial scope document in `docs/`
-- consistent language: "Bookkit Cloud" + "MCP-ready workflows"
+- consistent language for managed platform scope + MCP workflows
 
 Success criteria:
 
@@ -71,4 +71,3 @@ This roadmap intentionally preserves Bookkit's invariants:
 - keep book-specific behavior in book apps/config
 - keep reusable requirements in engine/compiler
 - keep content files replaceable and behavior-free
-

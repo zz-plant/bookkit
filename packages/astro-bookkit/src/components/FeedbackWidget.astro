@@ -129,6 +129,16 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     }
   };
 
+  const canVibrate =
+    typeof navigator !== "undefined" &&
+    typeof navigator.vibrate === "function" &&
+    !(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false);
+
+  const pulseHaptic = (pattern = 12) => {
+    if (!canVibrate) return;
+    navigator.vibrate(pattern);
+  };
+
   const saveEvent = (storageKey, event) => {
     const events = loadEvents(storageKey);
     events.push(event);
@@ -219,12 +229,14 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
       };
       saveEvent(storageKey, feedbackEvent);
       sendToEndpoint(endpoint, feedbackEvent);
+      pulseHaptic([20, 30, 20]);
       announce("Thanks for the feedback!");
       disable();
     };
 
     noteToggle?.addEventListener("click", () => {
       noteOpen = !noteOpen;
+      pulseHaptic(10);
       if (!notePanel) return;
       notePanel.hidden = !noteOpen;
       noteToggle.textContent = noteOpen ? "Hide note" : "Add a note";
@@ -236,6 +248,7 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 
     choiceButtons.forEach((button) => {
       button.addEventListener("click", () => {
+        pulseHaptic(12);
         selectedChoice = button.dataset.feedbackChoice || null;
         choiceButtons.forEach((btn) =>
           btn.classList.toggle("is-selected", btn === button)

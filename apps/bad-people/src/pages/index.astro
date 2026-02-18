@@ -198,9 +198,11 @@ const availableBooks = [
     </div>
   </section>
   <script>
+    const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
     funnelLinks.forEach((link) => {
       link.addEventListener("click", () => {
+        if (isDevHost) return;
         const step = link.getAttribute("data-funnel-step");
         if (!step) return;
         const payload = JSON.stringify({

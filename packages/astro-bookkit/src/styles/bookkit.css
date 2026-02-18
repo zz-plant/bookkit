@@ -2248,10 +2248,6 @@ p {
     padding: var(--space-6) var(--space-4) calc(var(--space-9) + 4.5rem);
   }
 
-  .hero-shell {
-    padding: var(--space-5);
-  }
-
   .breadcrumb {
     position: static;
     width: 100%;

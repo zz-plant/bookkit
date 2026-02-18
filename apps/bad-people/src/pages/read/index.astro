@@ -147,7 +147,7 @@ const sectionBuckets = [
         <div class="read-section__controls">
           <p class="meta">Start, solve, and reference routes are intentionally separated.</p>
           <button class="button button--secondary" type="button" data-read-updates-filter hidden>
-            Show updated since last visit
+            Show sections marked in latest release notes
           </button>
         </div>
       </div>
@@ -179,7 +179,7 @@ const sectionBuckets = [
                 {completenessLabel && <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>}
                 {changeMeta && (
                   <>
-                    <span class="read-meta-chip read-meta-chip--update">Updated v{changeMeta.version}</span>
+                    <span class="read-meta-chip read-meta-chip--update">Marked in v{changeMeta.version} notes</span>
                     <span class="read-meta-chip read-meta-chip--new" data-read-new hidden>New for you</span>
                   </>
                 )}
@@ -200,15 +200,14 @@ const sectionBuckets = [
       </div>
     </section>
 
-    <hr class="section-divider" />
-    <section id="tools-by-role" class="content-block read-section" style="margin-top: 0;">
-      <div class="read-section__intro">
-        <div>
-          <div class="eyebrow">Meta</div>
-          <h2>Release and maintenance links</h2>
-        </div>
-        <p class="meta">Lower-priority utilities live here so reading routes stay focused.</p>
-      </div>
+    <details class="content-block read-section read-utility-disclosure" id="tools-by-role">
+      <summary>
+        <span>
+          <span class="eyebrow">Meta</span>
+          <strong>More reading utilities</strong>
+        </span>
+        <span class="meta">Release notes, downloads, and author diagnostics</span>
+      </summary>
       <div class="card-grid read-tools-grid">
         <article class="card read-tools-card">
           <div class="eyebrow">Reader meta</div>
@@ -228,7 +227,7 @@ const sectionBuckets = [
           </div>
         </article>
       </div>
-    </section>
+    </details>
   </div>
   <script>
     const filterButton = document.querySelector("[data-read-updates-filter]");
@@ -257,7 +256,9 @@ const sectionBuckets = [
           const isNew = Number.isFinite(changeMs) && changeMs > previousVisitMs;
           card.hidden = isFiltered ? !isNew : false;
         });
-        filterButton.textContent = isFiltered ? "Show all sections" : "Show updated since last visit";
+        filterButton.textContent = isFiltered
+          ? "Show all sections"
+          : "Show sections marked in latest release notes";
       });
     }
 
@@ -295,6 +296,33 @@ const sectionBuckets = [
   .read-hub {
     display: grid;
     gap: 1.25rem;
+  }
+
+  .read-utility-disclosure {
+    margin-top: 0;
+  }
+
+  .read-utility-disclosure > summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    list-style: none;
+  }
+
+  .read-utility-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .read-utility-disclosure > summary strong {
+    display: block;
+    font-size: 1.1rem;
+    margin-top: 0.1rem;
+  }
+
+  .read-utility-disclosure .read-tools-grid {
+    margin-top: 1rem;
   }
 
   .read-hero {

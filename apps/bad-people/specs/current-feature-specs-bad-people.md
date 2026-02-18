@@ -28,6 +28,7 @@ Bookkit engine.
 **What ships**
 - A reading hub landing page that summarizes sections, counts, and translation completeness.
 - A separate overview page for objectives, frame, and constraints.
+- Release/download/author utility actions are grouped into a collapsed disclosure to keep first-fold reading choices concise.
 
 **Primary surfaces**
 - `/read` for the hub.
@@ -35,6 +36,7 @@ Bookkit engine.
 
 **Implementation notes**
 - The hub builds localized content indexes and surfaces section cards with counts and shortcuts.
+- Release-driven card metadata is labeled as notes-based (“Marked in vX notes”) to avoid implying content-level diff guarantees.
 - The overview page is driven by `book.config.ts` values (objectives, frame, constraints).
 
 **Source references**

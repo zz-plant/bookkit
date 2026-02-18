@@ -4,18 +4,18 @@
   --font-serif: "Merriweather", "Georgia", serif;
   --color-ink: #1f1f1f;
   --color-muted: #3f3f3f;
-  --color-bg: #f7f6f3;
+  --color-bg: #f5f4f1;
   --color-surface: #ffffff;
-  --color-surface-muted: #fdfcf9;
-  --color-border: #dedbd4;
+  --color-surface-muted: #f8f7f4;
+  --color-border: #ddd9d1;
   --color-accent: #5b4ce6;
   --color-accent-strong: #3d2bdc;
   --color-accent-alt: #0ea5e9;
   --color-accent-soft: rgba(91, 76, 230, 0.15);
   --radius-card: 16px;
-  --shadow-soft: 0 12px 30px rgba(20, 20, 20, 0.08);
-  --shadow-card: 0 16px 40px rgba(20, 20, 20, 0.1);
-  --shadow-float: 0 18px 50px rgba(20, 20, 20, 0.14);
+  --shadow-soft: 0 4px 12px rgba(20, 20, 20, 0.05);
+  --shadow-card: 0 8px 20px rgba(20, 20, 20, 0.08);
+  --shadow-float: 0 10px 24px rgba(20, 20, 20, 0.1);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -95,10 +95,7 @@ body {
   margin: 0;
   padding: 0;
   line-height: var(--leading-body);
-  background:
-    radial-gradient(circle at 10% -10%, rgba(14, 165, 233, 0.16), transparent 45%),
-    radial-gradient(circle at 90% 0%, rgba(91, 76, 230, 0.12), transparent 40%),
-    linear-gradient(180deg, #fcfcfb 0%, #f7f6f3 28%, #f4f2ee 100%);
+  background: linear-gradient(180deg, #faf9f6 0%, #f5f4f1 42%, #f2f0eb 100%);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
@@ -157,8 +154,8 @@ a,
 .site-footer {
   padding: var(--space-4) var(--space-6);
   border-bottom: 1px solid var(--color-border);
-  background: color-mix(in oklab, var(--color-surface) 88%, white 12%);
-  box-shadow: 0 1px 0 rgba(27, 27, 27, 0.04);
+  background: color-mix(in oklab, var(--color-surface) 94%, white 6%);
+  box-shadow: none;
 }
 
 .site-footer {
@@ -177,7 +174,7 @@ a,
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(4px);
 }
 
 .site-brand a {
@@ -241,9 +238,10 @@ a,
 }
 
 .site-nav > a:first-child {
-  background: var(--color-accent-strong);
-  color: #ffffff;
   font-weight: 600;
+  border: 1px solid rgba(91, 76, 230, 0.2);
+  background: rgba(91, 76, 230, 0.08);
+  color: var(--color-accent-strong);
 }
 
 .site-nav__primary--active-route {
@@ -254,8 +252,7 @@ a,
 }
 
 .site-nav > a:first-child:hover {
-  background: var(--color-accent);
-  color: #ffffff;
+  background: rgba(91, 76, 230, 0.12);
 }
 
 .site-nav a:hover,
@@ -564,7 +561,7 @@ a,
   max-width: var(--reader-content-width);
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-7) var(--space-6) var(--space-9);
+  padding: var(--space-6) var(--space-6) var(--space-8);
 }
 
 .site-main :where(p, li, blockquote) {
@@ -706,7 +703,7 @@ p {
 }
 
 .card {
-  background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: var(--space-4);
@@ -714,13 +711,12 @@ p {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  transition: border 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-card);
-  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-border), var(--color-accent) 35%);
+  box-shadow: var(--shadow-soft);
 }
 
 .card--static {
@@ -769,32 +765,18 @@ p {
   overflow: hidden;
   margin-bottom: var(--space-6);
   padding: var(--space-6);
-  border: 1px solid rgba(91, 76, 230, 0.2);
+  border: 1px solid var(--color-border);
   border-radius: calc(var(--radius-card) + 6px);
-  background:
-    radial-gradient(circle at 12% 20%, rgba(91, 76, 230, 0.16), transparent 50%),
-    radial-gradient(circle at 92% 10%, rgba(14, 165, 233, 0.16), transparent 42%),
-    linear-gradient(180deg, #ffffff 0%, #fcfbff 100%);
-  box-shadow: var(--shadow-soft);
+  background: linear-gradient(180deg, #ffffff 0%, #fcfbf8 100%);
+  box-shadow: none;
 }
 
 .hero-shell::before {
-  content: "";
-  position: absolute;
-  inset: -30% -45% auto;
-  height: 220px;
-  background: radial-gradient(circle, rgba(91, 76, 230, 0.2), transparent 70%);
-  opacity: 0.4;
-  pointer-events: none;
+  content: none;
 }
 
 .hero-shell::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 3px;
-  background: rgba(31, 31, 31, 0.12);
-  pointer-events: none;
+  content: none;
 }
 
 .hero-kicker {
@@ -844,7 +826,7 @@ p {
 }
 
 .content-block {
-  background: linear-gradient(180deg, #ffffff 0%, #fefeff 100%);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: var(--space-5);
@@ -1089,24 +1071,23 @@ p {
   padding: var(--space-2) var(--space-3);
   border-radius: 999px;
   font-size: var(--text-sm);
-  background: linear-gradient(180deg, rgba(91, 76, 230, 0.16), rgba(91, 76, 230, 0.11));
+  background: rgba(91, 76, 230, 0.09);
   color: var(--color-accent-strong);
 }
 
 
 .pill--hero-primary {
-  background: var(--color-accent-strong);
-  color: #ffffff;
-  border: 1px solid transparent;
+  background: rgba(91, 76, 230, 0.1);
+  color: var(--color-accent-strong);
+  border: 1px solid rgba(91, 76, 230, 0.18);
   font-weight: 700;
   padding: 0.55rem 1.15rem;
   letter-spacing: 0.01em;
-  box-shadow: 0 10px 24px rgba(61, 43, 220, 0.24);
+  box-shadow: none;
 }
 
 .pill--hero-primary:hover {
-  background: var(--color-accent);
-  color: #ffffff;
+  background: rgba(91, 76, 230, 0.14);
 }
 
 .button {
@@ -1121,14 +1102,12 @@ p {
   font-weight: 600;
   border: none;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(91, 76, 230, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: none;
+  transition: background 0.2s ease;
 }
 
 .button:hover {
   background: var(--color-accent-strong);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(61, 43, 220, 0.3);
 }
 
 .button:focus-visible {
@@ -1181,13 +1160,13 @@ p {
   margin-bottom: var(--space-3);
   position: sticky;
   top: var(--space-3);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(8px);
   padding: var(--space-2) var(--space-3);
   border-radius: 999px;
   width: fit-content;
-  border: 1px solid rgba(91, 76, 230, 0.12);
-  box-shadow: 0 10px 24px rgba(20, 20, 20, 0.08);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
 }
 
 .breadcrumb a {

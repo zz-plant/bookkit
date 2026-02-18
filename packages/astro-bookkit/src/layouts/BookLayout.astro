@@ -107,7 +107,6 @@ const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
 const isArchivePage = normalizedPath === normalizedArchivePath;
 const isReadRoute =
   normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
-const isReleaseNotesRoute = normalizedLocalePath === "/release-notes";
 const resolvedRobots =
   robots ??
   ((pathVersion && !currentVersionEntry?.isLatest) || (versionArchiveNoindex && isArchivePage)
@@ -261,13 +260,15 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           <details class="site-nav__more" data-site-nav-more id="site-nav-more">
             <summary class="site-nav__more-toggle">Menu</summary>
             <div class="site-nav__overflow">
-              <p class="site-nav__group-label">Reader tools</p>
-              <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
-              <a href="/downloads" aria-keyshortcuts="g d">Offline reading</a>
-              <p class="site-nav__group-label">Author tools</p>
-              <a href="/read/tools" aria-keyshortcuts="g a">Author diagnostics</a>
-              <p class="site-nav__group-label">Workspace tools</p>
-              <a href="/new-book" aria-keyshortcuts="g b">New book studio</a>
+              <div class="site-nav__group site-nav__group--reader">
+                <p class="site-nav__group-label">Reader tools</p>
+                <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
+              </div>
+              <div class="site-nav__group site-nav__group--author">
+                <p class="site-nav__group-label">Author &amp; workspace</p>
+                <a href="/read/tools" aria-keyshortcuts="g a">Author diagnostics</a>
+                <a href="/new-book" aria-keyshortcuts="g b">New book studio</a>
+              </div>
               {(hasVersions || localeEntries.length > 1) && (
                 <details class="site-settings" data-site-settings>
                   <summary class="site-settings__toggle">View settings</summary>
@@ -392,13 +393,6 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           Read
         </a>
         <button type="button" data-mobile-search aria-controls="search-panel" aria-expanded="false">Search</button>
-        <a
-          href="/release-notes"
-          aria-keyshortcuts="g n"
-          aria-current={isReleaseNotesRoute ? "page" : undefined}
-        >
-          Updates
-        </a>
         <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">More</button>
       </div>
       <div class="search-panel" id="search-panel" data-search-panel hidden>

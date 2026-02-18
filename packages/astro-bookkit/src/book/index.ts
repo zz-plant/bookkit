@@ -23,5 +23,7 @@ export {
 export type { BookVersionEntryOptions } from "./releases";
 export { createBookMiddleware } from "./middleware";
 export type { BookMiddlewareOptions } from "./middleware";
+export { defaultChapterPageCopy } from "./chapter-copy";
+export type { ChapterPageCopy } from "./chapter-copy";
 export { createBookLayoutState } from "./layout";
 export type { BookLayoutConfig, BookLayoutOptions, BookLayoutState } from "./layout";

@@ -158,6 +158,7 @@ export {
   readItemPath,
   readRoutes,
   readSectionPath,
+  defaultChapterPageCopy,
 } from "./book";
 export type {
   BookExportHelpersFromConfigOptions,
@@ -171,4 +172,5 @@ export type {
   BookMiddlewareOptions,
   BookVersionEntryOptions,
   ReadIndexKey,
+  ChapterPageCopy,
 } from "./book";

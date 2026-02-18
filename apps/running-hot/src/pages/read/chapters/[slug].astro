@@ -10,7 +10,7 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
-import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { defaultChapterPageCopy, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.chapters;
@@ -61,12 +61,12 @@ const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
   <a class="back-link" href={readRoutes.chapters}>← Chapters</a>
   <div class="chapter-shell">
     <aside class="chapter-meta-panel">
-      <div class="eyebrow">Chapter map</div>
-      <h2>Progress steps</h2>
+      <div class="eyebrow">{defaultChapterPageCopy.chapterMapLabel}</div>
+      <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>
       <ol class="chapter-step-list" data-chapter-step-list></ol>
       <ExportPanel
-        title="Download chapter"
-        description="Keep a focused export for offline sharing."
+        title={defaultChapterPageCopy.downloadChapterTitle}
+        description={defaultChapterPageCopy.downloadChapterDescription}
         links={exportLinks}
       />
     </aside>
@@ -84,15 +84,15 @@ const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
   </div>
 
   <section class="next-steps" id="next-steps">
-    <h2>Choose your next move</h2>
+    <h2>{defaultChapterPageCopy.nextMoveHeading}</h2>
     <div class="next-steps__links next-steps__branches">
       {nextChapter && (
         <a class="next-steps__link" href={readItemPath("chapters", nextChapter.slug)}>
-          Continue chapter path → {nextChapter.title}
+          {defaultChapterPageCopy.continueChapterPrefix} → {nextChapter.title}
         </a>
       )}
-      <a class="next-steps__link" href={readRoutes.mechanisms}>Branch to mechanism diagnosis</a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Branch to ten-minute toolkit action</a>
+      <a class="next-steps__link" href={readRoutes.mechanisms}>{defaultChapterPageCopy.mechanismsLinkLabel}</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>{defaultChapterPageCopy.toolkitLinkLabel}</a>
     </div>
   </section>
   <FeedbackWidget

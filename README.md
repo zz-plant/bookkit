@@ -28,8 +28,23 @@ For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md) | Engine-local orientation | Engine contributors |
 | [`apps/bad-people/README.md`](./apps/bad-people/README.md) | Book-app-local orientation | Book contributors |
 | [`docs/mcp-agent-skills-research.md`](./docs/mcp-agent-skills-research.md) | MCP + agent-skill adoption options | Maintainers + AI workflow designers |
+| [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md) | Productization scope + sequencing | Maintainers + operators |
 
 Prefer linking to canonical docs over duplicating policy text.
+
+---
+
+## Commercial direction (platform roadmap)
+
+Bookkit's highest-priority commercialization path is a hosted product direction that keeps architecture invariants intact:
+
+1. **Bookkit Cloud core** (managed compile + validate + export workflows)
+2. **MCP-ready enterprise workflows** (deterministic tools, discovery profile, auditable metadata)
+3. **Governance-first operations** (strict separation, frame checks, actionable validation output)
+
+This positions Bookkit as a compiler + governance + AI-interface platform for high-trust knowledge products.
+
+For phased scope and implementation sequencing, see [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md).
 
 ---
 

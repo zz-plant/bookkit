@@ -23,6 +23,7 @@
     "./components/NewBookStudio.astro": "./src/components/NewBookStudio.astro",
     "./components/VersionSwitcher.astro": "./src/components/VersionSwitcher.astro",
     "./components/LanguageSwitcher.astro": "./src/components/LanguageSwitcher.astro",
+    "./components/ToolsPage.astro": "./src/components/ToolsPage.astro",
     "./layouts/BookLayout.astro": "./src/layouts/BookLayout.astro",
     "./styles/bookkit.css": "./src/styles/bookkit.css",
     "./search": "./src/search/index.ts",

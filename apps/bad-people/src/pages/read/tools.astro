@@ -1,6 +1,7 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
+import ToolsPage from "@bookkit/astro-bookkit/components/ToolsPage.astro";
 import bookConfig from "../../book.config";
+import { getVersionEntries } from "../../lib/versions";
 import { readRoutes } from "@bookkit/astro-bookkit";
 
 const toolLinks = [
@@ -20,25 +21,15 @@ const toolLinks = [
     href: "/downloads",
   },
 ];
----
-<BaseLayout title={`Tools • ${bookConfig.title}`}>
-  <a class="back-link" href={readRoutes.root}>← Back to reading hub</a>
-  <div class="section-header">
-    <div class="eyebrow">Utilities</div>
-    <h1>Tools and diagnostics</h1>
-    <p class="lede">
-      Publishing and operational surfaces are grouped here so the reading hub stays reader-first.
-    </p>
-  </div>
 
-  <section class="content-block">
-    <div class="card-grid">
-      {toolLinks.map((link) => (
-        <a class="card" href={link.href}>
-          <h2>{link.title}</h2>
-          <p class="meta">{link.description}</p>
-        </a>
-      ))}
-    </div>
-  </section>
-</BaseLayout>
+const versionEntries = getVersionEntries();
+const currentVersion = versionEntries.find((entry) => entry.isLatest)?.version ?? bookConfig.status;
+---
+<ToolsPage
+  title={`Tools • ${bookConfig.title}`}
+  bookTitle={bookConfig.title}
+  bookVersion={currentVersion}
+  bookKey={bookConfig.slug ?? "book"}
+  backHref={readRoutes.root}
+  links={toolLinks}
+/>

@@ -1,0 +1,52 @@
+---
+import BookLayout from "../layouts/BookLayout.astro";
+
+export type ToolsPageLink = {
+  title: string;
+  description: string;
+  href: string;
+};
+
+export type Props = {
+  title: string;
+  bookTitle: string;
+  bookVersion: string;
+  bookKey?: string;
+  backHref: string;
+  links: ToolsPageLink[];
+  heading?: string;
+  lede?: string;
+  eyebrow?: string;
+};
+
+const {
+  title,
+  bookTitle,
+  bookVersion,
+  bookKey = "book",
+  backHref,
+  links,
+  heading = "Tools and diagnostics",
+  lede = "Publishing and operational surfaces are grouped here so the reading hub stays reader-first.",
+  eyebrow = "Utilities",
+} = Astro.props;
+---
+<BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey}>
+  <a class="back-link" href={backHref}>← Back to reading hub</a>
+  <div class="section-header">
+    <div class="eyebrow">{eyebrow}</div>
+    <h1>{heading}</h1>
+    <p class="lede">{lede}</p>
+  </div>
+
+  <section class="content-block">
+    <div class="card-grid">
+      {links.map((link) => (
+        <a class="card" href={link.href}>
+          <h2>{link.title}</h2>
+          <p class="meta">{link.description}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</BookLayout>

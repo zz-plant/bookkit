@@ -165,6 +165,7 @@ a,
   margin-top: auto;
   font-size: var(--text-sm);
   color: var(--color-muted);
+  text-align: center;
 }
 
 .site-header {
@@ -225,6 +226,8 @@ a,
   font-size: var(--text-sm);
   letter-spacing: 0.01em;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .site-nav a,
@@ -2074,13 +2077,39 @@ p {
   .site-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-3);
   }
 
-  .site-nav {
+  .site-brand {
     width: 100%;
     justify-content: space-between;
     gap: var(--space-2);
     flex-wrap: wrap;
+  }
+
+  .site-brand a {
+    font-size: clamp(1.125rem, 6vw, 1.35rem);
+  }
+
+  .site-nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-2);
+    align-items: stretch;
+  }
+
+  .site-nav > a,
+  .site-nav > button {
+    min-height: 44px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: 999px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-2);
   }
 
   .site-nav__more-toggle {
@@ -2095,15 +2124,11 @@ p {
     background: var(--color-surface);
   }
 
-  .site-nav > button {
-    min-height: 44px;
-    padding: var(--space-2) var(--space-3);
-  }
-
   .site-nav__more {
-    width: auto;
-    margin-left: auto;
+    width: 100%;
+    margin-left: 0;
     display: block;
+    grid-column: 4;
   }
 
   .site-nav__overflow {
@@ -2111,10 +2136,18 @@ p {
   }
 
   .site-nav__more[open] .site-nav__overflow {
-    margin-top: var(--space-2);
+    margin-top: var(--space-3);
     display: grid;
-    width: 100%;
     gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+  }
+
+  .site-nav__more[open] {
+    grid-column: 1 / -1;
   }
 
   .site-nav__group-label {
@@ -2264,6 +2297,10 @@ p {
 
   .site-main {
     padding: var(--space-6) var(--space-4) calc(var(--space-9) + 4.5rem);
+  }
+
+  .site-footer {
+    padding-bottom: calc(var(--space-6) + 4.75rem + env(safe-area-inset-bottom));
   }
 
   .breadcrumb {

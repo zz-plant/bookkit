@@ -107,6 +107,7 @@ const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
 const isArchivePage = normalizedPath === normalizedArchivePath;
 const isReadRoute =
   normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
+const isDownloadsRoute = normalizedLocalePath === "/downloads";
 const resolvedRobots =
   robots ??
   ((pathVersion && !currentVersionEntry?.isLatest) || (versionArchiveNoindex && isArchivePage)
@@ -242,9 +243,14 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
             aria-current={isReadRoute ? "page" : undefined}
             aria-keyshortcuts="g r"
           >
-            Read
+            Start reading
           </a>
-          <a class="site-nav__primary" href="/downloads" aria-keyshortcuts="g d">
+          <a
+            class:list={["site-nav__primary", { "site-nav__primary--active-route": isDownloadsRoute }]}
+            href="/downloads"
+            aria-current={isDownloadsRoute ? "page" : undefined}
+            aria-keyshortcuts="g d"
+          >
             Downloads
           </a>
           <button
@@ -393,7 +399,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
           Read
         </a>
         <button type="button" data-mobile-search aria-controls="search-panel" aria-expanded="false">Search</button>
-        <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">More</button>
+        <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">Menu</button>
       </div>
       <div class="search-panel" id="search-panel" data-search-panel hidden>
         <div
@@ -638,6 +644,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       const siteSettings = document.querySelector("[data-site-settings]");
       const mobileSearchToggle = document.querySelector("[data-mobile-search]");
       const mobileMenuToggle = document.querySelector("[data-mobile-menu]");
+      const siteNavMoreSummary = siteNavMore?.querySelector("summary");
       const readerDensityButtons = Array.from(document.querySelectorAll("[data-reader-density]"));
       const readerFontButtons = Array.from(document.querySelectorAll("[data-reader-font]"));
       const desktopNavMedia = window.matchMedia("(min-width: 721px)");
@@ -1056,6 +1063,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         searchPanel.hidden = false;
         searchPanel.classList.add("is-open");
         searchToggle?.setAttribute("aria-expanded", "true");
+        mobileSearchToggle?.setAttribute("aria-expanded", "true");
         await loadSearchIndex();
         window.requestAnimationFrame(() => {
           if (searchInput) {
@@ -1069,11 +1077,21 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         });
       };
 
+
+      const syncMobileToggleState = () => {
+        const menuOpen = Boolean(siteNavMore && siteNavMore.hasAttribute("open"));
+        mobileMenuToggle?.setAttribute("aria-expanded", menuOpen ? "true" : "false");
+        if (mobileMenuToggle) {
+          mobileMenuToggle.textContent = menuOpen ? "Close menu" : "Menu";
+        }
+      };
+
       const closeSearch = () => {
         if (!searchPanel) return;
         searchPanel.hidden = true;
         searchPanel.classList.remove("is-open");
         searchToggle?.setAttribute("aria-expanded", "false");
+        mobileSearchToggle?.setAttribute("aria-expanded", "false");
         lastFocused?.focus?.();
       };
 
@@ -1218,7 +1236,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       mobileSearchToggle?.addEventListener("click", () => {
         toggleSearch();
         const expanded = searchPanel && !searchPanel.hidden;
-        mobileSearchToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+        mobileSearchToggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
       });
       searchClose?.addEventListener("click", closeSearch);
       searchPanel?.addEventListener("click", (event) => {
@@ -1289,11 +1307,14 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         const isOpen = siteNavMore.hasAttribute("open");
         if (isOpen) {
           siteNavMore.removeAttribute("open");
-          mobileMenuToggle.setAttribute("aria-expanded", "false");
-          return;
+        } else {
+          siteNavMore.setAttribute("open", "");
         }
-        siteNavMore.setAttribute("open", "");
-        mobileMenuToggle.setAttribute("aria-expanded", "true");
+        syncMobileToggleState();
+      });
+
+      siteNavMoreSummary?.addEventListener("click", () => {
+        window.requestAnimationFrame(syncMobileToggleState);
       });
 
       readerDensityButtons.forEach((button) => {
@@ -1314,6 +1335,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       updateQaDisplayMode();
       initializeReaderPreferences();
       syncSiteNavOverflow(desktopNavMedia.matches);
+      syncMobileToggleState();
 
       if ("addEventListener" in desktopNavMedia) {
         desktopNavMedia.addEventListener("change", (event) => {

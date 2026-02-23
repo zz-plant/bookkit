@@ -310,6 +310,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
                     <div class="reader-settings__options">
                       <button type="button" data-reader-density="compact">Compact</button>
                       <button type="button" data-reader-density="comfortable">Comfortable</button>
+                      <button type="button" data-reader-density="relaxed">Relaxed</button>
                     </div>
                   </div>
                   <div class="reader-settings__group" role="group" aria-label="Reading font">
@@ -644,6 +645,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       const siteSettings = document.querySelector("[data-site-settings]");
       const mobileSearchToggle = document.querySelector("[data-mobile-search]");
       const mobileMenuToggle = document.querySelector("[data-mobile-menu]");
+      const mobileCta = document.querySelector("[data-mobile-cta]");
       const siteNavMoreSummary = siteNavMore?.querySelector("summary");
       const readerDensityButtons = Array.from(document.querySelectorAll("[data-reader-density]"));
       const readerFontButtons = Array.from(document.querySelectorAll("[data-reader-font]"));
@@ -658,6 +660,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       let searchQuery = "";
       let searchTimeout = null;
       let qaQuery = "";
+      let lastScrollY = window.scrollY;
       const searchAnalyticsKey = `${analyticsKeyPrefix}.search.analytics`;
       const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
       const qaAnalyticsKey = `${analyticsKeyPrefix}.qa.analytics`;
@@ -1086,6 +1089,26 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         }
       };
 
+      const updateMobileCtaVisibility = () => {
+        if (!(mobileCta instanceof HTMLElement)) return;
+        if (!window.matchMedia("(max-width: 720px)").matches) {
+          mobileCta.classList.remove("mobile-cta--hidden");
+          lastScrollY = window.scrollY;
+          return;
+        }
+        const currentY = window.scrollY;
+        const delta = currentY - lastScrollY;
+        const nearTop = currentY < 80;
+        const scrollingDown = delta > 6;
+        const scrollingUp = delta < -6;
+        if (nearTop || scrollingUp) {
+          mobileCta.classList.remove("mobile-cta--hidden");
+        } else if (scrollingDown) {
+          mobileCta.classList.add("mobile-cta--hidden");
+        }
+        lastScrollY = currentY;
+      };
+
       const closeSearch = () => {
         if (!searchPanel) return;
         searchPanel.hidden = true;
@@ -1336,16 +1359,21 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       initializeReaderPreferences();
       syncSiteNavOverflow(desktopNavMedia.matches);
       syncMobileToggleState();
+      updateMobileCtaVisibility();
 
       if ("addEventListener" in desktopNavMedia) {
         desktopNavMedia.addEventListener("change", (event) => {
           syncSiteNavOverflow(event.matches);
+          updateMobileCtaVisibility();
         });
       } else {
         desktopNavMedia.addListener((event) => {
           syncSiteNavOverflow(event.matches);
+          updateMobileCtaVisibility();
         });
       }
+
+      window.addEventListener("scroll", updateMobileCtaVisibility, { passive: true });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {

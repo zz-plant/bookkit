@@ -183,11 +183,18 @@ const sectionBuckets = [
               class="card read-surface-card"
               href={section.href}
               aria-keyshortcuts={keyShortcut}
+              data-section-key={section.sectionKey}
+              data-change-date={changeMeta?.date ?? ""}
             >
-              <div class="read-surface-card__meta">
-                {section.count} {label}
-                {completenessLabel ? ` • ${completenessLabel}` : ""}
-                {changeMeta ? ` • Updated in v${changeMeta.version}` : ""}
+              <div class="read-surface-card__meta" aria-label="Section metadata">
+                <span class="read-meta-chip">{section.count} {label}</span>
+                {completenessLabel && <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>}
+                {changeMeta && (
+                  <>
+                    <span class="read-meta-chip read-meta-chip--update">Marked in v{changeMeta.version} notes</span>
+                    <span class="read-meta-chip read-meta-chip--new" data-read-new hidden>New for you</span>
+                  </>
+                )}
               </div>
               <h4>{section.title}</h4>
               <p class="meta">{section.description}</p>
@@ -211,7 +218,12 @@ const sectionBuckets = [
           <div class="eyebrow">Meta</div>
           <h2>Release and maintenance links</h2>
         </div>
-        <p class="meta">Lower-priority utilities live here so reading routes stay focused.</p>
+        <div class="read-meta-actions">
+          <p class="meta">Lower-priority utilities live here so reading routes stay focused.</p>
+          <button class="button button--secondary" type="button" data-read-updates-filter hidden>
+            Show sections marked in latest release notes
+          </button>
+        </div>
       </div>
       <div class="card-grid read-tools-grid">
         <article class="card read-tools-card read-tools-card--release" data-release-card>
@@ -237,6 +249,40 @@ const sectionBuckets = [
   <script>
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
     const releaseCard = document.querySelector("[data-release-card]");
+    const filterButton = document.querySelector("[data-read-updates-filter]");
+    const readCards = Array.from(document.querySelectorAll("[data-section-key]"));
+    const visitStorageKey = `${document.body?.dataset?.analyticsKey || "book"}:read:lastVisit`;
+    const previousVisit = localStorage.getItem(visitStorageKey);
+    const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
+    const nowIso = new Date().toISOString();
+
+    if (Number.isFinite(previousVisitMs) && filterButton && readCards.length > 0) {
+      filterButton.hidden = false;
+      readCards.forEach((card) => {
+        const dateValue = card.getAttribute("data-change-date");
+        const changeMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+        const isNew = Number.isFinite(changeMs) && changeMs > previousVisitMs;
+        const chip = card.querySelector("[data-read-new]");
+        if (chip) chip.hidden = !isNew;
+      });
+
+      let isFiltered = false;
+      filterButton.addEventListener("click", () => {
+        isFiltered = !isFiltered;
+        readCards.forEach((card) => {
+          const dateValue = card.getAttribute("data-change-date");
+          const changeMs = dateValue ? new Date(dateValue).getTime() : Number.NaN;
+          const isNew = Number.isFinite(changeMs) && changeMs > previousVisitMs;
+          card.hidden = isFiltered ? !isNew : false;
+        });
+        filterButton.textContent = isFiltered
+          ? "Show all sections"
+          : "Show sections marked in latest release notes";
+      });
+    }
+
+    localStorage.setItem(visitStorageKey, nowIso);
+
     const onboardingKey = "running-hot.reader.started";
     const readOnboardingState = () => {
       try {
@@ -429,18 +475,44 @@ const sectionBuckets = [
   }
 
   .read-surface-card__meta {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .read-meta-chip {
+    border-radius: 999px;
     border: 1px solid rgba(31, 31, 31, 0.12);
     background: rgba(31, 31, 31, 0.04);
     color: #2e2e2e;
     font-size: 0.72rem;
     line-height: 1.2;
-    font-weight: 500;
-    padding: 0.28rem 0.48rem;
+    font-weight: 600;
+    padding: 0.28rem 0.55rem;
     letter-spacing: 0.01em;
+  }
+
+  .read-meta-chip--status {
+    border-color: rgba(91, 76, 230, 0.24);
+    background: rgba(91, 76, 230, 0.08);
+  }
+
+  .read-meta-chip--update {
+    border-color: rgba(6, 94, 156, 0.26);
+    background: rgba(6, 94, 156, 0.1);
+    color: #094777;
+  }
+
+  .read-meta-chip--new {
+    border-color: rgba(6, 110, 56, 0.36);
+    background: rgba(6, 110, 56, 0.14);
+    color: #0a5d31;
+  }
+
+  .read-meta-actions {
+    display: grid;
+    justify-items: end;
+    gap: 0.45rem;
   }
 
   .read-surface-card__shortcut {
@@ -470,6 +542,10 @@ const sectionBuckets = [
     .read-section__intro {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .read-meta-actions {
+      justify-items: start;
     }
 
     .read-hero {

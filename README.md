@@ -104,6 +104,20 @@ Install dependencies:
 bun install
 ```
 
+### Codex setup (recommended)
+
+To bootstrap local Codex usage for this repo (dependency install + skill linking + baseline checks):
+
+```bash
+bun run setup:codex
+```
+
+For faster iteration (skip install/checks), run:
+
+```bash
+bash scripts/codex-setup.sh --skip-install --skip-checks
+```
+
 ---
 
 ## Daily commands

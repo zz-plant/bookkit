@@ -1101,7 +1101,9 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
             focusables.forEach((focusable) => {
               if (!(focusable instanceof HTMLElement)) return;
               if (hidden) {
-                focusable.dataset.mobileCtaPrevTabindex = focusable.getAttribute("tabindex") ?? "";
+                if (focusable.dataset.mobileCtaPrevTabindex === undefined) {
+                  focusable.dataset.mobileCtaPrevTabindex = focusable.getAttribute("tabindex") ?? "";
+                }
                 focusable.setAttribute("tabindex", "-1");
               } else if (focusable.dataset.mobileCtaPrevTabindex !== undefined) {
                 const previousTabindex = focusable.dataset.mobileCtaPrevTabindex;

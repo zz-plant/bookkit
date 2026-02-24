@@ -1091,8 +1091,38 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
 
       const updateMobileCtaVisibility = () => {
         if (!(mobileCta instanceof HTMLElement)) return;
+        const setMobileCtaHidden = (hidden) => {
+          mobileCta.classList.toggle("mobile-cta--hidden", hidden);
+          mobileCta.setAttribute("aria-hidden", hidden ? "true" : "false");
+          if ("inert" in mobileCta) {
+            mobileCta.inert = hidden;
+          } else {
+            const focusables = mobileCta.querySelectorAll("a, button, input, select, textarea, [tabindex]");
+            focusables.forEach((focusable) => {
+              if (!(focusable instanceof HTMLElement)) return;
+              if (hidden) {
+                focusable.dataset.mobileCtaPrevTabindex = focusable.getAttribute("tabindex") ?? "";
+                focusable.setAttribute("tabindex", "-1");
+              } else if (focusable.dataset.mobileCtaPrevTabindex !== undefined) {
+                const previousTabindex = focusable.dataset.mobileCtaPrevTabindex;
+                if (previousTabindex) {
+                  focusable.setAttribute("tabindex", previousTabindex);
+                } else {
+                  focusable.removeAttribute("tabindex");
+                }
+                delete focusable.dataset.mobileCtaPrevTabindex;
+              }
+            });
+          }
+
+          if (hidden && document.activeElement instanceof HTMLElement && mobileCta.contains(document.activeElement)) {
+            const mainContent = document.getElementById("main-content");
+            (mainContent instanceof HTMLElement ? mainContent : document.body)?.focus?.({ preventScroll: true });
+          }
+        };
+
         if (!window.matchMedia("(max-width: 720px)").matches) {
-          mobileCta.classList.remove("mobile-cta--hidden");
+          setMobileCtaHidden(false);
           lastScrollY = window.scrollY;
           return;
         }
@@ -1102,9 +1132,9 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         const scrollingDown = delta > 6;
         const scrollingUp = delta < -6;
         if (nearTop || scrollingUp) {
-          mobileCta.classList.remove("mobile-cta--hidden");
+          setMobileCtaHidden(false);
         } else if (scrollingDown) {
-          mobileCta.classList.add("mobile-cta--hidden");
+          setMobileCtaHidden(true);
         }
         lastScrollY = currentY;
       };

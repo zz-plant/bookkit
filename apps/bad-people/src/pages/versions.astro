@@ -3,12 +3,14 @@ import VersionArchivePage from "@bookkit/astro-bookkit/components/VersionArchive
 import { buildSeoProps } from "@bookkit/astro-bookkit";
 import { getVersionEntries } from "../lib/versions";
 import bookConfig from "../book.config";
+import { getOgImageForPath } from "../lib/og";
 
 const versionEntries = getVersionEntries();
 const latestVersion = versionEntries.find((entry) => entry.isLatest)?.version ?? bookConfig.status;
 const seoProps = buildSeoProps({
   site: bookConfig.site,
   requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+  ogImage: getOgImageForPath("/versions"),
   description: "Browse current and archived versions of the book.",
 });
 ---

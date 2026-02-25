@@ -4,6 +4,7 @@ import { buildSeoProps } from "@bookkit/astro-bookkit";
 import { getReleaseNotes } from "../lib/release-notes";
 import { getVersionEntries } from "../lib/versions";
 import bookConfig from "../book.config";
+import { getOgImageForPath } from "../lib/og";
 
 const releases = getReleaseNotes();
 const versionEntries = getVersionEntries();
@@ -12,6 +13,7 @@ const rssUrl = "/release-notes.xml";
 const seoProps = buildSeoProps({
   site: bookConfig.site,
   requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+  ogImage: getOgImageForPath("/release-notes"),
   description: "Track new releases, subscribe to updates, and review the latest changes.",
 });
 ---

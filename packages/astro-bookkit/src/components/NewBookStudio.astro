@@ -17,9 +17,10 @@ const {
 
   <nav class="studio__progress" aria-label="Form progress">
     <span class="studio__progress-label">Jump to step</span>
-    <a href="#studio-step-1">1/3 Name</a>
-    <a href="#studio-step-2">2/3 Structure</a>
-    <a href="#studio-step-3">3/3 Technical</a>
+    <a href="#studio-step-1">1/4 Name</a>
+    <a href="#studio-step-2">2/4 Structure</a>
+    <a href="#studio-step-3">3/4 Technical</a>
+    <a href="#studio-step-4">4/4 SEO + social</a>
     <a href="#studio-output">Output</a>
   </nav>
 
@@ -66,6 +67,60 @@ const {
       </label>
     </fieldset>
 
+    <fieldset id="studio-step-4">
+      <legend>4) SEO + social sharing</legend>
+      <label>
+        Canonical site URL
+        <input name="siteUrl" placeholder="https://operator-playbook.book" />
+      </label>
+      <label>
+        Additional domains (one per line)
+        <textarea name="domains" rows="2" placeholder="https://www.operator-playbook.com"></textarea>
+      </label>
+      <label>
+        Default metadata description
+        <textarea name="defaultMetaDescription" rows="3" placeholder="This book helps teams diagnose operating friction and ship repair moves in under ten minutes."></textarea>
+      </label>
+      <label>
+        Default Open Graph image path
+        <input name="defaultOgImage" placeholder="/og/default.svg" />
+      </label>
+      <label>
+        Open Graph site name
+        <input name="ogSiteName" placeholder="Operator Playbook" />
+      </label>
+      <label>
+        Open Graph locale
+        <input name="ogLocale" placeholder="en_US" />
+      </label>
+      <label>
+        Open Graph image alt text
+        <input name="ogImageAlt" placeholder="Cover art for Operator Playbook" />
+      </label>
+      <label>
+        Twitter card type
+        <select name="twitterCard">
+          <option value="summary_large_image" selected>summary_large_image</option>
+          <option value="summary">summary</option>
+          <option value="app">app</option>
+          <option value="player">player</option>
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" name="indexable" checked />
+        Index this book in production by default
+      </label>
+      <label>
+        Open Graph SVG templates by surface (path=svg path)
+        <textarea
+          name="ogSurfaces"
+          rows="8"
+          placeholder="home=/og/home.svg\nread-hub=/og/read-hub.svg\noverview=/og/overview.svg\nchapters-index=/og/chapters.svg\nchapter-detail=/og/chapter-detail.svg\nmechanisms-index=/og/mechanisms.svg\nmechanism-detail=/og/mechanism-detail.svg\ntoolkit-index=/og/toolkit.svg\ntoolkit-detail=/og/toolkit-detail.svg\nglossary-index=/og/glossary.svg\nglossary-detail=/og/glossary-detail.svg\nexamples-index=/og/examples.svg\nexample-detail=/og/example-detail.svg\nrelease-notes=/og/release-notes.svg\nversions=/og/versions.svg\ndownloads=/og/downloads.svg"
+        ></textarea>
+        <small>These become a handoff map so each page type can expose a dedicated OG image.</small>
+      </label>
+    </fieldset>
+
     <div class="studio__actions">
       <button type="submit" class="studio__button studio__button--primary">Create my starter plan</button>
       <button type="button" class="studio__button studio__button--secondary" data-fill-example>Fill with example</button>
@@ -98,6 +153,22 @@ const {
         <button type="button" class="studio__button studio__button--secondary" data-copy-target="config">Copy</button>
       </div>
       <pre data-output="config"></pre>
+    </article>
+
+    <article>
+      <div class="studio__output-header">
+        <h3>SEO + social overrides (starter)</h3>
+        <button type="button" class="studio__button studio__button--secondary" data-copy-target="seo">Copy</button>
+      </div>
+      <pre data-output="seo"></pre>
+    </article>
+
+    <article>
+      <div class="studio__output-header">
+        <h3>Open Graph image URLs to expose</h3>
+        <button type="button" class="studio__button studio__button--secondary" data-copy-target="ogUrls">Copy</button>
+      </div>
+      <pre data-output="ogUrls"></pre>
     </article>
 
     <details class="studio__advanced">
@@ -134,6 +205,8 @@ const {
     brief: document.querySelector('[data-output="brief"]'),
     checklist: document.querySelector('[data-output="checklist"]'),
     config: document.querySelector('[data-output="config"]'),
+    seo: document.querySelector('[data-output="seo"]'),
+    ogUrls: document.querySelector('[data-output="ogUrls"]'),
     payload: document.querySelector('[data-output="payload"]'),
     commands: document.querySelector('[data-output="commands"]'),
   };
@@ -156,6 +229,25 @@ const {
 
   const prettyTitle = (value) => value.trim() || "Untitled Book";
 
+  const normalizeSiteUrl = (value, bookKey) => {
+    const trimmed = value.trim();
+    if (!trimmed) return `https://${bookKey}.book`;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
+  const parseOgSurfaceLines = (value) => {
+    return toLines(value).reduce((acc, entry) => {
+      const separatorIndex = entry.indexOf("=");
+      if (separatorIndex === -1) return acc;
+      const key = toSlug(entry.slice(0, separatorIndex));
+      const path = entry.slice(separatorIndex + 1).trim();
+      if (!key || !path) return acc;
+      acc.push({ key, path: path.startsWith("/") ? path : `/${path}` });
+      return acc;
+    }, []);
+  };
+
   const normalizeInput = (formData) => {
     const bookTitle = prettyTitle(String(formData.get("bookTitle") || ""));
     const bookKeyRaw = String(formData.get("bookKey") || "").trim();
@@ -169,10 +261,32 @@ const {
       mechanisms: toLines(String(formData.get("mechanisms") || "")).map(toSlug),
       chapters: toLines(String(formData.get("chapters") || "")).map(toSlug),
       locales: toLines(String(formData.get("locales") || "")).map((locale) => locale.toLowerCase()),
+      siteUrl: normalizeSiteUrl(String(formData.get("siteUrl") || ""), bookKey),
+      domains: toLines(String(formData.get("domains") || "")),
+      defaultMetaDescription:
+        String(formData.get("defaultMetaDescription") || "").trim() ||
+        String(formData.get("promise") || "").trim(),
+      defaultOgImage: String(formData.get("defaultOgImage") || "").trim() || "/og/default.svg",
+      ogSiteName: String(formData.get("ogSiteName") || "").trim() || bookTitle,
+      ogLocale: String(formData.get("ogLocale") || "").trim() || "en_US",
+      ogImageAlt: String(formData.get("ogImageAlt") || "").trim() || `${bookTitle} cover image`,
+      twitterCard: String(formData.get("twitterCard") || "").trim() || "summary_large_image",
+      indexable: formData.get("indexable") === "on",
+      ogSurfaces: parseOgSurfaceLines(String(formData.get("ogSurfaces") || "")),
     };
   };
 
-  const buildConfig = ({ bookKey, bookTitle, promise, audience, locales }) => {
+  const buildConfig = ({
+    bookKey,
+    bookTitle,
+    audience,
+    locales,
+    siteUrl,
+    domains,
+    defaultMetaDescription,
+    defaultOgImage,
+    indexable,
+  }) => {
     const localeObjects = locales.length
       ? locales.map((locale, index) => ({
           code: locale,
@@ -196,12 +310,13 @@ const {
   title: "${bookTitle}",
   status: "draft",
   site: {
-    url: "https://${bookKey}.book",
+    url: ${JSON.stringify(siteUrl)},
+    domains: ${JSON.stringify(domains)},
     enforceHttps: true,
-    indexable: false,
+    indexable: ${indexable},
     defaultMeta: {
-      description: ${JSON.stringify(promise)},
-      ogImage: "/og/default.svg",
+      description: ${JSON.stringify(defaultMetaDescription)},
+      ogImage: ${JSON.stringify(defaultOgImage)},
     },
   },
   localization: {
@@ -245,6 +360,47 @@ ${localeText}
 export default bookConfig;`;
   };
 
+  const buildSeoStarter = ({
+    ogSiteName,
+    ogLocale,
+    ogImageAlt,
+    twitterCard,
+    defaultOgImage,
+    ogSurfaces,
+  }) => {
+    const surfaceImageMap = Object.fromEntries(
+      ogSurfaces.map((surface) => [surface.key, surface.path])
+    );
+
+    return `export const seoOverrides = {
+  defaults: {
+    ogSiteName: ${JSON.stringify(ogSiteName)},
+    ogLocale: ${JSON.stringify(ogLocale)},
+    ogImageAlt: ${JSON.stringify(ogImageAlt)},
+    twitterCard: ${JSON.stringify(twitterCard)},
+    ogImage: ${JSON.stringify(defaultOgImage)},
+  },
+  pageTypeOgImage: ${JSON.stringify(surfaceImageMap, null, 2)},
+} as const;`;
+  };
+
+  const buildOgUrlList = ({ siteUrl, defaultOgImage, ogSurfaces }) => {
+    const absolutePath = (path) => {
+      try {
+        return new URL(path, siteUrl).toString();
+      } catch {
+        return `${siteUrl.replace(/\/$/, "")}${path}`;
+      }
+    };
+
+    const lines = [
+      `default => ${absolutePath(defaultOgImage)}`,
+      ...ogSurfaces.map((surface) => `${surface.key} => ${absolutePath(surface.path)}`),
+    ];
+
+    return lines.join("\n");
+  };
+
   const buildBrief = ({ bookTitle, promise, audience, chapters, mechanisms, locales }) => {
     const chapterList = chapters.length ? chapters.join(", ") : "(to be defined)";
     const mechanismList = mechanisms.length ? mechanisms.join(", ") : "(to be defined)";
@@ -260,7 +416,7 @@ export default bookConfig;`;
     ].join("\n");
   };
 
-  const buildChecklist = ({ bookKey, chapters, mechanisms }) => {
+  const buildChecklist = ({ bookKey, chapters, mechanisms, ogSurfaces }) => {
     const chapterNote = chapters.length
       ? `Create starter chapter files for: ${chapters.join(", ")}.`
       : "Create at least one starter chapter file.";
@@ -275,10 +431,29 @@ export default bookConfig;`;
       `4. ${mechanismNote}`,
       "5. Re-run compile after content edits and confirm no errors.",
       "6. Open the app locally and review /read pages.",
+      `7. Create OG SVG assets for ${ogSurfaces.length || 1} page surface(s) and wire page-level seoProps.`,
     ].join("\n");
   };
 
-  const buildPayload = ({ bookKey, bookTitle, promise, audience, mechanisms, chapters, locales }) =>
+  const buildPayload = ({
+    bookKey,
+    bookTitle,
+    promise,
+    audience,
+    mechanisms,
+    chapters,
+    locales,
+    siteUrl,
+    domains,
+    defaultMetaDescription,
+    defaultOgImage,
+    ogSiteName,
+    ogLocale,
+    ogImageAlt,
+    twitterCard,
+    indexable,
+    ogSurfaces,
+  }) =>
     {
       return {
         task: "bookkit.scaffold_book",
@@ -288,6 +463,18 @@ export default bookConfig;`;
           promise,
           audience,
           locales: locales.length ? locales : ["en"],
+        },
+        seo: {
+          siteUrl,
+          domains,
+          indexable,
+          defaultMetaDescription,
+          defaultOgImage,
+          ogSiteName,
+          ogLocale,
+          ogImageAlt,
+          twitterCard,
+          ogSurfaces,
         },
         contentSeeds: {
           mechanisms,
@@ -327,6 +514,8 @@ export default bookConfig;`;
       brief: buildBrief(values),
       checklist: buildChecklist(values),
       config: buildConfig(values),
+      seo: buildSeoStarter(values),
+      ogUrls: buildOgUrlList(values),
       payload: payloadObject,
       commands: buildCommands(values),
     };
@@ -334,6 +523,8 @@ export default bookConfig;`;
     setText(nodes.brief, latestPackage.brief);
     setText(nodes.checklist, latestPackage.checklist);
     setText(nodes.config, latestPackage.config);
+    setText(nodes.seo, latestPackage.seo);
+    setText(nodes.ogUrls, latestPackage.ogUrls);
     setText(nodes.payload, JSON.stringify(payloadObject, null, 2));
     setText(nodes.commands, latestPackage.commands);
 
@@ -351,10 +542,25 @@ export default bookConfig;`;
       chapters: "overview\noperating-rhythm\nrecovery-patterns",
       locales: "en, es",
       bookKey: "operator-playbook",
+      siteUrl: "https://operator-playbook.book",
+      domains: "https://www.operator-playbook.com",
+      defaultMetaDescription:
+        "A practical guide to reducing delivery bottlenecks with small, reversible operating changes.",
+      defaultOgImage: "/og/default.svg",
+      ogSiteName: "Operator Playbook",
+      ogLocale: "en_US",
+      ogImageAlt: "Cover image for Operator Playbook",
+      twitterCard: "summary_large_image",
+      ogSurfaces:
+        "home=/og/home.svg\nread-hub=/og/read-hub.svg\noverview=/og/overview.svg\nchapters-index=/og/chapters.svg\nchapter-detail=/og/chapter-detail.svg\nmechanisms-index=/og/mechanisms.svg\nmechanism-detail=/og/mechanism-detail.svg\ntoolkit-index=/og/toolkit.svg\ntoolkit-detail=/og/toolkit-detail.svg\nglossary-index=/og/glossary.svg\nglossary-detail=/og/glossary-detail.svg\nexamples-index=/og/examples.svg\nexample-detail=/og/example-detail.svg\nrelease-notes=/og/release-notes.svg\nversions=/og/versions.svg\ndownloads=/og/downloads.svg",
     };
     Object.entries(defaults).forEach(([name, value]) => {
       const field = form.elements.namedItem(name);
-      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement ||
+        field instanceof HTMLSelectElement
+      ) {
         field.value = value;
       }
     });
@@ -516,7 +722,8 @@ export default bookConfig;`;
   }
 
   .studio__form input,
-  .studio__form textarea {
+  .studio__form textarea,
+  .studio__form select {
     width: 100%;
     border: 1px solid var(--color-border);
     border-radius: 0.6rem;

@@ -6,6 +6,7 @@ import {
 import bookConfig from "../book.config";
 import { bookEntryPoints } from "../lib/book-entrypoints";
 import { getVersionEntries } from "../lib/versions";
+import { getOgImageForPath } from "../lib/og";
 
 const versionEntries = getVersionEntries();
 const layoutState = createBookLayoutState({
@@ -35,6 +36,7 @@ const {
 } = layoutState;
 const pathname = Astro.url.pathname;
 const isReadContext = pathname === "/read" || pathname.includes("/read/");
+const resolvedOgImage = Astro.props.ogImage ?? getOgImageForPath(pathname);
 ---
 <BookLayout
   title={Astro.props.title}
@@ -49,6 +51,7 @@ const isReadContext = pathname === "/read" || pathname.includes("/read/");
   includeDefaultLocalePrefix={includeDefaultLocalePrefix}
   localeLabel={localeLabel}
   {...seoProps}
+  ogImage={resolvedOgImage}
   robots={previewRobots ?? seoProps.robots}
   isPreview={previewContext?.isPreview ?? false}
   previewLabel={previewContext?.label ?? "Preview"}

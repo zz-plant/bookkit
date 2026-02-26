@@ -289,4 +289,4 @@ See detailed lanes/checklists in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## License
 
-Add license here.
+This project is dedicated to the public domain under [CC0 1.0 Universal](./LICENSE).

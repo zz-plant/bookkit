@@ -7,7 +7,12 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
-import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import {
+  createBreadcrumbListStructuredData,
+  createDefinedTermStructuredData,
+  readItemPath,
+  readRoutes,
+} from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.mechanisms;
@@ -77,8 +82,35 @@ const relatedExamples = exampleEntries
     frontmatter: exampleModule.frontmatter ?? {},
   }))
   .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
+const mechanismPath = readItemPath("mechanisms", frontmatter.slug);
+const mechanismUrl = new URL(mechanismPath, Astro.url).toString();
+const breadcrumbStructuredData = createBreadcrumbListStructuredData([
+  {
+    name: "Reading hub",
+    item: new URL(readRoutes.root, Astro.url).toString(),
+  },
+  {
+    name: "Mechanisms",
+    item: new URL(readRoutes.mechanisms, Astro.url).toString(),
+  },
+  {
+    name: frontmatter.title,
+    item: mechanismUrl,
+  },
+]);
+const mechanismStructuredData = createDefinedTermStructuredData({
+  name: frontmatter.title,
+  description: frontmatter.definition,
+  termCode: frontmatter.slug,
+  url: mechanismUrl,
+  inDefinedTermSet: new URL(readRoutes.mechanisms, Astro.url).toString(),
+});
 ---
-<BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} description={metaDescription}>
+<BaseLayout
+  title={`${frontmatter.title} • ${bookConfig.title}`}
+  description={metaDescription}
+  structuredData={[breadcrumbStructuredData, mechanismStructuredData]}
+>
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href={readRoutes.root}>Reading hub</a>
     <span>›</span>

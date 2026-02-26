@@ -109,6 +109,8 @@ export { createSitemapXml } from "./seo/sitemap";
 export type { SitemapEntry } from "./seo/sitemap";
 export { createRobotsTxt } from "./seo/robots";
 export type { RobotsTxtOptions } from "./seo/robots";
+export { createBreadcrumbListStructuredData, createDefinedTermStructuredData } from "./seo/structured-data";
+export type { BreadcrumbItem, DefinedTermStructuredDataInput, StructuredData } from "./seo/structured-data";
 export {
   buildLocalePath,
   createLocaleRoutingMiddleware,

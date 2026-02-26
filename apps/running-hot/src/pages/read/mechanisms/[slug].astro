@@ -82,16 +82,20 @@ const relatedExamples = exampleEntries
     frontmatter: exampleModule.frontmatter ?? {},
   }))
   .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
-const mechanismPath = readItemPath("mechanisms", frontmatter.slug);
-const mechanismUrl = new URL(mechanismPath, Astro.url).toString();
+const requestPath = Astro.url.pathname;
+const readPathIndex = requestPath.indexOf("/read/");
+const routePrefix = readPathIndex >= 0 ? requestPath.slice(0, readPathIndex) : "";
+const localizedReadRootPath = `${routePrefix}${readRoutes.root}`;
+const localizedMechanismsPath = `${routePrefix}${readRoutes.mechanisms}`;
+const mechanismUrl = new URL(requestPath, Astro.url).toString();
 const breadcrumbStructuredData = createBreadcrumbListStructuredData([
   {
     name: "Reading hub",
-    item: new URL(readRoutes.root, Astro.url).toString(),
+    item: new URL(localizedReadRootPath, Astro.url).toString(),
   },
   {
     name: "Mechanisms",
-    item: new URL(readRoutes.mechanisms, Astro.url).toString(),
+    item: new URL(localizedMechanismsPath, Astro.url).toString(),
   },
   {
     name: frontmatter.title,
@@ -103,7 +107,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
   description: frontmatter.definition,
   termCode: frontmatter.slug,
   url: mechanismUrl,
-  inDefinedTermSet: new URL(readRoutes.mechanisms, Astro.url).toString(),
+  inDefinedTermSet: new URL(localizedMechanismsPath, Astro.url).toString(),
 });
 ---
 <BaseLayout

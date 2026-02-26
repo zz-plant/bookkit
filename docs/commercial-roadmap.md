@@ -14,6 +14,14 @@ Bookkit should be sold as:
 
 ## High-priority tracks
 
+## Current implementation status (consolidated)
+
+- [x] **Track 1: Product surface and positioning** — completed in baseline docs (`README.md` positioning + commercial roadmap linkage).
+- [ ] **Track 2: MCP discovery and metadata hardening** — in progress.
+- [ ] **Track 3: Governance APIs** — next.
+
+Use `docs/tech-debt-register.md` as the canonical queue for open remediation tasks tied to these tracks.
+
 ### Track 1: Product surface and positioning (now)
 
 Deliverables:

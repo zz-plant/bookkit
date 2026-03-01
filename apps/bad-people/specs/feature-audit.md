@@ -3,6 +3,8 @@
 This audit maps product features to their PRDs and the as-built spec snapshot to ensure
 coverage for the current book instance.
 
+> Open issues tracked in tech-debt register: [TD-003](../../../docs/tech-debt-register.md#td-003).
+
 ## Feature coverage
 
 | Feature | Status | PRD | Current spec (Bad People) |

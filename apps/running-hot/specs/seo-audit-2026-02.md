@@ -3,6 +3,8 @@
 Date: 2026-02-11
 Scope: `apps/bad-people` + shared SEO pipeline in `packages/astro-bookkit/src/seo`
 
+> Open issues tracked in tech-debt register: [TD-003](../../../docs/tech-debt-register.md#td-003).
+
 ## Executive summary
 
 The previously identified SEO follow-ups are now implemented:

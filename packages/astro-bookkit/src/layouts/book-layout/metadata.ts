@@ -74,6 +74,7 @@ export const computeLayoutMetadata = ({
   const resolvedTwitterImage = twitterImage ?? ogImage;
   const resolvedOgSiteName = ogSiteName ?? bookTitle;
   const resolvedOgLocale = ogLocale ?? activeLocale;
+  const resolvedOgImageAlt = ogImageAlt;
   const resolvedTwitterImageAlt = twitterImageAlt ?? ogImageAlt;
 
   const defaultStructuredData = [
@@ -129,6 +130,7 @@ export const computeLayoutMetadata = ({
     resolvedTwitterImage,
     resolvedOgSiteName,
     resolvedOgLocale,
+    resolvedOgImageAlt,
     resolvedTwitterImageAlt,
     structuredDataScripts,
     hreflangEntries,

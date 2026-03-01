@@ -1,0 +1,142 @@
+---
+import VersionSwitcher from "../../components/VersionSwitcher.astro";
+import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
+
+const {
+  bookTitle,
+  isPreview,
+  previewLabel,
+  versionBadgeLabel,
+  isReadRoute,
+  isDownloadsRoute,
+  hasVersions,
+  localeEntries,
+  versionEntries,
+  currentPath,
+  resolvedVersion,
+  versionPrefix,
+  versionArchivePath,
+  activeLocale,
+  resolvedDefaultLocale,
+  includeDefaultLocalePrefix,
+  localeLabel,
+  aiQaEnabled,
+} = Astro.props;
+---
+      <header class="site-header">
+        <div class="site-brand">
+          <a href="/">{bookTitle}</a>
+          {isPreview && <span class="preview-badge">{previewLabel}</span>}
+          {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
+        </div>
+        <nav class="site-nav" aria-label="Primary">
+          <a
+            class:list={["site-nav__primary", { "site-nav__primary--active-route": isReadRoute }]}
+            href="/read"
+            aria-current={isReadRoute ? "page" : undefined}
+            aria-keyshortcuts="g r"
+          >
+            Start reading
+          </a>
+          <a
+            class:list={["site-nav__primary", { "site-nav__primary--active-route": isDownloadsRoute }]}
+            href="/downloads"
+            aria-current={isDownloadsRoute ? "page" : undefined}
+            aria-keyshortcuts="g d"
+          >
+            Downloads
+          </a>
+          <button
+            class="search-toggle"
+            type="button"
+            aria-keyshortcuts="k /"
+            aria-expanded="false"
+            aria-controls="search-panel"
+            data-search-toggle
+          >
+            Search <span aria-hidden="true">⌘K</span>
+          </button>
+          <details class="site-nav__more" data-site-nav-more id="site-nav-more">
+            <summary class="site-nav__more-toggle">Menu</summary>
+            <div class="site-nav__overflow">
+              <div class="site-nav__group site-nav__group--reader">
+                <p class="site-nav__group-label">Reader tools</p>
+                <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
+              </div>
+              <div class="site-nav__group site-nav__group--author">
+                <p class="site-nav__group-label">Author tools</p>
+                <a href="/read/tools" aria-keyshortcuts="g a">Publishing tools</a>
+                <a href="/new-book" aria-keyshortcuts="g b">Start a new book</a>
+              </div>
+              {(hasVersions || localeEntries.length > 1) && (
+                <details class="site-settings" data-site-settings>
+                  <summary class="site-settings__toggle">View settings</summary>
+                  <div class="site-settings__panel">
+                    {hasVersions && (
+                      <VersionSwitcher
+                        versions={versionEntries}
+                        currentPath={Astro.url.pathname}
+                        currentVersion={resolvedVersion}
+                        prefixSegment={versionPrefix}
+                        archivePath={versionArchivePath}
+                      />
+                    )}
+                    {localeEntries.length > 1 && (
+                      <LanguageSwitcher
+                        locales={localeEntries}
+                        currentPath={Astro.url.pathname}
+                        currentLocale={activeLocale}
+                        defaultLocale={resolvedDefaultLocale}
+                        includeDefaultPrefix={includeDefaultLocalePrefix}
+                        label={localeLabel}
+                      />
+                    )}
+                  </div>
+                </details>
+              )}
+              <details class="reader-settings" data-reader-settings>
+                <summary class="reader-settings__toggle">Reading view</summary>
+                <div class="reader-settings__panel">
+                  <p class="reader-settings__hint">Tune text spacing and font for this device.</p>
+                  <div class="reader-settings__group" role="group" aria-label="Reading density">
+                    <span class="reader-settings__label">Density</span>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-density="compact">Compact</button>
+                      <button type="button" data-reader-density="comfortable">Comfortable</button>
+                      <button type="button" data-reader-density="relaxed">Relaxed</button>
+                    </div>
+                  </div>
+                  <div class="reader-settings__group" role="group" aria-label="Reading font">
+                    <span class="reader-settings__label">Font</span>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-font="serif">Serif</button>
+                      <button type="button" data-reader-font="sans">Sans</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+              {aiQaEnabled && (
+                <button
+                  class="qa-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="qa-panel"
+                  data-qa-toggle
+                >
+                  Ask <span aria-hidden="true">the book</span>
+                </button>
+              )}
+              <button
+                class="kbd-toggle"
+                type="button"
+                aria-keyshortcuts="?"
+                aria-expanded="false"
+                aria-controls="keyboard-help"
+                data-kbd-toggle
+              >
+                Shortcuts <span aria-hidden="true">?</span>
+              </button>
+            </div>
+          </details>
+        </nav>
+      </header>

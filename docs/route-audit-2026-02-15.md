@@ -4,6 +4,8 @@ Date: 2026-02-15
 Book: `bad-people`  
 Method: manual browser traversal of 3 core reader routes.
 
+> Open issues tracked in tech-debt register: [TD-003](./tech-debt-register.md#td-003).
+
 ## Route 1 — Home (`/`)
 
 ### What can be removed

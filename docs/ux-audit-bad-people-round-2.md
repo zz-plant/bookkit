@@ -4,6 +4,8 @@ Date: 2026-02-11
 Scope: Reader-facing flows (`/`, `/read`, global navigation in shared `BookLayout`).  
 Method: Heuristic review of information hierarchy, interaction cost, progressive disclosure, and trust signaling.
 
+> Open issues tracked in tech-debt register: [TD-003](./tech-debt-register.md#td-003).
+
 ## Executive summary
 
 The current UX is noticeably calmer than the prior iteration: duplicate update CTAs were removed, advanced controls are no longer pre-expanded, and the reading hub now has a clearer first action.

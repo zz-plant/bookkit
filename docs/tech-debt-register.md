@@ -6,8 +6,8 @@ Use this register as the single prioritized queue for cross-cutting debt remedia
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TD-001 | Backlog fidelity drift in per-book TODO trackers | Medium | Book maintainers | `apps/bad-people/TODOS.md`, `apps/running-hot/TODOS.md` | 2026-03 docs hygiene | In progress | Metadata tags are now present and completed checklist entries were removed from active TODOs; ongoing discipline is to keep completed work in release/changelog artifacts only. |
 | TD-002 | README/workspace architecture example drift | Low | Workspace maintainers | `README.md` | 2026-03 docs hygiene | In progress | Repo layout example now includes both current books. |
-| TD-003 | Audit findings are fragmented across docs/specs | Medium | Product + docs maintainers | `docs/ux-audit-bad-people.md`, `docs/ux-audit-bad-people-round-2.md`, `docs/route-audit-2026-02-15.md`, `apps/*/specs/feature-audit.md`, `apps/*/specs/seo-audit-2026-02.md` | 2026-04 planning | Open | Link each audit's open findings back to this register. |
-| TD-004 | Governance checks not guaranteed via CI gates | Medium | Platform maintainers | `package.json` | 2026-04 platform hardening | Open | Proposed checks: `validate`, `check:separation`, `check:types`. |
+| TD-003 | Audit findings are fragmented across docs/specs | Medium | Product + docs maintainers | `docs/ux-audit-bad-people.md`, `docs/ux-audit-bad-people-round-2.md`, `docs/route-audit-2026-02-15.md`, `apps/*/specs/feature-audit.md`, `apps/*/specs/seo-audit-2026-02.md` | 2026-04 planning | In progress | Added direct links and “Open issues tracked in tech-debt register” notes in each listed audit/spec doc; continue consolidating findings into the register. |
+| TD-004 | Governance checks not guaranteed via CI gates | Medium | Platform maintainers | `.github/workflows/governance-checks.yml` | 2026-04 platform hardening | In progress | CI now enforces `bun run validate`, `bun run check:separation`, and `bun run check:types` on pull requests and pushes to `main`. |
 
 ## Update protocol
 

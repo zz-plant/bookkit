@@ -4,6 +4,8 @@ Date: 2026-02-11
 Scope: Reader-facing IA and navigation surfaces (`/`, `/read`, shared layout controls).
 Method: Static code review of layout/page structure and interaction patterns.
 
+> Open issues tracked in tech-debt register: [TD-003](./tech-debt-register.md#td-003).
+
 ## Executive summary
 
 The current UX has strong information density and meaningful affordances (search, keyboard shortcuts, reading paths), but it asks users to process too many choices too early. The highest-leverage improvements are to:

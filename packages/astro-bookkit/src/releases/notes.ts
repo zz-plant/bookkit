@@ -83,7 +83,7 @@ const normalizeHighlights = (value: unknown): string[] => {
 export const createReleaseNotes = (
   releaseModules: Record<string, ReleaseModule>
 ): ReleaseNote[] => {
-  const releases = Object.entries(releaseModules)
+  const releases: ReleaseNote[] = Object.entries(releaseModules)
     .map(([path, module]) => {
       const slug = path.split("/").pop()?.replace(/\.mdx$/, "") ?? "";
       const frontmatter = module.frontmatter ?? {};

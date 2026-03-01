@@ -1,16 +1,10 @@
-import { createExportResponse } from "@bookkit/astro-bookkit/exports";
+import { createChapterExportHandlers } from "@bookkit/astro-bookkit";
+
 import { chapterExportSlugs, getChapterExportBundle } from "../../../lib/exports";
 
-export const getStaticPaths = () =>
-  chapterExportSlugs.map((slug) => ({
-    params: { slug },
-  }));
-
-export async function GET({ params }: { params: { slug?: string } }) {
-  const slug = params.slug ?? "";
-  const bundle = getChapterExportBundle(slug);
-  if (!bundle) {
-    return new Response("Not found", { status: 404 });
-  }
-  return createExportResponse(bundle, "pdf", `bad-people-${slug}.pdf`);
-}
+export const { GET, getStaticPaths } = createChapterExportHandlers({
+  chapterExportSlugs,
+  getChapterExportBundle,
+  format: "pdf",
+  filenamePrefix: "bad-people",
+});

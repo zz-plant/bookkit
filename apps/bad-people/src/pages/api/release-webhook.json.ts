@@ -1,8 +1,8 @@
-import { createReleaseWebhookEndpoint } from "@bookkit/astro-bookkit";
-import { releaseModules } from "../../lib/release-notes";
+import { createReleaseWebhookApiHandlers } from "@bookkit/astro-bookkit";
 import bookConfig from "../../book.config";
+import { releaseModules } from "../../lib/release-notes";
 
-export const { POST } = createReleaseWebhookEndpoint({
+export const { POST } = createReleaseWebhookApiHandlers({
   modules: releaseModules,
   book: { slug: bookConfig.slug, title: bookConfig.title },
 });

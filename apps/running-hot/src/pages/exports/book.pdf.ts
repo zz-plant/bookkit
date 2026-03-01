@@ -1,7 +1,9 @@
-import { createExportResponse } from "@bookkit/astro-bookkit/exports";
+import { createBookExportGetHandler } from "@bookkit/astro-bookkit";
+
 import { getBookExportBundle } from "../../lib/exports";
 
-export async function GET() {
-  const bundle = getBookExportBundle();
-  return createExportResponse(bundle, "pdf", "bad-people.pdf");
-}
+export const GET = createBookExportGetHandler({
+  getBookExportBundle,
+  format: "pdf",
+  filename: "bad-people.pdf",
+});

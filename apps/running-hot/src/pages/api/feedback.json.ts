@@ -1,5 +1,3 @@
-import { createFeedbackEndpoint } from "@bookkit/astro-bookkit";
+import { createFeedbackApiHandlers } from "@bookkit/astro-bookkit";
 
-const { POST } = createFeedbackEndpoint();
-
-export { POST };
+export const { POST } = createFeedbackApiHandlers();

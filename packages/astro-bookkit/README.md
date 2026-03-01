@@ -22,3 +22,18 @@ This package contains the reusable, book-agnostic compiler engine.
 - Invariants + guardrails: [`../../AGENTS.md`](../../AGENTS.md)
 
 Keep this README local in scope; link outward for policy.
+
+## App wrapper usage
+
+Use `@bookkit/astro-bookkit` app wrapper helpers to keep page and API route bindings minimal in book apps while injecting book-specific config from the app layer.
+
+```ts
+import { createReleaseWebhookApiHandlers } from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+import { releaseModules } from "../lib/release-notes";
+
+export const { POST } = createReleaseWebhookApiHandlers({
+  modules: releaseModules,
+  book: { slug: bookConfig.slug, title: bookConfig.title },
+});
+```

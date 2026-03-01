@@ -1,3 +1,3 @@
-import { createReaderAnalyticsEndpoint } from "@bookkit/astro-bookkit/analytics";
+import { createAnalyticsApiHandlers } from "@bookkit/astro-bookkit";
 
-export const { GET, POST } = createReaderAnalyticsEndpoint();
+export const { GET, POST } = createAnalyticsApiHandlers();

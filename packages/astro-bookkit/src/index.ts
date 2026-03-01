@@ -170,7 +170,7 @@ export type {
   PreviewTokenRecord,
 } from "./preview";
 export {
-  createBookEntryPointsFromGlob,
+  createBookEntryPointsFromModules,
   createChapterExportSlugs,
   createBookExportHelpersFromConfig,
   createBookEntryPoints,
@@ -192,12 +192,11 @@ export {
 } from "./book";
 export type {
   BookExportHelpersFromConfigOptions,
-  BookContentGlob,
   BookContentModules,
   BookContentRawModules,
   BookEntryPoints,
   BookEntryPointsOptions,
-  BookEntrypointGlobOptions,
+  BookEntrypointModules,
   BookLayoutConfig,
   BookLayoutOptions,
   BookLayoutState,

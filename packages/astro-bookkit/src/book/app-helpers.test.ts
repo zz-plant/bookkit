@@ -1,52 +1,45 @@
 import { describe, expect, it } from "bun:test";
 
 import {
-  createBookEntryPointsFromGlob,
+  createBookEntryPointsFromModules,
   createChapterExportSlugs,
   createReleaseNoteHelpers,
 } from "./app-helpers";
 
 describe("book app helpers", () => {
-  it("creates content and release entrypoints from a shared content root", () => {
-    const globCalls: Array<{ pattern: string; options: Record<string, unknown> | undefined }> = [];
-
-    const glob = <T = unknown>(
-      pattern: string,
-      options?: Record<string, unknown>
-    ): Record<string, T> => {
-      globCalls.push({ pattern, options });
-
-      if (pattern.endsWith("chapters/*.mdx") && options?.query === "?raw") {
-        return {
-          "../content/book/chapters/one.mdx": "# Chapter one",
-        } as Record<string, T>;
-      }
-
-      if (pattern.endsWith("chapters/*.mdx")) {
-        return {
+  it("creates content and release entrypoints from provided module records", () => {
+    const entryPoints = createBookEntryPointsFromModules({
+      contentModules: {
+        chapters: {
           "../content/book/chapters/one.mdx": {
             frontmatter: { slug: "chapter-one" },
           },
-        } as Record<string, T>;
-      }
-
-      if (pattern.endsWith("releases/*.mdx")) {
-        return {
-          "../content/book/releases/2024-10-01.mdx": {
-            frontmatter: {
-              version: "0.2.0",
-              title: "Release",
-              date: "2024-10-01",
-              summary: "Summary",
-            },
+        },
+        mechanisms: {},
+        toolkit: {},
+        glossary: {},
+        examples: {},
+      },
+      contentRawModules: {
+        chapters: {
+          "../content/book/chapters/one.mdx": "# Chapter one",
+        },
+        mechanisms: {},
+        toolkit: {},
+        glossary: {},
+        examples: {},
+      },
+      releaseModules: {
+        "../content/book/releases/2024-10-01.mdx": {
+          frontmatter: {
+            version: "0.2.0",
+            title: "Release",
+            date: "2024-10-01",
+            summary: "Summary",
           },
-        } as Record<string, T>;
-      }
-
-      return {} as Record<string, T>;
-    };
-
-    const entryPoints = createBookEntryPointsFromGlob(glob);
+        },
+      },
+    });
 
     expect(Object.keys(entryPoints.contentModules.chapters)).toEqual([
       "../content/book/chapters/one.mdx",
@@ -57,7 +50,6 @@ describe("book app helpers", () => {
     expect(Object.keys(entryPoints.releaseModules)).toEqual([
       "../content/book/releases/2024-10-01.mdx",
     ]);
-    expect(globCalls.some((call) => call.pattern.endsWith("examples/**/*.mdx"))).toBe(true);
   });
 
   it("builds reusable release note and version helper functions", () => {

@@ -64,6 +64,31 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
   },
 ];
 
+export const CORE_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
+  {
+    uri: "bookkit://governance/README.md",
+    name: "Bookkit README",
+    description: "Architecture and operational commands.",
+    relativePath: "README.md",
+  },
+  {
+    uri: "bookkit://governance/CONTRIBUTING.md",
+    name: "Bookkit CONTRIBUTING",
+    description: "Contribution workflow and lanes.",
+    relativePath: "CONTRIBUTING.md",
+  },
+  {
+    uri: "bookkit://governance/AGENTS.md",
+    name: "Bookkit AGENTS",
+    description: "Architectural invariants and risk boundaries.",
+    relativePath: "AGENTS.md",
+  },
+];
+
+type GovernanceLoadOptions = {
+  allowMissingFiles?: boolean;
+};
+
 type PackageScriptsMetadata = {
   scripts?: Record<string, string>;
 };
@@ -107,19 +132,24 @@ const createRootScriptsCommandReference = (rootDir: string): McpResourceInput =>
 export const createGovernanceResourcesFromFiles = (
   rootDir: string,
   definitions: GovernanceFileResource[] = DEFAULT_GOVERNANCE_FILE_RESOURCES,
+  options: GovernanceLoadOptions = {},
 ): McpResourceInput[] => {
-  const fileResources = definitions.map((definition) => {
+  const fileResources = definitions.flatMap((definition) => {
     const filePath = resolve(rootDir, definition.relativePath);
 
     try {
-      return {
+      return [{
         uri: definition.uri,
         name: definition.name,
         description: definition.description,
         mimeType: definition.mimeType,
         text: readFileSync(filePath, "utf8"),
-      };
+      }];
     } catch (error) {
+      if (options.allowMissingFiles) {
+        return [];
+      }
+
       const reason = error instanceof Error ? error.message : "unknown error";
       throw new Error(
         `Unable to read governance resource \"${definition.relativePath}\" from ${filePath}: ${reason}`,

@@ -56,10 +56,18 @@ export type { BookSearchModuleMap, LocalizedSearchOptions } from "./search/sourc
 export { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "./search/endpoint";
 export {
   createBookMcpEndpoint,
+  createBookMcpEndpointFromWorkspace,
+  findWorkspaceRoot,
+  CORE_GOVERNANCE_FILE_RESOURCES,
   createGovernanceResourcesFromFiles,
   DEFAULT_GOVERNANCE_FILE_RESOURCES,
 } from "./mcp";
-export type { McpEndpointOptions, McpResourceInput, GovernanceFileResource } from "./mcp";
+export type {
+  CreateBookMcpEndpointFromWorkspaceOptions,
+  McpEndpointOptions,
+  McpResourceInput,
+  GovernanceFileResource,
+} from "./mcp";
 export { createFeedbackEndpoint } from "./feedback/endpoint";
 export type { FeedbackEndpointOptions, FeedbackEvent } from "./feedback/endpoint";
 export {

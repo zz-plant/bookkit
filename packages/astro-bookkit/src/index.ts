@@ -63,6 +63,20 @@ export type { McpEndpointOptions, McpResourceInput, GovernanceFileResource } fro
 export { createFeedbackEndpoint } from "./feedback/endpoint";
 export type { FeedbackEndpointOptions, FeedbackEvent } from "./feedback/endpoint";
 export {
+  buildReleaseNotesPageProps,
+  buildVersionArchivePageProps,
+  createAnalyticsApiHandlers,
+  createBookExportGetHandler,
+  createChapterExportHandlers,
+  createExportAnalyticsApiHandlers,
+  createFeedbackApiHandlers,
+  createPreviewAnalyticsApiHandlers,
+  createReleaseAnalyticsApiPostHandler,
+  createReleaseWebhookApiHandlers,
+  createSearchIndexGetHandler,
+  createSitemapGetHandler,
+} from "./app-wrappers";
+export {
   createReaderAnalyticsEndpoint,
   getReaderAnalyticsLogPath,
   recordReaderAnalyticsEvent,

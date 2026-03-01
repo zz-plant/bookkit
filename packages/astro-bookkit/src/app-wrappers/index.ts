@@ -1,0 +1,164 @@
+import type { APIRoute } from "astro";
+import { createReaderAnalyticsEndpoint } from "../analytics";
+import { createExportAnalyticsEndpoint, createExportResponse } from "../exports";
+import type { ExportBundle } from "../exports";
+import { createFeedbackEndpoint } from "../feedback/endpoint";
+import { createPreviewAnalyticsEndpoint } from "../preview";
+import { recordReleaseEvent } from "../releases/analytics";
+import { createReleaseWebhookEndpoint } from "../releases/endpoint";
+import type { ReleaseModule, ReleaseNote } from "../releases/notes";
+import type { BookSearchModuleMap } from "../search/sources";
+import type { BookSeoConfig } from "../seo/config";
+import type { BookVersionEntry } from "../releases/versions";
+import { buildSeoProps } from "../seo/config";
+import { createBookSitemapEntries } from "../seo/book";
+import type { BookSitemapContentModules } from "../seo/book";
+import { createSitemapXml } from "../seo/sitemap";
+import { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "../search/endpoint";
+
+export const createAnalyticsApiHandlers = () => createReaderAnalyticsEndpoint();
+export const createFeedbackApiHandlers = () => createFeedbackEndpoint();
+export const createExportAnalyticsApiHandlers = () => createExportAnalyticsEndpoint();
+export const createPreviewAnalyticsApiHandlers = () => createPreviewAnalyticsEndpoint();
+
+export const createReleaseWebhookApiHandlers = (options: {
+  modules: Record<string, ReleaseModule>;
+  book: { slug: string; title: string };
+}) => createReleaseWebhookEndpoint(options);
+
+export const createReleaseAnalyticsApiPostHandler = (): APIRoute => async ({ request }) => {
+  try {
+    const payload = await request.json();
+    if (payload?.event === "rss_subscribe_click") {
+      await recordReleaseEvent({ event: "rss_subscribe_click" });
+    }
+  } catch (error) {
+    console.warn("Release analytics parse error", error);
+  }
+
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { "Content-Type": "application/json" },
+  });
+};
+
+export const createSearchIndexGetHandler = (options: {
+  modules: BookSearchModuleMap;
+  defaultLocale?: string;
+}): APIRoute => {
+  const defaultEndpoint = createBookSearchIndexEndpoint(options.modules);
+  const localizedEndpoint = createLocalizedSearchIndexEndpoint(options.modules, {
+    defaultLocale: options.defaultLocale ?? "en",
+  });
+
+  return (context) => {
+    const url = new URL(context.request.url);
+    if (url.searchParams.has("locale")) {
+      return localizedEndpoint.GET(context);
+    }
+    return defaultEndpoint.GET();
+  };
+};
+
+export const createSitemapGetHandler = (options: {
+  site: { url?: string; enforceHttps?: boolean; indexable?: boolean };
+  content: BookSitemapContentModules;
+  defaultLastmod?: string;
+}): APIRoute => () => {
+  const entries = createBookSitemapEntries({
+    site: options.site,
+    content: options.content,
+    defaultLastmod: options.defaultLastmod,
+  });
+
+  return new Response(createSitemapXml(entries), {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+    },
+  });
+};
+
+export const createBookExportGetHandler = (options: {
+  getBookExportBundle: () => ExportBundle;
+  format: "pdf" | "epub";
+  filename: string;
+}) => async () => createExportResponse(options.getBookExportBundle(), options.format, options.filename);
+
+export const createChapterExportHandlers = (options: {
+  chapterExportSlugs: readonly string[];
+  getChapterExportBundle: (slug: string) => ExportBundle | null;
+  format: "pdf" | "epub";
+  filenamePrefix: string;
+}) => ({
+  getStaticPaths: () =>
+    options.chapterExportSlugs.map((slug) => ({
+      params: { slug },
+    })),
+  GET: async ({ params }: { params: { slug?: string } }) => {
+    const slug = params.slug ?? "";
+    const bundle = options.getChapterExportBundle(slug);
+    if (!bundle) {
+      return new Response("Not found", { status: 404 });
+    }
+    return createExportResponse(bundle, options.format, `${options.filenamePrefix}-${slug}.${options.format}`);
+  },
+});
+
+export const buildVersionArchivePageProps = (options: {
+  book: { title: string; status: string; slug?: string; site?: BookSeoConfig };
+  versionEntries: BookVersionEntry[];
+  requestUrl: string;
+  ogImage: string;
+  description?: string;
+}) => {
+  const latestVersion = options.versionEntries.find((entry) => entry.isLatest)?.version ?? options.book.status;
+  const seoProps = buildSeoProps({
+    site: options.book.site,
+    requestUrl: options.requestUrl,
+    ogImage: options.ogImage,
+    description: options.description ?? "Browse current and archived versions of the book.",
+  });
+
+  return {
+    title: `Version archive • ${options.book.title}`,
+    bookTitle: options.book.title,
+    bookVersion: latestVersion,
+    bookKey: options.book.slug ?? "book",
+    versions: options.versionEntries,
+    description: seoProps.metaDescription,
+    ...seoProps,
+  };
+};
+
+export const buildReleaseNotesPageProps = (options: {
+  book: { title: string; status: string; slug?: string; site?: BookSeoConfig };
+  releases: ReleaseNote[];
+  versionEntries: BookVersionEntry[];
+  requestUrl: string;
+  ogImage: string;
+  rssUrl?: string;
+  subscribeAnalyticsUrl?: string;
+  description?: string;
+}) => {
+  const latestVersion = options.versionEntries.find((entry) => entry.isLatest)?.version ?? options.book.status;
+  const seoProps = buildSeoProps({
+    site: options.book.site,
+    requestUrl: options.requestUrl,
+    ogImage: options.ogImage,
+    description:
+      options.description ?? "Track new releases, subscribe to updates, and review the latest changes.",
+  });
+
+  return {
+    title: `Release notes • ${options.book.title}`,
+    bookTitle: options.book.title,
+    bookVersion: latestVersion,
+    bookKey: options.book.slug ?? "book",
+    rssUrl: options.rssUrl ?? "/release-notes.xml",
+    releases: options.releases,
+    versions: options.versionEntries,
+    description: seoProps.metaDescription,
+    subscribeLabel: "Subscribe via RSS",
+    subscribeAnalyticsUrl: options.subscribeAnalyticsUrl ?? "/api/release-analytics.json",
+    ...seoProps,
+  };
+};

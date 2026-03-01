@@ -1,3 +1,3 @@
-import { createExportAnalyticsEndpoint } from "@bookkit/astro-bookkit";
+import { createExportAnalyticsApiHandlers } from "@bookkit/astro-bookkit";
 
-export const { POST } = createExportAnalyticsEndpoint();
+export const { POST } = createExportAnalyticsApiHandlers();

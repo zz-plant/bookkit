@@ -1,13 +1,10 @@
-import {
-  createReleaseNotesFromModules,
-  type ReleaseNote,
-} from "@bookkit/astro-bookkit";
+import { createReleaseNoteHelpers, type ReleaseNote } from "@bookkit/astro-bookkit";
 import { bookEntryPoints } from "./book-entrypoints";
 
-export const releaseModules = bookEntryPoints.releaseModules;
+const releaseHelpers = createReleaseNoteHelpers(bookEntryPoints.releaseModules, {
+  latestLabel: "Latest",
+});
 
-export const getReleaseNotes = (): ReleaseNote[] => {
-  return createReleaseNotesFromModules(releaseModules);
-};
+export const { releaseModules, getReleaseNotes, getVersionEntries } = releaseHelpers;
 
 export type { ReleaseNote };

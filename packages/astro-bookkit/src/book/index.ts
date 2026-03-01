@@ -1,5 +1,11 @@
 export { createBookExportHelpersFromConfig } from "./exports";
 export type { BookExportHelpersFromConfigOptions } from "./exports";
+export {
+  createBookEntryPointsFromGlob,
+  createChapterExportSlugs,
+  createReleaseNoteHelpers,
+} from "./app-helpers";
+export type { BookContentGlob, BookEntrypointGlobOptions } from "./app-helpers";
 export { createBookEntryPoints } from "./entrypoints";
 export type {
   BookContentModules,
@@ -27,3 +33,8 @@ export { defaultChapterPageCopy } from "./chapter-copy";
 export type { ChapterPageCopy } from "./chapter-copy";
 export { createBookLayoutState } from "./layout";
 export type { BookLayoutConfig, BookLayoutOptions, BookLayoutState } from "./layout";
+export {
+  DEFAULT_OG_SURFACE_IMAGE_MAP,
+  getOgImageForPath,
+  normalizeOgPathname,
+} from "./og";

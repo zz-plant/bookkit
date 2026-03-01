@@ -1,11 +1,11 @@
 export { createBookExportHelpersFromConfig } from "./exports";
 export type { BookExportHelpersFromConfigOptions } from "./exports";
 export {
-  createBookEntryPointsFromGlob,
+  createBookEntryPointsFromModules,
   createChapterExportSlugs,
   createReleaseNoteHelpers,
 } from "./app-helpers";
-export type { BookContentGlob, BookEntrypointGlobOptions } from "./app-helpers";
+export type { BookEntrypointModules } from "./app-helpers";
 export { createBookEntryPoints } from "./entrypoints";
 export type {
   BookContentModules,

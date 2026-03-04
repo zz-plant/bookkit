@@ -7,7 +7,8 @@
   "dependencies": {
     "jszip": "^3.10.1",
     "mermaid": "^11.12.2",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "web-haptics": "^0.0.6"
   },
   "exports": {
     ".": "./src/index.ts",

@@ -1,0 +1,27 @@
+---
+export type BreadcrumbTrailItem = {
+  name: string;
+  href?: string;
+};
+
+type Props = {
+  items: BreadcrumbTrailItem[];
+  ariaLabel?: string;
+};
+
+const { items, ariaLabel = "Breadcrumb" } = Astro.props;
+const lastIndex = items.length - 1;
+---
+<nav class="breadcrumb" aria-label={ariaLabel}>
+  <ol>
+    {items.map((item, index) => (
+      <li>
+        {index === lastIndex ? (
+          <span aria-current="page">{item.name}</span>
+        ) : (
+          <a href={item.href}>{item.name}</a>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>

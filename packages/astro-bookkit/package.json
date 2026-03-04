@@ -30,6 +30,7 @@
     "./search": "./src/search/index.ts",
     "./exports": "./src/exports/index.ts",
     "./localization": "./src/localization/index.ts",
-    "./analytics": "./src/analytics/index.ts"
+    "./analytics": "./src/analytics/index.ts",
+    "./components/Breadcrumbs.astro": "./src/components/Breadcrumbs.astro"
   }
 }

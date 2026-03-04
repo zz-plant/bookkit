@@ -7,7 +7,13 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
-import { readRoutes } from "@bookkit/astro-bookkit";
+import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
+import {
+  buildLocalizedReadRoutePath,
+  createBreadcrumbListStructuredDataFromTrail,
+  readRoutes,
+} from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.glossary;
@@ -37,15 +43,22 @@ if (!module) {
 
 const { frontmatter, default: Content } = module;
 const isFallback = missingSlugs.includes(frontmatter.slug);
+const requestPath = Astro.url.pathname;
+const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
+const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.glossary);
+const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
+const breadcrumbItems = [
+  { name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
+  { name: breadcrumbCopy.glossary, href: localizedSectionPath },
+  { name: frontmatter.term },
+];
+const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
+  breadcrumbItems,
+  Astro.url
+);
 ---
-<BaseLayout title={`${frontmatter.term} • ${bookConfig.title}`}>
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href={readRoutes.root}>Reading hub</a>
-    <span>›</span>
-    <a href={readRoutes.glossary}>Glossary</a>
-    <span>›</span>
-    <span>{frontmatter.term}</span>
-  </nav>
+<BaseLayout title={`${frontmatter.term} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+  <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <a class="back-link" href={readRoutes.glossary}>← Glossary</a>
   <div class="eyebrow">Glossary{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>

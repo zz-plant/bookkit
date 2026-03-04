@@ -10,7 +10,15 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
-import { defaultChapterPageCopy, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
+import {
+  buildLocalizedReadRoutePath,
+  createBreadcrumbListStructuredDataFromTrail,
+  defaultChapterPageCopy,
+  readItemPath,
+  readRoutes,
+} from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
   const modules = bookEntryPoints.contentModules.chapters;
@@ -49,15 +57,22 @@ const chapterOrder = entries
   .sort((a, b) => a.slug.localeCompare(b.slug));
 const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
 const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
+const requestPath = Astro.url.pathname;
+const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
+const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.chapters);
+const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
+const breadcrumbItems = [
+  { name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
+  { name: breadcrumbCopy.chapters, href: localizedSectionPath },
+  { name: frontmatter.title },
+];
+const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
+  breadcrumbItems,
+  Astro.url
+);
 ---
-<BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`}>
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href={readRoutes.root}>Reading hub</a>
-    <span>›</span>
-    <a href={readRoutes.chapters}>Chapters</a>
-    <span>›</span>
-    <span>{frontmatter.title}</span>
-  </nav>
+<BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+  <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <a class="back-link" href={readRoutes.chapters}>← Chapters</a>
   <div class="chapter-shell">
     <aside class="chapter-meta-panel">

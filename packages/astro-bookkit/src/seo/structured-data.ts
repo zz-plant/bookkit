@@ -5,6 +5,11 @@ export type BreadcrumbItem = {
   item: string;
 };
 
+export type BreadcrumbTrailItem = {
+  name: string;
+  href?: string;
+};
+
 export const createBreadcrumbListStructuredData = (
   items: BreadcrumbItem[]
 ): StructuredData => ({
@@ -17,6 +22,22 @@ export const createBreadcrumbListStructuredData = (
     item: entry.item,
   })),
 });
+
+export const createBreadcrumbListStructuredDataFromTrail = (
+  items: BreadcrumbTrailItem[],
+  currentUrl: URL | string
+): StructuredData => {
+  const resolvedCurrentUrl = new URL(currentUrl.toString());
+
+  return createBreadcrumbListStructuredData(
+    items.map((entry) => ({
+      name: entry.name,
+      item: entry.href
+        ? new URL(entry.href, resolvedCurrentUrl).toString()
+        : resolvedCurrentUrl.toString(),
+    }))
+  );
+};
 
 export type DefinedTermStructuredDataInput = {
   name: string;

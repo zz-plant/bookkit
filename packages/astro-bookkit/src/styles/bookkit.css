@@ -1182,10 +1182,6 @@ p {
 }
 
 .breadcrumb {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
   font-size: var(--text-xs);
   letter-spacing: 0.02em;
   color: var(--color-muted);
@@ -1198,6 +1194,27 @@ p {
   width: fit-content;
   border: 1px solid var(--color-border);
   box-shadow: none;
+}
+
+.breadcrumb ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.breadcrumb li + li::before {
+  content: "›";
+  color: var(--color-muted);
 }
 
 .breadcrumb a {

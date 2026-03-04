@@ -7,8 +7,11 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
+import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
-  createBreadcrumbListStructuredData,
+  buildLocalizedReadRoutePath,
+  createBreadcrumbListStructuredDataFromTrail,
   createDefinedTermStructuredData,
   readItemPath,
   readRoutes,
@@ -83,31 +86,33 @@ const relatedExamples = exampleEntries
   }))
   .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
 const requestPath = Astro.url.pathname;
-const readPathIndex = requestPath.indexOf("/read/");
-const routePrefix = readPathIndex >= 0 ? requestPath.slice(0, readPathIndex) : "";
-const localizedReadRootPath = `${routePrefix}${readRoutes.root}`;
-const localizedMechanismsPath = `${routePrefix}${readRoutes.mechanisms}`;
 const mechanismUrl = new URL(requestPath, Astro.url).toString();
-const breadcrumbStructuredData = createBreadcrumbListStructuredData([
+const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
+const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.mechanisms);
+const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
+const breadcrumbItems = [
   {
-    name: "Reading hub",
-    item: new URL(localizedReadRootPath, Astro.url).toString(),
+    name: breadcrumbCopy.readingHub,
+    href: localizedReadRootPath,
   },
   {
-    name: "Mechanisms",
-    item: new URL(localizedMechanismsPath, Astro.url).toString(),
+    name: breadcrumbCopy.mechanisms,
+    href: localizedSectionPath,
   },
   {
     name: frontmatter.title,
-    item: mechanismUrl,
   },
-]);
+];
+const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
+  breadcrumbItems,
+  Astro.url
+);
 const mechanismStructuredData = createDefinedTermStructuredData({
   name: frontmatter.title,
   description: frontmatter.definition,
   termCode: frontmatter.slug,
   url: mechanismUrl,
-  inDefinedTermSet: new URL(localizedMechanismsPath, Astro.url).toString(),
+  inDefinedTermSet: new URL(localizedSectionPath, Astro.url).toString(),
 });
 ---
 <BaseLayout
@@ -115,13 +120,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
   description={metaDescription}
   structuredData={[breadcrumbStructuredData, mechanismStructuredData]}
 >
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href={readRoutes.root}>Reading hub</a>
-    <span>›</span>
-    <a href={readRoutes.mechanisms}>Mechanisms</a>
-    <span>›</span>
-    <span>{frontmatter.title}</span>
-  </nav>
+  <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <a class="back-link" href={readRoutes.mechanisms}>← Mechanisms</a>
   <div class="eyebrow">Mechanism{isFallback ? " • fallback" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>

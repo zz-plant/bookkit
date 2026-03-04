@@ -75,6 +75,8 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 </div>
 
 <script>
+  import { WebHaptics } from "web-haptics";
+
   const RATE_LIMIT_MS = 1000 * 60 * 60 * 24;
 
   const sanitizeComment = (value) => {
@@ -129,14 +131,15 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     }
   };
 
-  const canVibrate =
-    typeof navigator !== "undefined" &&
-    typeof navigator.vibrate === "function" &&
-    !(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false);
+  const prefersReducedMotion =
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+  const haptics = !prefersReducedMotion && WebHaptics.isSupported
+    ? new WebHaptics({ showSwitch: false })
+    : null;
 
-  const pulseHaptic = (pattern = 12) => {
-    if (!canVibrate) return;
-    navigator.vibrate(pattern);
+  const pulseHaptic = (preset = "selection") => {
+    if (!haptics) return;
+    haptics.trigger(preset);
   };
 
   const saveEvent = (storageKey, event) => {
@@ -229,14 +232,14 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
       };
       saveEvent(storageKey, feedbackEvent);
       sendToEndpoint(endpoint, feedbackEvent);
-      pulseHaptic([20, 30, 20]);
+      pulseHaptic("success");
       announce("Thanks for the feedback!");
       disable();
     };
 
     noteToggle?.addEventListener("click", () => {
       noteOpen = !noteOpen;
-      pulseHaptic(10);
+      pulseHaptic("light");
       if (!notePanel) return;
       notePanel.hidden = !noteOpen;
       noteToggle.textContent = noteOpen ? "Hide note" : "Add a note";
@@ -248,7 +251,7 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 
     choiceButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        pulseHaptic(12);
+        pulseHaptic("selection");
         selectedChoice = button.dataset.feedbackChoice || null;
         choiceButtons.forEach((btn) =>
           btn.classList.toggle("is-selected", btn === button)
@@ -270,4 +273,5 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
   };
 
   document.querySelectorAll("[data-feedback-widget]").forEach(renderWidget);
+  window.addEventListener("pagehide", () => haptics?.destroy(), { once: true });
 </script>

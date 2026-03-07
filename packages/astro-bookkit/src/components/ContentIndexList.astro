@@ -13,6 +13,7 @@ const {
   items = [],
   backHref = "/read",
   backLabel = "Reading hub",
+  filterLabel = "Filter list",
   filterPlaceholder = "Filter by title, mechanism, or domain...",
   filterMode = "auto",
   filterHint,
@@ -40,6 +41,7 @@ const alphaGroups = resolvedItems.reduce((groups, item) => {
 }, new Map());
 const alphaKeys = Array.from(alphaGroups.keys());
 const listSummary = `${resolvedItems.length} ${resolvedItems.length === 1 ? "item" : "items"}`;
+const showDensityToggle = resolvedItems.length > 9;
 const filterId = `list-filter-${String(title ?? "items")
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, "-")
@@ -51,33 +53,47 @@ const filterId = `list-filter-${String(title ?? "items")
   {lede && <p class="lede">{lede}</p>}
 </div>
 <slot name="after-header" />
-<p class="list-summary">{listSummary}{showAlphaNav ? ` • ${alphaKeys.length} groups` : ""}</p>
-{showFilter && (
-  <div class="list-filter">
-    <label class="list-filter__label" for={filterId}>
-      Filter list
-    </label>
-    <input
-      id={filterId}
-      class="list-filter__input"
-      type="search"
-      placeholder={filterPlaceholder}
-      autocomplete="off"
-      spellcheck="false"
-      data-list-filter={filterId}
-    />
-    {filterHint && <p class="list-filter__hint">{filterHint}</p>}
-  </div>
-)}
-{showAlphaNav && alphaKeys.length > 0 && (
-  <nav class="alpha-nav" aria-label="Jump to letter">
-    <span class="alpha-nav__label">Jump to</span>
-    {alphaKeys.map((letter) => (
-      <a class="alpha-nav__link" href={`#alpha-${letter}`}>{letter}</a>
-    ))}
-  </nav>
-)}
-<div class="stack" data-list-container={filterId}>
+<section class="list-tools" aria-label="List tools">
+  <p class="list-summary">{listSummary}{showAlphaNav ? ` • ${alphaKeys.length} groups` : ""}</p>
+  {showDensityToggle && (
+    <div class="list-density-toggle" role="group" aria-label="List density">
+      <span class="list-density-toggle__label">Density</span>
+      <button class="list-density-toggle__button" type="button" data-list-density="comfortable" aria-pressed="true">
+        Comfortable
+      </button>
+      <button class="list-density-toggle__button" type="button" data-list-density="compact" aria-pressed="false">
+        Compact
+      </button>
+    </div>
+  )}
+  {showFilter && (
+    <div class="list-filter">
+      <label class="list-filter__label" for={filterId}>
+        {filterLabel}
+      </label>
+      <input
+        id={filterId}
+        class="list-filter__input"
+        type="search"
+        placeholder={filterPlaceholder}
+        autocomplete="off"
+        spellcheck="false"
+        data-list-filter={filterId}
+      />
+      {filterHint && <p class="list-filter__hint">{filterHint}</p>}
+    </div>
+  )}
+  {showAlphaNav && alphaKeys.length > 0 && (
+    <nav class="alpha-nav" aria-label="Jump to letter">
+      <span class="alpha-nav__label">Jump to letter</span>
+      {alphaKeys.map((letter) => (
+        <a class="alpha-nav__link" href={`#alpha-${letter}`}>{letter}</a>
+      ))}
+    </nav>
+  )}
+  <slot name="list-tools-extra" />
+</section>
+<div class="stack list-stack" data-list-container={filterId} data-list-density="comfortable">
   {showAlphaNav
     ? alphaKeys.map((letter) => (
         <section class="alpha-group" data-alpha-group>
@@ -138,15 +154,16 @@ const filterId = `list-filter-${String(title ?? "items")
       ))}
 </div>
 <slot name="after-list" />
-{showFilter && (
+{(showFilter || showDensityToggle) && (
   <script define:vars={{ filterId }}>
     const input = document.querySelector(`[data-list-filter="${filterId}"]`);
     const list = document.querySelector(`[data-list-container="${filterId}"]`);
-    if (input && list) {
+    if (list) {
       const items = Array.from(list.querySelectorAll("[data-list-item]"));
       const groups = Array.from(list.querySelectorAll("[data-alpha-group]"));
+      const densityButtons = Array.from(document.querySelectorAll("button[data-list-density]"));
       const applyFilter = () => {
-        const query = input.value.trim().toLowerCase();
+        const query = input instanceof HTMLInputElement ? input.value.trim().toLowerCase() : "";
         items.forEach((item) => {
           const text = item.dataset.filterText || "";
           item.hidden = query.length > 0 && !text.includes(query);
@@ -156,7 +173,18 @@ const filterId = `list-filter-${String(title ?? "items")
           group.hidden = visibleItems.length === 0;
         });
       };
-      input.addEventListener("input", applyFilter);
+      if (input instanceof HTMLInputElement) {
+        input.addEventListener("input", applyFilter);
+      }
+      densityButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const density = button.getAttribute("data-list-density") || "comfortable";
+          list.setAttribute("data-list-density", density);
+          densityButtons.forEach((entry) => {
+            entry.setAttribute("aria-pressed", entry === button ? "true" : "false");
+          });
+        });
+      });
     }
   </script>
 )}

@@ -2,7 +2,6 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import ReaderUtilityStrip from "@bookkit/astro-bookkit/components/ReaderUtilityStrip.astro";
 import { getBookExportLinks } from "../../../lib/exports";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
@@ -19,8 +18,8 @@ const { items: chapterItems, completeness } = createLocalizedContentList(modules
     return {
       href: readItemPath("chapters", slug),
       title: frontmatter.title ?? "Untitled chapter",
-      eyebrow: status,
-      badges: [isFallback ? "fallback" : null, "guided path"].filter(Boolean),
+      eyebrow: status === "draft" ? null : status,
+      badges: [isFallback ? "fallback" : null].filter(Boolean),
     };
   },
 });
@@ -31,17 +30,11 @@ const localizedLede = buildTranslationLede(
 );
 ---
 <BaseLayout title={`Chapters • ${bookConfig.title}`}>
-  <ReaderUtilityStrip
-    label="Reading utilities"
-    links={[
-      { href: "/release-notes", label: "Release notes" },
-      { href: "/downloads", label: "Offline downloads" },
-    ]}
-  />
   <ContentIndexList
     title="Chapters"
     lede={localizedLede}
     items={chapterItems}
+    filterHint="Filter by chapter title. Use letter jumps for faster scanning in long lists."
   >
     <details slot="after-header" class="content-block" style="margin-top: 0;">
       <summary><strong>What draft status means</strong></summary>
@@ -50,15 +43,17 @@ const localizedLede = buildTranslationLede(
         change as validation improves.
       </p>
     </details>
-    <div class="hero-quick-links" style="margin-top: -0.25rem;">
+    <div slot="list-tools-extra" class="hero-quick-links" style="margin-top: 0;">
+      <a class="pill" href="/release-notes">Release notes</a>
+      <a class="pill" href="/downloads">Offline downloads</a>
       <a class="pill" href="#chapter-exports">Jump to download exports</a>
     </div>
     <div slot="after-list" id="chapter-exports">
-    <ExportPanel
-      title="Download exports"
-      description="Grab a print-ready PDF or an EPUB for offline reading. Links include rough size/freshness metadata when available. Need chapter-specific options? Visit Offline reading."
-      links={exportLinks}
-    />
+      <ExportPanel
+        title="Download exports"
+        description="Grab a print-ready PDF or an EPUB for offline reading. Links include rough size/freshness metadata when available. Need chapter-specific options? Visit Offline reading."
+        links={exportLinks}
+      />
     </div>
   </ContentIndexList>
 </BaseLayout>

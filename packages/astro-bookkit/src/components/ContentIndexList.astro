@@ -13,6 +13,7 @@ const {
   items = [],
   backHref = "/read",
   backLabel = "Reading hub",
+  filterLabel = "Filter list",
   filterPlaceholder = "Filter by title, mechanism, or domain...",
   filterMode = "auto",
   filterHint,
@@ -68,7 +69,7 @@ const filterId = `list-filter-${String(title ?? "items")
   {showFilter && (
     <div class="list-filter">
       <label class="list-filter__label" for={filterId}>
-        Filter chapters
+        {filterLabel}
       </label>
       <input
         id={filterId}

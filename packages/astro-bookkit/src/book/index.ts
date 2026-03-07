@@ -31,6 +31,8 @@ export { createBookMiddleware } from "./middleware";
 export type { BookMiddlewareOptions } from "./middleware";
 export { defaultChapterPageCopy } from "./chapter-copy";
 export type { ChapterPageCopy } from "./chapter-copy";
+export { defaultReadHubCopy } from "./read-hub-copy";
+export type { ReadHubCopy } from "./read-hub-copy";
 export { buildLocalizedReadRoutePath, readRoutePrefixFromPathname } from "./breadcrumbs";
 export { createBookLayoutState } from "./layout";
 export type { BookLayoutConfig, BookLayoutOptions, BookLayoutState } from "./layout";

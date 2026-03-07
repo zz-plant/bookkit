@@ -8,6 +8,7 @@ import {
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
   buildLocalizedReadRoutePath,
@@ -74,6 +75,28 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   <p class="lede">
     {frontmatter.mechanism} • {frontmatter.domain}
   </p>
+  <NextActionPanel
+    variant="compact"
+    title="What to do next"
+    description="Tie this example back to mechanism and action in two clicks."
+    links={[
+      {
+        href: readItemPath("mechanisms", frontmatter.mechanism),
+        label: `Review ${frontmatter.mechanism}`,
+        meta: "Re-anchor on the stable pattern",
+      },
+      {
+        href: readRoutes.toolkit,
+        label: "Choose a 10-minute toolkit action",
+        meta: "Move from analysis to execution",
+      },
+      {
+        href: "#swap-template",
+        label: "Swap this example",
+        meta: "Preserve mechanism identity",
+      },
+    ]}
+  />
   <section class="content-block">
     <div class="eyebrow">Replaceable example</div>
     <p class="meta">
@@ -100,15 +123,5 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   </section>
   <section class="content-block">
     <Content />
-  </section>
-  <section class="next-steps">
-    <h2>Next steps</h2>
-    <div class="next-steps__links">
-      <a class="next-steps__link" href={readItemPath("mechanisms", frontmatter.mechanism)}>
-        Review the {frontmatter.mechanism} mechanism
-      </a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Pick a toolkit action</a>
-      <a class="next-steps__link" href="#swap-template">Swap this example</a>
-    </div>
   </section>
 </BaseLayout>

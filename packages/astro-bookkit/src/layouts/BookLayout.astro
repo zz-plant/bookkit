@@ -111,6 +111,7 @@ const isArchivePage = normalizedPath === normalizedArchivePath;
 const isReadRoute =
   normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
 const isDownloadsRoute = normalizedLocalePath === "/downloads";
+const isReadDetailRoute = isReadRoute && normalizedLocalePath !== "/read";
 const {
   resolvedRobots,
   resolvedOgTitle,
@@ -222,6 +223,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
         versionBadgeLabel={versionBadgeLabel}
         isReadRoute={isReadRoute}
         isDownloadsRoute={isDownloadsRoute}
+        isReadDetailRoute={isReadDetailRoute}
         hasVersions={hasVersions}
         localeEntries={localeEntries}
         versionEntries={versionEntries}

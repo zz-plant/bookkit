@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import ReaderUtilityStrip from "@bookkit/astro-bookkit/components/ReaderUtilityStrip.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
@@ -26,6 +27,13 @@ const localizedLede = buildTranslationLede(
 );
 ---
 <BaseLayout title={`Glossary • ${bookConfig.title}`}>
+  <ReaderUtilityStrip
+    label="Reading utilities"
+    links={[
+      { href: "/release-notes", label: "Release notes" },
+      { href: "/downloads", label: "Offline downloads" },
+    ]}
+  />
   <ContentIndexList
     title="Glossary"
     lede={localizedLede}

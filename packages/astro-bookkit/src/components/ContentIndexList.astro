@@ -4,6 +4,7 @@ export type ContentIndexItem = {
   title: string;
   eyebrow?: string | null;
   meta?: string | null;
+  badges?: string[] | null;
 };
 
 const {
@@ -38,6 +39,7 @@ const alphaGroups = resolvedItems.reduce((groups, item) => {
   return groups;
 }, new Map());
 const alphaKeys = Array.from(alphaGroups.keys());
+const listSummary = `${resolvedItems.length} ${resolvedItems.length === 1 ? "item" : "items"}`;
 const filterId = `list-filter-${String(title ?? "items")
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, "-")
@@ -49,6 +51,7 @@ const filterId = `list-filter-${String(title ?? "items")
   {lede && <p class="lede">{lede}</p>}
 </div>
 <slot name="after-header" />
+<p class="list-summary">{listSummary}{showAlphaNav ? ` • ${alphaKeys.length} groups` : ""}</p>
 {showFilter && (
   <div class="list-filter">
     <label class="list-filter__label" for={filterId}>
@@ -89,7 +92,18 @@ const filterId = `list-filter-${String(title ?? "items")
                 data-list-item
                 data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
               >
-                {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+                {(item.eyebrow || item.badges?.length) && (
+                  <div class="list-link__meta-row">
+                    {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+                    {item.badges?.length ? (
+                      <span class="list-link__badges" aria-label="Entry metadata">
+                        {item.badges.map((badge) => (
+                          <span class="list-link__badge">{badge}</span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
                 <strong>{item.title}</strong>
                 {item.meta && <span class="meta">{item.meta}</span>}
                 {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
@@ -105,7 +119,18 @@ const filterId = `list-filter-${String(title ?? "items")
           data-list-item
           data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
         >
-          {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+          {(item.eyebrow || item.badges?.length) && (
+            <div class="list-link__meta-row">
+              {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+              {item.badges?.length ? (
+                <span class="list-link__badges" aria-label="Entry metadata">
+                  {item.badges.map((badge) => (
+                    <span class="list-link__badge">{badge}</span>
+                  ))}
+                </span>
+              ) : null}
+            </div>
+          )}
           <strong>{item.title}</strong>
           {item.meta && <span class="meta">{item.meta}</span>}
           {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}

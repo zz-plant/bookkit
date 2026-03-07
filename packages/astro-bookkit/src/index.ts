@@ -189,6 +189,7 @@ export {
   readRoutes,
   readSectionPath,
   defaultChapterPageCopy,
+  defaultReadHubCopy,
   buildLocalizedReadRoutePath,
   readRoutePrefixFromPathname,
 } from "./book";
@@ -206,4 +207,5 @@ export type {
   BookVersionEntryOptions,
   ReadIndexKey,
   ChapterPageCopy,
+  ReadHubCopy,
 } from "./book";

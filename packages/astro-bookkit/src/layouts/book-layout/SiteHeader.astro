@@ -9,6 +9,7 @@ const {
   versionBadgeLabel,
   isReadRoute,
   isDownloadsRoute,
+  isReadDetailRoute,
   hasVersions,
   localeEntries,
   versionEntries,
@@ -22,24 +23,52 @@ const {
   localeLabel,
   aiQaEnabled,
 } = Astro.props;
+
+const emphasizeReadCta = !isReadRoute;
+const emphasizeDownloadsCta = !isDownloadsRoute;
+const readSectionFromPath = currentPath?.match(/\/read\/([^/]+)/)?.[1] ?? null;
+const readSectionLabels = {
+  overview: "Overview",
+  chapters: "Chapters",
+  mechanisms: "Mechanisms",
+  toolkit: "Toolkit",
+  examples: "Examples",
+  glossary: "Glossary",
+  tools: "Author tools",
+};
+const activeReadSectionLabel =
+  isReadRoute && readSectionFromPath ? readSectionLabels[readSectionFromPath] ?? "Reading route" : null;
 ---
       <header class="site-header">
         <div class="site-brand">
           <a href="/">{bookTitle}</a>
           {isPreview && <span class="preview-badge">{previewLabel}</span>}
           {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
+          {activeReadSectionLabel && <span class="site-brand__context">{activeReadSectionLabel}</span>}
         </div>
-        <nav class="site-nav" aria-label="Primary">
+        <nav class:list={["site-nav", { "site-nav--in-read-detail": isReadDetailRoute }]} aria-label="Primary">
           <a
-            class:list={["site-nav__primary", { "site-nav__primary--active-route": isReadRoute }]}
+            class:list={[
+              "site-nav__primary",
+              {
+                "site-nav__primary--active-route": isReadRoute,
+                "site-nav__primary--emphasis": emphasizeReadCta,
+              },
+            ]}
             href="/read"
             aria-current={isReadRoute ? "page" : undefined}
             aria-keyshortcuts="g r"
           >
-            Start reading
+            {isReadRoute ? "Reading hub" : "Start reading"}
           </a>
           <a
-            class:list={["site-nav__primary", { "site-nav__primary--active-route": isDownloadsRoute }]}
+            class:list={[
+              "site-nav__primary",
+              {
+                "site-nav__primary--active-route": isDownloadsRoute,
+                "site-nav__primary--emphasis": emphasizeDownloadsCta,
+              },
+            ]}
             href="/downloads"
             aria-current={isDownloadsRoute ? "page" : undefined}
             aria-keyshortcuts="g d"

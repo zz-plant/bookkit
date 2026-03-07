@@ -1,0 +1,32 @@
+---
+export type NextActionLink = {
+  href: string;
+  label: string;
+  meta?: string | null;
+};
+
+const {
+  title = "What to do next",
+  description,
+  links = [],
+  variant = "default",
+} = Astro.props;
+
+const isCompact = variant === "compact";
+const resolvedLinks = Array.isArray(links) ? links.filter((link) => link?.href && link?.label) : [];
+---
+{resolvedLinks.length > 0 && (
+  <section class:list={["next-action-panel", {"next-action-panel--compact": isCompact}]} aria-label={title}>
+    <div class="eyebrow">Momentum</div>
+    <h2>{title}</h2>
+    {description && <p class="meta">{description}</p>}
+    <div class="next-action-panel__links">
+      {resolvedLinks.map((link) => (
+        <a class="next-action-panel__link" href={link.href}>
+          <strong>{link.label}</strong>
+          {link.meta && <span class="meta">{link.meta}</span>}
+        </a>
+      ))}
+    </div>
+  </section>
+)}

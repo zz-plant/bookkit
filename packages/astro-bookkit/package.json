@@ -19,6 +19,7 @@
     "./components/AnalyticsDashboard.astro": "./src/components/AnalyticsDashboard.astro",
     "./components/FeedbackDashboard.astro": "./src/components/FeedbackDashboard.astro",
     "./components/FeedbackWidget.astro": "./src/components/FeedbackWidget.astro",
+    "./components/NextActionPanel.astro": "./src/components/NextActionPanel.astro",
     "./components/ReleaseNotesPage.astro": "./src/components/ReleaseNotesPage.astro",
     "./components/VersionArchivePage.astro": "./src/components/VersionArchivePage.astro",
     "./components/NewBookStudio.astro": "./src/components/NewBookStudio.astro",
@@ -31,6 +32,7 @@
     "./exports": "./src/exports/index.ts",
     "./localization": "./src/localization/index.ts",
     "./analytics": "./src/analytics/index.ts",
-    "./components/Breadcrumbs.astro": "./src/components/Breadcrumbs.astro"
+    "./components/Breadcrumbs.astro": "./src/components/Breadcrumbs.astro",
+    "./components/ReaderUtilityStrip.astro": "./src/components/ReaderUtilityStrip.astro"
   }
 }

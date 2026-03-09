@@ -181,7 +181,7 @@ describe("createBookMcpEndpointFromWorkspace", () => {
     expect(readBody.result.contents[0].metadata.offset).toBe(1);
     expect(readBody.result.contents[0].metadata.limit).toBe(1);
     expect(readBody.result.contents[0].metadata.chunkId).toContain("#sec-intro:");
-    expect(readBody.result.contents[0].metadata.sectionIndex.map((entry) => entry.id)).toEqual(["sec-intro", "sec-deep-dive"]);
+    expect(readBody.result.contents[0].metadata.sectionIndex.map((entry) => entry.id)).toEqual(["sec-root", "sec-intro", "sec-deep-dive"]);
   });
 
 });

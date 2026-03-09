@@ -57,6 +57,32 @@ Deliverables:
 - policy/profile presets for stricter release and quality gates
 - audit-friendly failure payloads (cause + next action)
 
+Track 3 framing now standardizes failure payloads across CLI semantics and MCP responses:
+
+```json
+{
+  "machineCode": "VALIDATE_BOOK_COMMAND_FAILED",
+  "humanSummary": "Validation failed: validate:book exited with code 1.",
+  "location": { "module": "scripts/validate-book.ts" },
+  "failingRule": "validate:book must complete with zero errors",
+  "nextAction": "Fix the reported validation ERRORS, then re-run bun run validate:book -- --book <slug>.",
+  "severity": "error",
+  "gateLevel": "blocking"
+}
+```
+
+```json
+{
+  "machineCode": "CHECK_SEPARATION_COMMAND_FAILED",
+  "humanSummary": "Separation checks failed: check:separation exited with code 1.",
+  "location": { "module": "scripts/check-separation.ts" },
+  "failingRule": "content bindings must remain data-only and pass separation checks",
+  "nextAction": "Resolve the reported SEPARATION VIOLATIONS, then re-run bun run check:separation.",
+  "severity": "error",
+  "gateLevel": "blocking"
+}
+```
+
 Success criteria:
 
 - teams can integrate validation results into CI and agent workflows

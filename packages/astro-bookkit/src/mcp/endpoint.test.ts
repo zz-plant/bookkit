@@ -224,10 +224,15 @@ describe("createBookMcpEndpoint", () => {
     });
 
     const body = (await response.json()) as {
-      result: { content: Array<{ json: { ok: boolean; error: { cause: string; nextAction: string } } }> };
+      result: {
+        content: Array<{
+          json: { ok: boolean; error: { machineCode: string; cause: string; nextAction: string } };
+        }>;
+      };
     };
     expect(body.result.content[0].json.ok).toBe(false);
-    expect(body.result.content[0].json.error.cause).toContain("arguments.book");
+    expect(body.result.content[0].json.error.machineCode).toBe("VALIDATE_BOOK_MISSING_SLUG");
+    expect(body.result.content[0].json.error.cause).toContain("requires a slug");
     expect(body.result.content[0].json.error.nextAction).toContain("Provide a book slug");
   });
 

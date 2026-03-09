@@ -132,6 +132,12 @@ export type ToolResponse = {
   error?: {
     cause: string;
     nextAction: string;
+    machineCode?: string;
+    humanSummary?: string;
+    location?: { module: string; file?: string };
+    failingRule?: string;
+    severity?: "error" | "warning";
+    gateLevel?: "advisory" | "blocking";
   };
 };
 

@@ -1,0 +1,39 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { formatReleaseDate } from "@bookkit/astro-bookkit";
+
+import bookConfig from "../../book.config";
+import { getReleaseNotes } from "../../lib/release-notes";
+
+export async function getStaticPaths() {
+  const releases = getReleaseNotes();
+  return releases.map((release) => ({
+    params: { slug: release.slug },
+    props: { release },
+  }));
+}
+
+const release = Astro.props.release;
+if (!release) {
+  throw new Error(`Missing release for slug: ${Astro.params.slug}`);
+}
+
+const Content = release.Content;
+---
+<BaseLayout title={`${release.title} • ${bookConfig.title}`}>
+  <a class="back-link" href="/release-notes">← Release notes</a>
+  <article class="content-block" style="margin-top: 0;">
+    <div class="eyebrow">Version {release.version}</div>
+    <h1>{release.title}</h1>
+    <p class="meta">Published {formatReleaseDate(release.date)}</p>
+    <p class="lede">{release.summary}</p>
+    {release.highlights.length > 0 && (
+      <ul>
+        {release.highlights.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    )}
+    {Content && <Content />}
+  </article>
+</BaseLayout>

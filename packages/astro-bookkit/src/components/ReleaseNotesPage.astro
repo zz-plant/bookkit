@@ -30,6 +30,7 @@ export type Props = {
   canonicalPath?: string;
   canonicalUrl?: string;
   robots?: string;
+  releasePathBuilder?: (slug: string) => string;
 };
 
 const {
@@ -59,6 +60,7 @@ const {
   canonicalPath,
   canonicalUrl,
   robots,
+  releasePathBuilder = (slug: string) => `/releases/${slug}`,
 } = Astro.props;
 ---
 <BookLayout
@@ -142,6 +144,9 @@ const {
               ))}
             </ul>
           )}
+          <p>
+            <a class="next-steps__link" href={releasePathBuilder(release.slug)}>Read post</a>
+          </p>
           {Content && (
             <details class="release-details">
               <summary>Read details</summary>

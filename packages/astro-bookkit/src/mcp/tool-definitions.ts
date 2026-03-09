@@ -1,13 +1,19 @@
+import type { ToolDefinitionMetadata } from "./tool-handlers/types";
 import { CONTENT_TYPES } from "./types";
 
-export const TOOL_DEFINITIONS = [
+export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.create_book",
     description: "Scaffold a new book app in apps/<book> using the workspace template command.",
     expectedRuntime: "<=30s",
+    expectedRuntimeClass: "moderate",
     sideEffectLevel: "local-write",
     idempotent: false,
+    idempotencyGuarantee: "non-idempotent",
     retryGuidance: "Do not blindly retry. If creation fails, inspect stderr and remove partial output before rerunning.",
+    retryPolicyGuidance:
+      "Retry only after inspecting stderr and clearing any partially created app directory to avoid duplicate or conflicting scaffolds.",
+    failureClassTaxonomy: ["validation", "conflict", "filesystem", "transient-command", "unknown"],
     inputSchema: {
       type: "object",
       properties: {
@@ -23,9 +29,13 @@ export const TOOL_DEFINITIONS = [
     name: "bookkit.read_book",
     description: "Read current book content records by section and optional slug.",
     expectedRuntime: "<1s",
+    expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
     retryGuidance: "Safe to retry.",
+    retryPolicyGuidance: "Retry immediately for transient transport or timeout failures; repeated retries are safe.",
+    failureClassTaxonomy: ["validation", "not-found", "timeout", "unknown"],
     inputSchema: {
       type: "object",
       properties: {
@@ -39,36 +49,52 @@ export const TOOL_DEFINITIONS = [
     name: "bookkit.list_books",
     description: "List available book slugs in this workspace.",
     expectedRuntime: "<10s",
+    expectedRuntimeClass: "short",
     sideEffectLevel: "read-only",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
     retryGuidance: "Safe to retry on timeout or transient command errors.",
+    retryPolicyGuidance: "Use bounded retries with backoff for timeout or transient command errors.",
+    failureClassTaxonomy: ["timeout", "transient-command", "filesystem", "unknown"],
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "bookkit.list_content",
     description: "List available content section counts for this book.",
     expectedRuntime: "<1s",
+    expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
     retryGuidance: "Safe to retry.",
+    retryPolicyGuidance: "Retry immediately for transient failures; operation is read-only and deterministic for a fixed workspace state.",
+    failureClassTaxonomy: ["configuration", "timeout", "unknown"],
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "bookkit.list_skills",
     description: "List local agent skills that can guide contribution workflows.",
     expectedRuntime: "<1s",
+    expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
     retryGuidance: "Safe to retry.",
+    retryPolicyGuidance: "Retry immediately when I/O read fails transiently; no mutation is performed.",
+    failureClassTaxonomy: ["filesystem", "timeout", "unknown"],
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "bookkit.list_mechanisms",
     description: "List mechanism slugs, titles, and MCP resource URIs.",
     expectedRuntime: "<1s",
+    expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
     retryGuidance: "Safe to retry.",
+    retryPolicyGuidance: "Retry immediately for transient failures; use list_books/read_book if persistent data-shape issues occur.",
+    failureClassTaxonomy: ["validation", "configuration", "timeout", "unknown"],
     inputSchema: {
       type: "object",
       properties: {
@@ -81,9 +107,14 @@ export const TOOL_DEFINITIONS = [
     name: "bookkit.validate_book",
     description: "Run book validation and return structured command output.",
     expectedRuntime: "<=10m",
+    expectedRuntimeClass: "long",
     sideEffectLevel: "local-read/compute",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-retry-after-remediation",
     retryGuidance: "Retry after fixing validation errors or transient command failures.",
+    retryPolicyGuidance:
+      "Retry only after remediating validation findings; for transient execution failures, use backoff and cap retries.",
+    failureClassTaxonomy: ["validation", "configuration", "timeout", "transient-command", "unknown"],
     inputSchema: {
       type: "object",
       properties: { book: { type: "string", description: "Optional book slug. Defaults to the current endpoint book when omitted." } },
@@ -94,9 +125,14 @@ export const TOOL_DEFINITIONS = [
     name: "bookkit.check_separation",
     description: "Run architecture-boundary checks for the workspace.",
     expectedRuntime: "<30s",
+    expectedRuntimeClass: "moderate",
     sideEffectLevel: "local-read/compute",
     idempotent: true,
+    idempotencyGuarantee: "idempotent-retry-after-remediation",
     retryGuidance: "Retry after resolving separation violations.",
+    retryPolicyGuidance:
+      "Retry after fixing reported separation violations; transient command failures can be retried with short backoff.",
+    failureClassTaxonomy: ["validation", "configuration", "transient-command", "unknown"],
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
 ] as const;

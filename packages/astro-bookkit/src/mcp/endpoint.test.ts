@@ -127,7 +127,7 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.content[0].json.error.nextAction).toContain("bookkit.create_book");
   });
 
-  it("lists tool metadata in tools/list", async () => {
+  it("lists complete tool metadata in tools/list", async () => {
     const endpoint = createFixtureEndpoint();
     const response = await endpoint.POST({
       request: new Request("http://localhost/api/mcp.json", {
@@ -139,17 +139,39 @@ describe("createBookMcpEndpoint", () => {
 
     const body = (await response.json()) as {
       result: {
-        tools: Array<{ name: string; sideEffectLevel: string; expectedRuntime: string; retryGuidance: string }>;
+        tools: Array<{
+          name: string;
+          sideEffectLevel: string;
+          expectedRuntime: string;
+          expectedRuntimeClass: string;
+          idempotencyGuarantee: string;
+          retryGuidance: string;
+          retryPolicyGuidance: string;
+          failureClassTaxonomy: string[];
+        }>;
       };
     };
 
+    expect(body.result.tools.length).toBeGreaterThan(0);
+    for (const tool of body.result.tools) {
+      expect(tool.sideEffectLevel.length).toBeGreaterThan(0);
+      expect(tool.expectedRuntime.length).toBeGreaterThan(0);
+      expect(tool.expectedRuntimeClass.length).toBeGreaterThan(0);
+      expect(tool.idempotencyGuarantee.length).toBeGreaterThan(0);
+      expect(tool.retryGuidance.length).toBeGreaterThan(0);
+      expect(tool.retryPolicyGuidance.length).toBeGreaterThan(0);
+      expect(tool.failureClassTaxonomy.length).toBeGreaterThan(0);
+    }
+
     const listBooks = body.result.tools.find((tool) => tool.name === "bookkit.list_books");
     expect(listBooks?.sideEffectLevel).toBe("read-only");
-    expect(listBooks?.expectedRuntime).toBe("<10s");
-    expect(listBooks?.retryGuidance).toContain("retry");
+    expect(listBooks?.expectedRuntimeClass).toBe("short");
+    expect(listBooks?.idempotencyGuarantee).toBe("idempotent-safe-retry");
 
     const createBook = body.result.tools.find((tool) => tool.name === "bookkit.create_book");
     expect(createBook?.sideEffectLevel).toBe("local-write");
+    expect(createBook?.idempotencyGuarantee).toBe("non-idempotent");
+    expect(createBook?.failureClassTaxonomy).toContain("filesystem");
   });
 
   it("supports resources/list pagination and filtering", async () => {
@@ -308,6 +330,7 @@ describe("createBookMcpEndpoint", () => {
     const body = (await response.json()) as {
       agentProfile: { recommendedQueryOrder: string[]; resources: { supportsListPagination: boolean } };
       tools: string[];
+      toolMetadata: Array<{ name: string; expectedRuntimeClass: string; retryPolicyGuidance: string; failureClassTaxonomy: string[] }>;
       resourceKinds: string[];
       resourceSections: string[];
       resourceCategories: Array<{ key: string; sections: string[] }>;
@@ -321,6 +344,10 @@ describe("createBookMcpEndpoint", () => {
     expect(body.agentProfile.recommendedQueryOrder).toContain("bookkit://governance/.codex/skills/README.md");
     expect(body.tools).toContain("bookkit.list_skills");
     expect(body.tools).toContain("bookkit.read_book");
+    const createBookMetadata = body.toolMetadata.find((tool) => tool.name === "bookkit.create_book");
+    expect(createBookMetadata?.expectedRuntimeClass).toBe("moderate");
+    expect(createBookMetadata?.retryPolicyGuidance).toContain("Retry");
+    expect(createBookMetadata?.failureClassTaxonomy).toContain("filesystem");
     expect(body.agentProfile.resources.supportsListPagination).toBe(true);
     expect(body.resourceKinds).toContain("content");
     expect(body.resourceKinds).toContain("governance");

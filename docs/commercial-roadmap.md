@@ -39,8 +39,9 @@ Success criteria:
 
 Deliverables:
 
-- discovery response includes resource types/sections
-- discovery response includes safety flags and rate-limit guidance
+- discovery response includes structured resource categories/types and sections
+- discovery response includes safety flags (`read_only`, `mutating`, `requires_guard`) and rate-limit guidance
+- discovery response includes recommended query patterns for governance-first and safe mutation workflows
 - tools publish structured metadata (runtime, side effects, idempotency, retry guidance)
 
 Success criteria:

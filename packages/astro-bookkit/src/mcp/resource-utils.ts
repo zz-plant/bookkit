@@ -50,6 +50,7 @@ const parsePositiveInteger = (value: number | undefined, fallback: number): numb
 
 export const buildSectionIndex = (text: string): ResourceSection[] => {
   const lines = text.split("\n");
+  const totalLines = Math.max(lines.length, 1);
   const sections: Array<Omit<ResourceSection, "endLine">> = [];
   const slugCounts = new Map<string, number>();
 
@@ -72,22 +73,21 @@ export const buildSectionIndex = (text: string): ResourceSection[] => {
     });
   });
 
-  if (sections.length === 0) {
-    return [
-      {
-        id: "sec-root",
-        title: "Document",
-        level: 1,
-        startLine: 1,
-        endLine: Math.max(lines.length, 1),
-      },
-    ];
-  }
-
-  return sections.map((section, index) => ({
+  const headingSections = sections.map((section, index) => ({
     ...section,
     endLine: (sections[index + 1]?.startLine ?? (lines.length + 1)) - 1,
   }));
+
+  return [
+    {
+      id: "sec-root",
+      title: "Document",
+      level: 1,
+      startLine: 1,
+      endLine: totalLines,
+    },
+    ...headingSections,
+  ];
 };
 
 export const extractFrontmatterField = (raw: string, field: string): string | null => {
@@ -213,15 +213,7 @@ export const buildResourceChunk = (uri: string, text: string, params: ResourceRe
   const totalLines = Math.max(lines.length, 1);
   const sectionIndex = buildSectionIndex(text);
 
-  const selectedSection = params.sectionId
-    ? sectionIndex.find((section) => section.id === params.sectionId)
-    : {
-      id: "sec-root",
-      title: "Document",
-      level: 1,
-      startLine: 1,
-      endLine: totalLines,
-    };
+  const selectedSection = params.sectionId ? sectionIndex.find((section) => section.id === params.sectionId) : sectionIndex[0];
 
   if (!selectedSection) return null;
 

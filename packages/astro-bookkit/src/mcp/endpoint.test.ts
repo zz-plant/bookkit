@@ -263,7 +263,7 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.contents[0].text).toContain("title: Overview");
     expect(body.result.contents[0].metadata.chunkId).toBe("bookkit://content/chapters/00-overview#sec-root:L1-L3");
     expect(body.result.contents[0].metadata.sectionId).toBe("sec-root");
-    expect(body.result.contents[0].metadata.sectionIndex[0].id).toBe("sec-intro");
+    expect(body.result.contents[0].metadata.sectionIndex[0].id).toBe("sec-root");
     expect(body.result.contents[0].metadata.totalLines).toBeGreaterThanOrEqual(3);
   });
 

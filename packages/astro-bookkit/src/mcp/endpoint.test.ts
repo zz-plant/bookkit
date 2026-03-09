@@ -6,7 +6,7 @@ const createFixtureEndpoint = () => {
   return createBookMcpEndpoint({
     bookTitle: "Fixture Book",
     contentRawModules: {
-      chapters: { "src/content/book/chapters/00-overview.mdx": "---\ntitle: Overview\n---\n# Intro" },
+      chapters: { "src/content/book/chapters/00-overview.mdx": "---\ntitle: Overview\n---\n# Intro\nLine A\n## Deep Dive\nLine B" },
       mechanisms: { "src/content/book/mechanisms/sample.mdx": "---\ntitle: Sample Mechanism\n---\nBody" },
       toolkit: {},
       glossary: {},
@@ -250,13 +250,15 @@ describe("createBookMcpEndpoint", () => {
       result: {
         contents: Array<{
           text: string;
-          metadata: { chunkId: string; startLine: number; endLine: number; totalLines: number };
+          metadata: { chunkId: string; startLine: number; endLine: number; totalLines: number; sectionId: string; sectionIndex: Array<{ id: string }> };
         }>;
       };
     };
 
     expect(body.result.contents[0].text).toContain("title: Overview");
-    expect(body.result.contents[0].metadata.chunkId).toBe("bookkit://content/chapters/00-overview#L1-L3");
+    expect(body.result.contents[0].metadata.chunkId).toBe("bookkit://content/chapters/00-overview#sec-root:L1-L3");
+    expect(body.result.contents[0].metadata.sectionId).toBe("sec-root");
+    expect(body.result.contents[0].metadata.sectionIndex[0].id).toBe("sec-intro");
     expect(body.result.contents[0].metadata.totalLines).toBeGreaterThanOrEqual(3);
   });
 
@@ -328,7 +330,8 @@ describe("createBookMcpEndpoint", () => {
     const endpoint = createFixtureEndpoint();
     const response = endpoint.GET();
     const body = (await response.json()) as {
-      agentProfile: { recommendedQueryOrder: string[]; resources: { supportsListPagination: boolean } };
+      agentProfile: { recommendedQueryOrder: string[]; resources: { supportsListPagination: boolean; supportsSectionIndex: boolean; supportsChunking: boolean } };
+      resourceReadOptions: { supportsSectionIndex: boolean; supportsChunking: boolean; params: string[] };
       tools: string[];
       toolMetadata: Array<{ name: string; expectedRuntimeClass: string; retryPolicyGuidance: string; failureClassTaxonomy: string[] }>;
       resourceKinds: string[];
@@ -349,6 +352,13 @@ describe("createBookMcpEndpoint", () => {
     expect(createBookMetadata?.retryPolicyGuidance).toContain("Retry");
     expect(createBookMetadata?.failureClassTaxonomy).toContain("filesystem");
     expect(body.agentProfile.resources.supportsListPagination).toBe(true);
+    expect(body.agentProfile.resources.supportsSectionIndex).toBe(true);
+    expect(body.agentProfile.resources.supportsChunking).toBe(true);
+    expect(body.resourceReadOptions.supportsSectionIndex).toBe(true);
+    expect(body.resourceReadOptions.supportsChunking).toBe(true);
+    expect(body.resourceReadOptions.params).toContain("sectionId");
+    expect(body.resourceReadOptions.params).toContain("offset");
+    expect(body.resourceReadOptions.params).toContain("limit");
     expect(body.resourceKinds).toContain("content");
     expect(body.resourceKinds).toContain("governance");
     expect(body.resourceSections).toContain("chapters");

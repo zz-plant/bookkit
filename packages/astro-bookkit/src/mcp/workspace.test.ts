@@ -25,7 +25,7 @@ afterEach(() => {
 
 const createFixtureContentRawModules = () => ({
   chapters: {
-    "src/content/book/chapters/00-overview.mdx": "---\ntitle: Overview\n---\n# Intro",
+    "src/content/book/chapters/00-overview.mdx": "---\ntitle: Overview\n---\n# Intro\nLine A\n## Deep Dive\nLine B",
   },
   mechanisms: {},
   toolkit: {},
@@ -119,4 +119,69 @@ describe("createBookMcpEndpointFromWorkspace", () => {
     expect(uris).not.toContain("bookkit://governance/CONTRIBUTING.md");
     expect(uris).not.toContain("bookkit://governance/AGENTS.md");
   });
+
+  it("publishes chunking descriptors and supports section-indexed chunk reads", async () => {
+    const workspaceRoot = createTempDir();
+    const startDir = resolve(workspaceRoot, "apps/demo/src/pages/api");
+    mkdirSync(startDir, { recursive: true });
+
+    writeFileSync(resolve(workspaceRoot, "README.md"), "# README\n");
+    writeFileSync(resolve(workspaceRoot, "CONTRIBUTING.md"), "# CONTRIBUTING\n");
+    writeFileSync(resolve(workspaceRoot, "AGENTS.md"), "# AGENTS\n");
+    writeFileSync(resolve(workspaceRoot, "package.json"), '{"name":"fixture","scripts":{}}');
+
+    const endpoint = createBookMcpEndpointFromWorkspace({
+      startDir,
+      bookTitle: "Fixture",
+      contentRawModules: createFixtureContentRawModules(),
+    });
+
+    const listResponse = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "resources/list", params: { kind: "governance" } }),
+      }),
+    });
+
+    const listBody = (await listResponse.json()) as {
+      result: {
+        resources: Array<{ uri: string; supportsChunking: boolean; supportsSectionIndex: boolean }>;
+      };
+    };
+    const readmeResource = listBody.result.resources.find((resource) => resource.uri === "bookkit://governance/README.md");
+
+    expect(readmeResource?.supportsChunking).toBe(true);
+    expect(readmeResource?.supportsSectionIndex).toBe(true);
+
+    const readResponse = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 4,
+          method: "resources/read",
+          params: { uri: "bookkit://content/chapters/00-overview", sectionId: "sec-intro", offset: 1, limit: 1 },
+        }),
+      }),
+    });
+
+    const readBody = (await readResponse.json()) as {
+      result: {
+        contents: Array<{
+          text: string;
+          metadata: { sectionId: string; chunkId: string; offset: number; limit: number; sectionIndex: Array<{ id: string }> };
+        }>;
+      };
+    };
+
+    expect(readBody.result.contents[0].text).toBe("Line A");
+    expect(readBody.result.contents[0].metadata.sectionId).toBe("sec-intro");
+    expect(readBody.result.contents[0].metadata.offset).toBe(1);
+    expect(readBody.result.contents[0].metadata.limit).toBe(1);
+    expect(readBody.result.contents[0].metadata.chunkId).toContain("#sec-intro:");
+    expect(readBody.result.contents[0].metadata.sectionIndex.map((entry) => entry.id)).toEqual(["sec-intro", "sec-deep-dive"]);
+  });
+
 });

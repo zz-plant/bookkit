@@ -13,5 +13,7 @@ describe("createGovernanceResourcesFromFiles", () => {
     expect(commandReference?.text).toContain("# Root command reference");
     expect(commandReference?.text).toContain("bun run list:books");
     expect(commandReference?.mimeType).toBe("text/markdown");
+    expect(commandReference?.supportsChunking).toBe(true);
+    expect(commandReference?.supportsSectionIndex).toBe(true);
   });
 });

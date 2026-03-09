@@ -31,7 +31,9 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
         resourceSections,
         resourceReadOptions: {
           supportsLineRanges: true,
-          params: ["startLine", "endLine"],
+          supportsSectionIndex: true,
+          supportsChunking: true,
+          params: ["startLine", "endLine", "sectionId", "offset", "limit"],
         },
         tools: TOOL_NAMES,
         toolCategories: {
@@ -85,6 +87,8 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
           ],
           resources: {
             supportsLineRanges: true,
+            supportsSectionIndex: true,
+            supportsChunking: true,
             supportsListFiltering: true,
             supportsListPagination: true,
           },

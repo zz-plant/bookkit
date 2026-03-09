@@ -3,6 +3,92 @@ import { CONTENT_TYPES, type ContentTypeKey, type McpResourceInput, type Resourc
 
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---/;
 const FRONTMATTER_LINE_PATTERN = /^([A-Za-z0-9_-]+)\s*:\s*(.+)$/;
+const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
+
+export type ResourceSection = {
+  id: string;
+  title: string;
+  level: number;
+  startLine: number;
+  endLine: number;
+};
+
+export type ResourceChunk = {
+  text: string;
+  startLine: number;
+  endLine: number;
+  totalLines: number;
+  chunkId: string;
+  sectionId: string | null;
+  sectionStartLine: number;
+  sectionEndLine: number;
+  offset: number;
+  limit: number;
+  totalSectionLines: number;
+  sectionIndex: ResourceSection[];
+};
+
+const slugifySection = (value: string): string => {
+  return value
+    .toLowerCase()
+    .replace(/["'`]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "section";
+};
+
+const parseNonNegativeInteger = (value: number | undefined, fallback: number): number => {
+  if (typeof value !== "number") return fallback;
+  const normalized = Number.isFinite(value) ? Math.floor(value) : fallback;
+  return Math.max(0, normalized);
+};
+
+const parsePositiveInteger = (value: number | undefined, fallback: number): number => {
+  if (typeof value !== "number") return fallback;
+  const normalized = Number.isFinite(value) ? Math.floor(value) : fallback;
+  return Math.max(1, normalized);
+};
+
+export const buildSectionIndex = (text: string): ResourceSection[] => {
+  const lines = text.split("\n");
+  const sections: Array<Omit<ResourceSection, "endLine">> = [];
+  const slugCounts = new Map<string, number>();
+
+  lines.forEach((line, index) => {
+    const headingMatch = line.match(HEADING_PATTERN);
+    if (!headingMatch) return;
+
+    const level = headingMatch[1].length;
+    const title = headingMatch[2].trim();
+    const baseSlug = slugifySection(title);
+    const count = (slugCounts.get(baseSlug) ?? 0) + 1;
+    slugCounts.set(baseSlug, count);
+    const id = count === 1 ? `sec-${baseSlug}` : `sec-${baseSlug}-${count}`;
+
+    sections.push({
+      id,
+      title,
+      level,
+      startLine: index + 1,
+    });
+  });
+
+  if (sections.length === 0) {
+    return [
+      {
+        id: "sec-root",
+        title: "Document",
+        level: 1,
+        startLine: 1,
+        endLine: Math.max(lines.length, 1),
+      },
+    ];
+  }
+
+  return sections.map((section, index) => ({
+    ...section,
+    endLine: (sections[index + 1]?.startLine ?? (lines.length + 1)) - 1,
+  }));
+};
 
 export const extractFrontmatterField = (raw: string, field: string): string | null => {
   const match = raw.match(FRONTMATTER_PATTERN);
@@ -63,6 +149,8 @@ export const listResources = (
         mimeType: "text/markdown",
         kind: "content",
         section: type,
+        supportsChunking: true,
+        supportsSectionIndex: true,
       };
     });
   });
@@ -74,6 +162,8 @@ export const listResources = (
     mimeType: resource.mimeType ?? "text/markdown",
     kind: "governance",
     section: undefined,
+    supportsChunking: resource.supportsChunking ?? true,
+    supportsSectionIndex: resource.supportsSectionIndex ?? true,
   }));
 
   return [...contentResources, ...governance];
@@ -118,18 +208,58 @@ export const readResource = (
   return { mimeType: "text/markdown", text: match[1] };
 };
 
-export const buildResourceChunk = (uri: string, text: string, params: ResourceReadParams) => {
+export const buildResourceChunk = (uri: string, text: string, params: ResourceReadParams): ResourceChunk | null => {
   const lines = text.split("\n");
-  const totalLines = lines.length;
-  const startRaw = typeof params.startLine === "number" ? Math.floor(params.startLine) : 1;
-  const endRaw = typeof params.endLine === "number" ? Math.floor(params.endLine) : totalLines;
-  const startLine = Math.min(Math.max(startRaw, 1), totalLines || 1);
-  const endLine = Math.min(Math.max(endRaw, startLine), totalLines || startLine);
+  const totalLines = Math.max(lines.length, 1);
+  const sectionIndex = buildSectionIndex(text);
+
+  const selectedSection = params.sectionId
+    ? sectionIndex.find((section) => section.id === params.sectionId)
+    : {
+      id: "sec-root",
+      title: "Document",
+      level: 1,
+      startLine: 1,
+      endLine: totalLines,
+    };
+
+  if (!selectedSection) return null;
+
+  const sectionStartLine = selectedSection.startLine;
+  const sectionEndLine = selectedSection.endLine;
+  const totalSectionLines = Math.max(sectionEndLine - sectionStartLine + 1, 1);
+
+  const hasLineRange = typeof params.startLine === "number" || typeof params.endLine === "number";
+  const rangeStartRaw = typeof params.startLine === "number" ? Math.floor(params.startLine) : sectionStartLine;
+  const rangeEndRaw = typeof params.endLine === "number" ? Math.floor(params.endLine) : sectionEndLine;
+
+  const boundedStart = Math.min(Math.max(rangeStartRaw, sectionStartLine), sectionEndLine);
+  const boundedEnd = Math.min(Math.max(rangeEndRaw, boundedStart), sectionEndLine);
+
+  const rangeStartLine = hasLineRange ? boundedStart : sectionStartLine;
+  const rangeEndLine = hasLineRange ? boundedEnd : sectionEndLine;
+
+  const boundedRangeLines = Math.max(rangeEndLine - rangeStartLine + 1, 1);
+  const offset = parseNonNegativeInteger(params.offset, 0);
+  const limit = Math.min(parsePositiveInteger(params.limit, boundedRangeLines), 1000);
+  const effectiveOffset = Math.min(offset, Math.max(boundedRangeLines - 1, 0));
+
+  const chunkStartLine = rangeStartLine + effectiveOffset;
+  const chunkEndLine = Math.min(chunkStartLine + limit - 1, rangeEndLine);
+
+  const sectionRef = selectedSection.id;
   return {
-    text: lines.slice(startLine - 1, endLine).join("\n"),
-    startLine,
-    endLine,
+    text: lines.slice(chunkStartLine - 1, chunkEndLine).join("\n"),
+    startLine: chunkStartLine,
+    endLine: chunkEndLine,
     totalLines,
-    chunkId: `${uri}#L${startLine}-L${endLine}`,
+    chunkId: `${uri}#${sectionRef}:L${chunkStartLine}-L${chunkEndLine}`,
+    sectionId: sectionRef,
+    sectionStartLine,
+    sectionEndLine,
+    offset: effectiveOffset,
+    limit,
+    totalSectionLines,
+    sectionIndex,
   };
 };

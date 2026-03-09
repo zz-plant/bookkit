@@ -44,11 +44,31 @@ export const handleRequest = (options: McpEndpointOptions, request: JsonRpcReque
         return createJsonRpcError(id, -32602, `Resource not found for URI: ${uri}. Call resources/list to discover valid URIs, then retry resources/read.`);
       }
       const chunk = buildResourceChunk(uri, resource.text, params ?? {});
+      if (!chunk) {
+        return createInvalidParamsError(id, `Unknown sectionId: ${params?.sectionId}. Call resources/read without sectionId to inspect available section metadata and retry.`);
+      }
       return {
         jsonrpc: "2.0",
         id,
         result: {
-          contents: [{ uri, mimeType: resource.mimeType, text: chunk.text, metadata: { chunkId: chunk.chunkId, startLine: chunk.startLine, endLine: chunk.endLine, totalLines: chunk.totalLines } }],
+          contents: [{
+            uri,
+            mimeType: resource.mimeType,
+            text: chunk.text,
+            metadata: {
+              chunkId: chunk.chunkId,
+              startLine: chunk.startLine,
+              endLine: chunk.endLine,
+              totalLines: chunk.totalLines,
+              sectionId: chunk.sectionId,
+              sectionStartLine: chunk.sectionStartLine,
+              sectionEndLine: chunk.sectionEndLine,
+              offset: chunk.offset,
+              limit: chunk.limit,
+              totalSectionLines: chunk.totalSectionLines,
+              sectionIndex: chunk.sectionIndex,
+            },
+          }],
         },
       };
     }

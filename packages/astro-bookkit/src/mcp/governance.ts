@@ -126,6 +126,8 @@ const createRootScriptsCommandReference = (rootDir: string): McpResourceInput =>
     description: "Deterministic command list generated from root package scripts metadata.",
     mimeType: "text/markdown",
     text: lines.join("\n"),
+    supportsChunking: true,
+    supportsSectionIndex: true,
   };
 };
 
@@ -144,6 +146,8 @@ export const createGovernanceResourcesFromFiles = (
         description: definition.description,
         mimeType: definition.mimeType,
         text: readFileSync(filePath, "utf8"),
+        supportsChunking: true,
+        supportsSectionIndex: true,
       }];
     } catch (error) {
       if (options.allowMissingFiles) {

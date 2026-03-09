@@ -16,6 +16,8 @@ export type McpResourceInput = {
   description?: string;
   mimeType?: string;
   text: string;
+  supportsChunking?: boolean;
+  supportsSectionIndex?: boolean;
 };
 
 export type JsonRpcRequest = {
@@ -44,6 +46,9 @@ export type ResourceReadParams = {
   uri?: string;
   startLine?: number;
   endLine?: number;
+  sectionId?: string;
+  offset?: number;
+  limit?: number;
 };
 
 export type ResourceListParams = {
@@ -87,7 +92,9 @@ export type DiscoveryResponse = {
   resourceCategories: ResourceCategory[];
   resourceReadOptions: {
     supportsLineRanges: boolean;
-    params: ["startLine", "endLine"];
+    supportsSectionIndex: boolean;
+    supportsChunking: boolean;
+    params: ["startLine", "endLine", "sectionId", "offset", "limit"];
   };
   tools: string[];
   toolCategories: Record<ToolCategory, string[]>;
@@ -110,6 +117,8 @@ export type DiscoveryResponse = {
     recommendedQueryOrder: string[];
     resources: {
       supportsLineRanges: boolean;
+      supportsSectionIndex: boolean;
+      supportsChunking: boolean;
       supportsListFiltering: boolean;
       supportsListPagination: boolean;
     };

@@ -1,11 +1,14 @@
 import type { FrameDefinition } from "../frames/types";
+import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type FrameValidationResult = {
   missingRequiredSteps: string[];
+  errors: NormalizedErrorPayload[];
 };
 
 export type FrameDefinitionValidationResult = {
   duplicateStepIds: string[];
+  errors: NormalizedErrorPayload[];
 };
 
 const findDuplicateIds = (ids: string[]): string[] => {
@@ -32,13 +35,33 @@ export const validateFrameSteps = (
     (id) => !presentStepIds.includes(id),
   );
 
-  return { missingRequiredSteps };
+  const errors = missingRequiredSteps.map((stepId) => ({
+    machineCode: "FRAME_REQUIRED_STEP_MISSING",
+    humanSummary: `Frame \"${frame.slug}\" is missing required step \"${stepId}\".`,
+    location: { module: "validators/frame", file: frame.slug },
+    failingRule: "required frame step must be present",
+    nextAction: `Add step \"${stepId}\" to the frame content before validating again.`,
+    severity: "error",
+    gateLevel: "blocking",
+  } satisfies NormalizedErrorPayload));
+
+  return { missingRequiredSteps, errors };
 };
 
 export const validateFrameDefinition = (
   frame: FrameDefinition,
 ): FrameDefinitionValidationResult => {
   const stepIds = frame.steps.map((step) => step.id);
+  const duplicateStepIds = findDuplicateIds(stepIds);
+  const errors = duplicateStepIds.map((stepId) => ({
+    machineCode: "FRAME_DUPLICATE_STEP_ID",
+    humanSummary: `Frame \"${frame.slug}\" defines duplicate step id \"${stepId}\".`,
+    location: { module: "validators/frame", file: frame.slug },
+    failingRule: "frame step ids must be unique",
+    nextAction: `Rename one of the \"${stepId}\" steps to a unique id.`,
+    severity: "error",
+    gateLevel: "blocking",
+  } satisfies NormalizedErrorPayload));
 
-  return { duplicateStepIds: findDuplicateIds(stepIds) };
+  return { duplicateStepIds, errors };
 };

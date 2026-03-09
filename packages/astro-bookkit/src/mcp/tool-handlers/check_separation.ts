@@ -1,5 +1,15 @@
 import { runWorkspaceCommand } from "../command-runner";
 import type { ToolHandler } from "./types";
+import { separationCommandFailedError } from "../../validators/governance-errors";
+
+export const toCheckSeparationFailure = (exitCode: number) => {
+  const normalized = separationCommandFailedError(exitCode);
+  return {
+    cause: normalized.humanSummary,
+    nextAction: normalized.nextAction,
+    ...normalized,
+  };
+};
 
 export const handleCheckSeparation: ToolHandler = ({ options }) => {
   const command = runWorkspaceCommand(options.workspaceRoot, ["run", "check:separation"]);
@@ -15,9 +25,6 @@ export const handleCheckSeparation: ToolHandler = ({ options }) => {
     },
     error: command.ok
       ? undefined
-      : {
-          cause: `check:separation returned exit code ${command.exitCode}.`,
-          nextAction: "Resolve boundary violations, then re-run bun run check:separation.",
-        },
+      : toCheckSeparationFailure(command.exitCode),
   };
 };

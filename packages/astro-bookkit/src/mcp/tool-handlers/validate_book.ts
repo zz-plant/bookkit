@@ -1,16 +1,31 @@
 import { runWorkspaceCommand } from "../command-runner";
 import type { ToolHandler } from "./types";
+import {
+  missingBookSlugError,
+  validateBookCommandFailedError,
+} from "../../validators/governance-errors";
+
+export const toValidateBookFailure = (exitCode: number) => {
+  const normalized = validateBookCommandFailedError(exitCode);
+  return {
+    cause: normalized.humanSummary,
+    nextAction: normalized.nextAction,
+    ...normalized,
+  };
+};
 
 export const handleValidateBook: ToolHandler = ({ options, args }) => {
   const rawBook = args?.book;
   const book = typeof rawBook === "string" && rawBook.trim().length ? rawBook.trim() : options.bookSlug;
   if (!book) {
+    const normalized = missingBookSlugError();
     return {
       ok: false,
-      summary: "Book validation requires a slug.",
+      summary: normalized.humanSummary,
       error: {
-        cause: "Missing required arguments.book and no default endpoint book slug is configured.",
-        nextAction: "Provide a book slug in arguments.book and rerun bookkit.validate_book.",
+        cause: normalized.humanSummary,
+        nextAction: normalized.nextAction,
+        ...normalized,
       },
     };
   }
@@ -28,9 +43,6 @@ export const handleValidateBook: ToolHandler = ({ options, args }) => {
     },
     error: command.ok
       ? undefined
-      : {
-          cause: `validate:book returned exit code ${command.exitCode}.`,
-          nextAction: "Fix the reported validation errors, then re-run bun run validate:book -- --book <slug>.",
-        },
+      : toValidateBookFailure(command.exitCode),
   };
 };

@@ -2,7 +2,15 @@ import { jsonResponse, tryParseJsonBody } from "../utils/http";
 import { handleRequest, createJsonRpcError } from "./jsonrpc-router";
 import { listResources } from "./resource-utils";
 import { TOOL_DEFINITIONS, TOOL_NAMES } from "./tool-definitions";
-import { DEFAULT_RESOURCE_PREFIX, type ContentTypeKey, type JsonRpcRequest, type McpEndpointOptions, type McpResourceInput } from "./types";
+import {
+  DEFAULT_RESOURCE_PREFIX,
+  RESOURCE_CATEGORIES,
+  type ContentTypeKey,
+  type DiscoveryResponse,
+  type JsonRpcRequest,
+  type McpEndpointOptions,
+  type McpResourceInput,
+} from "./types";
 
 export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
   const resourcePrefix = options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX;
@@ -14,7 +22,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
       const resourceSections = Array.from(
         new Set(resources.map((resource) => resource.section).filter((section): section is ContentTypeKey => Boolean(section))),
       );
-      return jsonResponse({
+      const discoveryResponse: DiscoveryResponse = {
         ok: true,
         bookTitle: options.bookTitle,
         description: options.bookDescription ?? null,
@@ -26,12 +34,42 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
           params: ["startLine", "endLine"],
         },
         tools: TOOL_NAMES,
+        toolCategories: {
+          workspace: ["bookkit.create_book"],
+          discovery: ["bookkit.list_books", "bookkit.list_content", "bookkit.list_skills"],
+          content: ["bookkit.read_book", "bookkit.list_mechanisms"],
+          governance: ["bookkit.validate_book", "bookkit.check_separation"],
+        },
         toolMetadata: TOOL_DEFINITIONS,
+        resourceCategories: RESOURCE_CATEGORIES,
+        safetyFlags: {
+          read_only: true,
+          mutating: true,
+          requires_guard: true,
+        },
         rateLimits: {
           requestsPerMinute: 120,
           burst: 30,
           guidance: "On throttling, back off and retry read-only operations first.",
+          retryAfterSeconds: 10,
         },
+        recommendedQueryPatterns: [
+          {
+            label: "governance-first",
+            intent: "Read contributor and policy constraints before tool calls.",
+            sequence: ["resources/list?kind=governance", "resources/read?uri=bookkit://governance/AGENTS.md"],
+          },
+          {
+            label: "mechanism-discovery",
+            intent: "Inventory mechanisms and then fetch targeted content chunks.",
+            sequence: ["tools/call(bookkit.list_mechanisms)", "resources/read?uri=bookkit://content/mechanisms/<slug>"],
+          },
+          {
+            label: "safe-mutation",
+            intent: "Validate existing state before any mutating workspace operation.",
+            sequence: ["tools/call(bookkit.list_books)", "tools/call(bookkit.create_book)", "tools/call(bookkit.validate_book)"],
+          },
+        ],
         agentProfile: {
           safetyMode: "safe-first",
           mutatingTools: ["bookkit.create_book"],
@@ -51,7 +89,9 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
             supportsListPagination: true,
           },
         },
-      });
+      };
+
+      return jsonResponse(discoveryResponse);
     },
     POST: async ({ request }: { request: Request }) => {
       const parsed = await tryParseJsonBody(request);

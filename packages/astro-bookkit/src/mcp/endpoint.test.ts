@@ -310,7 +310,11 @@ describe("createBookMcpEndpoint", () => {
       tools: string[];
       resourceKinds: string[];
       resourceSections: string[];
-      rateLimits: { requestsPerMinute: number; burst: number };
+      resourceCategories: Array<{ key: string; sections: string[] }>;
+      toolCategories: Record<string, string[]>;
+      safetyFlags: { read_only: boolean; mutating: boolean; requires_guard: boolean };
+      rateLimits: { requestsPerMinute: number; burst: number; retryAfterSeconds: number; guidance: string };
+      recommendedQueryPatterns: Array<{ label: string; sequence: string[] }>;
     };
 
     expect(body.agentProfile.recommendedQueryOrder[0]).toBe("bookkit://governance/AGENTS.md");
@@ -323,5 +327,19 @@ describe("createBookMcpEndpoint", () => {
     expect(body.resourceSections).toContain("chapters");
     expect(body.rateLimits.requestsPerMinute).toBe(120);
     expect(body.rateLimits.burst).toBe(30);
+    expect(body.resourceCategories.find((category) => category.key === "content")?.sections).toContain("chapters");
+    expect(body.resourceCategories.find((category) => category.key === "governance")?.sections).toContain("governance");
+    expect(body.toolCategories.workspace).toContain("bookkit.create_book");
+    expect(body.toolCategories.discovery).toContain("bookkit.list_skills");
+    expect(body.toolCategories.content).toContain("bookkit.read_book");
+    expect(body.toolCategories.governance).toContain("bookkit.validate_book");
+    expect(body.safetyFlags.read_only).toBe(true);
+    expect(body.safetyFlags.mutating).toBe(true);
+    expect(body.safetyFlags.requires_guard).toBe(true);
+    expect(body.rateLimits.guidance).toContain("back off");
+    expect(body.rateLimits.retryAfterSeconds).toBe(10);
+    expect(body.recommendedQueryPatterns.find((pattern) => pattern.label === "governance-first")?.sequence[0]).toContain(
+      "resources/list?kind=governance",
+    );
   });
 });

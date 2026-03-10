@@ -1,4 +1,4 @@
-# User journey critique — Bad People
+# User journey critique — Running Hot
 
 This walkthrough evaluates three common reader journeys using the current app surfaces and implementation behavior.
 

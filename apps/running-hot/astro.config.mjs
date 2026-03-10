@@ -3,7 +3,7 @@ import mdx from "@astrojs/mdx";
 import { rehypeBookkitHeadingIds } from "@bookkit/astro-bookkit";
 
 export default defineConfig({
-  site: "https://bad-people.book",
+  site: "https://running-hot.book",
   integrations: [mdx({ rehypePlugins: [rehypeBookkitHeadingIds] })],
   vite: {
     ssr: {

@@ -1,7 +1,7 @@
-# SEO audit — bad-people.book
+# SEO audit — running-hot.book
 
 Date: 2026-02-11
-Scope: `apps/bad-people` + shared SEO pipeline in `packages/astro-bookkit/src/seo`
+Scope: `apps/running-hot` + shared SEO pipeline in `packages/astro-bookkit/src/seo`
 
 > Open issues tracked in tech-debt register: [TD-003](../../../docs/tech-debt-register.md#td-003).
 
@@ -40,6 +40,6 @@ These are not blocking the build, but should be cleaned up in a future maintenan
 
 ## Architectural boundary check
 
-- Book-specific indexability behavior remains in `apps/bad-people/src/book.config.ts`.
+- Book-specific indexability behavior remains in `apps/running-hot/src/book.config.ts`.
 - Reusable metadata capability is implemented in `packages/astro-bookkit`.
 - No book-specific logic was placed in content files.

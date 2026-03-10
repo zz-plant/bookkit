@@ -6,5 +6,5 @@ export const { GET, getStaticPaths } = createChapterExportHandlers({
   chapterExportSlugs,
   getChapterExportBundle,
   format: "pdf",
-  filenamePrefix: "bad-people",
+  filenamePrefix: "running-hot",
 });

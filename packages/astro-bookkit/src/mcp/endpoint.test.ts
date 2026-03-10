@@ -198,6 +198,53 @@ describe("createBookMcpEndpoint", () => {
     expect(body.result.nextCursor).toBe("1");
   });
 
+  it("returns invalid-params for malformed resources/list cursor and limit", async () => {
+    const endpoint = createFixtureEndpoint();
+    const invalidCursorValues = ["1x", "-1", "01"];
+
+    for (const cursor of invalidCursorValues) {
+      const response = await endpoint.POST({
+        request: new Request("http://localhost/api/mcp.json", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 40,
+            method: "resources/list",
+            params: { cursor },
+          }),
+        }),
+      });
+
+      const body = (await response.json()) as { error: { code: number; message: string } };
+      expect(body.error.code).toBe(-32602);
+      expect(body.error.message).toContain("Invalid params");
+      expect(body.error.message).toContain("cursor");
+    }
+
+    const invalidLimitValues = [0, -1, "1"];
+
+    for (const limit of invalidLimitValues) {
+      const response = await endpoint.POST({
+        request: new Request("http://localhost/api/mcp.json", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 41,
+            method: "resources/list",
+            params: { limit },
+          }),
+        }),
+      });
+
+      const body = (await response.json()) as { error: { code: number; message: string } };
+      expect(body.error.code).toBe(-32602);
+      expect(body.error.message).toContain("Invalid params");
+      expect(body.error.message).toContain("limit");
+    }
+  });
+
   it("returns actionable tool payload when validate_book is missing book context", async () => {
     const endpoint = createBookMcpEndpoint({
       bookTitle: "No Slug",

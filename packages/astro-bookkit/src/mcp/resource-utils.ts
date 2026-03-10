@@ -4,6 +4,7 @@ import { CONTENT_TYPES, type ContentTypeKey, type McpResourceInput, type Resourc
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---/;
 const FRONTMATTER_LINE_PATTERN = /^([A-Za-z0-9_-]+)\s*:\s*(.+)$/;
 const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
+const CURSOR_PATTERN = /^(0|[1-9][0-9]*)$/;
 
 export type ResourceSection = {
   id: string;
@@ -179,14 +180,20 @@ export const listPagedResources = (
     return true;
   });
 
-  const offset = Number.parseInt(params.cursor ?? "0", 10);
-  const start = Number.isFinite(offset) && offset >= 0 ? offset : 0;
+  const start = parseCursor(params.cursor);
+  if (start === null) throw new Error(`Invalid cursor: ${params.cursor}`);
   const limitRaw = typeof params.limit === "number" ? Math.floor(params.limit) : 50;
   const limit = Math.max(1, Math.min(200, limitRaw));
   const page = filtered.slice(start, start + limit);
   const nextCursor = start + limit < filtered.length ? String(start + limit) : null;
 
   return { resources: page, nextCursor };
+};
+
+export const parseCursor = (cursor: string | undefined): number | null => {
+  if (cursor === undefined) return 0;
+  if (!CURSOR_PATTERN.test(cursor)) return null;
+  return Number.parseInt(cursor, 10);
 };
 
 export const readResource = (

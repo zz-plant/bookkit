@@ -1,5 +1,5 @@
 import { isToolName, TOOL_DEFINITIONS } from "./tool-definitions";
-import { buildResourceChunk, listPagedResources, listResources, readResource } from "./resource-utils";
+import { buildResourceChunk, listPagedResources, listResources, parseCursor, readResource } from "./resource-utils";
 import { runTool } from "./tool-handlers";
 import { DEFAULT_RESOURCE_PREFIX, type JsonRpcError, type JsonRpcRequest, type JsonRpcSuccess, type McpEndpointOptions, type ResourceListParams, type ResourceReadParams } from "./types";
 
@@ -31,8 +31,20 @@ export const handleRequest = (options: McpEndpointOptions, request: JsonRpcReque
         },
       };
     case "resources/list": {
+      const params = request.params as ResourceListParams | undefined;
+
+      if (params?.cursor !== undefined && parseCursor(params.cursor) === null) {
+        return createInvalidParamsError(id, `cursor must match /^(0|[1-9][0-9]*)$/. Received: ${JSON.stringify(params.cursor)}.`);
+      }
+
+      if (params?.limit !== undefined) {
+        if (typeof params.limit !== "number" || !Number.isFinite(params.limit) || Math.floor(params.limit) < 1) {
+          return createInvalidParamsError(id, `limit must be a number greater than or equal to 1. Received: ${JSON.stringify(params.limit)}.`);
+        }
+      }
+
       const listed = listResources(options.contentRawModules, options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX, options.governanceResources);
-      const paged = listPagedResources(listed, request.params as ResourceListParams | undefined);
+      const paged = listPagedResources(listed, params);
       return { jsonrpc: "2.0", id, result: { resources: paged.resources, nextCursor: paged.nextCursor } };
     }
     case "resources/read": {

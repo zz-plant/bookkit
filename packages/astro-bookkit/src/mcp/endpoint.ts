@@ -105,11 +105,20 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
       if (!payload) return jsonResponse(createJsonRpcError(null, -32600, "Missing JSON-RPC payload."), 400);
 
       if (Array.isArray(payload)) {
-        const responses = payload.filter((item): item is JsonRpcRequest => Boolean(item)).map((item) => handleRequest(options, item));
+        const responses = payload
+          .filter((item): item is JsonRpcRequest => Boolean(item))
+          .map((item) => handleRequest(options, item))
+          .filter((response): response is NonNullable<ReturnType<typeof handleRequest>> => response !== null);
+
+        if (responses.length === 0) return new Response(null, { status: 204 });
+
         return jsonResponse(responses);
       }
 
-      return jsonResponse(handleRequest(options, payload as JsonRpcRequest));
+      const response = handleRequest(options, payload as JsonRpcRequest);
+      if (response === null) return new Response(null, { status: 204 });
+
+      return jsonResponse(response);
     },
   };
 };

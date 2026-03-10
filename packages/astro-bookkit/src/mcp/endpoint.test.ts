@@ -28,6 +28,57 @@ const createFixtureEndpoint = () => {
 };
 
 describe("createBookMcpEndpoint", () => {
+
+  it("returns no content for a single notification request", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "tools/list" }),
+      }),
+    });
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
+  });
+
+  it("returns only non-notification responses for mixed batches", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify([
+          { jsonrpc: "2.0", id: 12, method: "tools/list" },
+          { jsonrpc: "2.0", method: "tools/list" },
+        ]),
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Array<{ id: number; result: { tools: unknown[] } }>;
+    expect(body).toHaveLength(1);
+    expect(body[0].id).toBe(12);
+    expect(body[0].result.tools.length).toBeGreaterThan(0);
+  });
+
+  it("returns no content for notification-only batches", async () => {
+    const endpoint = createFixtureEndpoint();
+    const response = await endpoint.POST({
+      request: new Request("http://localhost/api/mcp.json", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify([
+          { jsonrpc: "2.0", method: "tools/list" },
+          { jsonrpc: "2.0", method: "resources/list" },
+        ]),
+      }),
+    });
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
+  });
   it("lists governance resources alongside content resources", async () => {
     const endpoint = createFixtureEndpoint();
     const response = await endpoint.POST({

@@ -1,7 +1,7 @@
-# Current feature specs — Bad People (app layer)
+# Current feature specs — Running Hot (app layer)
 
-This document captures the feature set **as implemented in the Bad People app**.
-It focuses on the `apps/bad-people` surfaces and wiring that sit on top of the
+This document captures the feature set **as implemented in the Running Hot app**.
+It focuses on the `apps/running-hot` surfaces and wiring that sit on top of the
 Bookkit engine.
 
 ## Feature inventory (as built)
@@ -38,8 +38,8 @@ Bookkit engine.
 - The overview page is driven by `book.config.ts` values (objectives, frame, constraints).
 
 **Source references**
-- `apps/bad-people/src/pages/read/index.astro`
-- `apps/bad-people/src/pages/read/overview.astro`
+- `apps/running-hot/src/pages/read/index.astro`
+- `apps/running-hot/src/pages/read/overview.astro`
 
 ### Content index views
 
@@ -55,7 +55,7 @@ Bookkit engine.
 - Lists are localized via `createLocalizedContentList` with fallback and completeness labeling.
 
 **Source references**
-- `apps/bad-people/src/pages/read/chapters/index.astro`
+- `apps/running-hot/src/pages/read/chapters/index.astro`
 - `packages/astro-bookkit/src/components/ContentIndexList.astro`
 
 ### Global search
@@ -73,7 +73,7 @@ Bookkit engine.
 - `createBookSearchIndexEndpoint`/`createLocalizedSearchIndexEndpoint` compile the index response.
 
 **Source references**
-- `apps/bad-people/src/pages/search-index.json.ts`
+- `apps/running-hot/src/pages/search-index.json.ts`
 - `packages/astro-bookkit/src/layouts/BookLayout.astro`
 
 ### AI-assisted Q&A (local matching)
@@ -90,7 +90,7 @@ Bookkit engine.
 - Feature toggle is wired through `book.config.ts` → `createBookLayoutState` → `BookLayout`.
 
 **Source references**
-- `apps/bad-people/src/book.config.ts`
+- `apps/running-hot/src/book.config.ts`
 - `packages/astro-bookkit/src/book/layout.ts`
 - `packages/astro-bookkit/src/layouts/BookLayout.astro`
 
@@ -109,8 +109,8 @@ Bookkit engine.
 - RSS + release integrations are backed by engine helpers (`createReleaseNotesRssEndpoint`, webhooks/email endpoints).
 
 **Source references**
-- `apps/bad-people/src/pages/release-notes.astro`
-- `apps/bad-people/src/lib/versions.ts`
+- `apps/running-hot/src/pages/release-notes.astro`
+- `apps/running-hot/src/lib/versions.ts`
 - `packages/astro-bookkit/src/components/VersionSwitcher.astro`
 
 ### Reader feedback widgets
@@ -128,8 +128,8 @@ Bookkit engine.
 - Feedback events are collected via `createFeedbackEndpoint` and surfaced in `FeedbackDashboard`.
 
 **Source references**
-- `apps/bad-people/src/pages/api/feedback.json.ts`
-- `apps/bad-people/src/pages/read/analytics.astro`
+- `apps/running-hot/src/pages/api/feedback.json.ts`
+- `apps/running-hot/src/pages/read/analytics.astro`
 - `packages/astro-bookkit/src/components/FeedbackWidget.astro`
 
 ### Export formats (PDF/EPUB)
@@ -147,9 +147,9 @@ Bookkit engine.
 - Export analytics events are optionally posted to `/api/export-analytics.json`.
 
 **Source references**
-- `apps/bad-people/src/lib/exports.ts`
-- `apps/bad-people/src/pages/exports/book.pdf.ts`
-- `apps/bad-people/src/pages/read/chapters/index.astro`
+- `apps/running-hot/src/lib/exports.ts`
+- `apps/running-hot/src/pages/exports/book.pdf.ts`
+- `apps/running-hot/src/pages/read/chapters/index.astro`
 - `packages/astro-bookkit/src/exports/index.ts`
 
 ### Custom domain + SEO controls
@@ -167,9 +167,9 @@ Bookkit engine.
 - `createBookRobotsTxt` respects `site.indexable` and the configured site URL.
 
 **Source references**
-- `apps/bad-people/src/book.config.ts`
-- `apps/bad-people/src/pages/sitemap.xml.ts`
-- `apps/bad-people/src/pages/robots.txt.ts`
+- `apps/running-hot/src/book.config.ts`
+- `apps/running-hot/src/pages/sitemap.xml.ts`
+- `apps/running-hot/src/pages/robots.txt.ts`
 
 ### Analytics dashboard
 
@@ -186,8 +186,8 @@ Bookkit engine.
 - The shared `BookLayout` emits events for searches, exports, and Q&A usage.
 
 **Source references**
-- `apps/bad-people/src/pages/read/analytics.astro`
-- `apps/bad-people/src/pages/api/analytics.json.ts`
+- `apps/running-hot/src/pages/read/analytics.astro`
+- `apps/running-hot/src/pages/api/analytics.json.ts`
 - `packages/astro-bookkit/src/components/AnalyticsDashboard.astro`
 - `packages/astro-bookkit/src/layouts/BookLayout.astro`
 
@@ -207,10 +207,10 @@ Bookkit engine.
 - The preview dashboard surfaces tokens via `PreviewLinksPanel`.
 
 **Source references**
-- `apps/bad-people/src/book.config.ts`
-- `apps/bad-people/src/middleware.ts`
-- `apps/bad-people/src/pages/api/preview-analytics.json.ts`
-- `apps/bad-people/src/pages/read/analytics.astro`
+- `apps/running-hot/src/book.config.ts`
+- `apps/running-hot/src/middleware.ts`
+- `apps/running-hot/src/pages/api/preview-analytics.json.ts`
+- `apps/running-hot/src/pages/read/analytics.astro`
 
 ### Localization pipeline
 
@@ -228,9 +228,9 @@ Bookkit engine.
 - Locale metadata is surfaced in `createBookLayoutState` for layout rendering.
 
 **Source references**
-- `apps/bad-people/src/book.config.ts`
-- `apps/bad-people/src/middleware.ts`
-- `apps/bad-people/src/pages/read/index.astro`
+- `apps/running-hot/src/book.config.ts`
+- `apps/running-hot/src/middleware.ts`
+- `apps/running-hot/src/pages/read/index.astro`
 - `packages/astro-bookkit/src/book/layout.ts`
 
 ### Changelog + release note integrations
@@ -247,7 +247,7 @@ Bookkit engine.
 - Release integrations are wired via engine endpoints and reuse the same release modules.
 
 **Source references**
-- `apps/bad-people/src/pages/release-notes.xml.ts`
-- `apps/bad-people/src/pages/api/release-webhook.json.ts`
-- `apps/bad-people/src/pages/api/release-email.json.ts`
+- `apps/running-hot/src/pages/release-notes.xml.ts`
+- `apps/running-hot/src/pages/api/release-webhook.json.ts`
+- `apps/running-hot/src/pages/api/release-email.json.ts`
 - `packages/astro-bookkit/src/releases/endpoint.ts`

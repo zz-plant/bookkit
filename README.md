@@ -82,9 +82,10 @@ This keeps books recompilable while allowing iterative content edits.
 ├─ packages/
 │  └─ astro-bookkit/
 │     └─ src/
-│        ├─ compiler/
+│        ├─ book/
 │        ├─ frames/
-│        ├─ schemas/
+│        ├─ mcp/
+│        ├─ releases/
 │        └─ validators/
 └─ scripts/
 ```

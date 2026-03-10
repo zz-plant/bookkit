@@ -88,14 +88,15 @@ Examples:
 - frame requirement changes
 - schema shape changes
 - validation strictness updates
-- compiler ordering logic
+- ordering/entrypoint behavior changes
 
 Typical paths:
 
 - `packages/astro-bookkit/src/frames/**`
-- `packages/astro-bookkit/src/schemas/**`
 - `packages/astro-bookkit/src/validators/**`
-- `packages/astro-bookkit/src/compiler/**`
+- `packages/astro-bookkit/src/book/**`
+- `packages/astro-bookkit/src/mcp/**`
+- `packages/astro-bookkit/src/releases/**`
 
 Requirements:
 

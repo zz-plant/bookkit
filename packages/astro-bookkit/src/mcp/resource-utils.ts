@@ -1,8 +1,8 @@
 import type { BookContentRawModules } from "../book/entrypoints";
+import { load } from "js-yaml";
 import { CONTENT_TYPES, type ContentTypeKey, type McpResourceInput, type ResourceListParams, type ResourceReadParams } from "./types";
 
-const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---/;
-const FRONTMATTER_LINE_PATTERN = /^([A-Za-z0-9_-]+)\s*:\s*(.+)$/;
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
 
 export type ResourceSection = {
@@ -93,16 +93,25 @@ export const buildSectionIndex = (text: string): ResourceSection[] => {
 export const extractFrontmatterField = (raw: string, field: string): string | null => {
   const match = raw.match(FRONTMATTER_PATTERN);
   if (!match) return null;
-  const lines = match[1].split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const lineMatch = trimmed.match(FRONTMATTER_LINE_PATTERN);
-    if (!lineMatch) continue;
-    if (lineMatch[1].toLowerCase() === field.toLowerCase()) {
-      return lineMatch[2].replace(/^["']|["']$/g, "").trim();
+  const frontmatter = match[1];
+
+  try {
+    const parsed = load(frontmatter);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+    const rawValue = (parsed as Record<string, unknown>)[field];
+    if (typeof rawValue === "string") {
+      const trimmed = rawValue.trim();
+      return trimmed.length > 0 ? trimmed : null;
     }
+
+    if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+      return String(rawValue);
+    }
+  } catch {
+    return null;
   }
+
   return null;
 };
 

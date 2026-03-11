@@ -86,7 +86,10 @@ const activeReadSectionLabel =
             Search <span aria-hidden="true">⌘K</span>
           </button>
           <details class="site-nav__more" data-site-nav-more id="site-nav-more">
-            <summary class="site-nav__more-toggle">Menu</summary>
+            <summary class="site-nav__more-toggle">
+              Menu
+              <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
+            </summary>
             <div class="site-nav__overflow">
               <div class="site-nav__group site-nav__group--reader">
                 <p class="site-nav__group-label">Reader tools</p>
@@ -99,7 +102,10 @@ const activeReadSectionLabel =
               </div>
               {(hasVersions || localeEntries.length > 1) && (
                 <details class="site-settings" data-site-settings>
-                  <summary class="site-settings__toggle">View settings</summary>
+                  <summary class="site-settings__toggle">
+                    View settings
+                    <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
+                  </summary>
                   <div class="site-settings__panel">
                     {hasVersions && (
                       <VersionSwitcher
@@ -124,7 +130,10 @@ const activeReadSectionLabel =
                 </details>
               )}
               <details class="reader-settings" data-reader-settings>
-                <summary class="reader-settings__toggle">Reading view</summary>
+                <summary class="reader-settings__toggle">
+                  Reading view
+                  <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
+                </summary>
                 <div class="reader-settings__panel">
                   <p class="reader-settings__hint">Tune text spacing and font for this device.</p>
                   <div class="reader-settings__group" role="group" aria-label="Reading density">

@@ -264,12 +264,28 @@ const sectionBuckets = [
         if (!(tab instanceof HTMLButtonElement)) return;
         const active = tab.dataset.bucketTab === key;
         tab.setAttribute("aria-selected", active ? "true" : "false");
+        tab.setAttribute("tabindex", active ? "0" : "-1");
       });
       bucketPanels.forEach((panel) => {
         if (!(panel instanceof HTMLElement)) return;
         panel.hidden = panel.dataset.bucketPanel !== key;
       });
     };
+
+    const keyFromHash = () => window.location.hash.replace(/^#/, "").toLowerCase();
+
+    const syncBucketFromHash = () => {
+      const key = keyFromHash();
+      if (!key) return;
+      const hasMatchingPanel = bucketPanels.some(
+        (panel) => panel instanceof HTMLElement && panel.dataset.bucketPanel === key,
+      );
+      if (!hasMatchingPanel) return;
+      setActiveBucket(key);
+    };
+
+    syncBucketFromHash();
+    window.addEventListener("hashchange", syncBucketFromHash);
 
     bucketTabs.forEach((tab) => {
       if (!(tab instanceof HTMLButtonElement)) return;

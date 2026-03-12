@@ -381,6 +381,10 @@ a,
   display: contents;
 }
 
+.site-nav__overflow[hidden] {
+  display: none !important;
+}
+
 .site-nav__group-label {
   margin: 0;
   color: var(--color-muted);

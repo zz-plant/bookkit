@@ -7,7 +7,7 @@ Date: 2026-02-12
 - Governance and architecture docs (`README.md`, `AGENTS.md`)
 - Existing MCP/skills research (`docs/mcp-agent-skills-research.md`)
 - Current app and engine feature inventories (`apps/bad-people/specs/current-feature-specs-bad-people.md`, `packages/astro-bookkit/specs/current-feature-specs-bookkit.md`)
-- UX audits and TODO state (`UX_AUDIT.md`, `docs/ux-audit-bad-people.md`, `docs/ux-audit-bad-people-round-2.md`, `apps/bad-people/TODOS.md`)
+- UX audits and TODO state (`docs/audit-findings-consolidated.md`, `apps/bad-people/TODOS.md`)
 
 ## What the resource scan says
 

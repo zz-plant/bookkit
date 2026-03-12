@@ -1,8 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, basename } from "node:path";
 import { listBookDirs, optionalArg } from "./_lib";
-
-type FrontmatterValue = string | string[] | number | boolean | null;
+import { listContentFiles, parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
 
 const onlyBook = optionalArg("--book");
 const books = onlyBook ? [onlyBook] : listBookDirs();
@@ -98,75 +97,6 @@ for (const book of books) {
 }
 
 process.exit(issueCount === 0 ? 0 : 1);
-
-function listContentFiles(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listContentFiles(fullPath));
-    } else if (entry.isFile() && isContentFile(fullPath)) {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
-
-function isContentFile(path: string): boolean {
-  return path.endsWith(".md") || path.endsWith(".mdx");
-}
-
-function parseFrontmatter(content: string): { data: Record<string, FrontmatterValue>; hasFrontmatter: boolean } {
-  if (!content.startsWith("---")) {
-    return { data: {}, hasFrontmatter: false };
-  }
-  const end = content.indexOf("\n---", 3);
-  if (end === -1) return { data: {}, hasFrontmatter: false };
-  const raw = content.slice(3, end).trim();
-  const lines = raw.split(/\r?\n/);
-  const data: Record<string, FrontmatterValue> = {};
-  let currentKey: string | null = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const keyMatch = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(trimmed);
-    if (keyMatch) {
-      const key = keyMatch[1];
-      const valueRaw = keyMatch[2];
-      currentKey = key;
-      if (!valueRaw) {
-        data[key] = [];
-      } else {
-        data[key] = coerceValue(valueRaw);
-        currentKey = null;
-      }
-      continue;
-    }
-    const listMatch = /^-\s*(.*)$/.exec(trimmed);
-    if (listMatch && currentKey) {
-      const current = data[currentKey];
-      if (Array.isArray(current)) current.push(coerceValue(listMatch[1]) as string);
-    }
-  }
-
-  return { data, hasFrontmatter: true };
-}
-
-function coerceValue(value: string): FrontmatterValue {
-  const cleaned = value.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
-  if (cleaned === "true") return true;
-  if (cleaned === "false") return false;
-  if (cleaned !== "" && !Number.isNaN(Number(cleaned))) return Number(cleaned);
-  return cleaned;
-}
-
-function toStringValue(value: FrontmatterValue): string {
-  if (typeof value === "string") return value.trim();
-  return "";
-}
 
 function reportList(title: string, items: string[]) {
   if (items.length === 0) return;

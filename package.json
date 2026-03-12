@@ -41,7 +41,10 @@
     "validate:release:seo": "BOOKKIT_REQUIRE_INDEXABLE_PROD=true bun run scripts/validate-all.ts --mode error --no-drafts",
     "dev:running-hot": "bun run --filter @books/running-hot dev",
     "build:running-hot": "bun run --filter @books/running-hot build",
-    "setup:codex": "bash scripts/codex-setup.sh"
+    "setup:codex": "bash scripts/codex-setup.sh",
+    "check:todos": "bun run scripts/check-todos.ts",
+    "check:shims": "bun run scripts/check-shims.ts",
+    "sync:shims": "bun run scripts/check-shims.ts --write"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

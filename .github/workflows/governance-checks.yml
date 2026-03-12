@@ -29,3 +29,9 @@ jobs:
 
       - name: Type check
         run: bun run check:types
+
+      - name: TODO policy check
+        run: bun run check:todos
+
+      - name: Shim consistency check
+        run: bun run check:shims

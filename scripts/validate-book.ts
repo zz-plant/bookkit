@@ -1,14 +1,8 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { optionalArg, requireArg } from "./_lib";
-
-type FrontmatterValue = string | string[] | number | boolean | null;
-
-type Frontmatter = {
-  data: Record<string, FrontmatterValue>;
-  hasFrontmatter: boolean;
-};
+import { arrayValue, listContentFiles, parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
 
 type SeoSiteConfig = {
   url?: string;
@@ -251,79 +245,4 @@ function report(label: "warning" | "error", items: string[]) {
   if (items.length === 0) return;
   console.log(`\n${label.toUpperCase()}S (${items.length})`);
   for (const item of items) console.log(`- ${item}`);
-}
-
-function listContentFiles(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listContentFiles(fullPath));
-    } else if (entry.isFile() && isContentFile(fullPath)) {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
-
-function isContentFile(path: string): boolean {
-  if (path.endsWith(".md") || path.endsWith(".mdx")) return true;
-  return false;
-}
-
-function parseFrontmatter(content: string): Frontmatter {
-  if (!content.startsWith("---")) {
-    return { data: {}, hasFrontmatter: false };
-  }
-  const end = content.indexOf("\n---", 3);
-  if (end === -1) return { data: {}, hasFrontmatter: false };
-  const raw = content.slice(3, end).trim();
-  const lines = raw.split(/\r?\n/);
-  const data: Record<string, FrontmatterValue> = {};
-  let currentKey: string | null = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const keyMatch = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(trimmed);
-    if (keyMatch) {
-      const key = keyMatch[1];
-      const valueRaw = keyMatch[2];
-      currentKey = key;
-      if (!valueRaw) {
-        data[key] = [];
-      } else {
-        data[key] = coerceValue(valueRaw);
-        currentKey = null;
-      }
-      continue;
-    }
-    const listMatch = /^-\s*(.*)$/.exec(trimmed);
-    if (listMatch && currentKey) {
-      const current = data[currentKey];
-      if (Array.isArray(current)) current.push(coerceValue(listMatch[1]) as string);
-    }
-  }
-
-  return { data, hasFrontmatter: true };
-}
-
-function coerceValue(value: string): FrontmatterValue {
-  const cleaned = value.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
-  if (cleaned === "true") return true;
-  if (cleaned === "false") return false;
-  if (cleaned !== "" && !Number.isNaN(Number(cleaned))) return Number(cleaned);
-  return cleaned;
-}
-
-function toStringValue(value: FrontmatterValue): string {
-  if (typeof value === "string") return value.trim();
-  return "";
-}
-
-function arrayValue(value: FrontmatterValue): string[] {
-  if (Array.isArray(value)) return value.filter((item) => item.length > 0);
-  return [];
 }

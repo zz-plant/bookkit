@@ -112,6 +112,8 @@ const isReadRoute =
   normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
 const isDownloadsRoute = normalizedLocalePath === "/downloads";
 const isReadDetailRoute = isReadRoute && normalizedLocalePath !== "/read";
+const shouldLoadMermaidRuntime = isReadDetailRoute;
+const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
 const {
   resolvedRobots,
   resolvedOgTitle,
@@ -515,7 +517,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       </div>
     </div>
     <script type="module" src={bookLayoutUiClient}></script>
-    <script type="module" src={bookLayoutAnalyticsClient}></script>
-    <script type="module" src={bookLayoutMermaidClient}></script>
+    {shouldLoadAnalyticsRuntime && <script type="module" src={bookLayoutAnalyticsClient}></script>}
+    {shouldLoadMermaidRuntime && <script type="module" src={bookLayoutMermaidClient}></script>}
   </body>
 </html>

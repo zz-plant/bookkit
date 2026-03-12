@@ -1,4 +1,5 @@
       const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
+      const qaEnabled = document.body?.dataset?.qaEnabled === "true";
       const helpPanel = document.querySelector("[data-kbd-panel]");
       const helpToggle = document.querySelector("[data-kbd-toggle]");
       const helpClose = document.querySelector("[data-kbd-close]");
@@ -10,20 +11,20 @@
       const searchQuickActions = document.querySelector("[data-search-quick-actions]");
       const searchStatus = document.querySelector("[data-search-status]");
       const searchEmpty = document.querySelector("[data-search-empty]");
-      const qaPanel = document.querySelector("[data-qa-panel]");
-      const qaToggle = document.querySelector("[data-qa-toggle]");
-      const qaClose = document.querySelector("[data-qa-close]");
-      const qaForm = document.querySelector("[data-qa-form]");
-      const qaInput = document.querySelector("[data-qa-input]");
-      const qaAnswer = document.querySelector("[data-qa-answer]");
-      const qaCitations = document.querySelector("[data-qa-citations]");
-      const qaStatus = document.querySelector("[data-qa-status]");
-      const qaBody = document.querySelector("[data-qa-body]");
-      const qaDisabledPanel = document.querySelector("[data-qa-disabled]");
-      const qaDisableButton = document.querySelector("[data-qa-disable]");
-      const qaEnableButton = document.querySelector("[data-qa-enable]");
-      const qaSuggestions = Array.from(document.querySelectorAll("[data-qa-suggestion]"));
-      const qaDisplayToggle = document.querySelector("[data-qa-display-toggle]");
+      const qaPanel = qaEnabled ? document.querySelector("[data-qa-panel]") : null;
+      const qaToggle = qaEnabled ? document.querySelector("[data-qa-toggle]") : null;
+      const qaClose = qaEnabled ? document.querySelector("[data-qa-close]") : null;
+      const qaForm = qaEnabled ? document.querySelector("[data-qa-form]") : null;
+      const qaInput = qaEnabled ? document.querySelector("[data-qa-input]") : null;
+      const qaAnswer = qaEnabled ? document.querySelector("[data-qa-answer]") : null;
+      const qaCitations = qaEnabled ? document.querySelector("[data-qa-citations]") : null;
+      const qaStatus = qaEnabled ? document.querySelector("[data-qa-status]") : null;
+      const qaBody = qaEnabled ? document.querySelector("[data-qa-body]") : null;
+      const qaDisabledPanel = qaEnabled ? document.querySelector("[data-qa-disabled]") : null;
+      const qaDisableButton = qaEnabled ? document.querySelector("[data-qa-disable]") : null;
+      const qaEnableButton = qaEnabled ? document.querySelector("[data-qa-enable]") : null;
+      const qaSuggestions = qaEnabled ? Array.from(document.querySelectorAll("[data-qa-suggestion]")) : [];
+      const qaDisplayToggle = qaEnabled ? document.querySelector("[data-qa-display-toggle]") : null;
       const siteNavMore = document.querySelector("[data-site-nav-more]");
       const siteNavMoreToggle = document.querySelector("[data-site-nav-more-toggle]");
       const siteNavMoreOverflow = document.querySelector("[data-site-nav-overflow]");
@@ -36,7 +37,6 @@
       const readerDensitySelect = document.querySelector("[data-reader-density-select]");
       const readerFontSelect = document.querySelector("[data-reader-font-select]");
       const desktopNavMedia = window.matchMedia("(min-width: 721px)");
-      const qaEnabled = document.body?.dataset?.qaEnabled === "true";
       const readerPrefsKey = `${analyticsKeyPrefix}.reader.prefs`;
       let lastFocused = null;
       let pendingSequence = null;
@@ -48,6 +48,8 @@
       let searchTimeout = null;
       let qaQuery = "";
       let lastScrollY = window.scrollY;
+      let searchRunId = 0;
+      let qaRunId = 0;
       const searchAnalyticsKey = `${analyticsKeyPrefix}.search.analytics`;
       const exportAnalyticsKey = `${analyticsKeyPrefix}.export.analytics`;
       const qaAnalyticsKey = `${analyticsKeyPrefix}.qa.analytics`;
@@ -243,15 +245,6 @@
         setReaderFont(font);
       };
 
-      const escapeHtml = (value) => {
-        return value
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      };
-
       const toSafeUrl = (value) => {
         if (typeof value !== "string") return "#";
         try {
@@ -264,29 +257,25 @@
         }
         return "#";
       };
-
-      const highlightText = (value, tokens) => {
-        if (!tokens.length) return escapeHtml(value);
-        return tokens.reduce((output, token) => {
-          const regex = new RegExp(`(${token.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")})`, "gi");
-          return output.replace(regex, "<mark>$1</mark>");
-        }, escapeHtml(value));
-      };
-
-      const recordSearchEvent = (payload) => {
-        const event = { ...payload, ts: Date.now() };
-        const existing = JSON.parse(localStorage.getItem(searchAnalyticsKey) ?? "[]");
-        existing.push(event);
-        localStorage.setItem(searchAnalyticsKey, JSON.stringify(existing.slice(-120)));
-        window.dispatchEvent(new CustomEvent("book-search", { detail: event }));
-      };
-
-      const recordExportEvent = (payload) => {
-        const event = { ...payload, ts: Date.now() };
-        const existing = JSON.parse(localStorage.getItem(exportAnalyticsKey) ?? "[]");
-        existing.push(event);
-        localStorage.setItem(exportAnalyticsKey, JSON.stringify(existing.slice(-120)));
-        window.dispatchEvent(new CustomEvent("book-export", { detail: event }));
+      const appendHighlightedText = (element, value, tokens) => {
+        const escapedTokens = tokens
+          .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .filter(Boolean);
+        if (!escapedTokens.length) {
+          element.textContent = value;
+          return;
+        }
+        const matcher = new RegExp(`(${escapedTokens.join("|")})`, "gi");
+        value.split(matcher).forEach((fragment) => {
+          if (!fragment) return;
+          if (escapedTokens.some((token) => new RegExp(`^${token}$`, "i").test(fragment))) {
+            const mark = document.createElement("mark");
+            mark.textContent = fragment;
+            element.appendChild(mark);
+            return;
+          }
+          element.appendChild(document.createTextNode(fragment));
+        });
       };
 
       const sendExportAnalytics = (payload) => {
@@ -321,6 +310,68 @@
         }).catch(() => {});
       };
 
+      const buildRankedResults = (index, query) => {
+        const normalizedQuery = query.trim().toLowerCase();
+        if (!normalizedQuery) {
+          return { tokens: [], results: [] };
+        }
+        const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+        const results = index
+          .map((entry) => ({
+            ...entry,
+            searchText: `${entry.title} ${entry.snippet} ${entry.context}`.toLowerCase(),
+          }))
+          .filter((entry) => tokens.every((token) => entry.searchText.includes(token)))
+          .map((entry) => {
+            const score = tokens.reduce((total, token) => {
+              const titleBoost = entry.title.toLowerCase().includes(token) ? 4 : 0;
+              const contextBoost = entry.context.toLowerCase().includes(token) ? 2 : 0;
+              return total + titleBoost + contextBoost + 1;
+            }, 0);
+            return { ...entry, score };
+          })
+          .sort((a, b) => b.score - a.score);
+        return { tokens, results };
+      };
+
+      const createBufferedTracker = (storageKey, eventName) => {
+        let queue = [];
+        let flushTimer = null;
+        const flush = () => {
+          flushTimer = null;
+          if (!queue.length) return;
+          const pending = queue;
+          queue = [];
+          try {
+            const existing = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+            const merged = Array.isArray(existing) ? existing.concat(pending) : pending;
+            localStorage.setItem(storageKey, JSON.stringify(merged.slice(-120)));
+          } catch (error) {
+            // Ignore storage failures so tracking cannot break core UX.
+          }
+          pending.forEach((event) => window.dispatchEvent(new CustomEvent(eventName, { detail: event })));
+        };
+
+        const record = (payload) => {
+          queue.push({ ...payload, ts: Date.now() });
+          if (flushTimer) return;
+          flushTimer = window.setTimeout(flush, 200);
+        };
+
+        window.addEventListener("beforeunload", flush);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "hidden") {
+            flush();
+          }
+        });
+
+        return record;
+      };
+
+      const recordSearchEvent = createBufferedTracker(searchAnalyticsKey, "book-search");
+      const recordExportEvent = createBufferedTracker(exportAnalyticsKey, "book-export");
+      const recordQaEvent = createBufferedTracker(qaAnalyticsKey, "book-qa");
+
       const updateSearchStatus = (message) => {
         if (searchStatus) searchStatus.textContent = message;
       };
@@ -338,28 +389,6 @@
           searchIndex = [];
         }
         return searchIndex;
-      };
-
-
-      const warmSearchIndex = () => {
-        if (!searchPanel || searchIndex) return;
-        if ("requestIdleCallback" in window) {
-          window.requestIdleCallback(() => {
-            loadSearchIndex().catch(() => {});
-          });
-          return;
-        }
-        window.setTimeout(() => {
-          loadSearchIndex().catch(() => {});
-        }, 800);
-      };
-
-      const recordQaEvent = (payload) => {
-        const event = { ...payload, ts: Date.now() };
-        const existing = JSON.parse(localStorage.getItem(qaAnalyticsKey) ?? "[]");
-        existing.push(event);
-        localStorage.setItem(qaAnalyticsKey, JSON.stringify(existing.slice(-120)));
-        window.dispatchEvent(new CustomEvent("book-qa", { detail: event }));
       };
 
       const isQaDisabled = () => localStorage.getItem(qaDisabledKey) === "true";
@@ -383,16 +412,23 @@
 
       const renderQaAnswer = (results, tokens) => {
         if (!qaAnswer || !qaCitations) return;
-        qaCitations.innerHTML = "";
+        qaAnswer.replaceChildren();
+        qaCitations.replaceChildren();
         if (!results.length) {
-          qaAnswer.innerHTML = "<p>No answer found. Try rephrasing or using fewer words.</p>";
+          const empty = document.createElement("p");
+          empty.textContent = "No answer found. Try rephrasing or using fewer words.";
+          qaAnswer.appendChild(empty);
           return;
         }
+
         const answerText = results[0]?.snippet ?? "No answer found.";
-        qaAnswer.innerHTML = `
-          <p>${escapeHtml(answerText)}</p>
-          <p class="meta">Answer assembled from ${results.length} cited passage${results.length === 1 ? "" : "s"}.</p>
-        `;
+        const answerParagraph = document.createElement("p");
+        answerParagraph.textContent = answerText;
+        const metaParagraph = document.createElement("p");
+        metaParagraph.className = "meta";
+        metaParagraph.textContent = `Answer assembled from ${results.length} cited passage${results.length === 1 ? "" : "s"}.`;
+        qaAnswer.append(answerParagraph, metaParagraph);
+
         const heading = document.createElement("h3");
         heading.textContent = "Sources";
         const list = document.createElement("ol");
@@ -403,14 +439,14 @@
           link.href = toSafeUrl(entry.url);
           link.dataset.qaCitationId = entry.id;
           link.textContent = `${entry.context} — ${entry.title}`;
+
           const snippet = document.createElement("p");
-          snippet.innerHTML = highlightText(entry.snippet, tokens);
-          item.appendChild(link);
-          item.appendChild(snippet);
+          appendHighlightedText(snippet, entry.snippet, tokens);
+
+          item.append(link, snippet);
           list.appendChild(item);
         });
-        qaCitations.appendChild(heading);
-        qaCitations.appendChild(list);
+        qaCitations.append(heading, list);
       };
 
       const updateQaDisplayMode = () => {
@@ -427,40 +463,32 @@
           updateQaStatus("AI Q&A is disabled.");
           return;
         }
+        const runId = ++qaRunId;
         const index = await loadSearchIndex();
+        if (runId !== qaRunId) return;
         qaQuery = value;
         const query = value.trim().toLowerCase();
         if (!query) {
           updateQaStatus("Ask a question to see answers.");
-          qaAnswer && (qaAnswer.innerHTML = "<p class='meta'>No answer yet.</p>");
-          qaCitations && (qaCitations.innerHTML = "");
+          if (qaAnswer) {
+            const idle = document.createElement("p");
+            idle.className = "meta";
+            idle.textContent = "No answer yet.";
+            qaAnswer.replaceChildren(idle);
+          }
+          qaCitations?.replaceChildren();
           return;
         }
-        const tokens = query.split(/\s+/).filter(Boolean);
-        const results = index
-          .map((entry) => ({
-            ...entry,
-            searchText: `${entry.title} ${entry.snippet} ${entry.context}`.toLowerCase(),
-          }))
-          .filter((entry) => tokens.every((token) => entry.searchText.includes(token)))
-          .map((entry) => {
-            const score = tokens.reduce((total, token) => {
-              const titleBoost = entry.title.toLowerCase().includes(token) ? 4 : 0;
-              const contextBoost = entry.context.toLowerCase().includes(token) ? 2 : 0;
-              return total + titleBoost + contextBoost + 1;
-            }, 0);
-            return { ...entry, score };
-          })
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 3);
+        const { tokens, results } = buildRankedResults(index, query);
+        const topResults = results.slice(0, 3);
 
-        renderQaAnswer(results, tokens);
+        renderQaAnswer(topResults, tokens);
         updateQaStatus(
-          results.length
-            ? `${results.length} cited passage${results.length === 1 ? "" : "s"} returned.`
+          topResults.length
+            ? `${topResults.length} cited passage${topResults.length === 1 ? "" : "s"} returned.`
             : "No citations found."
         );
-        recordQaEvent({ type: "question", query, matches: results.length });
+        recordQaEvent({ type: "question", query, matches: topResults.length });
       };
 
       const openSearch = async () => {
@@ -599,7 +627,7 @@
 
       const renderSearchResults = (results, tokens) => {
         if (!searchResults) return;
-        searchResults.innerHTML = "";
+        searchResults.replaceChildren();
         if (!results.length) {
           searchEmpty?.removeAttribute("hidden");
           searchActiveIndex = -1;
@@ -633,14 +661,21 @@
             link.className = "search-panel__item";
             link.dataset.searchId = entry.id;
             link.setAttribute("role", "option");
+
+            const title = document.createElement("div");
+            title.className = "search-panel__item-title";
+            appendHighlightedText(title, entry.title, tokens);
+
+            const snippet = document.createElement("div");
+            snippet.className = "search-panel__item-snippet";
+            appendHighlightedText(snippet, entry.snippet, tokens);
+
+            const meta = document.createElement("div");
+            meta.className = "search-panel__item-meta";
             const breadcrumb = entry.section ? `${entry.context} › ${entry.section}` : entry.context;
-            link.innerHTML = `
-              <div class="search-panel__item-title">${highlightText(entry.title, tokens)}</div>
-              <div class="search-panel__item-snippet">${highlightText(entry.snippet, tokens)}</div>
-              <div class="search-panel__item-meta">${escapeHtml(entry.label)} • ${escapeHtml(
-                breadcrumb
-              )}</div>
-            `;
+            meta.textContent = `${entry.label} • ${breadcrumb}`;
+
+            link.append(title, snippet, meta);
             list.appendChild(link);
           });
           section.appendChild(list);
@@ -668,33 +703,20 @@
       };
 
       const runSearch = async (value) => {
+        const runId = ++searchRunId;
         const index = await loadSearchIndex();
+        if (runId !== searchRunId) return;
         searchQuery = value;
         const query = value.trim().toLowerCase();
         if (!query) {
-          searchResults && (searchResults.innerHTML = "");
+          searchResults?.replaceChildren();
           searchEmpty?.setAttribute("hidden", "true");
           searchQuickActions?.removeAttribute("hidden");
           updateSearchStatus("Type a word or phrase to find relevant sections.");
           return;
         }
         searchQuickActions?.setAttribute("hidden", "true");
-        const tokens = query.split(/\s+/).filter(Boolean);
-        const results = index
-          .map((entry) => ({
-            ...entry,
-            searchText: `${entry.title} ${entry.snippet} ${entry.context}`.toLowerCase(),
-          }))
-          .filter((entry) => tokens.every((token) => entry.searchText.includes(token)))
-          .map((entry) => {
-            const score = tokens.reduce((total, token) => {
-              const titleBoost = entry.title.toLowerCase().includes(token) ? 4 : 0;
-              const contextBoost = entry.context.toLowerCase().includes(token) ? 2 : 0;
-              return total + titleBoost + contextBoost + 1;
-            }, 0);
-            return { ...entry, score };
-          })
-          .sort((a, b) => b.score - a.score);
+        const { tokens, results } = buildRankedResults(index, query);
 
         renderSearchResults(results, tokens);
         updateSearchStatus(`${results.length} result${results.length === 1 ? "" : "s"}`);
@@ -851,7 +873,6 @@
         });
       }
 
-      warmSearchIndex();
       updateQaDisplayMode();
       initializeReaderPreferences();
       syncSiteNavOverflow(desktopNavMedia.matches);

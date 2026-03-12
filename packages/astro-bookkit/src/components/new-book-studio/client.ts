@@ -17,6 +17,32 @@ if (!form || !output) {
 
   let latestPackage: Record<string, unknown> | null = null;
   const setText = (node: HTMLElement | null, value: string) => { if (node) node.textContent = value; };
+  const toastRegion = document.querySelector<HTMLElement>("[data-studio-toast-region]");
+  const progressNode = document.querySelector<HTMLProgressElement>("[data-studio-progress]");
+  const progressLabelNode = document.querySelector<HTMLElement>("[data-studio-progress-label]");
+  const resetDialog = document.querySelector<HTMLDialogElement>("[data-reset-confirm]");
+  const pushToast = (message: string) => {
+    if (!toastRegion) return;
+    const toast = document.createElement("div");
+    toast.className = "studio__toast";
+    toast.setAttribute("role", "status");
+    toast.textContent = message;
+    toastRegion.appendChild(toast);
+    window.setTimeout(() => {
+      toast.remove();
+    }, 2200);
+  };
+
+  const updateProgress = () => {
+    const fields = Array.from(form.querySelectorAll("input:not([type='checkbox']), textarea, select"));
+    const completed = fields.filter((field) => {
+      if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement)) return false;
+      return field.value.trim().length > 0;
+    }).length;
+    const percent = fields.length ? Math.round((completed / fields.length) * 100) : 0;
+    if (progressNode) progressNode.value = percent;
+    if (progressLabelNode) progressLabelNode.textContent = `${percent}% complete`;
+  };
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -45,7 +71,11 @@ if (!form || !output) {
 
     output.removeAttribute("hidden");
     output.scrollIntoView({ behavior: "smooth", block: "start" });
+    pushToast("Starter package generated.");
   });
+
+  form.addEventListener("input", updateProgress);
+  updateProgress();
 
   document.querySelector("[data-fill-example]")?.addEventListener("click", () => {
     const defaults: Record<string, string> = {
@@ -72,6 +102,7 @@ if (!form || !output) {
         field.value = value;
       }
     });
+    updateProgress();
   });
 
   document.querySelectorAll<HTMLElement>("[data-copy-target]").forEach((button) => {
@@ -84,6 +115,7 @@ if (!form || !output) {
         const original = button.textContent;
         button.textContent = "Copied";
         window.setTimeout(() => (button.textContent = original || "Copy"), 1500);
+        pushToast("Copied to clipboard.");
       } catch {}
     });
   });
@@ -99,6 +131,28 @@ if (!form || !output) {
     link.click();
     link.remove();
     URL.revokeObjectURL(href);
+    pushToast("Downloaded starter package JSON.");
+  });
+
+  document.querySelector("[data-reset-form]")?.addEventListener("click", () => {
+    if (resetDialog?.showModal) {
+      resetDialog.showModal();
+      return;
+    }
+    form.reset();
+    output.setAttribute("hidden", "true");
+    updateProgress();
+  });
+
+  document.querySelector("[data-reset-cancel]")?.addEventListener("click", () => {
+    resetDialog?.close();
+  });
+
+  document.querySelector("[data-reset-confirm-action]")?.addEventListener("click", () => {
+    form.reset();
+    output.setAttribute("hidden", "true");
+    updateProgress();
+    resetDialog?.close();
+    pushToast("Form reset.");
   });
 }
-

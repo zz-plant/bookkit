@@ -7,6 +7,7 @@
       const searchClose = document.querySelector("[data-search-close]");
       const searchInput = document.querySelector("[data-search-input]");
       const searchResults = document.querySelector("[data-search-results]");
+      const searchQuickActions = document.querySelector("[data-search-quick-actions]");
       const searchStatus = document.querySelector("[data-search-status]");
       const searchEmpty = document.querySelector("[data-search-empty]");
       const qaPanel = document.querySelector("[data-qa-panel]");
@@ -24,13 +25,16 @@
       const qaSuggestions = Array.from(document.querySelectorAll("[data-qa-suggestion]"));
       const qaDisplayToggle = document.querySelector("[data-qa-display-toggle]");
       const siteNavMore = document.querySelector("[data-site-nav-more]");
+      const siteNavMoreToggle = document.querySelector("[data-site-nav-more-toggle]");
+      const siteNavMoreOverflow = document.querySelector("[data-site-nav-overflow]");
       const siteSettings = document.querySelector("[data-site-settings]");
       const mobileSearchToggle = document.querySelector("[data-mobile-search]");
       const mobileMenuToggle = document.querySelector("[data-mobile-menu]");
       const mobileCta = document.querySelector("[data-mobile-cta]");
-      const siteNavMoreSummary = siteNavMore?.querySelector("summary");
       const readerDensityButtons = Array.from(document.querySelectorAll("[data-reader-density]"));
       const readerFontButtons = Array.from(document.querySelectorAll("[data-reader-font]"));
+      const readerDensitySelect = document.querySelector("[data-reader-density-select]");
+      const readerFontSelect = document.querySelector("[data-reader-font-select]");
       const desktopNavMedia = window.matchMedia("(min-width: 721px)");
       const qaEnabled = document.body?.dataset?.qaEnabled === "true";
       const readerPrefsKey = `${analyticsKeyPrefix}.reader.prefs`;
@@ -40,6 +44,7 @@
       let activeHeadingIndex = 0;
       let searchIndex = null;
       let searchQuery = "";
+      let searchActiveIndex = -1;
       let searchTimeout = null;
       let qaQuery = "";
       let lastScrollY = window.scrollY;
@@ -99,13 +104,27 @@
         }
       };
 
+      const setSiteNavMenuOpen = (open) => {
+        if (!(siteNavMore instanceof HTMLElement)) return;
+        siteNavMore.classList.toggle("is-open", open);
+        if (siteNavMoreToggle instanceof HTMLButtonElement) {
+          siteNavMoreToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+        if (siteNavMoreOverflow instanceof HTMLElement) {
+          siteNavMoreOverflow.hidden = !open;
+        }
+      };
+
+      const isSiteNavMenuOpen = () =>
+        siteNavMore instanceof HTMLElement && siteNavMore.classList.contains("is-open");
+
       const syncSiteNavOverflow = (matchesDesktop) => {
         if (!siteNavMore) return;
         if (matchesDesktop) {
           mobileMenuToggle?.setAttribute("aria-expanded", "false");
           return;
         }
-        siteNavMore.removeAttribute("open");
+        setSiteNavMenuOpen(false);
         siteSettings?.removeAttribute("open");
         mobileMenuToggle?.setAttribute("aria-expanded", "false");
       };
@@ -202,6 +221,7 @@
         const prefs = loadReaderPreferences();
         saveReaderPreferences({ ...prefs, density });
         updateReaderButtonState(readerDensityButtons, density);
+        if (readerDensitySelect instanceof HTMLSelectElement) readerDensitySelect.value = density;
       };
 
       const setReaderFont = (font) => {
@@ -210,6 +230,7 @@
         const prefs = loadReaderPreferences();
         saveReaderPreferences({ ...prefs, font });
         updateReaderButtonState(readerFontButtons, font);
+        if (readerFontSelect instanceof HTMLSelectElement) readerFontSelect.value = font;
       };
 
       const initializeReaderPreferences = () => {
@@ -464,7 +485,7 @@
 
 
       const syncMobileToggleState = () => {
-        const menuOpen = Boolean(siteNavMore && siteNavMore.hasAttribute("open"));
+        const menuOpen = isSiteNavMenuOpen();
         mobileMenuToggle?.setAttribute("aria-expanded", menuOpen ? "true" : "false");
         if (mobileMenuToggle) {
           mobileMenuToggle.textContent = menuOpen ? "Close menu" : "Menu";
@@ -527,6 +548,7 @@
         if (!searchPanel) return;
         searchPanel.hidden = true;
         searchPanel.classList.remove("is-open");
+        searchActiveIndex = -1;
         searchToggle?.setAttribute("aria-expanded", "false");
         mobileSearchToggle?.setAttribute("aria-expanded", "false");
         lastFocused?.focus?.();
@@ -580,6 +602,7 @@
         searchResults.innerHTML = "";
         if (!results.length) {
           searchEmpty?.removeAttribute("hidden");
+          searchActiveIndex = -1;
           return;
         }
         searchEmpty?.setAttribute("hidden", "true");
@@ -609,6 +632,7 @@
             link.href = toSafeUrl(entry.url);
             link.className = "search-panel__item";
             link.dataset.searchId = entry.id;
+            link.setAttribute("role", "option");
             const breadcrumb = entry.section ? `${entry.context} › ${entry.section}` : entry.context;
             link.innerHTML = `
               <div class="search-panel__item-title">${highlightText(entry.title, tokens)}</div>
@@ -622,6 +646,25 @@
           section.appendChild(list);
           searchResults.appendChild(section);
         });
+
+        const links = Array.from(searchResults.querySelectorAll("a.search-panel__item"));
+        searchActiveIndex = links.length ? 0 : -1;
+        links.forEach((link, index) => {
+          link.setAttribute("aria-selected", index === searchActiveIndex ? "true" : "false");
+        });
+      };
+
+      const moveActiveSearchResult = (delta) => {
+        if (!searchResults) return;
+        const links = Array.from(searchResults.querySelectorAll("a.search-panel__item"));
+        if (!links.length) return;
+        searchActiveIndex = (searchActiveIndex + delta + links.length) % links.length;
+        links.forEach((link, index) => {
+          link.setAttribute("aria-selected", index === searchActiveIndex ? "true" : "false");
+          if (index === searchActiveIndex) {
+            link.scrollIntoView({ block: "nearest" });
+          }
+        });
       };
 
       const runSearch = async (value) => {
@@ -631,9 +674,11 @@
         if (!query) {
           searchResults && (searchResults.innerHTML = "");
           searchEmpty?.setAttribute("hidden", "true");
+          searchQuickActions?.removeAttribute("hidden");
           updateSearchStatus("Type a word or phrase to find relevant sections.");
           return;
         }
+        searchQuickActions?.setAttribute("hidden", "true");
         const tokens = query.split(/\s+/).filter(Boolean);
         const results = index
           .map((entry) => ({
@@ -685,6 +730,26 @@
         const value = event.target instanceof HTMLInputElement ? event.target.value : "";
         if (searchTimeout) window.clearTimeout(searchTimeout);
         searchTimeout = window.setTimeout(() => runSearch(value), 160);
+      });
+      searchInput?.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          moveActiveSearchResult(1);
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          moveActiveSearchResult(-1);
+          return;
+        }
+        if (event.key === "Enter") {
+          const links = searchResults ? Array.from(searchResults.querySelectorAll("a.search-panel__item")) : [];
+          const active = links[searchActiveIndex] as HTMLAnchorElement | undefined;
+          if (active) {
+            event.preventDefault();
+            active.click();
+          }
+        }
       });
       searchResults?.addEventListener("click", (event) => {
         const target = event.target instanceof HTMLElement ? event.target.closest("a") : null;
@@ -741,17 +806,21 @@
 
       mobileMenuToggle?.addEventListener("click", () => {
         if (!siteNavMore) return;
-        const isOpen = siteNavMore.hasAttribute("open");
-        if (isOpen) {
-          siteNavMore.removeAttribute("open");
-        } else {
-          siteNavMore.setAttribute("open", "");
-        }
+        setSiteNavMenuOpen(!isSiteNavMenuOpen());
         syncMobileToggleState();
       });
 
-      siteNavMoreSummary?.addEventListener("click", () => {
-        window.requestAnimationFrame(syncMobileToggleState);
+      siteNavMoreToggle?.addEventListener("click", () => {
+        setSiteNavMenuOpen(!isSiteNavMenuOpen());
+        syncMobileToggleState();
+      });
+
+      document.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target || !(siteNavMore instanceof HTMLElement) || !isSiteNavMenuOpen()) return;
+        if (target.closest("[data-site-nav-more]")) return;
+        setSiteNavMenuOpen(false);
+        syncMobileToggleState();
       });
 
       readerDensityButtons.forEach((button) => {
@@ -767,6 +836,20 @@
           setReaderFont(button.dataset.readerFont);
         });
       });
+
+      if (readerDensitySelect instanceof HTMLSelectElement) {
+        readerDensitySelect.addEventListener("change", (event) => {
+          const value = event.target instanceof HTMLSelectElement ? event.target.value : "";
+          setReaderDensity(value);
+        });
+      }
+
+      if (readerFontSelect instanceof HTMLSelectElement) {
+        readerFontSelect.addEventListener("change", (event) => {
+          const value = event.target instanceof HTMLSelectElement ? event.target.value : "";
+          setReaderFont(value);
+        });
+      }
 
       warmSearchIndex();
       updateQaDisplayMode();

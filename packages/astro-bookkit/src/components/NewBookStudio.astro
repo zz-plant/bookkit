@@ -26,6 +26,12 @@ const {
     <a href="#studio-output">Output</a>
   </nav>
 
+  <div class="studio__completion" role="status" aria-live="polite">
+    <label for="studio-progress">Completion</label>
+    <progress id="studio-progress" max="100" value="0" data-studio-progress>0%</progress>
+    <span data-studio-progress-label>0% complete</span>
+  </div>
+
   <form class="studio__form" data-new-book-form>
     <fieldset id="studio-step-1">
       <legend>1) Name and purpose</legend>
@@ -195,8 +201,19 @@ const {
 
     <div class="studio__actions">
       <button type="button" class="studio__button studio__button--primary" data-download-package>Download package (.json)</button>
+      <button type="button" class="studio__button studio__button--secondary" data-reset-form>Reset form</button>
     </div>
   </section>
+
+  <div class="studio__toast-region" aria-live="polite" aria-atomic="true" data-studio-toast-region></div>
+
+  <dialog class="studio__confirm" data-reset-confirm>
+    <p>Reset all current form fields and generated output?</p>
+    <div class="studio__confirm-actions">
+      <button type="button" class="studio__button studio__button--secondary" data-reset-cancel>Cancel</button>
+      <button type="button" class="studio__button studio__button--primary" data-reset-confirm-action>Reset</button>
+    </div>
+  </dialog>
 </section>
 
 <script type="module" src={newBookStudioClient}></script>
@@ -275,6 +292,25 @@ const {
     margin-top: 0.5rem;
   }
 
+  .studio__completion {
+    display: grid;
+    gap: 0.35rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    background: var(--color-surface);
+  }
+
+  .studio__completion label {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+
+  .studio__completion progress {
+    width: 100%;
+  }
+
   .studio__form {
     display: grid;
     gap: 1rem;
@@ -331,6 +367,39 @@ const {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+  }
+
+  .studio__toast-region {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    display: grid;
+    gap: 0.5rem;
+    z-index: 50;
+    max-width: min(26rem, calc(100vw - 2rem));
+  }
+
+  .studio__toast {
+    border: 1px solid var(--color-border);
+    background: color-mix(in oklab, var(--color-surface), #7cc5ff 10%);
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.8rem;
+    box-shadow: var(--shadow-soft);
+    font-size: var(--text-sm);
+  }
+
+  .studio__confirm {
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    max-width: 24rem;
+  }
+
+  .studio__confirm-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
   }
 
   .studio__button {

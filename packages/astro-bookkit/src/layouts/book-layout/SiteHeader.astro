@@ -85,12 +85,12 @@ const activeReadSectionLabel =
           >
             Search <span aria-hidden="true">⌘K</span>
           </button>
-          <details class="site-nav__more" data-site-nav-more id="site-nav-more">
-            <summary class="site-nav__more-toggle">
+          <div class="site-nav__more" data-site-nav-more id="site-nav-more">
+            <button type="button" class="site-nav__more-toggle" data-site-nav-more-toggle aria-expanded="false">
               Menu
               <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
-            </summary>
-            <div class="site-nav__overflow">
+            </button>
+            <div class="site-nav__overflow" data-site-nav-overflow hidden>
               <div class="site-nav__group site-nav__group--reader">
                 <p class="site-nav__group-label">Reader tools</p>
                 <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
@@ -100,6 +100,7 @@ const activeReadSectionLabel =
                 <a href="/read/tools" aria-keyshortcuts="g a">Publishing tools</a>
                 <a href="/new-book" aria-keyshortcuts="g b">Start a new book</a>
               </div>
+              <hr class="site-nav__separator" />
               {(hasVersions || localeEntries.length > 1) && (
                 <details class="site-settings" data-site-settings>
                   <summary class="site-settings__toggle">
@@ -138,6 +139,12 @@ const activeReadSectionLabel =
                   <p class="reader-settings__hint">Tune text spacing and font for this device.</p>
                   <div class="reader-settings__group" role="group" aria-label="Reading density">
                     <span class="reader-settings__label">Density</span>
+                    <label class="sr-only" for="reader-density-select">Reading density</label>
+                    <select id="reader-density-select" data-reader-density-select>
+                      <option value="compact">Compact</option>
+                      <option value="comfortable" selected>Comfortable</option>
+                      <option value="relaxed">Relaxed</option>
+                    </select>
                     <div class="reader-settings__options">
                       <button type="button" data-reader-density="compact">Compact</button>
                       <button type="button" data-reader-density="comfortable">Comfortable</button>
@@ -146,6 +153,11 @@ const activeReadSectionLabel =
                   </div>
                   <div class="reader-settings__group" role="group" aria-label="Reading font">
                     <span class="reader-settings__label">Font</span>
+                    <label class="sr-only" for="reader-font-select">Reading font</label>
+                    <select id="reader-font-select" data-reader-font-select>
+                      <option value="serif" selected>Serif</option>
+                      <option value="sans">Sans</option>
+                    </select>
                     <div class="reader-settings__options">
                       <button type="button" data-reader-font="serif">Serif</button>
                       <button type="button" data-reader-font="sans">Sans</button>
@@ -175,6 +187,6 @@ const activeReadSectionLabel =
                 Shortcuts <span aria-hidden="true">?</span>
               </button>
             </div>
-          </details>
+          </div>
         </nav>
       </header>

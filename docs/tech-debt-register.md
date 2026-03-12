@@ -4,10 +4,12 @@ Use this register as the single prioritized queue for cross-cutting debt remedia
 
 | ID | Issue | Severity | Owner | Source | Target milestone | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TD-001 | Backlog fidelity drift in per-book TODO trackers | Medium | Book maintainers | `apps/bad-people/TODOS.md`, `apps/running-hot/TODOS.md` | 2026-03 docs hygiene | In progress | Metadata tags are now present and completed checklist entries were removed from active TODOs; ongoing discipline is to keep completed work in release/changelog artifacts only. |
-| TD-002 | README/workspace architecture example drift | Low | Workspace maintainers | `README.md` | 2026-03 docs hygiene | In progress | Repo layout example now includes both current books. |
-| TD-003 | Audit findings are fragmented across docs/specs | Medium | Product + docs maintainers | `docs/ux-audit-bad-people.md`, `docs/ux-audit-bad-people-round-2.md`, `docs/route-audit-2026-02-15.md`, `apps/*/specs/feature-audit.md`, `apps/*/specs/seo-audit-2026-02.md` | 2026-04 planning | In progress | Added direct links and “Open issues tracked in tech-debt register” notes in each listed audit/spec doc; continue consolidating findings into the register. |
-| TD-004 | Governance checks not guaranteed via CI gates | Medium | Platform maintainers | `.github/workflows/governance-checks.yml` | 2026-04 platform hardening | In progress | CI now enforces `bun run validate`, `bun run check:separation`, and `bun run check:types` on pull requests and pushes to `main`. |
+| TD-001 | Backlog fidelity drift in per-book TODO trackers | Medium | Book maintainers | `apps/bad-people/TODOS.md`, `apps/running-hot/TODOS.md`, `scripts/check-todos.ts` | 2026-03 docs hygiene | Done | Added `bun run check:todos` to enforce TODO metadata tags and block completed checklist entries in active trackers; wired into CI governance checks. |
+| TD-002 | README/workspace architecture example drift | Low | Workspace maintainers | `README.md` | 2026-03 docs hygiene | Done | Repo layout example includes both current books and remains aligned with current workspace structure. |
+| TD-003 | Audit findings are fragmented across docs/specs | Medium | Product + docs maintainers | `docs/audit-findings-consolidated.md` | 2026-04 planning | Done | Replaced fragmented historical audit documents with a single consolidated audit backlog and retained debt-register-first protocol for new findings. |
+| TD-004 | Governance checks not guaranteed via CI gates | Medium | Platform maintainers | `.github/workflows/governance-checks.yml` | 2026-04 platform hardening | Done | CI enforces `bun run validate`, `bun run check:separation`, `bun run check:types`, `bun run check:todos`, and `bun run check:shims` on pull requests and pushes to `main`. |
+| TD-005 | Duplicated app-level shim routes/libs across books | Medium | Platform maintainers | `scripts/check-shims.ts`, `apps/*/src/pages/api/*.ts`, `apps/*/src/lib/{book-entrypoints,exports,og,release-notes,versions}.ts` | 2026-04 platform hardening | Done | Added shim consistency tooling (`bun run check:shims` / `bun run sync:shims`) with canonical source propagation to remove manual divergence risk. |
+| TD-006 | Monolithic workspace scripts increase change risk | Medium | Workspace maintainers | `scripts/lib/content-frontmatter.ts`, `scripts/validate-book.ts`, `scripts/audit-unused.ts` | 2026-04 tooling hardening | Done | Extracted shared content file traversal/frontmatter parsing utilities and migrated validation/audit scripts to composable modules. |
 
 ## Update protocol
 
@@ -24,4 +26,4 @@ Use this register as the single prioritized queue for cross-cutting debt remedia
 - **Per-book open work:**
   - `apps/bad-people/TODOS.md`
   - `apps/running-hot/TODOS.md`
-- **Cross-cutting open debt IDs:** TD-001, TD-003, TD-004
+- **Cross-cutting open debt IDs:** _None currently open._

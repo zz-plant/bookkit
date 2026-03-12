@@ -165,6 +165,8 @@ bun run export:gitbook -- --book bad-people
 bun run list:books
 bun run check:separation
 bun run check:concepts
+bun run check:todos
+bun run check:shims
 bun run stack:capabilities
 ```
 

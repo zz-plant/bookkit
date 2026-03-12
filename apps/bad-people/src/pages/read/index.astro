@@ -151,11 +151,31 @@ const sectionBuckets = [
           </button>
         </div>
       </div>
+      <div class="bucket-tabs" role="tablist" aria-label="Reading route buckets">
+        {sectionBuckets.map((bucket, index) => (
+          <button
+            type="button"
+            class="bucket-tab"
+            role="tab"
+            aria-selected={index === 0 ? "true" : "false"}
+            aria-controls={`bucket-panel-${bucket.title.toLowerCase().replace(" ", "-")}`}
+            id={`bucket-tab-${bucket.title.toLowerCase().replace(" ", "-")}`}
+            data-bucket-tab={bucket.title.toLowerCase().replace(" ", "-")}
+          >
+            {bucket.title}
+          </button>
+        ))}
+      </div>
       <div class="bucket-grid">
-        {sectionBuckets.map((bucket) => (
+        {sectionBuckets.map((bucket, index) => (
           <article
             class:list={["card", "bucket-card", { "bucket-card--primary": bucket.title === "Start here" }]}
             id={bucket.title.toLowerCase().replace(" ", "-")}
+            role="tabpanel"
+            aria-labelledby={`bucket-tab-${bucket.title.toLowerCase().replace(" ", "-")}`}
+            data-bucket-panel={bucket.title.toLowerCase().replace(" ", "-")}
+            hidden={index === 0 ? undefined : true}
+            tabindex="0"
           >
             <div class="eyebrow">{bucket.title}</div>
             <h3>{bucket.title}</h3>
@@ -175,12 +195,12 @@ const sectionBuckets = [
               data-change-date={changeMeta?.date ?? ""}
             >
               <div class="read-surface-card__meta" aria-label="Section metadata">
-                <span class="read-meta-chip">{section.count} {label}</span>
-                {completenessLabel && <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>}
+                <span class="read-meta-chip" title="Number of entries in this section">{section.count} {label}</span>
+                {completenessLabel && <span class="read-meta-chip read-meta-chip--status" title="Translation completeness status">{completenessLabel}</span>}
                 {changeMeta && (
                   <>
-                    <span class="read-meta-chip read-meta-chip--update">Marked in v{changeMeta.version} notes</span>
-                    <span class="read-meta-chip read-meta-chip--new" data-read-new hidden>New for you</span>
+                    <span class="read-meta-chip read-meta-chip--update" title="Mentioned in the latest release notes">Marked in v{changeMeta.version} notes</span>
+                    <span class="read-meta-chip read-meta-chip--new" data-read-new hidden title="Updated since your last visit">New for you</span>
                   </>
                 )}
               </div>
@@ -188,7 +208,7 @@ const sectionBuckets = [
               <p class="meta">{section.description}</p>
               {section.keyHint && (
                 <div class="read-surface-card__shortcut" aria-label="Keyboard shortcut">
-                  <span class="kbd-hint"><kbd>{section.keyHint[0]}</kbd><kbd>{section.keyHint[1]}</kbd></span>
+                  <span class="kbd-hint" title={`Shortcut ${section.keyHint[0]} ${section.keyHint[1]}`}><kbd>{section.keyHint[0]}</kbd><kbd>{section.keyHint[1]}</kbd></span>
                 </div>
               )}
             </a>
@@ -200,15 +220,15 @@ const sectionBuckets = [
       </div>
     </section>
 
-    <details class="content-block read-section read-utility-disclosure" id="tools-by-role">
-      <summary>
+    <section class="content-block read-section read-utility-disclosure" id="tools-by-role" data-accordion>
+      <button type="button" class="read-accordion__toggle" aria-expanded="false" data-accordion-toggle>
         <span>
           <span class="eyebrow">Meta</span>
           <strong>More reading utilities</strong>
         </span>
         <span class="meta">Release notes, downloads, and author diagnostics</span>
-      </summary>
-      <div class="card-grid read-tools-grid">
+      </button>
+      <div class="card-grid read-tools-grid" data-accordion-panel hidden>
         <article class="card read-tools-card">
           <div class="eyebrow">Reader meta</div>
           <h3>Reader updates</h3>
@@ -227,7 +247,7 @@ const sectionBuckets = [
           </div>
         </article>
       </div>
-    </details>
+    </section>
   </div>
   <script>
     const filterButton = document.querySelector("[data-read-updates-filter]");
@@ -236,6 +256,53 @@ const sectionBuckets = [
     const previousVisit = localStorage.getItem(visitStorageKey);
     const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
     const nowIso = new Date().toISOString();
+    const bucketTabs = Array.from(document.querySelectorAll("[data-bucket-tab]"));
+    const bucketPanels = Array.from(document.querySelectorAll("[data-bucket-panel]"));
+
+    const setActiveBucket = (key) => {
+      bucketTabs.forEach((tab) => {
+        if (!(tab instanceof HTMLButtonElement)) return;
+        const active = tab.dataset.bucketTab === key;
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      bucketPanels.forEach((panel) => {
+        if (!(panel instanceof HTMLElement)) return;
+        panel.hidden = panel.dataset.bucketPanel !== key;
+      });
+    };
+
+    bucketTabs.forEach((tab) => {
+      if (!(tab instanceof HTMLButtonElement)) return;
+      tab.addEventListener("click", () => {
+        const key = tab.dataset.bucketTab;
+        if (!key) return;
+        setActiveBucket(key);
+      });
+      tab.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+        event.preventDefault();
+        const tabs = bucketTabs.filter((entry) => entry instanceof HTMLButtonElement);
+        const currentIndex = tabs.indexOf(tab);
+        const nextIndex = event.key === "ArrowRight"
+          ? (currentIndex + 1) % tabs.length
+          : (currentIndex - 1 + tabs.length) % tabs.length;
+        const nextTab = tabs[nextIndex];
+        if (!(nextTab instanceof HTMLButtonElement)) return;
+        nextTab.focus();
+        const key = nextTab.dataset.bucketTab;
+        if (key) setActiveBucket(key);
+      });
+    });
+
+    const accordionToggle = document.querySelector("[data-accordion-toggle]");
+    const accordionPanel = document.querySelector("[data-accordion-panel]");
+    if (accordionToggle instanceof HTMLButtonElement && accordionPanel instanceof HTMLElement) {
+      accordionToggle.addEventListener("click", () => {
+        const expanded = accordionToggle.getAttribute("aria-expanded") === "true";
+        accordionToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+        accordionPanel.hidden = expanded;
+      });
+    }
 
     if (Number.isFinite(previousVisitMs) && filterButton && readCards.length > 0) {
       filterButton.hidden = false;
@@ -302,20 +369,21 @@ const sectionBuckets = [
     margin-top: 0;
   }
 
-  .read-utility-disclosure > summary {
+  .read-accordion__toggle {
     align-items: center;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     gap: 0.75rem;
-    list-style: none;
+    width: 100%;
+    border: none;
+    background: none;
+    color: inherit;
+    text-align: left;
+    padding: 0;
   }
 
-  .read-utility-disclosure > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .read-utility-disclosure > summary strong {
+  .read-accordion__toggle strong {
     display: block;
     font-size: 1.1rem;
     margin-top: 0.1rem;
@@ -428,6 +496,28 @@ const sectionBuckets = [
 
   .read-card-grid {
     margin-top: 0.75rem;
+  }
+
+  .bucket-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .bucket-tab {
+    border: 1px solid rgba(91, 76, 230, 0.22);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--color-accent-strong);
+    padding: 0.35rem 0.75rem;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .bucket-tab[aria-selected="true"] {
+    background: rgba(91, 76, 230, 0.14);
+    border-color: rgba(91, 76, 230, 0.4);
   }
 
   .bucket-grid {

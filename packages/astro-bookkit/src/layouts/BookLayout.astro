@@ -112,7 +112,7 @@ const isReadRoute =
   normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
 const isDownloadsRoute = normalizedLocalePath === "/downloads";
 const isReadDetailRoute = isReadRoute && normalizedLocalePath !== "/read";
-const shouldLoadMermaidRuntime = isReadDetailRoute;
+const shouldLoadMermaidRuntime = true;
 const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
 const {
   resolvedRobots,

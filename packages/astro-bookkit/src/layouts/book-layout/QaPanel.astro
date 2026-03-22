@@ -1,0 +1,71 @@
+---
+const { aiQaSamples = [] } = Astro.props;
+---
+<div class="qa-panel" id="qa-panel" data-qa-panel hidden>
+  <div
+    class="qa-panel__content"
+    role="dialog"
+    aria-modal="false"
+    aria-label="Ask about the book"
+    data-qa-content
+  >
+    <div class="qa-panel__header">
+      <strong>Ask the book</strong>
+      <div class="qa-panel__actions">
+        <button type="button" class="qa-panel__toggle" data-qa-disable>
+          Disable AI Q&amp;A
+        </button>
+        <button type="button" class="kbd-close" data-qa-close aria-label="Close AI Q&A">
+          Esc
+        </button>
+      </div>
+    </div>
+    <div class="qa-panel__body" data-qa-body>
+      <p class="meta">
+        This assistant matches your question to passages in the book. Responses are grounded in cited
+        sections and won’t include external knowledge.
+      </p>
+      <form class="qa-panel__form" data-qa-form>
+        <label class="qa-panel__field">
+          <span class="sr-only">Ask a question about the book</span>
+          <textarea
+            rows="2"
+            placeholder="Ask a question about the book..."
+            autocomplete="off"
+            spellcheck="false"
+            aria-describedby="qa-status"
+            data-qa-input
+          ></textarea>
+        </label>
+        <button type="submit" class="qa-panel__submit">Get answer</button>
+      </form>
+      <div class="qa-panel__display" role="group" aria-label="Answer display mode">
+        <span class="meta">Display mode</span>
+        <button type="button" class="qa-panel__display-toggle" data-qa-display-toggle>
+          Show citations first
+        </button>
+      </div>
+      <div class="qa-panel__meta" id="qa-status" role="status" aria-live="polite" data-qa-status>
+        Try a question to see cited answers. Uses local book index only.
+      </div>
+      <div class="qa-panel__suggestions">
+        <div class="eyebrow">Sample prompts</div>
+        <div class="qa-panel__suggestion-list">
+          {aiQaSamples.map((prompt) => (
+            <button type="button" class="qa-panel__suggestion" data-qa-suggestion>{prompt}</button>
+          ))}
+        </div>
+      </div>
+      <div class="qa-panel__answer" data-qa-answer>
+        <p class="meta">No answer yet.</p>
+      </div>
+      <div class="qa-panel__citations" data-qa-citations></div>
+    </div>
+    <div class="qa-panel__disabled" data-qa-disabled hidden>
+      <p>AI Q&amp;A is disabled for this book in your browser.</p>
+      <button type="button" class="qa-panel__submit" data-qa-enable>
+        Re-enable AI Q&amp;A
+      </button>
+    </div>
+  </div>
+</div>

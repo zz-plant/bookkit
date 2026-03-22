@@ -1,0 +1,50 @@
+<div class="search-panel" id="search-panel" data-search-panel hidden>
+  <div
+    class="search-panel__content"
+    role="dialog"
+    aria-modal="false"
+    aria-label="Search the book"
+    data-search-content
+  >
+    <div class="search-panel__header">
+      <strong>Search</strong>
+      <button type="button" class="kbd-close" data-search-close aria-label="Close search">
+        Esc
+      </button>
+    </div>
+    <label class="search-panel__field">
+      <span class="sr-only">Search the book</span>
+      <input
+        type="search"
+        placeholder="Search chapters, terms, and examples..."
+        autocomplete="off"
+        spellcheck="false"
+        aria-describedby="search-status"
+        data-search-input
+      />
+    </label>
+    <div class="search-panel__meta">
+      <span class="meta" id="search-status" role="status" aria-live="polite" data-search-status>
+        Type a word or phrase to find relevant sections.
+      </span>
+      <span class="meta">Uses local book index only.</span>
+      <span class="kbd-hint" aria-hidden="true">
+        <kbd>⌘</kbd><kbd>K</kbd> / <kbd>/</kbd>
+      </span>
+    </div>
+    <div class="search-panel__quick-actions" data-search-quick-actions>
+      <strong>Quick actions</strong>
+      <div class="search-panel__quick-list">
+        <a href="/read">Open reading hub</a>
+        <a href="/downloads">Open downloads</a>
+        <a href="/release-notes">Open release notes</a>
+        <a href="/read/tools">Open author diagnostics</a>
+      </div>
+    </div>
+    <div class="search-panel__results" data-search-results></div>
+    <div class="search-panel__empty" data-search-empty hidden>
+      <strong>No matches found.</strong>
+      <p class="meta">Try a shorter phrase or search by mechanism, glossary term, or chapter title.</p>
+    </div>
+  </div>
+</div>

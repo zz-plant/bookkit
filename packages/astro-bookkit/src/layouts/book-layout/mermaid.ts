@@ -16,3 +16,4 @@
         await mermaid.run({ nodes });
       }
     
+export {};

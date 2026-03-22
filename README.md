@@ -94,6 +94,28 @@ Use `bun run list:books` as the source of truth for currently active books.
 
 ---
 
+## Book bootstrap and wrapper pattern
+
+Each book app should bootstrap the shared engine exactly once in `apps/<book>/src/lib/book-runtime.ts`.
+That file is allowed to stay app-local because Astro/Vite require local `import.meta.glob()` calls for content discovery.
+Everything else should lean on shared engine helpers or canonical wrapper templates instead of ad-hoc copy/paste.
+
+### What stays app-local
+
+- `src/lib/book-runtime.ts` for file-local `import.meta.glob()` wiring.
+- `src/pages/api/**` and `src/pages/exports/**` route files, because Astro's file-based routing discovers handlers by filename.
+- The tiny MCP route call that passes `import.meta.url` into the shared helper.
+
+### What should be shared
+
+- Runtime aliasing belongs in `packages/astro-bookkit/src/book/**`.
+- Compatibility shims such as `src/lib/book-entrypoints.ts` and `src/lib/release-notes.ts` should re-export from `book-runtime`.
+- Canonical wrapper file contents live in `packages/astro-bookkit/templates/book-app/**` and are enforced with `bun run check:shims` / `bun run sync:shims`.
+
+This keeps book apps compliant with Astro's routing constraints while avoiding drift between books.
+
+---
+
 ## Prerequisites
 
 - **Bun 1.2.14+** (workspace package manager + task runner)

@@ -1,3 +1,1 @@
-import { bookRuntime } from "../../lib/book-runtime";
-
-export const { GET, POST } = bookRuntime.api.analytics;
+export { analyticsApiGet as GET, analyticsApiPost as POST } from "../../lib/book-runtime";

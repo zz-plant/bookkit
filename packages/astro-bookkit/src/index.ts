@@ -170,6 +170,7 @@ export type {
   PreviewTokenRecord,
 } from "./preview";
 export {
+  createBookAppShims,
   createBookEntryPointsFromModules,
   createBookRuntime,
   createChapterExportSlugs,
@@ -195,6 +196,7 @@ export {
   readRoutePrefixFromPathname,
 } from "./book";
 export type {
+  BookAppShims,
   BookExportHelpersFromConfigOptions,
   BookRuntime,
   BookRuntimeConfig,

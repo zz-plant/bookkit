@@ -1,0 +1,55 @@
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+import { listBookDirs, repoRoot } from "./_lib";
+
+export const shimTemplateRoot = join(repoRoot(), "packages", "astro-bookkit", "templates", "book-app");
+
+export const shimPaths = [
+  "src/lib/book-runtime.ts",
+  "src/lib/book-entrypoints.ts",
+  "src/lib/exports.ts",
+  "src/lib/og.ts",
+  "src/lib/release-notes.ts",
+  "src/lib/versions.ts",
+  "src/pages/api/analytics.json.ts",
+  "src/pages/api/export-analytics.json.ts",
+  "src/pages/api/feedback.json.ts",
+  "src/pages/api/mcp.json.ts",
+  "src/pages/api/preview-analytics.json.ts",
+  "src/pages/api/release-analytics.json.ts",
+  "src/pages/api/release-email.json.ts",
+  "src/pages/api/release-webhook.json.ts",
+  "src/pages/exports/book.epub.ts",
+  "src/pages/exports/book.pdf.ts",
+  "src/pages/exports/chapters/[slug].epub.ts",
+  "src/pages/exports/chapters/[slug].pdf.ts",
+] as const;
+
+export const listShimBooks = () => listBookDirs();
+
+export const getShimTemplatePath = (relativePath: string) => join(shimTemplateRoot, relativePath);
+export const getBookShimPath = (book: string, relativePath: string) =>
+  join(repoRoot(), "apps", book, relativePath);
+
+export const readShimTemplate = (relativePath: string) => {
+  const templatePath = getShimTemplatePath(relativePath);
+  if (!existsSync(templatePath)) {
+    throw new Error(`Missing shim template: ${templatePath}`);
+  }
+  return readFileSync(templatePath, "utf8");
+};
+
+export const syncShimTemplatesToBook = (book: string) => {
+  for (const relativePath of shimPaths) {
+    const templatePath = getShimTemplatePath(relativePath);
+    const targetPath = getBookShimPath(book, relativePath);
+
+    if (!existsSync(templatePath)) {
+      throw new Error(`Missing shim template: ${templatePath}`);
+    }
+
+    mkdirSync(dirname(targetPath), { recursive: true });
+    copyFileSync(templatePath, targetPath);
+  }
+};

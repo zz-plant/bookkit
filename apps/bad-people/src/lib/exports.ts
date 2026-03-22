@@ -1,9 +1,7 @@
-import { bookRuntime } from "./book-runtime";
-
-export const {
+export {
   chapterExportSlugs,
   getBookExportBundle,
   getChapterExportBundle,
   getBookExportLinks,
   getChapterExportLinks,
-} = bookRuntime;
+} from "./book-runtime";

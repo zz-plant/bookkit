@@ -1,3 +1,4 @@
-import { bookRuntime } from "../../../lib/book-runtime";
-
-export const { GET, getStaticPaths } = bookRuntime.exportRoutes.chapters.pdf;
+export {
+  chapterPdfExportGet as GET,
+  chapterPdfExportStaticPaths as getStaticPaths,
+} from "../../../lib/book-runtime";

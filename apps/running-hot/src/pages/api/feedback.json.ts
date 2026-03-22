@@ -1,3 +1,3 @@
-import { createFeedbackApiHandlers } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "../../lib/book-runtime";
 
-export const { POST } = createFeedbackApiHandlers();
+export const { POST } = bookRuntime.api.feedback;

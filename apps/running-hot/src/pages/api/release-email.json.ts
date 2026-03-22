@@ -1,8 +1,3 @@
-import { createReleaseEmailEndpoint } from "@bookkit/astro-bookkit";
-import { releaseModules } from "../../lib/release-notes";
-import bookConfig from "../../book.config";
+import { bookRuntime } from "../../lib/book-runtime";
 
-export const { POST } = createReleaseEmailEndpoint({
-  modules: releaseModules,
-  book: { slug: bookConfig.slug, title: bookConfig.title },
-});
+export const { POST } = bookRuntime.api.releaseEmail;

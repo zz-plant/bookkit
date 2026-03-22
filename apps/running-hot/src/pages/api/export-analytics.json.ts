@@ -1,3 +1,3 @@
-import { createExportAnalyticsApiHandlers } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "../../lib/book-runtime";
 
-export const { POST } = createExportAnalyticsApiHandlers();
+export const { POST } = bookRuntime.api.exportAnalytics;

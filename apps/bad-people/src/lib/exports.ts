@@ -1,20 +1,9 @@
-import {
-  createBookExportHelpersFromConfig,
-  createChapterExportSlugs,
-} from "@bookkit/astro-bookkit";
-import bookConfig from "../book.config";
-import { bookEntryPoints } from "./book-entrypoints";
-
-const exportHelpers = createBookExportHelpersFromConfig({
-  bookConfig,
-  modules: bookEntryPoints.contentRawModules.chapters,
-});
-
-export const chapterExportSlugs = createChapterExportSlugs(bookEntryPoints.contentModules.chapters);
+import { bookRuntime } from "./book-runtime";
 
 export const {
+  chapterExportSlugs,
   getBookExportBundle,
   getChapterExportBundle,
   getBookExportLinks,
   getChapterExportLinks,
-} = exportHelpers;
+} = bookRuntime;

@@ -1,257 +1,52 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import ReadHub from "@bookkit/astro-bookkit/components/ReadHub.astro";
 import {
   buildLocalizedContentIndex,
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
+import {
+  createDefaultReadHubSections,
+  createLatestSectionChangeMap,
+} from "@bookkit/astro-bookkit";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
-import { createLatestSectionChangeMap, defaultReadHubCopy, formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
 import { getReleaseNotes } from "../../lib/release-notes";
+import { readHubConfig } from "../../lib/read-hub";
 import bookConfig from "../../book.config";
-import readHubClient from "../../lib/read-hub.ts?url";
-import "../../lib/read-hub.css";
 
-const chapterIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.chapters,
-  {
-    defaultLocale: "en",
-  }
-);
-const mechanismIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.mechanisms,
-  {
-    defaultLocale: "en",
-  }
-);
-const toolkitIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.toolkit,
-  {
-    defaultLocale: "en",
-  }
-);
-const glossaryIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.glossary,
-  {
-    defaultLocale: "en",
-  }
-);
-const exampleIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.examples,
-  {
-    defaultLocale: "en",
-  }
-);
 const localeKey = Astro.locals?.locale;
-const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
-const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey });
-const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
-const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
-const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const chapters = resolveLocalizedContent(
+  buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, { defaultLocale: "en" }),
+  { locale: localeKey },
+);
+const mechanisms = resolveLocalizedContent(
+  buildLocalizedContentIndex(bookEntryPoints.contentModules.mechanisms, { defaultLocale: "en" }),
+  { locale: localeKey },
+);
+const toolkit = resolveLocalizedContent(
+  buildLocalizedContentIndex(bookEntryPoints.contentModules.toolkit, { defaultLocale: "en" }),
+  { locale: localeKey },
+);
+const glossary = resolveLocalizedContent(
+  buildLocalizedContentIndex(bookEntryPoints.contentModules.glossary, { defaultLocale: "en" }),
+  { locale: localeKey },
+);
+const examples = resolveLocalizedContent(
+  buildLocalizedContentIndex(bookEntryPoints.contentModules.examples, { defaultLocale: "en" }),
+  { locale: localeKey },
+);
 
-const releaseNotes = getReleaseNotes();
-const latestSectionChanges = createLatestSectionChangeMap(releaseNotes);
-const readerSections = [
+const sections = createDefaultReadHubSections(
   {
-    title: "Overview",
-    description: "Objectives, frame, and constraints for this draft.",
-    href: readRoutes.overview,
-    count: 1,
-    keyHint: ["g", "o"],
-    sectionKey: "overview",
+    chapters: { count: chapters.entries.length, completeness: chapters.completeness },
+    mechanisms: { count: mechanisms.entries.length, completeness: mechanisms.completeness },
+    toolkit: { count: toolkit.entries.length, completeness: toolkit.completeness },
+    glossary: { count: glossary.entries.length, completeness: glossary.completeness },
+    examples: { count: examples.entries.length, completeness: examples.completeness },
   },
-  {
-    title: "Chapters",
-    description: "Core modules and the intervention frame.",
-    href: readRoutes.chapters,
-    count: chapters.entries.length,
-    completeness: chapters.completeness,
-    keyHint: ["g", "c"],
-    sectionKey: "chapters",
-  },
-  {
-    title: "Mechanisms",
-    description: "Named system patterns with stable definitions.",
-    href: readRoutes.mechanisms,
-    count: mechanisms.entries.length,
-    completeness: mechanisms.completeness,
-    keyHint: ["g", "m"],
-    sectionKey: "mechanisms",
-  },
-  {
-    title: "Toolkit",
-    description: "Action primitives that fit inside ten minutes.",
-    href: readRoutes.toolkit,
-    count: toolkit.entries.length,
-    completeness: toolkit.completeness,
-    keyHint: ["g", "t"],
-    sectionKey: "toolkit",
-  },
-  {
-    title: "Glossary",
-    description: "Short definitions to keep shared language consistent.",
-    href: readRoutes.glossary,
-    count: glossary.entries.length,
-    completeness: glossary.completeness,
-    keyHint: ["g", "l"],
-    sectionKey: "glossary",
-  },
-  {
-    title: "Examples",
-    description: "Replaceable cases that ground the modules.",
-    href: readRoutes.examples,
-    count: examples.entries.length,
-    completeness: examples.completeness,
-    keyHint: ["g", "e"],
-    sectionKey: "examples",
-  },
-];
-const sectionBuckets = [
-  {
-    title: "Start here",
-    description: "Orientation and first-pass reading.",
-    sections: ["overview", "chapters"],
-  },
-  {
-    title: "Solve now",
-    description: "Diagnose patterns and pick a ten-minute action.",
-    sections: ["mechanisms", "toolkit"],
-  },
-  {
-    title: "Reference",
-    description: "Shared language and replaceable examples.",
-    sections: ["glossary", "examples"],
-  },
-];
+  createLatestSectionChangeMap(getReleaseNotes()),
+);
 ---
 <BaseLayout title={`Read • ${bookConfig.title}`}>
-  <div class="read-hub">
-    <section class="content-block read-hero" style="margin-top: 0;">
-      <div class="read-hero__copy">
-        <div class="eyebrow">{defaultReadHubCopy.heroEyebrow}</div>
-        <h1>{defaultReadHubCopy.heroTitle}</h1>
-        <p class="lede">
-          {defaultReadHubCopy.heroLede}
-        </p>
-      </div>
-      <div class="read-hero__quicklinks" aria-label="Quick ways to start" data-funnel-group="read-start">
-        <a class="read-pill" href="#start-here" data-funnel-step="read_to_start_here">{defaultReadHubCopy.quickLinkStart}</a>
-        <a class="read-pill" href="#solve-now" data-funnel-step="read_to_solve_now">{defaultReadHubCopy.quickLinkSolve}</a>
-        <a class="read-pill" href="#reference" data-funnel-step="read_to_reference">{defaultReadHubCopy.quickLinkReference}</a>
-      </div>
-      <div class="quick-start-grid" aria-label="Quick start paths">
-        <a
-          class="card quick-start-card quick-start-card--recommended"
-          href={readRoutes.chapters}
-          data-funnel-step="quickstart_chapter_first"
-        >
-          <div class="eyebrow">{defaultReadHubCopy.quickStartRecommendedEyebrow}</div>
-          <h2>Read chapter-first</h2>
-          <p class="meta">Follow the core arc from orientation to action.</p>
-        </a>
-        <a class="card quick-start-card" href={readRoutes.overview} data-funnel-step="quickstart_frame_first">
-          <div class="eyebrow">Understand the frame</div>
-          <h2>Scan objectives and constraints</h2>
-          <p class="meta">Get the model before diving into modules.</p>
-        </a>
-        <a class="card quick-start-card" href={readRoutes.mechanisms} data-funnel-step="quickstart_problem_first">
-          <div class="eyebrow">Solve a specific problem</div>
-          <h2>{defaultReadHubCopy.quickStartProblemTitle}</h2>
-          <p class="meta">Find the pattern, then move to toolkit actions.</p>
-        </a>
-      </div>
-    </section>
-
-    <section class="content-block read-section" id="reading-surfaces">
-      <div class="read-section__intro">
-        <div>
-          <div class="eyebrow">{defaultReadHubCopy.bucketsEyebrow}</div>
-          <h2>{defaultReadHubCopy.bucketsTitle}</h2>
-        </div>
-        <p class="meta">{defaultReadHubCopy.bucketsLede}</p>
-      </div>
-      <div class="bucket-grid">
-        {sectionBuckets.map((bucket) => (
-          <article
-            class:list={["card", "bucket-card", { "bucket-card--primary": bucket.title === "Start here" }]}
-            id={bucket.title.toLowerCase().replace(" ", "-")}
-          >
-            <div class="eyebrow">{bucket.title}</div>
-            <h3>{bucket.title}</h3>
-            <p class="meta">{bucket.description}</p>
-            <div class="card-grid" data-reader-sections>
-              {readerSections.filter((section) => bucket.sections.includes(section.sectionKey)).map((section) => {
-          const label = section.count === 1 ? "item" : "items";
-          const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
-          const completenessLabel = formatTranslationCompleteness(section.completeness);
-          const changeMeta = latestSectionChanges[section.sectionKey];
-          return (
-            <a
-              class="card read-surface-card"
-              href={section.href}
-              aria-keyshortcuts={keyShortcut}
-              data-section-key={section.sectionKey}
-              data-change-date={changeMeta?.date ?? ""}
-            >
-              <div class="read-surface-card__meta" aria-label="Section metadata">
-                <span class="read-meta-chip">{section.count} {label}</span>
-                {completenessLabel && <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>}
-                {changeMeta && (
-                  <>
-                    <span class="read-meta-chip read-meta-chip--update">Marked in v{changeMeta.version} notes</span>
-                    <span class="read-meta-chip read-meta-chip--new" data-read-new hidden>New for you</span>
-                  </>
-                )}
-              </div>
-              <h4>{section.title}</h4>
-              <p class="meta">{section.description}</p>
-              {section.keyHint && (
-                <div class="read-surface-card__shortcut" aria-label="Keyboard shortcut">
-                  <span class="kbd-hint"><kbd>{section.keyHint[0]}</kbd><kbd>{section.keyHint[1]}</kbd></span>
-                </div>
-              )}
-            </a>
-          );
-        })}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-
-    <section id="tools-by-role" class="content-block read-section" style="margin-top: 0;">
-      <div class="read-section__intro">
-        <div>
-          <div class="eyebrow">Meta</div>
-          <h2>Release and maintenance links</h2>
-        </div>
-        <div class="read-meta-actions">
-          <p class="meta">Lower-priority utilities live here so reading routes stay focused.</p>
-          <button class="button button--secondary" type="button" data-read-updates-filter hidden>
-            Show sections marked in latest release notes
-          </button>
-        </div>
-      </div>
-      <div class="card-grid read-tools-grid">
-        <article class="card read-tools-card read-tools-card--release" data-release-card>
-          <div class="eyebrow">Reader meta</div>
-          <h3>Reader updates</h3>
-          <p class="meta">Track changes or download an offline copy.</p>
-          <div class="read-hero__quicklinks">
-            <a class="read-pill" href="/release-notes">See what changed</a>
-            <a class="read-pill" href="/downloads">Download for offline reading</a>
-          </div>
-        </article>
-        <article class="card read-tools-card">
-          <div class="eyebrow">Author meta</div>
-          <h3>Author diagnostics</h3>
-          <p class="meta">Open analytics and publishing diagnostics.</p>
-          <div class="read-hero__quicklinks">
-            <a class="read-pill" href={readRoutes.tools}>Open author diagnostics</a>
-          </div>
-        </article>
-      </div>
-    </section>
-  </div>
-  <script type="module" src={readHubClient}></script>
+  <ReadHub {...readHubConfig} sections={sections} releaseFilterPlacement="utilities" />
 </BaseLayout>
-

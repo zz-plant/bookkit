@@ -34,6 +34,7 @@
     "./localization": "./src/localization/index.ts",
     "./analytics": "./src/analytics/index.ts",
     "./components/Breadcrumbs.astro": "./src/components/Breadcrumbs.astro",
-    "./components/ReaderUtilityStrip.astro": "./src/components/ReaderUtilityStrip.astro"
+    "./components/ReaderUtilityStrip.astro": "./src/components/ReaderUtilityStrip.astro",
+    "./components/ReadHub.astro": "./src/components/ReadHub.astro"
   }
 }

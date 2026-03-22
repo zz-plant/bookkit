@@ -1,0 +1,15 @@
+---
+const { isReadRoute = false } = Astro.props;
+---
+<div class="mobile-cta" data-mobile-cta>
+  <a
+    class="mobile-cta__primary"
+    href="/read"
+    aria-keyshortcuts="g r"
+    aria-current={isReadRoute ? "page" : undefined}
+  >
+    Read
+  </a>
+  <button type="button" data-mobile-search aria-controls="search-panel" aria-expanded="false">Search</button>
+  <button type="button" data-mobile-menu aria-controls="site-nav-more" aria-expanded="false">Menu</button>
+</div>

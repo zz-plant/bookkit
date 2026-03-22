@@ -1,3 +1,22 @@
+type AnalyticsEvent = Record<string, unknown>;
+const previewAnalyticsEndpoint = document.body?.dataset?.previewAnalyticsEndpoint;
+
+const sendPreviewAnalytics = (payload: AnalyticsEvent) => {
+  if (!previewAnalyticsEndpoint) return;
+  const body = JSON.stringify(payload);
+  if ("sendBeacon" in navigator) {
+    const blob = new Blob([body], { type: "application/json" });
+    navigator.sendBeacon(previewAnalyticsEndpoint, blob);
+    return;
+  }
+  fetch(previewAnalyticsEndpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+};
+
       const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
       const analyticsStorageKey = `${analyticsKeyPrefix}.analytics.events`;
       const analyticsSessionKey = `${analyticsKeyPrefix}.analytics.session`;
@@ -24,7 +43,7 @@
         }
       };
 
-      const saveAnalyticsEvents = (events) => {
+      const saveAnalyticsEvents = (events: AnalyticsEvent[]) => {
         localStorage.setItem(analyticsStorageKey, JSON.stringify(events));
       };
 
@@ -39,14 +58,14 @@
         return generated;
       };
 
-      const recordAnalyticsEvent = (event) => {
+      const recordAnalyticsEvent = (event: AnalyticsEvent) => {
         const events = loadAnalyticsEvents();
         events.push(event);
         saveAnalyticsEvents(events);
         sendAnalyticsEvent(event);
       };
 
-      const sendAnalyticsEvent = (payload) => {
+      const sendAnalyticsEvent = (payload: AnalyticsEvent) => {
         if (!analyticsEndpoint) return;
         const body = JSON.stringify(payload);
         if ("sendBeacon" in navigator) {
@@ -147,3 +166,4 @@
         }
       });
     
+export {};

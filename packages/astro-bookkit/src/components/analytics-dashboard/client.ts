@@ -15,7 +15,7 @@ import {
   summarizeAnalyticsEvents,
   type AnalyticsDashboardEvent,
   type AnalyticsMetric,
-} from "../../analytics/dashboard";
+} from "../../analytics";
 import { renderChapterRows, renderLocaleRows, renderMetric, renderSparkline, renderVersionRows } from "./render";
 
 const RETENTION_DAYS = 90;

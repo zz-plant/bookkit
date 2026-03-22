@@ -4,15 +4,16 @@ import {
   aggregateChapterMetrics,
   aggregateLocaleMetrics,
   aggregateVersionMetrics,
-  createPeriodComparison,
-  createSparklinePoints,
-  filterEventsByRetention,
-  filterEventsForPeriod,
-  formatMetricDelta,
-  parseStoredAnalyticsEvents,
   summarizeAnalyticsEvents,
-  type AnalyticsDashboardEvent,
-} from "./dashboard";
+} from "./dashboard/aggregation";
+import { createSparklinePoints, formatMetricDelta } from "./dashboard/formatting";
+import {
+  filterEventsByRetention,
+  normalizeAnalyticsEvent,
+  parseStoredAnalyticsEvents,
+} from "./dashboard/parsing";
+import { createPeriodComparison, filterEventsForPeriod } from "./dashboard/periods";
+import type { AnalyticsDashboardEvent } from "./dashboard/types";
 
 const day = (value: string): number => new Date(value).getTime();
 
@@ -44,7 +45,13 @@ const engagement = (overrides: Partial<AnalyticsDashboardEvent> = {}): Analytics
   scrollDepth: overrides.scrollDepth ?? 0.6,
 });
 
-describe("analytics dashboard helpers", () => {
+describe("analytics dashboard parsing helpers", () => {
+  it("normalizes valid events and rejects invalid payloads", () => {
+    expect(normalizeAnalyticsEvent(pageview())).toEqual(pageview());
+    expect(normalizeAnalyticsEvent({ type: "unknown", timestamp: Date.now() })).toBeNull();
+    expect(normalizeAnalyticsEvent({ type: "pageview", timestamp: "invalid" })).toBeNull();
+  });
+
   it("parses stored events and applies retention filtering", () => {
     const now = day("2026-03-22T00:00:00.000Z");
     const stored = JSON.stringify([
@@ -58,7 +65,9 @@ describe("analytics dashboard helpers", () => {
     ]);
     expect(filterEventsByRetention([], { now })).toEqual([]);
   });
+});
 
+describe("analytics dashboard period helpers", () => {
   it("creates inclusive current and prior period boundaries", () => {
     const comparison = createPeriodComparison("2026-03-10", "2026-03-12");
 
@@ -82,7 +91,9 @@ describe("analytics dashboard helpers", () => {
       pageview({ timestamp: day("2026-03-10T00:00:00.000Z"), version: "v1" }),
     ]);
   });
+});
 
+describe("analytics dashboard aggregation helpers", () => {
   it("returns empty aggregates for empty datasets", () => {
     expect(summarizeAnalyticsEvents([])).toMatchObject({ totalViews: 0, avgTime: 0, avgScroll: 0 });
     expect(aggregateChapterMetrics([])).toEqual([]);
@@ -123,7 +134,9 @@ describe("analytics dashboard helpers", () => {
 
     expect(rows).toEqual([{ version: "v1", views: 1, avgTime: 30, avgScroll: 0.4, dropOff: 0.6 }]);
   });
+});
 
+describe("analytics dashboard formatting helpers", () => {
   it("formats metric deltas for zero prior values and negative changes", () => {
     expect(formatMetricDelta("views", 5, 0)).toEqual({
       absoluteDelta: 5,

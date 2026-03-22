@@ -6,6 +6,8 @@ export {
   createReleaseNoteHelpers,
 } from "./app-helpers";
 export type { BookEntrypointModules } from "./app-helpers";
+export { createBookRuntime } from "./runtime";
+export type { BookRuntime, BookRuntimeConfig, CreateBookRuntimeOptions } from "./runtime";
 export { createBookEntryPoints } from "./entrypoints";
 export type {
   BookContentModules,

@@ -1,9 +1,3 @@
-import { createBookExportGetHandler } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "../../lib/book-runtime";
 
-import { getBookExportBundle } from "../../lib/exports";
-
-export const GET = createBookExportGetHandler({
-  getBookExportBundle,
-  format: "pdf",
-  filename: "bad-people.pdf",
-});
+export const GET = bookRuntime.exportRoutes.book.pdf.GET;

@@ -1,10 +1,3 @@
-import { createChapterExportHandlers } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "../../../lib/book-runtime";
 
-import { chapterExportSlugs, getChapterExportBundle } from "../../../lib/exports";
-
-export const { GET, getStaticPaths } = createChapterExportHandlers({
-  chapterExportSlugs,
-  getChapterExportBundle,
-  format: "pdf",
-  filenamePrefix: "running-hot",
-});
+export const { GET, getStaticPaths } = bookRuntime.exportRoutes.chapters.pdf;

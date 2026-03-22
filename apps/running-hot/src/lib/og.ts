@@ -1,1 +1,3 @@
-export { getOgImageForPath } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "./book-runtime";
+
+export const { getOgImageForPath } = bookRuntime;

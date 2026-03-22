@@ -1,3 +1,3 @@
-import { createReleaseAnalyticsApiPostHandler } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "../../lib/book-runtime";
 
-export const POST = createReleaseAnalyticsApiPostHandler();
+export const { POST } = bookRuntime.api.releaseAnalytics;

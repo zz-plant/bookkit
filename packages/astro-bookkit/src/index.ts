@@ -171,6 +171,7 @@ export type {
 } from "./preview";
 export {
   createBookEntryPointsFromModules,
+  createBookRuntime,
   createChapterExportSlugs,
   createBookExportHelpersFromConfig,
   createBookEntryPoints,
@@ -195,6 +196,9 @@ export {
 } from "./book";
 export type {
   BookExportHelpersFromConfigOptions,
+  BookRuntime,
+  BookRuntimeConfig,
+  CreateBookRuntimeOptions,
   BookContentModules,
   BookContentRawModules,
   BookEntryPoints,

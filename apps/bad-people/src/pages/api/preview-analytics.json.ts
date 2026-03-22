@@ -1,3 +1,3 @@
-import { createPreviewAnalyticsApiHandlers } from "@bookkit/astro-bookkit";
+import { bookRuntime } from "../../lib/book-runtime";
 
-export const { GET, POST } = createPreviewAnalyticsApiHandlers();
+export const { GET, POST } = bookRuntime.api.previewAnalytics;

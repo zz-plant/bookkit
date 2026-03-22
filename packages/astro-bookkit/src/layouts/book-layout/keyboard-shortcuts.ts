@@ -16,6 +16,16 @@ type KeyboardShortcutsOptions = {
   qa: QaController | null;
 };
 
+export const shouldSkipKeyboardShortcut = ({
+  key,
+  editableTarget,
+  hasModifier,
+}: {
+  key: string;
+  editableTarget: boolean;
+  hasModifier: boolean;
+}): boolean => key.toLowerCase() !== "escape" && (editableTarget || hasModifier);
+
 const initializeHelpPanel = (root: HTMLElement, toggleButton: HTMLButtonElement | null): HelpPanelController => {
   const closeButton = queryElement(root, "[data-kbd-close]", HTMLButtonElement);
   let lastFocused: HTMLElement | null = null;
@@ -115,28 +125,7 @@ export const initializeKeyboardShortcuts = ({
     setHeadingHighlight(target);
   };
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      search.toggle();
-      return;
-    }
-
-    if (isEditableTarget(event.target)) return;
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-    const { command, nextPending } = resolveKeyboardSequence(pendingSequence, event.key);
-    if (command.type === "noop") {
-      if (nextPending) {
-        event.preventDefault();
-      }
-      updateSequence(nextPending);
-      return;
-    }
-
-    event.preventDefault();
-    updateSequence(nextPending);
-
+  const runCommand = (command: ReturnType<typeof resolveKeyboardSequence>["command"]) => {
     if (command.type === "dismiss-panels") {
       search.close();
       qa?.close();
@@ -164,6 +153,45 @@ export const initializeKeyboardShortcuts = ({
       updateActiveHeading();
       goToHeading(activeHeadingIndex + 1);
     }
+  };
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      search.toggle();
+      return;
+    }
+
+    if (event.key.toLowerCase() === "escape") {
+      const { command, nextPending } = resolveKeyboardSequence(pendingSequence, event.key);
+      event.preventDefault();
+      updateSequence(nextPending);
+      runCommand(command);
+      return;
+    }
+
+    if (
+      shouldSkipKeyboardShortcut({
+        key: event.key,
+        editableTarget: isEditableTarget(event.target),
+        hasModifier: event.metaKey || event.ctrlKey || event.altKey,
+      })
+    ) {
+      return;
+    }
+
+    const { command, nextPending } = resolveKeyboardSequence(pendingSequence, event.key);
+    if (command.type === "noop") {
+      if (nextPending) {
+        event.preventDefault();
+      }
+      updateSequence(nextPending);
+      return;
+    }
+
+    event.preventDefault();
+    updateSequence(nextPending);
+    runCommand(command);
   });
 
   if (!headings.length) return;

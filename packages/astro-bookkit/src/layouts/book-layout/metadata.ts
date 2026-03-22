@@ -2,6 +2,27 @@ import { buildLocalePath } from "../../localization/routes";
 
 type LocaleEntry = { code: string };
 
+export type LayoutMetadataState = {
+  resolvedCanonical?: string;
+  resolvedRobots?: string;
+  resolvedOgTitle?: string;
+  resolvedOgDescription?: string;
+  resolvedTwitterCard?: string;
+  resolvedTwitterTitle?: string;
+  resolvedTwitterDescription?: string;
+  resolvedTwitterImage?: string;
+  resolvedOgSiteName?: string;
+  resolvedOgLocale?: string;
+  resolvedOgImageAlt?: string;
+  resolvedTwitterImageAlt?: string;
+  structuredDataScripts: unknown[];
+  hreflangEntries: Array<{
+    locale: string;
+    href: string;
+  }>;
+  hreflangDefault: string | null;
+};
+
 export const computeLayoutMetadata = ({
   robots,
   pathVersion,
@@ -60,7 +81,7 @@ export const computeLayoutMetadata = ({
   pathWithoutVersion: string;
   resolvedDefaultLocale?: string;
   includeDefaultLocalePrefix: boolean;
-}) => {
+}): LayoutMetadataState => {
   const resolvedRobots =
     robots ??
     ((pathVersion && !currentVersionIsLatest) || (versionArchiveNoindex && isArchivePage)
@@ -121,6 +142,7 @@ export const computeLayoutMetadata = ({
       : null;
 
   return {
+    resolvedCanonical,
     resolvedRobots,
     resolvedOgTitle,
     resolvedOgDescription,

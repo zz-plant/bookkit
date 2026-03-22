@@ -8,9 +8,7 @@ import MobileCta from "./book-layout/MobileCta.astro";
 import SearchPanel from "./book-layout/SearchPanel.astro";
 import QaPanel from "./book-layout/QaPanel.astro";
 import KeyboardHelp from "./book-layout/KeyboardHelp.astro";
-import { resolveLocaleConfig, stripLocaleFromPath } from "../localization/routes";
-import { computeLayoutMetadata } from "./book-layout/metadata";
-import { extractVersionFromPath, stripVersionFromPath } from "../releases/versions";
+import { createBookLayoutRenderState, type BookLayoutRenderState } from "../book/layout";
 
 const {
   title,
@@ -55,225 +53,157 @@ const {
   versionArchiveNoindex = true,
   locales = [],
   currentLocale,
-  defaultLocale,
+  defaultLocale = "en",
   includeDefaultLocalePrefix = false,
   localeLabel = "Language",
   showLocaleNotice = true,
+  renderState: precomputedRenderState,
 } = Astro.props;
 
-const pageTitle = title ?? bookTitle;
-const versionEntries = Array.isArray(versions) ? versions : [];
-const hasVersions = versionEntries.length > 0;
-const localeEntries = Array.isArray(locales) ? locales : [];
-const localeCodes = localeEntries.map((entry) => entry.code).filter(Boolean);
-const originalUrl =
-  typeof Astro.locals?.originalUrl === "string" ? new URL(Astro.locals.originalUrl) : null;
-const requestPathname = originalUrl?.pathname ?? Astro.url.pathname;
-const pathVersion = extractVersionFromPath(requestPathname, { prefixSegment: versionPrefix });
-const pathWithoutVersion = stripVersionFromPath(requestPathname, { prefixSegment: versionPrefix });
-const { defaultLocale: resolvedDefaultLocale } = resolveLocaleConfig(localeEntries, { defaultLocale });
-const { locale: detectedLocale, pathWithoutLocale } = stripLocaleFromPath(
-  pathWithoutVersion,
-  localeCodes,
-  { defaultLocale: resolvedDefaultLocale, includeDefaultPrefix: includeDefaultLocalePrefix }
-);
-const activeLocale = currentLocale ?? detectedLocale ?? resolvedDefaultLocale ?? localeCodes[0];
-const activeLocaleEntry = localeEntries.find((entry) => entry.code === activeLocale);
-const activeLocaleLabel = activeLocaleEntry?.label ?? activeLocale;
-const defaultLocaleLabel =
-  localeEntries.find((entry) => entry.code === resolvedDefaultLocale)?.label ?? resolvedDefaultLocale;
-const localeCompletenessRaw =
-  typeof activeLocaleEntry?.completeness === "number" ? activeLocaleEntry.completeness : null;
-const localeCompleteness =
-  localeCompletenessRaw === null
-    ? null
-    : Math.min(1, Math.max(0, localeCompletenessRaw));
-const showTranslationNotice =
-  showLocaleNotice && localeCompleteness !== null && localeCompleteness < 1;
-const resolvedVersion = pathVersion ?? bookVersion;
-const currentVersionEntry =
-  versionEntries.find((entry) => entry.version === resolvedVersion) ??
-  versionEntries.find((entry) => entry.isLatest);
-const versionBadgeLabel = hasVersions
-  ? currentVersionEntry?.isLatest
-    ? "Latest"
-    : resolvedVersion
-      ? `v${resolvedVersion}`
-      : null
-  : null;
-const canonicalPathBase =
-  canonicalPath ??
-  (pathVersion && !currentVersionEntry?.isLatest
-    ? stripVersionFromPath(requestPathname, { prefixSegment: versionPrefix })
-    : requestPathname);
-const resolvedCanonical =
-  canonicalUrl ?? (siteUrl ? new URL(canonicalPathBase, siteUrl).toString() : undefined);
-const normalizedPath = pathWithoutVersion.replace(/\/$/, "") || "/";
-const normalizedLocalePath = (pathWithoutLocale ?? pathWithoutVersion).replace(/\/$/, "") || "/";
-const normalizedArchivePath = versionArchivePath.replace(/\/$/, "") || "/";
-const isArchivePage = normalizedPath === normalizedArchivePath;
-const isReadRoute =
-  normalizedLocalePath === "/read" || normalizedLocalePath.startsWith("/read/");
-const isDownloadsRoute = normalizedLocalePath === "/downloads";
-const isReadDetailRoute = isReadRoute && normalizedLocalePath !== "/read";
+const renderState: BookLayoutRenderState =
+  precomputedRenderState ??
+  createBookLayoutRenderState({
+    title,
+    bookTitle,
+    bookVersion,
+    seoProps: {
+      siteUrl,
+      metaDescription,
+      canonicalPath,
+      canonicalUrl,
+      ogImage,
+      ogTitle,
+      ogDescription,
+      ogType,
+      twitterCard,
+      twitterTitle,
+      twitterDescription,
+      twitterImage,
+      ogSiteName,
+      ogLocale,
+      ogImageAlt,
+      twitterImageAlt,
+      structuredData,
+      robots,
+    },
+    requestPathname: Astro.url.pathname,
+    analyticsEndpoint,
+    versionEntries: Array.isArray(versions) ? versions : [],
+    versionPrefix,
+    versionArchivePath,
+    versionArchiveNoindex,
+    locales: Array.isArray(locales) ? locales : [],
+    currentLocale,
+    defaultLocale,
+    includeDefaultLocalePrefix,
+    localeLabel,
+    showLocaleNotice,
+    isPreview,
+    previewLabel,
+    previewTokenHint,
+    previewExpiresAt,
+  });
+
 const shouldLoadMermaidRuntime = true;
 const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
-const {
-  resolvedRobots,
-  resolvedOgTitle,
-  resolvedOgDescription,
-  resolvedTwitterCard,
-  resolvedTwitterTitle,
-  resolvedTwitterDescription,
-  resolvedTwitterImage,
-  resolvedOgSiteName,
-  resolvedOgLocale,
-  resolvedOgImageAlt,
-  resolvedTwitterImageAlt,
-  structuredDataScripts,
-  hreflangEntries,
-  hreflangDefault,
-} = computeLayoutMetadata({
-  robots,
-  pathVersion,
-  currentVersionIsLatest: currentVersionEntry?.isLatest,
-  versionArchiveNoindex,
-  isArchivePage,
-  ogTitle,
-  pageTitle,
-  ogDescription,
-  metaDescription,
-  twitterCard,
-  twitterImage,
-  ogImage,
-  twitterTitle,
-  twitterDescription,
-  ogSiteName,
-  bookTitle,
-  ogLocale,
-  activeLocale,
-  ogImageAlt,
-  twitterImageAlt,
-  resolvedCanonical,
-  structuredData,
-  siteUrl,
-  localeEntries,
-  pathWithoutLocale,
-  pathWithoutVersion,
-  resolvedDefaultLocale,
-  includeDefaultLocalePrefix,
-});
-const previewExpiresLabel = previewExpiresAt
-  ? new Date(previewExpiresAt).toLocaleDateString(activeLocale ?? "en", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
-  : null;
-const previewDetails = [
-  previewTokenHint ? `Link ending in ${previewTokenHint}` : null,
-  previewExpiresLabel ? `Expires ${previewExpiresLabel}` : null,
-].filter(Boolean);
-const showVersionHint = Boolean(hasVersions && !currentVersionEntry?.isLatest);
-const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
 ---
 <!doctype html>
-<html lang={activeLocale ?? "en"}>
+<html lang={renderState.lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>{pageTitle}</title>
-    {metaDescription && <meta name="description" content={metaDescription} />}
-    {resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
-    {resolvedRobots && <meta name="robots" content={resolvedRobots} />}
-    {resolvedOgTitle && <meta property="og:title" content={resolvedOgTitle} />}
-    {resolvedOgDescription && <meta property="og:description" content={resolvedOgDescription} />}
-    {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
-    {ogType && <meta property="og:type" content={ogType} />}
-    {resolvedOgSiteName && <meta property="og:site_name" content={resolvedOgSiteName} />}
-    {resolvedOgLocale && <meta property="og:locale" content={resolvedOgLocale} />}
-    {ogImage && <meta property="og:image" content={ogImage} />}
-    {resolvedOgImageAlt && <meta property="og:image:alt" content={resolvedOgImageAlt} />}
-    {resolvedTwitterCard && <meta name="twitter:card" content={resolvedTwitterCard} />}
-    {resolvedTwitterTitle && <meta name="twitter:title" content={resolvedTwitterTitle} />}
-    {resolvedTwitterDescription && <meta name="twitter:description" content={resolvedTwitterDescription} />}
-    {resolvedTwitterImage && <meta name="twitter:image" content={resolvedTwitterImage} />}
-    {resolvedTwitterImageAlt && <meta name="twitter:image:alt" content={resolvedTwitterImageAlt} />}
-    {hreflangEntries.map((entry) => (
+    <title>{renderState.pageTitle}</title>
+    {renderState.metaDescription && <meta name="description" content={renderState.metaDescription} />}
+    {renderState.head.resolvedCanonical && <link rel="canonical" href={renderState.head.resolvedCanonical} />}
+    {renderState.head.resolvedRobots && <meta name="robots" content={renderState.head.resolvedRobots} />}
+    {renderState.head.resolvedOgTitle && <meta property="og:title" content={renderState.head.resolvedOgTitle} />}
+    {renderState.head.resolvedOgDescription && <meta property="og:description" content={renderState.head.resolvedOgDescription} />}
+    {renderState.head.resolvedCanonical && <meta property="og:url" content={renderState.head.resolvedCanonical} />}
+    {renderState.ogType && <meta property="og:type" content={renderState.ogType} />}
+    {renderState.head.resolvedOgSiteName && <meta property="og:site_name" content={renderState.head.resolvedOgSiteName} />}
+    {renderState.head.resolvedOgLocale && <meta property="og:locale" content={renderState.head.resolvedOgLocale} />}
+    {renderState.ogImage && <meta property="og:image" content={renderState.ogImage} />}
+    {renderState.head.resolvedOgImageAlt && <meta property="og:image:alt" content={renderState.head.resolvedOgImageAlt} />}
+    {renderState.head.resolvedTwitterCard && <meta name="twitter:card" content={renderState.head.resolvedTwitterCard} />}
+    {renderState.head.resolvedTwitterTitle && <meta name="twitter:title" content={renderState.head.resolvedTwitterTitle} />}
+    {renderState.head.resolvedTwitterDescription && <meta name="twitter:description" content={renderState.head.resolvedTwitterDescription} />}
+    {renderState.head.resolvedTwitterImage && <meta name="twitter:image" content={renderState.head.resolvedTwitterImage} />}
+    {renderState.head.resolvedTwitterImageAlt && <meta name="twitter:image:alt" content={renderState.head.resolvedTwitterImageAlt} />}
+    {renderState.head.hreflangEntries.map((entry) => (
       <link rel="alternate" hreflang={entry.locale} href={entry.href} />
     ))}
-    {hreflangDefault && <link rel="alternate" hreflang="x-default" href={hreflangDefault} />}
-    {structuredDataScripts.map((entry) => (
+    {renderState.head.hreflangDefault && <link rel="alternate" hreflang="x-default" href={renderState.head.hreflangDefault} />}
+    {renderState.head.structuredDataScripts.map((entry) => (
       <script type="application/ld+json" set:html={JSON.stringify(entry)} />
     ))}
   </head>
   <body
-    data-book-version={bookVersion}
+    data-book-version={renderState.version.resolvedVersion ?? bookVersion}
     data-analytics-key={bookKey}
     data-analytics-endpoint={analyticsEndpoint}
     data-export-analytics-endpoint={exportAnalyticsEndpoint}
     data-preview-analytics-endpoint={previewAnalyticsEndpoint}
-    data-locale={activeLocale}
+    data-locale={renderState.locale.activeLocale}
     data-qa-enabled={aiQaEnabled ? "true" : "false"}
-    data-preview={isPreview ? "true" : "false"}
-    data-preview-hint={previewTokenHint}
-    data-preview-expires={previewExpiresAt}
-    data-preview-label={previewLabel}
+    data-preview={renderState.preview.isPreview ? "true" : "false"}
+    data-preview-hint={renderState.preview.tokenHint}
+    data-preview-expires={renderState.preview.expiresAt}
+    data-preview-label={renderState.preview.label}
   >
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="page">
       <SiteHeader
         bookTitle={bookTitle}
-        isPreview={isPreview}
-        previewLabel={previewLabel}
-        versionBadgeLabel={versionBadgeLabel}
-        isReadRoute={isReadRoute}
-        isDownloadsRoute={isDownloadsRoute}
-        isReadDetailRoute={isReadDetailRoute}
-        hasVersions={hasVersions}
-        localeEntries={localeEntries}
-        versionEntries={versionEntries}
-        currentPath={Astro.url.pathname}
-        resolvedVersion={resolvedVersion}
-        versionPrefix={versionPrefix}
-        versionArchivePath={versionArchivePath}
-        activeLocale={activeLocale}
-        resolvedDefaultLocale={resolvedDefaultLocale}
-        includeDefaultLocalePrefix={includeDefaultLocalePrefix}
-        localeLabel={localeLabel}
+        isPreview={renderState.preview.isPreview}
+        previewLabel={renderState.preview.label}
+        versionBadgeLabel={renderState.version.badgeLabel}
+        isReadRoute={renderState.routes.isReadRoute}
+        isDownloadsRoute={renderState.routes.isDownloadsRoute}
+        isReadDetailRoute={renderState.routes.isReadDetailRoute}
+        hasVersions={renderState.version.hasVersions}
+        localeEntries={renderState.locale.entries}
+        versionEntries={renderState.version.entries}
+        currentPath={renderState.routes.requestPathname}
+        resolvedVersion={renderState.version.resolvedVersion}
+        versionPrefix={renderState.version.prefix}
+        versionArchivePath={renderState.version.archivePath}
+        activeLocale={renderState.locale.activeLocale}
+        resolvedDefaultLocale={renderState.locale.defaultLocale}
+        includeDefaultLocalePrefix={renderState.locale.includeDefaultLocalePrefix}
+        localeLabel={renderState.locale.label}
         aiQaEnabled={aiQaEnabled}
       />
-      {showTranslationNotice && (
+      {renderState.translationNotice.show && (
         <div class="translation-notice" role="status">
           <span class="translation-notice__badge">Translation in progress</span>
           <span class="translation-notice__text">
-            {activeLocaleLabel} is {Math.round((localeCompleteness ?? 0) * 100)}% complete. Missing
-            sections will fall back to {defaultLocaleLabel ?? "the default language"}.
+            {renderState.translationNotice.activeLocaleLabel} is {renderState.translationNotice.percentage ?? 0}% complete.
+            Missing sections will fall back to {renderState.translationNotice.defaultLocaleLabel ?? "the default language"}.
           </span>
         </div>
       )}
-      {isPreview && (
+      {renderState.preview.isPreview && (
         <div class="preview-notice" role="status">
           <span class="preview-notice__badge">Preview access</span>
           <span class="preview-notice__text">You’re viewing a private preview of this book.</span>
-          {previewDetails.length ? (
-            <span class="preview-notice__meta">{previewDetails.join(" • ")}</span>
+          {renderState.preview.details.length ? (
+            <span class="preview-notice__meta">{renderState.preview.details.join(" • ")}</span>
           ) : null}
         </div>
       )}
-      {showStatusActions && (
+      {renderState.statusActions.show && (
         <div class="status-actions" role="status" aria-live="polite">
-          {showVersionHint && (
+          {renderState.version.showVersionHint && (
             <a class="status-actions__link" href="/release-notes">
-              You are viewing v{resolvedVersion}. Open release notes to compare with the latest version.
+              You are viewing v{renderState.version.resolvedVersion}. Open release notes to compare with the latest version.
             </a>
           )}
-          {showTranslationNotice && (
+          {renderState.translationNotice.show && (
             <a class="status-actions__link" href="/release-notes">
               Translation is still in progress. Check release notes for the most stable update before sharing.
             </a>
           )}
-          {isPreview && (
+          {renderState.preview.isPreview && (
             <a class="status-actions__link" href="/downloads">
               Using preview mode? Download an offline copy if you need to read without access interruptions.
             </a>
@@ -286,7 +216,7 @@ const showStatusActions = showTranslationNotice || isPreview || showVersionHint;
       <footer class="site-footer">
         <span>{footerText}</span>
       </footer>
-      <MobileCta isReadRoute={isReadRoute} />
+      <MobileCta isReadRoute={renderState.routes.isReadRoute} />
       <SearchPanel />
       {aiQaEnabled && <QaPanel aiQaSamples={aiQaSamples} />}
       <KeyboardHelp />

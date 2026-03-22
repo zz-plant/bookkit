@@ -1,5 +1,6 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
+import { createBookLayoutRenderState } from "../book/layout";
 import { formatReleaseDate, type ReleaseNote } from "../releases/notes";
 import type { BookVersionEntry } from "../releases/versions";
 
@@ -60,6 +61,37 @@ const {
   canonicalUrl,
   robots,
 } = Astro.props;
+
+const renderState = createBookLayoutRenderState({
+  title,
+  bookTitle,
+  bookVersion,
+  seoProps: {
+    siteUrl,
+    metaDescription,
+    ogImage,
+    ogTitle,
+    ogDescription,
+    ogType,
+    twitterCard,
+    twitterTitle,
+    twitterDescription,
+    twitterImage,
+    structuredData,
+    canonicalPath,
+    canonicalUrl,
+    robots,
+  },
+  requestPathname: Astro.url.pathname,
+  versionEntries: versions,
+  versionPrefix,
+  versionArchivePath,
+  locales: [],
+  defaultLocale: "en",
+  includeDefaultLocalePrefix: false,
+  localeLabel: "Language",
+  isPreview: false,
+});
 ---
 <BookLayout
   title={title}
@@ -83,6 +115,7 @@ const {
   canonicalPath={canonicalPath}
   canonicalUrl={canonicalUrl}
   robots={robots}
+  renderState={renderState}
 >
   <div class="section-header release-header">
     <div>

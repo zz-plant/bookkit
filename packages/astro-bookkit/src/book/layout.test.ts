@@ -1,0 +1,145 @@
+import { describe, expect, it } from "bun:test";
+
+import {
+  createBookLayoutRenderState,
+  createBookLayoutState,
+  type BookLayoutConfig,
+} from "./layout";
+import type { BookVersionEntry } from "../releases/versions";
+
+describe("book layout state", () => {
+  it("normalizes wrapper state for preview, archived versions, canonical paths, and translation notices", () => {
+    const bookConfig: BookLayoutConfig = {
+      site: { url: "https://docs.example.com" },
+      title: "Bad People",
+      slug: "bad-people",
+      localization: {
+        defaultLocale: "en",
+        locales: [
+          { code: "en", label: "English", isDefault: true },
+          { code: "fr", label: "Français" },
+        ],
+        label: "Language",
+      },
+    };
+    const versionEntries: BookVersionEntry[] = [
+      { version: "1.2.0" },
+      { version: "2.0.0", isLatest: true },
+    ];
+
+    const state = createBookLayoutState({
+      astro: {
+        props: {
+          title: "Compliance traps",
+          description: "How to spot moral technology drift.",
+        },
+        locals: {
+          originalUrl: "https://docs.example.com/v/1.2.0/fr/read/chapters/compliance-traps",
+          preview: {
+            isPreview: true,
+            status: "active",
+            label: "Staff preview",
+            tokenHint: "abc123",
+            expiresAt: "2026-04-01T00:00:00.000Z",
+          },
+        },
+        url: new URL("https://docs.example.com/read/chapters/compliance-traps"),
+      },
+      bookConfig,
+      versionEntries,
+      localizedContentModules: [
+        {
+          "../content/book/chapters/intro.md": { frontmatter: { slug: "intro" } },
+          "../content/book/chapters/compliance-traps.md": {
+            frontmatter: { slug: "compliance-traps" },
+          },
+          "../content/book/chapters/intro.fr.md": {
+            frontmatter: { slug: "intro", locale: "fr" },
+          },
+        },
+      ],
+      versionPrefix: "v",
+    });
+
+    expect(state.resolvedVersion).toBe("1.2.0");
+    expect(state.seoProps.canonicalPath).toBe("/fr/read/chapters/compliance-traps");
+    expect(state.seoProps.canonicalUrl).toBe(
+      "https://docs.example.com/fr/read/chapters/compliance-traps"
+    );
+    expect(state.seoProps.robots).toBe("noindex, nofollow");
+
+    expect(state.renderState.locale.activeLocale).toBe("fr");
+    expect(state.renderState.translationNotice).toMatchObject({
+      show: true,
+      activeLocaleLabel: "Français",
+      defaultLocaleLabel: "English",
+      percentage: 50,
+    });
+    expect(state.renderState.version).toMatchObject({
+      resolvedVersion: "1.2.0",
+      currentVersionIsLatest: false,
+      badgeLabel: "v1.2.0",
+      showVersionHint: true,
+    });
+    expect(state.renderState.preview).toMatchObject({
+      isPreview: true,
+      label: "Staff preview",
+      tokenHint: "abc123",
+    });
+    expect(state.renderState.preview.details).toContain("Link ending in abc123");
+    expect(state.renderState.preview.details.some((entry) => entry.startsWith("Expires "))).toBe(true);
+    expect(state.renderState.head.resolvedRobots).toBe("noindex, nofollow");
+    expect(state.renderState.head.resolvedCanonical).toBe(
+      "https://docs.example.com/fr/read/chapters/compliance-traps"
+    );
+  });
+
+  it("extracts locale, route, and archive metadata decisions into render state", () => {
+    const renderState = createBookLayoutRenderState({
+      title: "Version archive",
+      bookTitle: "Bad People",
+      bookVersion: "2.0.0",
+      seoProps: {
+        siteUrl: "https://docs.example.com",
+        canonicalUrl: "https://docs.example.com/en/versions",
+      },
+      requestPathname: "/en/versions/",
+      versionEntries: [{ version: "2.0.0", isLatest: true }],
+      versionArchivePath: "/versions",
+      locales: [
+        { code: "en", label: "English", isDefault: true, completeness: 1 },
+        { code: "fr", label: "Français", completeness: 0.25 },
+      ],
+      defaultLocale: "en",
+      includeDefaultLocalePrefix: true,
+      localeLabel: "Language",
+      isPreview: false,
+    });
+
+    expect(renderState.lang).toBe("en");
+    expect(renderState.locale).toMatchObject({
+      activeLocale: "en",
+      defaultLocale: "en",
+      includeDefaultLocalePrefix: true,
+    });
+    expect(renderState.routes).toMatchObject({
+      requestPathname: "/en/versions/",
+      normalizedPath: "/en/versions",
+      normalizedLocalePath: "/versions",
+      pathWithoutLocale: "/versions",
+      isArchivePage: true,
+      isReadRoute: false,
+      isDownloadsRoute: false,
+      isReadDetailRoute: false,
+    });
+    expect(renderState.translationNotice.show).toBe(false);
+    expect(renderState.version).toMatchObject({
+      resolvedVersion: "2.0.0",
+      currentVersionIsLatest: true,
+      badgeLabel: "Latest",
+      showVersionHint: false,
+    });
+    expect(renderState.head.resolvedRobots).toBe("noindex, nofollow");
+    expect(renderState.head.resolvedCanonical).toBe("https://docs.example.com/en/versions");
+  });
+});

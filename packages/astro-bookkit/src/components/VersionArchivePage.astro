@@ -1,5 +1,6 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
+import { createBookLayoutRenderState } from "../book/layout";
 import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
 
 export type Props = {
@@ -50,6 +51,36 @@ const {
   robots,
 } = Astro.props;
 
+const renderState = createBookLayoutRenderState({
+  title,
+  bookTitle,
+  bookVersion,
+  seoProps: {
+    siteUrl,
+    metaDescription,
+    ogImage,
+    ogTitle,
+    ogDescription,
+    ogType,
+    twitterCard,
+    twitterTitle,
+    twitterDescription,
+    twitterImage,
+    structuredData,
+    canonicalPath,
+    canonicalUrl,
+    robots,
+  },
+  requestPathname: Astro.url.pathname,
+  versionEntries: versions,
+  versionPrefix: prefixSegment,
+  locales: [],
+  defaultLocale: "en",
+  includeDefaultLocalePrefix: false,
+  localeLabel: "Language",
+  isPreview: false,
+});
+
 const entries = versions.map((entry) => ({
   ...entry,
   href: buildVersionPath("/", entry, { prefixSegment }),
@@ -76,6 +107,7 @@ const entries = versions.map((entry) => ({
   canonicalPath={canonicalPath}
   canonicalUrl={canonicalUrl}
   robots={robots}
+  renderState={renderState}
 >
   <div class="section-header">
     <div>

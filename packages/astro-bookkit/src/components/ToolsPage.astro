@@ -1,5 +1,6 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
+import { createBookLayoutRenderState } from "../book/layout";
 
 export type ToolsPageLink = {
   title: string;
@@ -30,8 +31,22 @@ const {
   lede = "Use these tools to publish updates, manage versions, and maintain this book.",
   eyebrow = "For authors",
 } = Astro.props;
+
+const renderState = createBookLayoutRenderState({
+  title,
+  bookTitle,
+  bookVersion,
+  seoProps: {},
+  requestPathname: Astro.url.pathname,
+  versionEntries: [],
+  locales: [],
+  defaultLocale: "en",
+  includeDefaultLocalePrefix: false,
+  localeLabel: "Language",
+  isPreview: false,
+});
 ---
-<BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey}>
+<BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey} renderState={renderState}>
   <a class="back-link" href={backHref}>← Back to reading hub</a>
   <div class="section-header">
     <div class="eyebrow">{eyebrow}</div>

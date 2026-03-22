@@ -36,8 +36,18 @@ export type { ChapterPageCopy } from "./chapter-copy";
 export { defaultReadHubCopy } from "./read-hub-copy";
 export type { ReadHubCopy } from "./read-hub-copy";
 export { buildLocalizedReadRoutePath, readRoutePrefixFromPathname } from "./breadcrumbs";
-export { createBookLayoutState } from "./layout";
-export type { BookLayoutConfig, BookLayoutOptions, BookLayoutState } from "./layout";
+export { createBookLayoutRenderState, createBookLayoutState } from "./layout";
+export type {
+  BookLayoutConfig,
+  BookLayoutOptions,
+  BookLayoutPreviewDisplayState,
+  BookLayoutRenderState,
+  BookLayoutRouteState,
+  BookLayoutState,
+  BookLayoutTranslationNoticeState,
+  BookLayoutVersionDisplayState,
+  CreateBookLayoutRenderStateOptions,
+} from "./layout";
 export {
   DEFAULT_OG_SURFACE_IMAGE_MAP,
   getOgImageForPath,

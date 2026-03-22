@@ -1,0 +1,278 @@
+---
+import readHubClient from "./read-hub/client.ts?url";
+import "./read-hub/read-hub.css";
+import { formatTranslationCompleteness } from "../book/read-routes";
+import type {
+  ReadHubConfig,
+  ReadHubSection,
+} from "../book/read-hub";
+
+export type Props = ReadHubConfig & {
+  sections: ReadHubSection[];
+  releaseFilterPlacement?: "intro" | "utilities";
+};
+
+const {
+  hero,
+  intro,
+  buckets,
+  sections,
+  quickStartCards = [],
+  utilities,
+  bucketNavigation = "stacked",
+  releaseFilterPlacement = "utilities",
+  releaseFilter = {
+    initialLabel: "Show sections marked in latest release notes",
+    activeLabel: "Show all sections",
+  },
+} = Astro.props;
+
+const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, section]));
+---
+<div class="read-hub">
+  <section class="content-block read-hero" style="margin-top: 0;">
+    <div class="read-hero__copy">
+      <div class="eyebrow">{hero.eyebrow}</div>
+      <h1>{hero.title}</h1>
+      <p class="lede">{hero.lede}</p>
+    </div>
+    <div class="read-hero__quicklinks" aria-label={hero.quickLinksAriaLabel ?? "Quick ways to start"} data-funnel-group="read-start">
+      {hero.quickLinks.map((link) => (
+        <a
+          class:list={["read-pill", link.primary ? "read-pill--primary" : undefined]}
+          href={link.href}
+          data-funnel-step={link.funnelStep ?? undefined}
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+    {quickStartCards.length > 0 && (
+      <div class="quick-start-grid" aria-label={hero.quickStartAriaLabel ?? "Quick start paths"}>
+        {quickStartCards.map((card) => (
+          <a
+            class:list={[
+              "card",
+              "quick-start-card",
+              card.recommended ? "quick-start-card--recommended" : undefined,
+            ]}
+            href={card.href}
+            data-funnel-step={card.funnelStep ?? undefined}
+          >
+            <div class="eyebrow">{card.eyebrow}</div>
+            <h2>{card.title}</h2>
+            <p class="meta">{card.description}</p>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <section class="content-block read-section" id="reading-surfaces">
+    <div class="read-section__intro">
+      <div>
+        <div class="eyebrow">{intro.eyebrow}</div>
+        <h2>{intro.title}</h2>
+      </div>
+      {releaseFilterPlacement === "intro" ? (
+        <div class="read-section__controls">
+          {intro.lede && <p class="meta">{intro.lede}</p>}
+          <button
+            class="button button--secondary"
+            type="button"
+            data-read-updates-filter
+            data-filter-default-label={releaseFilter.initialLabel}
+            data-filter-active-label={releaseFilter.activeLabel}
+            hidden
+          >
+            {releaseFilter.initialLabel}
+          </button>
+        </div>
+      ) : (
+        intro.lede && <p class="meta">{intro.lede}</p>
+      )}
+    </div>
+
+    {bucketNavigation === "tabs" && (
+      <div class="bucket-tabs" role="tablist" aria-label="Reading route buckets">
+        {buckets.map((bucket, index) => (
+          <button
+            type="button"
+            class="bucket-tab"
+            role="tab"
+            aria-selected={index === 0 ? "true" : "false"}
+            aria-controls={`bucket-panel-${bucket.id}`}
+            id={`bucket-tab-${bucket.id}`}
+            data-bucket-tab={bucket.id}
+            tabindex={index === 0 ? "0" : "-1"}
+          >
+            {bucket.title}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <div class="bucket-grid">
+      {buckets.map((bucket, index) => (
+        <article
+          class:list={["card", "bucket-card", bucket.primary ? "bucket-card--primary" : undefined]}
+          id={bucket.id}
+          role={bucketNavigation === "tabs" ? "tabpanel" : undefined}
+          aria-labelledby={bucketNavigation === "tabs" ? `bucket-tab-${bucket.id}` : undefined}
+          data-bucket-panel={bucketNavigation === "tabs" ? bucket.id : undefined}
+          hidden={bucketNavigation === "tabs" && index > 0 ? true : undefined}
+          tabindex={bucketNavigation === "tabs" ? "0" : undefined}
+        >
+          <div class="eyebrow">{bucket.title}</div>
+          <h3>{bucket.title}</h3>
+          <p class="meta">{bucket.description}</p>
+          <div class="card-grid" data-reader-sections>
+            {bucket.sectionKeys.map((sectionKey) => {
+              const section = sectionsByKey.get(sectionKey);
+              if (!section) {
+                return null;
+              }
+              const label = section.count === 1 ? "item" : "items";
+              const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
+              const completenessLabel = formatTranslationCompleteness(section.completeness ?? null);
+              const changeMeta = section.latestChange;
+              return (
+                <a
+                  class="card read-surface-card"
+                  href={section.href}
+                  aria-keyshortcuts={keyShortcut}
+                  data-section-key={section.sectionKey}
+                  data-change-date={changeMeta?.date ?? ""}
+                >
+                  <div class="read-surface-card__meta" aria-label="Section metadata">
+                    <span class="read-meta-chip" title="Number of entries in this section">{section.count} {label}</span>
+                    {completenessLabel && (
+                      <span class="read-meta-chip read-meta-chip--status" title="Translation completeness status">
+                        {completenessLabel}
+                      </span>
+                    )}
+                    {changeMeta && (
+                      <>
+                        <span class="read-meta-chip read-meta-chip--update" title="Mentioned in the latest release notes">
+                          Marked in v{changeMeta.version} notes
+                        </span>
+                        <span class="read-meta-chip read-meta-chip--new" data-read-new hidden title="Updated since your last visit">
+                          New for you
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <h4>{section.title}</h4>
+                  <p class="meta">{section.description}</p>
+                  {section.keyHint && (
+                    <div class="read-surface-card__shortcut" aria-label="Keyboard shortcut">
+                      <span class="kbd-hint" title={`Shortcut ${section.keyHint[0]} ${section.keyHint[1]}`}>
+                        <kbd>{section.keyHint[0]}</kbd>
+                        <kbd>{section.keyHint[1]}</kbd>
+                      </span>
+                    </div>
+                  )}
+                </a>
+              );
+            })}
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  {utilities && (
+    utilities.mode === "accordion" ? (
+      <section class="content-block read-section read-utility-disclosure" id={utilities.id ?? "tools-by-role"} data-accordion>
+        <button type="button" class="read-accordion__toggle" aria-expanded="false" data-accordion-toggle>
+          <span>
+            <span class="eyebrow">{utilities.eyebrow}</span>
+            <strong>{utilities.title}</strong>
+          </span>
+          {utilities.lede && <span class="meta">{utilities.lede}</span>}
+        </button>
+        <div class="card-grid read-tools-grid" data-accordion-panel hidden>
+          {utilities.cards.map((card) => (
+            <article
+              class:list={[
+                "card",
+                "read-tools-card",
+                card.featured ? "read-tools-card--release" : undefined,
+              ]}
+              data-release-card={card.deemphasizeUntilStarted ? "true" : undefined}
+              data-release-secondary-note={card.secondaryNote ?? undefined}
+            >
+              <div class="eyebrow">{card.eyebrow}</div>
+              <h3>{card.title}</h3>
+              <p class="meta">{card.description}</p>
+              <div class="read-hero__quicklinks">
+                {card.links.map((link) => (
+                  <a
+                    class:list={["read-pill", link.primary ? "read-pill--primary" : undefined]}
+                    href={link.href}
+                    data-funnel-step={link.funnelStep ?? undefined}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    ) : (
+      <section id={utilities.id ?? "tools-by-role"} class="content-block read-section" style="margin-top: 0;">
+        <div class="read-section__intro">
+          <div>
+            <div class="eyebrow">{utilities.eyebrow}</div>
+            <h2>{utilities.title}</h2>
+          </div>
+          <div class="read-meta-actions">
+            {utilities.lede && <p class="meta">{utilities.lede}</p>}
+            {releaseFilterPlacement === "utilities" && (
+              <button
+                class="button button--secondary"
+                type="button"
+                data-read-updates-filter
+                data-filter-default-label={releaseFilter.initialLabel}
+                data-filter-active-label={releaseFilter.activeLabel}
+                hidden
+              >
+                {releaseFilter.initialLabel}
+              </button>
+            )}
+          </div>
+        </div>
+        <div class="card-grid read-tools-grid">
+          {utilities.cards.map((card) => (
+            <article
+              class:list={[
+                "card",
+                "read-tools-card",
+                card.featured ? "read-tools-card--release" : undefined,
+              ]}
+              data-release-card={card.deemphasizeUntilStarted ? "true" : undefined}
+              data-release-secondary-note={card.secondaryNote ?? undefined}
+            >
+              <div class="eyebrow">{card.eyebrow}</div>
+              <h3>{card.title}</h3>
+              <p class="meta">{card.description}</p>
+              <div class="read-hero__quicklinks">
+                {card.links.map((link) => (
+                  <a
+                    class:list={["read-pill", link.primary ? "read-pill--primary" : undefined]}
+                    href={link.href}
+                    data-funnel-step={link.funnelStep ?? undefined}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    )
+  )}
+</div>
+<script type="module" src={readHubClient}></script>

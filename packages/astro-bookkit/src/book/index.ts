@@ -35,6 +35,25 @@ export { defaultChapterPageCopy } from "./chapter-copy";
 export type { ChapterPageCopy } from "./chapter-copy";
 export { defaultReadHubCopy } from "./read-hub-copy";
 export type { ReadHubCopy } from "./read-hub-copy";
+export { createDefaultReadHubSections } from "./read-hub";
+export type {
+  ReadHubBucket,
+  ReadHubConfig,
+  ReadHubHeroConfig,
+  ReadHubHeroLink,
+  ReadHubIntroConfig,
+  ReadHubLatestChange,
+  ReadHubLatestChangeMap,
+  ReadHubQuickStartCard,
+  ReadHubReleaseFilterLabels,
+  ReadHubSection,
+  ReadHubSectionKey,
+  ReadHubSectionStats,
+  ReadHubSectionStatsMap,
+  ReadHubUtilitiesConfig,
+  ReadHubUtilityCard,
+  ReadHubUtilityLink,
+} from "./read-hub";
 export { buildLocalizedReadRoutePath, readRoutePrefixFromPathname } from "./breadcrumbs";
 export { createBookLayoutState } from "./layout";
 export type { BookLayoutConfig, BookLayoutOptions, BookLayoutState } from "./layout";

@@ -8,7 +8,7 @@ import {
   type AggregatedVersionRow,
   type AnalyticsMetric,
   type MetricDelta,
-} from "../../analytics";
+} from "../../analytics/dashboard";
 
 const createElement = <K extends keyof HTMLElementTagNameMap>(
   tagName: K,

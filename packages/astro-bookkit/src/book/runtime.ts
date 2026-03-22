@@ -1,3 +1,6 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { createBookMcpEndpointFromWorkspace } from "../mcp";
 import { createReleaseEmailEndpoint } from "../releases/endpoint";
 import type { ReleaseModule, ReleaseNote } from "../releases/notes";
@@ -82,6 +85,14 @@ export const createBookRuntime = ({
       createMcpHandlers: (startDir: string) =>
         createBookMcpEndpointFromWorkspace({
           startDir,
+          bookTitle: bookConfig.title,
+          bookSlug: bookConfig.slug,
+          bookDescription: bookConfig.site?.defaultMeta?.description,
+          contentRawModules: bookEntryPoints.contentRawModules,
+        }),
+      createMcpHandlersFromModuleUrl: (moduleUrl: string) =>
+        createBookMcpEndpointFromWorkspace({
+          startDir: dirname(fileURLToPath(moduleUrl)),
           bookTitle: bookConfig.title,
           bookSlug: bookConfig.slug,
           bookDescription: bookConfig.site?.defaultMeta?.description,

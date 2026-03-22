@@ -1,3 +1,1 @@
-import { bookRuntime } from "../../lib/book-runtime";
-
-export const GET = bookRuntime.exportRoutes.book.pdf.GET;
+export { bookPdfExportGet as GET } from "../../lib/book-runtime";

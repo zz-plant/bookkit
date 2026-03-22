@@ -1,3 +1,1 @@
-import { bookRuntime } from "../../lib/book-runtime";
-
-export const { POST } = bookRuntime.api.releaseEmail;
+export { releaseEmailApiPost as POST } from "../../lib/book-runtime";

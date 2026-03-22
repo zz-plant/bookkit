@@ -1,1 +1,1 @@
-export { getVersionEntries } from "./release-notes";
+export { getVersionEntries } from "./book-runtime";

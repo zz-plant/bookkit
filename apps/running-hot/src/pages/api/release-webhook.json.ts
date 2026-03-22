@@ -1,3 +1,1 @@
-import { bookRuntime } from "../../lib/book-runtime";
-
-export const { POST } = bookRuntime.api.releaseWebhook;
+export { releaseWebhookApiPost as POST } from "../../lib/book-runtime";

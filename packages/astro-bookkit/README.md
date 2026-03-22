@@ -84,23 +84,41 @@ The resulting `bookRuntime` centralizes common bootstrap concerns:
 
 ## Route wrapper pattern
 
-Astro route files should stay as thin wrappers around the shared runtime object so only file-path-specific exports remain local.
+Astro's file-based routing means a small set of app-local wrapper files must still exist under `src/pages/**` and `src/lib/**`. Keep those files declarative and route-shaped only:
+
+- `src/lib/book-runtime.ts` is the only place a book should call `createBookRuntime(...)`, because Astro/Vite require the local `import.meta.glob()` entrypoints to stay in the app.
+- `src/lib/book-entrypoints.ts`, `src/lib/exports.ts`, `src/lib/og.ts`, `src/lib/release-notes.ts`, and `src/lib/versions.ts` should be re-export shims from `book-runtime`.
+- `src/pages/api/**` and `src/pages/exports/**` must remain as thin route stubs because Astro discovers those endpoints by filename.
+
+The shared engine now provides `createBookAppShims(bookRuntime)` so app-local wrappers only alias runtime helpers instead of repeating setup.
 
 ```ts
-import { bookRuntime } from "../../lib/book-runtime";
+import { createBookAppShims, createBookRuntime } from "@bookkit/astro-bookkit";
 
-export const GET = bookRuntime.exportRoutes.book.pdf.GET;
+import bookConfig from "../book.config";
+
+export const bookRuntime = createBookRuntime({ ... });
+
+export const {
+  bookEntryPoints,
+  createMcpApiHandlers,
+  analyticsApiHandlers,
+  bookPdfExportRoute,
+} = createBookAppShims(bookRuntime);
 ```
+
+Static shim files should stay one-line re-exports whenever possible.
 
 ```ts
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-import { bookRuntime } from "../../lib/book-runtime";
-
-const currentDir = dirname(fileURLToPath(import.meta.url));
-
-export const { GET, POST } = bookRuntime.api.createMcpHandlers(currentDir);
+export { bookPdfExportGet as GET } from "../../lib/book-runtime";
 ```
 
-If you still want compatibility shims such as `src/lib/book-entrypoints.ts` or `src/lib/release-notes.ts`, keep them as re-exports from `bookRuntime` rather than duplicating setup logic.
+The MCP wrapper still needs a tiny local call because `import.meta.url` is file-local, but no longer needs custom path boilerplate.
+
+```ts
+import { createMcpApiHandlers } from "../../lib/book-runtime";
+
+export const { GET, POST } = createMcpApiHandlers(import.meta.url);
+```
+
+Canonical wrapper templates live in `packages/astro-bookkit/templates/book-app/**`. Use `bun run check:shims` to verify app wrappers still match the canonical pattern, and `bun run sync:shims` to rewrite them from the template source.

@@ -1,6 +1,7 @@
 import { cpSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ensureDir, optionalArg, readText, requireArg, slugify, writeFileSafe } from "./_lib";
+import { syncShimTemplatesToBook } from "./_shim-templates";
 
 const rawBook = requireArg("--book");
 const template = optionalArg("--template") ?? "bad-people";
@@ -35,6 +36,8 @@ if (existsSync(targetDir)) {
 }
 
 cpSync(templateDir, targetDir, { recursive: true });
+
+syncShimTemplatesToBook(slug);
 
 const contentRoot = join(targetDir, "src", "content", "book");
 rmSync(contentRoot, { recursive: true, force: true });

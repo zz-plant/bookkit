@@ -37,18 +37,24 @@ export { defaultChapterPageCopy } from "./chapter-copy";
 export type { ChapterPageCopy } from "./chapter-copy";
 export { defaultReadHubCopy } from "./read-hub-copy";
 export type { ReadHubCopy } from "./read-hub-copy";
-export { createDefaultReadHubSections } from "./read-hub";
+export { createDefaultReadHubSections, createLocalizedReadHubSectionSummaries } from "./read-hub";
 export type {
+  ReadHubContentModule,
+  ReadHubContentModuleGroups,
+  ReadHubContentSectionKey,
   ReadHubBucket,
   ReadHubConfig,
   ReadHubHeroConfig,
   ReadHubHeroLink,
+  ReadHubLocalizedSectionEntry,
   ReadHubIntroConfig,
   ReadHubLatestChange,
   ReadHubLatestChangeMap,
   ReadHubQuickStartCard,
   ReadHubReleaseFilterLabels,
   ReadHubSection,
+  ReadHubSectionSummary,
+  ReadHubSectionSummaryMap,
   ReadHubSectionKey,
   ReadHubSectionStats,
   ReadHubSectionStatsMap,

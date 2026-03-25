@@ -31,6 +31,7 @@ describe("book layout state", () => {
       astro: {
         props: {
           title: "Compliance traps",
+          hasMermaid: true,
           description: "How to spot moral technology drift.",
         },
         locals: {
@@ -69,6 +70,7 @@ describe("book layout state", () => {
     expect(state.seoProps.robots).toBe("noindex, nofollow");
 
     expect(state.renderState.locale.activeLocale).toBe("fr");
+    expect(state.renderState.hasMermaid).toBe(true);
     expect(state.renderState.translationNotice).toMatchObject({
       show: true,
       activeLocaleLabel: "Français",
@@ -117,6 +119,7 @@ describe("book layout state", () => {
     });
 
     expect(renderState.lang).toBe("en");
+    expect(renderState.hasMermaid).toBe(false);
     expect(renderState.locale).toMatchObject({
       activeLocale: "en",
       defaultLocale: "en",

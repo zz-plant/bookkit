@@ -17,6 +17,7 @@ import { computeLayoutMetadata, type LayoutMetadataState } from "../layouts/book
 
 type BookLayoutAstroProps = {
   title?: string;
+  hasMermaid?: boolean;
   description?: string;
   ogTitle?: string;
   ogDescription?: string;
@@ -120,6 +121,7 @@ export type BookLayoutLocaleDisplayState = {
 export type BookLayoutRenderState = {
   pageTitle: string;
   lang: string;
+  hasMermaid: boolean;
   metaDescription?: string;
   ogImage?: string;
   ogType: string;
@@ -153,6 +155,7 @@ export type BookLayoutState = {
 
 export type CreateBookLayoutRenderStateOptions = {
   title?: string;
+  hasMermaid?: boolean;
   bookTitle: string;
   bookVersion?: string;
   seoProps: SeoProps;
@@ -189,6 +192,7 @@ export const createBookLayoutRenderState = (
 ): BookLayoutRenderState => {
   const {
     title,
+    hasMermaid = false,
     bookTitle,
     bookVersion,
     seoProps,
@@ -308,6 +312,7 @@ export const createBookLayoutRenderState = (
   return {
     pageTitle,
     lang: activeLocale ?? resolvedDefaultLocale ?? "en",
+    hasMermaid,
     metaDescription: seoProps.metaDescription,
     ogImage: seoProps.ogImage,
     ogType: seoProps.ogType ?? "website",
@@ -443,6 +448,7 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
     localeLabel,
     renderState: createBookLayoutRenderState({
       title: props.title,
+      hasMermaid: props.hasMermaid ?? false,
       bookTitle,
       bookVersion: resolvedVersion,
       seoProps,

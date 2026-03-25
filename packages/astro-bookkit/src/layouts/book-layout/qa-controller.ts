@@ -5,7 +5,8 @@ import {
   persistQaDisplayMode,
   toggleQaDisplayMode,
 } from "./qa-display-mode";
-import { buildRankedResults } from "./search-ranking";
+import { createQueryEngine } from "./query-engine";
+import type { RankedSearchResult } from "./search-ranking";
 import type { SearchIndexStore } from "./search-index-store";
 import { readStoredValue, writeStoredValue, type StorageLike } from "./storage";
 
@@ -57,7 +58,6 @@ export const initializeQaController = ({
   const suggestions = queryAllElements(root, "[data-qa-suggestion]", HTMLButtonElement);
 
   let query = "";
-  let runId = 0;
   let lastFocused: HTMLElement | null = null;
   let displayMode = loadQaDisplayMode(storage, displayModeKey);
 
@@ -82,6 +82,8 @@ export const initializeQaController = ({
     disableButton?.toggleAttribute("disabled", disabled);
   };
 
+  const queryEngine = createQueryEngine({ indexStore });
+
   const updateDisplayMode = () => {
     root.dataset.qaDisplayMode = displayMode;
     if (displayToggle) {
@@ -90,10 +92,7 @@ export const initializeQaController = ({
     persistQaDisplayMode(storage, displayModeKey, displayMode);
   };
 
-  const renderAnswer = (
-    entries: ReturnType<typeof buildRankedResults>["results"],
-    tokens: string[]
-  ) => {
+  const renderAnswer = (entries: RankedSearchResult[], tokens: string[]) => {
     if (!answer || !citations) return;
     answer.replaceChildren();
     citations.replaceChildren();
@@ -139,12 +138,11 @@ export const initializeQaController = ({
       return;
     }
 
-    const currentRunId = ++runId;
-    const index = await indexStore.load();
-    if (currentRunId !== runId) return;
-
     query = value;
-    const normalizedQuery = value.trim().toLowerCase();
+    const runResult = await queryEngine.run(value);
+    if (runResult.status === "stale") return;
+
+    const { normalizedQuery, tokens, results } = runResult;
     if (!normalizedQuery) {
       updateStatus("Ask a question to see answers.");
       if (answer) {
@@ -157,7 +155,6 @@ export const initializeQaController = ({
       return;
     }
 
-    const { tokens, results } = buildRankedResults(index, normalizedQuery);
     const topResults = results.slice(0, 3);
     renderAnswer(topResults, tokens);
     updateStatus(
@@ -172,7 +169,7 @@ export const initializeQaController = ({
     lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setOpenState(true);
     updateState();
-    await indexStore.load();
+    await queryEngine.loadIndex();
     window.requestAnimationFrame(() => {
       if (!input || isDisabled()) return;
       input.value = query;

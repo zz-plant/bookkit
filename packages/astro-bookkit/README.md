@@ -122,3 +122,19 @@ export const { GET, POST } = createMcpApiHandlers(import.meta.url);
 ```
 
 Canonical wrapper templates live in `packages/astro-bookkit/templates/book-app/**`. Use `bun run check:shims` to verify app wrappers still match the canonical pattern, and `bun run sync:shims` to rewrite them from the template source.
+
+## `BookLayout` Mermaid runtime contract
+
+`BookLayout` only injects the Mermaid client runtime when a `hasMermaid` signal is `true`.
+
+- `BookLayout` accepts `hasMermaid?: boolean`.
+- `createBookLayoutState(...)` forwards `astro.props.hasMermaid` into `renderState.hasMermaid`.
+- `BookLayout` consumes either explicit `hasMermaid` or `renderState.hasMermaid` to decide whether to load `book-layout/mermaid.ts`.
+
+Recommended wiring in book apps:
+
+1. Detect Mermaid usage in the page/frontmatter/render pipeline (for example: `frontmatter.hasMermaid` or route-level detection).
+2. Pass `hasMermaid` into your app-local `BaseLayout`.
+3. Keep `BookLayout` usage declarative (`<BookLayout hasMermaid={hasMermaid} ...>` or through `renderState`).
+
+The Mermaid client keeps its own DOM-level guard (`querySelectorAll("pre > code.language-mermaid, pre > code.mermaid")`) as a safety fallback.

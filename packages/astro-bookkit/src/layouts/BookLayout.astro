@@ -12,6 +12,7 @@ import { createBookLayoutRenderState, type BookLayoutRenderState } from "../book
 
 const {
   title,
+  hasMermaid,
   bookTitle = "Book",
   bookVersion = "draft",
   bookKey = "book",
@@ -64,6 +65,7 @@ const renderState: BookLayoutRenderState =
   precomputedRenderState ??
   createBookLayoutRenderState({
     title,
+    hasMermaid: hasMermaid ?? false,
     bookTitle,
     bookVersion,
     seoProps: {
@@ -104,7 +106,7 @@ const renderState: BookLayoutRenderState =
     previewExpiresAt,
   });
 
-const shouldLoadMermaidRuntime = true;
+const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
 const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
 ---
 <!doctype html>

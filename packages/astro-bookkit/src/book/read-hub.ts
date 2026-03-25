@@ -1,4 +1,5 @@
 import type { ReleaseSectionSlug } from "../releases/notes";
+import { buildLocalizedContentIndex, resolveLocalizedContent } from "../localization/content";
 import { readRoutes } from "./read-routes";
 
 export type ReadHubSectionKey = ReleaseSectionSlug | "overview";
@@ -110,6 +111,75 @@ export type ReadHubSectionStatsMap = {
   toolkit: ReadHubSectionStats;
   glossary: ReadHubSectionStats;
   examples: ReadHubSectionStats;
+};
+
+export type ReadHubContentSectionKey = keyof ReadHubSectionStatsMap;
+
+type LocalizedContentFrontmatter = {
+  slug?: string;
+  locale?: string;
+};
+
+export type ReadHubContentModule = {
+  frontmatter?: LocalizedContentFrontmatter;
+};
+
+export type ReadHubContentModuleGroups<TModule extends ReadHubContentModule = ReadHubContentModule> = {
+  [K in ReadHubContentSectionKey]: Record<string, TModule>;
+};
+
+export type ReadHubLocalizedSectionEntry<TModule extends ReadHubContentModule = ReadHubContentModule> = {
+  slug: string;
+  module: TModule;
+  locale: string;
+  isFallback: boolean;
+};
+
+export type ReadHubSectionSummary<TModule extends ReadHubContentModule = ReadHubContentModule> = {
+  count: number;
+  completeness: number | null;
+  entries: ReadHubLocalizedSectionEntry<TModule>[];
+};
+
+export type ReadHubSectionSummaryMap<
+  TGroups extends ReadHubContentModuleGroups = ReadHubContentModuleGroups,
+> = {
+  [K in keyof TGroups]: ReadHubSectionSummary<TGroups[K][string]>;
+};
+
+const READ_HUB_CONTENT_SECTION_KEYS = [
+  "chapters",
+  "mechanisms",
+  "toolkit",
+  "glossary",
+  "examples",
+] as const satisfies ReadHubContentSectionKey[];
+
+export const createLocalizedReadHubSectionSummaries = <TGroups extends ReadHubContentModuleGroups>(
+  groups: TGroups,
+  options: {
+    locale?: string;
+    defaultLocale?: string;
+  } = {},
+): ReadHubSectionSummaryMap<TGroups> => {
+  const summaries = {} as ReadHubSectionSummaryMap<TGroups>;
+
+  for (const sectionKey of READ_HUB_CONTENT_SECTION_KEYS) {
+    const resolved = resolveLocalizedContent(
+      buildLocalizedContentIndex(groups[sectionKey], {
+        defaultLocale: options.defaultLocale,
+      }),
+      { locale: options.locale },
+    );
+
+    summaries[sectionKey] = {
+      count: resolved.entries.length,
+      completeness: resolved.completeness,
+      entries: resolved.entries,
+    } as ReadHubSectionSummaryMap<TGroups>[typeof sectionKey];
+  }
+
+  return summaries;
 };
 
 export type ReadHubLatestChangeMap = Partial<Record<ReadHubSectionKey, ReadHubLatestChange>>;

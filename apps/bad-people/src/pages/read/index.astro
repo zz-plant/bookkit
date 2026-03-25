@@ -2,11 +2,8 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ReadHub from "@bookkit/astro-bookkit/components/ReadHub.astro";
 import {
-  buildLocalizedContentIndex,
-  resolveLocalizedContent,
-} from "@bookkit/astro-bookkit/localization";
-import {
   createDefaultReadHubSections,
+  createLocalizedReadHubSectionSummaries,
   createLatestSectionChangeMap,
 } from "@bookkit/astro-bookkit";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
@@ -15,35 +12,13 @@ import { readHubConfig } from "../../lib/read-hub";
 import bookConfig from "../../book.config";
 
 const localeKey = Astro.locals?.locale;
-const chapters = resolveLocalizedContent(
-  buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, { defaultLocale: "en" }),
-  { locale: localeKey },
-);
-const mechanisms = resolveLocalizedContent(
-  buildLocalizedContentIndex(bookEntryPoints.contentModules.mechanisms, { defaultLocale: "en" }),
-  { locale: localeKey },
-);
-const toolkit = resolveLocalizedContent(
-  buildLocalizedContentIndex(bookEntryPoints.contentModules.toolkit, { defaultLocale: "en" }),
-  { locale: localeKey },
-);
-const glossary = resolveLocalizedContent(
-  buildLocalizedContentIndex(bookEntryPoints.contentModules.glossary, { defaultLocale: "en" }),
-  { locale: localeKey },
-);
-const examples = resolveLocalizedContent(
-  buildLocalizedContentIndex(bookEntryPoints.contentModules.examples, { defaultLocale: "en" }),
-  { locale: localeKey },
-);
+const sectionSummaries = createLocalizedReadHubSectionSummaries(bookEntryPoints.contentModules, {
+  locale: localeKey,
+  defaultLocale: "en",
+});
 
 const sections = createDefaultReadHubSections(
-  {
-    chapters: { count: chapters.entries.length, completeness: chapters.completeness },
-    mechanisms: { count: mechanisms.entries.length, completeness: mechanisms.completeness },
-    toolkit: { count: toolkit.entries.length, completeness: toolkit.completeness },
-    glossary: { count: glossary.entries.length, completeness: glossary.completeness },
-    examples: { count: examples.entries.length, completeness: examples.completeness },
-  },
+  sectionSummaries,
   createLatestSectionChangeMap(getReleaseNotes()),
 );
 ---

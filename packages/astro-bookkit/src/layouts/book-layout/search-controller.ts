@@ -1,5 +1,6 @@
 import { appendHighlightedText, queryElement, toSafeUrl } from "./dom";
-import { buildRankedResults } from "./search-ranking";
+import { createQueryEngine } from "./query-engine";
+import type { RankedSearchResult } from "./search-ranking";
 import type { SearchIndexStore } from "./search-index-store";
 
 export type SearchEventPayload = {
@@ -43,7 +44,6 @@ export const initializeSearchController = ({
   let query = "";
   let activeIndex = -1;
   let searchTimeout: number | null = null;
-  let runId = 0;
 
   const setOpenState = (open: boolean) => {
     root.hidden = !open;
@@ -56,10 +56,11 @@ export const initializeSearchController = ({
     if (status) status.textContent = message;
   };
 
+  const queryEngine = createQueryEngine({ indexStore, onStatus: updateStatus });
   const getResultLinks = (): HTMLAnchorElement[] =>
     results ? Array.from(results.querySelectorAll("a.search-panel__item")) : [];
 
-  const renderResults = (entries: ReturnType<typeof buildRankedResults>["results"], tokens: string[]) => {
+  const renderResults = (entries: RankedSearchResult[], tokens: string[]) => {
     if (!results) return;
     results.replaceChildren();
 
@@ -127,12 +128,11 @@ export const initializeSearchController = ({
   };
 
   const runSearch = async (value: string) => {
-    const currentRunId = ++runId;
-    const index = await indexStore.load({ onStatus: updateStatus });
-    if (currentRunId !== runId) return;
-
     query = value;
-    const normalizedQuery = value.trim().toLowerCase();
+    const runResult = await queryEngine.run(value);
+    if (runResult.status === "stale") return;
+
+    const { normalizedQuery, tokens, results: rankedResults } = runResult;
     if (!normalizedQuery) {
       results?.replaceChildren();
       empty?.setAttribute("hidden", "true");
@@ -142,7 +142,6 @@ export const initializeSearchController = ({
     }
 
     quickActions?.setAttribute("hidden", "true");
-    const { tokens, results: rankedResults } = buildRankedResults(index, normalizedQuery);
     renderResults(rankedResults, tokens);
     updateStatus(`${rankedResults.length} result${rankedResults.length === 1 ? "" : "s"}`);
 
@@ -169,7 +168,7 @@ export const initializeSearchController = ({
   const open = async () => {
     lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setOpenState(true);
-    await indexStore.load({ onStatus: updateStatus });
+    await queryEngine.loadIndex();
     window.requestAnimationFrame(() => {
       if (!input) return;
       input.value = query;

@@ -24,6 +24,14 @@ export const shimPaths = [
   "src/pages/exports/book.pdf.ts",
   "src/pages/exports/chapters/[slug].epub.ts",
   "src/pages/exports/chapters/[slug].pdf.ts",
+  "src/pages/robots.txt.ts",
+  "src/pages/sitemap.xml.ts",
+  "src/pages/search-index.json.ts",
+  "src/pages/release-notes.xml.ts",
+  "src/pages/new-book.astro",
+  "src/pages/versions.astro",
+  "src/pages/read/analytics.astro",
+  "src/pages/read/tools.astro",
 ] as const;
 
 export const listShimBooks = () => listBookDirs();

@@ -1,0 +1,16 @@
+---
+import { buildVersionArchivePageProps } from "@bookkit/astro-bookkit";
+import VersionArchivePage from "@bookkit/astro-bookkit/components/VersionArchivePage.astro";
+
+import bookConfig from "../book.config";
+import { getOgImageForPath } from "../lib/og";
+import { getVersionEntries } from "../lib/versions";
+
+const viewModel = buildVersionArchivePageProps({
+  book: bookConfig,
+  versionEntries: getVersionEntries(),
+  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+  ogImage: getOgImageForPath("/versions"),
+});
+---
+<VersionArchivePage {...viewModel} />

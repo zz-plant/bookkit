@@ -121,7 +121,6 @@ export { buildSeoProps, resolveSiteUrl } from "./seo/config";
 export type { BookSeoConfig, BookSeoDefaults, SeoInput, SeoProps } from "./seo/config";
 export { buildAbsoluteUrl, normalizeSiteUrl } from "./seo/urls";
 export type { SiteUrlOptions } from "./seo/urls";
-export { default as RedirectPage } from "./components/RedirectPage.astro";
 export {
   DEFAULT_BOOK_SITEMAP_PATHS,
   createBookRobotsTxt,

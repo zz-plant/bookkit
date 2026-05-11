@@ -1,18 +1,4 @@
 ---
-const destination = "/read/toolkit";
-const refreshContent = `0;url=${destination}`;
+import RedirectPage from "@bookkit/astro-bookkit/components/RedirectPage.astro";
 ---
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Redirecting…</title>
-    <meta http-equiv="refresh" content={refreshContent} />
-    <link rel="canonical" href={destination} />
-  </head>
-  <body>
-    <p>
-      Redirecting to <a href={destination}>{destination}</a>…
-    </p>
-  </body>
-</html>
+<RedirectPage destination="/read/toolkit" />

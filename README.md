@@ -23,8 +23,9 @@ For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | Document | Canonical for | Audience |
 | --- | --- | --- |
 | [`README.md`](./README.md) | Architecture + operational commands | Developers + maintainers |
-| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow + checklists | Human + AI contributors |
 | [`AGENTS.md`](./AGENTS.md) | Architectural invariants + risk boundaries | Agents + reviewers |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow + lanes | Human + AI contributors |
+| [`docs/authorship-model.md`](./docs/authorship-model.md) | "Book as Software" philosophy + three-pillar model | Authors + strategists |
 | [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md) | Engine-local orientation | Engine contributors |
 | [`apps/bad-people/README.md`](./apps/bad-people/README.md) | Book-app-local orientation | Book contributors |
 | [`docs/mcp-agent-skills-research.md`](./docs/mcp-agent-skills-research.md) | MCP + agent-skill adoption options | Maintainers + AI workflow designers |
@@ -49,6 +50,8 @@ For phased scope and implementation sequencing, see [`docs/commercial-roadmap.md
 ---
 
 ## Workspace architecture
+
+Bookkit treats a book as an **executable specification**, not a static document. This "Book as Software" model is built on three pillars: structured framing, recompilable separation of concerns, and agentic interaction. For the full philosophy, see [`docs/authorship-model.md`](./docs/authorship-model.md).
 
 Bookkit enforces strict separation of concerns:
 

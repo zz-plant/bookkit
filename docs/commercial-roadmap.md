@@ -12,6 +12,15 @@ Bookkit should be sold as:
 - **Governance infrastructure** for enforceable structure + validation
 - **AI interface infrastructure** through MCP resources + deterministic tools
 
+This maps to the [three-pillar authorship model](./authorship-model.md):
+
+| Pillar | Infrastructure layer | Roadmap track |
+|---|---|---|
+| 1. Authorship as Framing | Frame registry + validators | Track 3 |
+| 2. The Recompilable Book | Compile/export + separation | Track 1, Track 3 |
+| 3. Agent-Assisted Authorship | MCP tools + governance resources | Track 2 |
+| 3. Reader as Forker | Fork API + artifact model + simulation runtime | Track 4 |
+
 ## High-priority tracks
 
 ## Current implementation status (consolidated)
@@ -19,6 +28,7 @@ Bookkit should be sold as:
 - [x] **Track 1: Product surface and positioning** — completed in baseline docs (`README.md` positioning + commercial roadmap linkage).
 - [ ] **Track 2: MCP discovery and metadata hardening** — in progress.
 - [ ] **Track 3: Governance APIs** — next.
+- [ ] **Track 4: Reader Forking** — future. Blocked on Track 3 infrastructure (validation + schema reuse).
 
 Use `docs/tech-debt-register.md` as the canonical queue for open remediation tasks tied to these tracks.
 
@@ -88,10 +98,29 @@ Success criteria:
 - teams can integrate validation results into CI and agent workflows
 - failed checks are actionable without manual interpretation
 
+### Track 4: Reader Forking (future)
+
+Deliverables:
+
+- fork API creates reader-scoped book instances
+- artifact model stores reader annotations, examples, and adaptations
+- simulation runtime executes action primitives against reader context
+- reader-scoped MCP endpoint exposes fork-level tools and resources
+- permission model enforces reader-can-annotate but reader-cannot-mutate-source
+
+Success criteria:
+
+- a reader can create a fork, annotate a mechanism with their own example, and recompile with their overlay
+- reader annotations survive source book updates via stable slug binding
+- reader can use an agent to suggest next mechanisms based on their progress
+
+For gap analysis and implementation sequencing, see [`docs/reader-forking-gap-analysis.md`](./reader-forking-gap-analysis.md).
+
 ## Sequencing
 
 1. Track 1 + Track 2 in the same milestone (foundation)
 2. Track 3 immediately after (enterprise and compliance acceleration)
+3. Track 4 after Track 3, reusing governance + validation infrastructure
 
 ## Non-goals for this phase
 

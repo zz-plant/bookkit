@@ -127,6 +127,7 @@ Before finalizing work:
 2. run relevant checks (`validate`, lint, typecheck)
 3. summarize risks and migration impact for risky changes
 4. avoid introducing duplicate policy docs
+5. if your work changes the authorship model, update `docs/authorship-model.md`
 
 ---
 

@@ -75,6 +75,30 @@ export const readHubConfig: ReadHubConfig = {
       },
     ],
   },
+  quickStartCards: [
+    {
+      eyebrow: "New reader? Start in 3 minutes",
+      title: "Follow the load",
+      description: "Read the overview for the map, then one mechanism pattern you already recognize.",
+      href: readRoutes.overview,
+      recommended: true,
+      funnelStep: "new_reader_overview",
+    },
+    {
+      eyebrow: "Then diagnose one pattern",
+      title: "Spot delay as force",
+      description: "See how waiting is weaponized — and what a 10-minute paper trail countermove looks like.",
+      href: `${readRoutes.mechanisms}/delay-as-force`,
+      funnelStep: "new_reader_mechanism",
+    },
+    {
+      eyebrow: "Then try one move",
+      title: "Run a deadline countermove",
+      description: "Pick one toolkit action that fits inside ten minutes and requires no permission.",
+      href: `${readRoutes.toolkit}/delay-as-force--deadline-countermove`,
+      funnelStep: "new_reader_toolkit",
+    },
+  ],
   releaseFilter: {
     initialLabel: "Show sections marked in latest release notes",
     activeLabel: "Show all sections",

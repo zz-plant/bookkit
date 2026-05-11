@@ -33,6 +33,7 @@ type QaControllerOptions = {
   storage: StorageLike;
   disabledKey: string;
   displayModeKey: string;
+  apiEndpoint?: string;
 };
 
 export const initializeQaController = ({
@@ -43,6 +44,7 @@ export const initializeQaController = ({
   storage,
   disabledKey,
   displayModeKey,
+  apiEndpoint,
 }: QaControllerOptions): QaController => {
   const closeButton = queryElement(root, "[data-qa-close]", HTMLButtonElement);
   const form = queryElement(root, "[data-qa-form]", HTMLFormElement);
@@ -132,6 +134,42 @@ export const initializeQaController = ({
     citations.append(heading, list);
   };
 
+  const renderSynthesizedAnswer = (
+    data: { answer: string; citations: Array<{ id: string; title: string; url: string }> },
+    tokens: string[]
+  ) => {
+    if (!answer || !citations) return;
+    answer.replaceChildren();
+    citations.replaceChildren();
+
+    const answerParagraph = document.createElement("p");
+    answerParagraph.textContent = data.answer;
+    const metaParagraph = document.createElement("p");
+    metaParagraph.className = "meta";
+    metaParagraph.textContent = `Answer synthesized from ${data.citations.length} cited passage${data.citations.length === 1 ? "" : "s"}.`;
+    answer.append(answerParagraph, metaParagraph);
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Sources";
+    const list = document.createElement("ol");
+    list.className = "qa-panel__citation-list";
+
+    data.citations.forEach((citation) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = toSafeUrl(citation.url);
+      link.dataset.qaCitationId = citation.id;
+      link.textContent = citation.title;
+
+      const snippet = document.createElement("p");
+      appendHighlightedText(snippet, citation.title, tokens);
+      item.append(link, snippet);
+      list.appendChild(item);
+    });
+
+    citations.append(heading, list);
+  };
+
   const runQa = async (value: string) => {
     if (isDisabled()) {
       updateStatus("AI Q&A is disabled.");
@@ -153,6 +191,41 @@ export const initializeQaController = ({
       }
       citations?.replaceChildren();
       return;
+    }
+
+    if (apiEndpoint && results.length > 0) {
+      updateStatus("Synthesizing answer…");
+      try {
+        const response = await fetch(apiEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: normalizedQuery,
+            entries: results.slice(0, 8),
+          }),
+        });
+        if (response.ok) {
+          const data = (await response.json()) as {
+            answer: string;
+            citations: Array<{ id: string; title: string; url: string }>;
+          };
+          renderSynthesizedAnswer(data, tokens);
+          updateStatus(
+            data.citations.length
+              ? `${data.citations.length} cited passage${data.citations.length === 1 ? "" : "s"} returned.`
+              : "No citations found."
+          );
+          recordEvent({
+            type: "question",
+            query: normalizedQuery,
+            matches: data.citations.length,
+          });
+          return;
+        }
+      } catch {
+        // Fall through to local search on any API failure
+      }
+      updateStatus("AI synthesis unavailable. Showing local results.");
     }
 
     const topResults = results.slice(0, 3);

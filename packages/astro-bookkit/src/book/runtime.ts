@@ -12,6 +12,7 @@ import {
   createExportAnalyticsApiHandlers,
   createFeedbackApiHandlers,
   createPreviewAnalyticsApiHandlers,
+  createQaApiHandlers,
   createReleaseAnalyticsApiPostHandler,
   createReleaseWebhookApiHandlers,
 } from "../app-wrappers";
@@ -32,6 +33,10 @@ type BookRuntimeConfig = {
     defaultMeta?: {
       description?: string;
     };
+  };
+  features?: {
+    aiQa?: boolean;
+    aiQaProvider?: import("../qa").AiQaProviderConfig;
   };
 };
 
@@ -82,6 +87,7 @@ export const createBookRuntime = ({
         modules: releaseHelpers.releaseModules,
         book: { slug: bookConfig.slug, title: bookConfig.title },
       }),
+      qa: createQaApiHandlers({ provider: bookConfig.features?.aiQaProvider }),
       createMcpHandlers: (startDir: string) =>
         createBookMcpEndpointFromWorkspace({
           startDir,

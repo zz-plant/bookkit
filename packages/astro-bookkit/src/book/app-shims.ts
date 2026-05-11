@@ -18,6 +18,7 @@ export const createBookAppShims = (bookRuntime: BookRuntime) => ({
   releaseAnalyticsApiHandlers: bookRuntime.api.releaseAnalytics,
   releaseWebhookApiHandlers: bookRuntime.api.releaseWebhook,
   releaseEmailApiHandlers: bookRuntime.api.releaseEmail,
+  qaApiHandlers: bookRuntime.api.qa,
   createMcpApiHandlers: bookRuntime.api.createMcpHandlersFromModuleUrl,
   bookPdfExportRoute: bookRuntime.exportRoutes.book.pdf,
   bookEpubExportRoute: bookRuntime.exportRoutes.book.epub,

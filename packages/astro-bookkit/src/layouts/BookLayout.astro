@@ -39,6 +39,7 @@ const {
   structuredData,
   robots,
   aiQaEnabled = true,
+  aiQaProvider,
   aiQaSamples = [
     "What is the core mechanism behind transfer success?",
     "How do I spot a compliance trap in an organization?",
@@ -147,6 +148,7 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
     data-preview-analytics-endpoint={previewAnalyticsEndpoint}
     data-locale={renderState.locale.activeLocale}
     data-qa-enabled={aiQaEnabled ? "true" : "false"}
+    data-qa-endpoint={aiQaProvider ? "/api/qa.json" : undefined}
     data-preview={renderState.preview.isPreview ? "true" : "false"}
     data-preview-hint={renderState.preview.tokenHint}
     data-preview-expires={renderState.preview.expiresAt}

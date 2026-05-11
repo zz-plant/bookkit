@@ -66,6 +66,7 @@ export const {
   releaseAnalyticsApiHandlers,
   releaseWebhookApiHandlers,
   releaseEmailApiHandlers,
+  qaApiHandlers,
   createMcpApiHandlers,
   bookPdfExportRoute,
   bookEpubExportRoute,

@@ -9,6 +9,7 @@ import { getSharedIndexStore } from "./shared-index";
 
 const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
 const qaEnabled = document.body?.dataset?.qaEnabled === "true";
+const qaEndpoint = document.body?.dataset?.qaEndpoint;
 const storage = window.localStorage;
 
 const headerRoot = queryElement(document, ".site-header", HTMLElement);
@@ -80,6 +81,7 @@ if (qaPanelRoot && qaToggle) {
       storage,
       disabledKey: `${analyticsKeyPrefix}.qa.disabled`,
       displayModeKey: `${analyticsKeyPrefix}.qa.display.mode`,
+      apiEndpoint: qaEndpoint,
     });
     return qaController;
   });

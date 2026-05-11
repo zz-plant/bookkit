@@ -15,6 +15,7 @@ import { createBookSitemapEntries } from "../seo/book";
 import type { BookSitemapContentModules } from "../seo/book";
 import { createSitemapXml } from "../seo/sitemap";
 import { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "../search/endpoint";
+import { createQaApiHandlers as createQaEndpoint } from "../qa";
 
 export const createAnalyticsApiHandlers = () => createReaderAnalyticsEndpoint();
 export const createFeedbackApiHandlers = () => createFeedbackEndpoint();
@@ -25,6 +26,9 @@ export const createReleaseWebhookApiHandlers = (options: {
   modules: Record<string, ReleaseModule>;
   book: { slug: string; title: string };
 }) => createReleaseWebhookEndpoint(options);
+
+export const createQaApiHandlers = (options: { provider?: import("../qa").AiQaProviderConfig }) =>
+  createQaEndpoint(options);
 
 export const createReleaseAnalyticsApiPostHandler = (): APIRoute => async ({ request }) => {
   try {

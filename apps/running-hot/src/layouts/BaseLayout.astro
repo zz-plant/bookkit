@@ -23,13 +23,14 @@ const layoutState = createBookLayoutState({
   localizedContentModules: bookEntryPoints.localizedContentModules,
   versionPrefix: "v",
 });
-const { seoProps, resolvedVersion, bookTitle, bookKey, aiQaEnabled, renderState } = layoutState;
+const { seoProps, resolvedVersion, bookTitle, bookKey, aiQaEnabled, aiQaProvider, renderState } = layoutState;
 ---
 <BookLayout
   bookTitle={bookTitle}
   bookVersion={resolvedVersion}
   bookKey={bookKey}
   aiQaEnabled={aiQaEnabled}
+  aiQaProvider={aiQaProvider}
   renderState={renderState}
   {...seoProps}
 >

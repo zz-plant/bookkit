@@ -58,6 +58,7 @@ export type BookLayoutConfig = {
   features?: {
     aiQa?: boolean;
     aiQaProvider?: import("../qa").AiQaProviderConfig;
+    aiQaProviders?: import("../qa").AiQaProviderConfig[];
   };
   localization?: BookLayoutLocalization;
 };
@@ -148,6 +149,7 @@ export type BookLayoutState = {
   bookKey: string;
   aiQaEnabled: boolean;
   aiQaProvider?: import("../qa").AiQaProviderConfig;
+  aiQaProviders?: import("../qa").AiQaProviderConfig[];
   currentLocale?: string;
   defaultLocale: string;
   includeDefaultLocalePrefix: boolean;
@@ -433,6 +435,7 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
   const bookKey = bookConfig.slug ?? "book";
   const aiQaEnabled = bookConfig.features?.aiQa ?? true;
   const aiQaProvider = bookConfig.features?.aiQaProvider;
+  const aiQaProviders = bookConfig.features?.aiQaProviders;
   const includeDefaultLocalePrefix = bookConfig.localization?.includeDefaultPrefix ?? false;
   const localeLabel = bookConfig.localization?.label ?? "Language";
 
@@ -446,6 +449,7 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
     bookKey,
     aiQaEnabled,
     aiQaProvider,
+    aiQaProviders,
     currentLocale,
     defaultLocale,
     includeDefaultLocalePrefix,

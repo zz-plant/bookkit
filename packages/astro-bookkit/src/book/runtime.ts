@@ -37,6 +37,7 @@ type BookRuntimeConfig = {
   features?: {
     aiQa?: boolean;
     aiQaProvider?: import("../qa").AiQaProviderConfig;
+    aiQaProviders?: import("../qa").AiQaProviderConfig[];
   };
 };
 
@@ -87,7 +88,10 @@ export const createBookRuntime = ({
         modules: releaseHelpers.releaseModules,
         book: { slug: bookConfig.slug, title: bookConfig.title },
       }),
-      qa: createQaApiHandlers({ provider: bookConfig.features?.aiQaProvider }),
+      qa: createQaApiHandlers({
+        provider: bookConfig.features?.aiQaProvider,
+        providers: bookConfig.features?.aiQaProviders,
+      }),
       createMcpHandlers: (startDir: string) =>
         createBookMcpEndpointFromWorkspace({
           startDir,

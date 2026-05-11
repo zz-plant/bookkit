@@ -25,6 +25,8 @@ export type QaController = {
   isOpen: () => boolean;
 };
 
+type QaTurn = { question: string; answer: string };
+
 type QaControllerOptions = {
   root: HTMLElement;
   toggleButton: HTMLButtonElement | null;
@@ -34,6 +36,8 @@ type QaControllerOptions = {
   disabledKey: string;
   displayModeKey: string;
   apiEndpoint?: string;
+  memoryKey?: string;
+  signalsKey?: string;
 };
 
 export const initializeQaController = ({
@@ -45,7 +49,53 @@ export const initializeQaController = ({
   disabledKey,
   displayModeKey,
   apiEndpoint,
+  memoryKey = "bookkit.qa.memory",
+  signalsKey = "bookkit.qa.signals",
 }: QaControllerOptions): QaController => {
+  // --- Memory helpers (sessionStorage) ---
+  const loadMemory = (): QaTurn[] => {
+    try {
+      const raw = window.sessionStorage.getItem(memoryKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as QaTurn[]) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveMemory = (turns: QaTurn[]) => {
+    try {
+      window.sessionStorage.setItem(memoryKey, JSON.stringify(turns.slice(-3)));
+    } catch {
+      // Ignore quota errors
+    }
+  };
+
+  // --- Signal helpers (localStorage) ---
+  const loadSignals = (): Record<string, number> => {
+    try {
+      const raw = storage.getItem(signalsKey);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, number>)
+        : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const bumpSignal = (id: string) => {
+    try {
+      const signals = loadSignals();
+      signals[id] = (signals[id] ?? 0) + 1;
+      storage.setItem(signalsKey, JSON.stringify(signals));
+    } catch {
+      // Ignore quota errors
+    }
+  };
+
   const closeButton = queryElement(root, "[data-qa-close]", HTMLButtonElement);
   const form = queryElement(root, "[data-qa-form]", HTMLFormElement);
   const input = queryElement(root, "[data-qa-input]", HTMLTextAreaElement);
@@ -85,6 +135,7 @@ export const initializeQaController = ({
   };
 
   const queryEngine = createQueryEngine({ indexStore });
+  let lastSignals = loadSignals();
 
   const updateDisplayMode = () => {
     root.dataset.qaDisplayMode = displayMode;
@@ -177,7 +228,8 @@ export const initializeQaController = ({
     }
 
     query = value;
-    const runResult = await queryEngine.run(value);
+    lastSignals = loadSignals();
+    const runResult = await queryEngine.run(value, lastSignals);
     if (runResult.status === "stale") return;
 
     const { normalizedQuery, tokens, results } = runResult;
@@ -196,12 +248,14 @@ export const initializeQaController = ({
     if (apiEndpoint && results.length > 0) {
       updateStatus("Synthesizing answer…");
       try {
+        const history = loadMemory();
         const response = await fetch(apiEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             question: normalizedQuery,
             entries: results.slice(0, 8),
+            history: history.length > 0 ? history : undefined,
           }),
         });
         if (response.ok) {
@@ -220,6 +274,7 @@ export const initializeQaController = ({
             query: normalizedQuery,
             matches: data.citations.length,
           });
+          saveMemory([...history, { question: normalizedQuery, answer: data.answer }]);
           return;
         }
       } catch {
@@ -304,7 +359,9 @@ export const initializeQaController = ({
   citations?.addEventListener("click", (event) => {
     const target = event.target instanceof HTMLElement ? event.target.closest("a") : null;
     if (!(target instanceof HTMLAnchorElement)) return;
-    recordEvent({ type: "citation_click", id: target.dataset.qaCitationId, query });
+    const id = target.dataset.qaCitationId;
+    if (id) bumpSignal(id);
+    recordEvent({ type: "citation_click", id, query });
     close();
   });
 

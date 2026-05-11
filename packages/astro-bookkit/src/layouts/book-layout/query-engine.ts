@@ -22,7 +22,10 @@ export const createQueryEngine = ({ indexStore, onStatus }: QueryEngineOptions) 
 
   const loadIndex = async () => indexStore.load({ onStatus });
 
-  const run = async (value: string): Promise<QueryRunResult> => {
+  const run = async (
+    value: string,
+    signals?: Record<string, number>
+  ): Promise<QueryRunResult> => {
     const token = ++runToken;
     const index = await loadIndex();
     if (token !== runToken) {
@@ -39,7 +42,7 @@ export const createQueryEngine = ({ indexStore, onStatus }: QueryEngineOptions) 
       };
     }
 
-    const rankedResults = buildRankedResults(index, normalizedQuery);
+    const rankedResults = buildRankedResults(index, normalizedQuery, signals);
     if (token !== runToken) {
       return { status: "stale" };
     }

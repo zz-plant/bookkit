@@ -13,6 +13,12 @@ export type AiQaProviderConfig = {
 export type QaRequest = {
   question: string;
   entries: SearchEntry[];
+  history?: QaTurn[];
+};
+
+export type QaTurn = {
+  question: string;
+  answer: string;
 };
 
 export type QaResponse = {
@@ -27,45 +33,144 @@ const DEFAULT_TEMPERATURE = 0.3;
 const DEFAULT_SYSTEM_PROMPT =
   "You are a precise research assistant. Answer the user's question using ONLY the provided book passages. Be concise. If the passages don't contain enough information, say so clearly.";
 
-const LLM_TIMEOUT_MS = 30_000;
+const LLM_TIMEOUT_MS = 10_000;
+
+const WELL_KNOWN_PROVIDERS: readonly AiQaProviderConfig[] = [
+  {
+    apiKeyEnvVar: "OPENAI_API_KEY",
+    apiUrl: DEFAULT_API_URL,
+    model: "gpt-4o-mini",
+    maxTokens: DEFAULT_MAX_TOKENS,
+    temperature: DEFAULT_TEMPERATURE,
+  },
+  {
+    apiKeyEnvVar: "GROQ_API_KEY",
+    apiUrl: "https://api.groq.com/openai/v1/chat/completions",
+    model: "llama-3.1-8b-instant",
+    maxTokens: DEFAULT_MAX_TOKENS,
+    temperature: DEFAULT_TEMPERATURE,
+  },
+];
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-export const createQaApiHandlers = (options: {
-  provider?: AiQaProviderConfig;
-}): { POST: APIRoute } => {
-  const provider = options.provider;
-
-  if (!provider) {
-    return {
-      POST: async () =>
-        new Response(JSON.stringify({ error: "Q&A provider not configured" }), {
-          status: 503,
-          headers: { "Content-Type": "application/json" },
-        }),
-    };
+const resolveProviders = (
+  options: { provider?: AiQaProviderConfig; providers?: AiQaProviderConfig[] }
+): AiQaProviderConfig[] | null => {
+  if (options.providers && options.providers.length > 0) {
+    return options.providers;
+  }
+  if (options.provider) {
+    return [options.provider];
   }
 
+  const detected = WELL_KNOWN_PROVIDERS.filter((p) => {
+    const key = typeof process !== "undefined" ? process.env[p.apiKeyEnvVar ?? ""] : undefined;
+    return !!key;
+  });
+
+  return detected.length > 0 ? detected : null;
+};
+
+const callLlm = async (
+  provider: AiQaProviderConfig,
+  body: QaRequest
+): Promise<QaResponse | null> => {
   const apiUrl = provider.apiUrl ?? DEFAULT_API_URL;
   const apiKeyEnvVar = provider.apiKeyEnvVar ?? "OPENAI_API_KEY";
   const apiKey = typeof process !== "undefined" ? process.env[apiKeyEnvVar] : undefined;
+
+  if (!apiKey) return null;
+
   const model = provider.model ?? DEFAULT_MODEL;
   const maxTokens = provider.maxTokens ?? DEFAULT_MAX_TOKENS;
   const temperature = provider.temperature ?? DEFAULT_TEMPERATURE;
   const systemPrompt = provider.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
 
+  const context = body.entries
+    .map((entry, i) => `[${i + 1}] ${entry.title} (${entry.context})\n${entry.snippet}`)
+    .join("\n\n");
+
+  let userPrompt = `Question: ${body.question}\n\nBook passages:\n${context}`;
+
+  if (body.history && body.history.length > 0) {
+    const historyText = body.history
+      .map((turn, i) => `Q${i + 1}: ${turn.question}\nA${i + 1}: ${turn.answer}`)
+      .join("\n\n");
+    userPrompt = `Conversation so far:\n${historyText}\n\n${userPrompt}`;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const answer = data.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!answer) return null;
+
+    const citations = body.entries.map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      url: entry.url,
+    }));
+
+    return { answer, citations };
+  } catch {
+    return null;
+  }
+};
+
+export const createQaApiHandlers = (options: {
+  provider?: AiQaProviderConfig;
+  providers?: AiQaProviderConfig[];
+}): { POST: APIRoute } => {
+  const providers = resolveProviders(options);
+
+  if (!providers) {
+    return {
+      POST: async () =>
+        new Response(
+          JSON.stringify({
+            error:
+              "Q&A provider not configured. Set OPENAI_API_KEY or GROQ_API_KEY, or configure features.aiQaProvider in book.config.ts.",
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          }
+        ),
+    };
+  }
+
   return {
     POST: async ({ request }) => {
-      if (!apiKey) {
-        return new Response(JSON.stringify({ error: "API key not configured" }), {
-          status: 503,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
       let body: QaRequest;
       try {
         const raw = await request.json();
@@ -83,65 +188,27 @@ export const createQaApiHandlers = (options: {
         });
       }
 
-      const context = body.entries
-        .map((entry, i) => `[${i + 1}] ${entry.title} (${entry.context})\n${entry.snippet}`)
-        .join("\n\n");
+      const errors: string[] = [];
 
-      const userPrompt = `Question: ${body.question}\n\nBook passages:\n${context}`;
-
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
-
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            max_tokens: maxTokens,
-            temperature,
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          return new Response(JSON.stringify({ error: `LLM API error: ${errorText}` }), {
-            status: 502,
+      for (const provider of providers) {
+        const result = await callLlm(provider, body);
+        if (result) {
+          return new Response(JSON.stringify(result), {
             headers: { "Content-Type": "application/json" },
           });
         }
-
-        const data = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        const answer = data.choices?.[0]?.message?.content?.trim() ?? "No response from model.";
-
-        const citations = body.entries.map((entry) => ({
-          id: entry.id,
-          title: entry.title,
-          url: entry.url,
-        }));
-
-        return new Response(JSON.stringify({ answer, citations } satisfies QaResponse), {
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return new Response(JSON.stringify({ error: `Request failed: ${message}` }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        errors.push(`${provider.apiKeyEnvVar ?? "provider"}: timeout or error`);
       }
+
+      return new Response(
+        JSON.stringify({
+          error: `All Q&A providers failed. ${errors.join("; ")}`,
+        }),
+        {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     },
   };
 };

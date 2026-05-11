@@ -82,6 +82,8 @@ if (qaPanelRoot && qaToggle) {
       disabledKey: `${analyticsKeyPrefix}.qa.disabled`,
       displayModeKey: `${analyticsKeyPrefix}.qa.display.mode`,
       apiEndpoint: qaEndpoint,
+      memoryKey: `${analyticsKeyPrefix}.qa.memory`,
+      signalsKey: `${analyticsKeyPrefix}.qa.signals`,
     });
     return qaController;
   });

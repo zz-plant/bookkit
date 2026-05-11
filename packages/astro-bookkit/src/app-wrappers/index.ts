@@ -27,8 +27,10 @@ export const createReleaseWebhookApiHandlers = (options: {
   book: { slug: string; title: string };
 }) => createReleaseWebhookEndpoint(options);
 
-export const createQaApiHandlers = (options: { provider?: import("../qa").AiQaProviderConfig }) =>
-  createQaEndpoint(options);
+export const createQaApiHandlers = (options: {
+  provider?: import("../qa").AiQaProviderConfig;
+  providers?: import("../qa").AiQaProviderConfig[];
+}) => createQaEndpoint(options);
 
 export const createReleaseAnalyticsApiPostHandler = (): APIRoute => async ({ request }) => {
   try {

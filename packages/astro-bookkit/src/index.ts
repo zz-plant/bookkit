@@ -52,7 +52,7 @@ export type {
 export { buildSearchEntries, createSearchIndexResponse } from "./search";
 export type { SearchContentSource, SearchEntry } from "./search";
 export { createQaApiHandlers } from "./qa";
-export type { AiQaProviderConfig, QaRequest, QaResponse } from "./qa";
+export type { AiQaProviderConfig, QaRequest, QaResponse, QaTurn } from "./qa";
 export { createBookSearchSources, createLocalizedSearchSources } from "./search/sources";
 export type { BookSearchModuleMap, LocalizedSearchOptions } from "./search/sources";
 export { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "./search/endpoint";

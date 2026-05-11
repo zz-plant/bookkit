@@ -2,7 +2,11 @@ import type { SearchEntry } from "../../search";
 
 export type RankedSearchResult = SearchEntry & { score: number; searchText: string };
 
-export const buildRankedResults = (index: SearchEntry[], query: string) => {
+export const buildRankedResults = (
+  index: SearchEntry[],
+  query: string,
+  signals?: Record<string, number>
+) => {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return { tokens: [], results: [] as RankedSearchResult[] };
@@ -21,7 +25,8 @@ export const buildRankedResults = (index: SearchEntry[], query: string) => {
         const contextBoost = entry.context.toLowerCase().includes(token) ? 2 : 0;
         return total + titleBoost + contextBoost + 1;
       }, 0);
-      return { ...entry, score };
+      const signalBoost = signals?.[entry.id] ?? 0;
+      return { ...entry, score: score + signalBoost * 2 };
     })
     .sort((a, b) => b.score - a.score);
 

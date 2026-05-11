@@ -1,0 +1,74 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import { getBookExportLinks } from "../../../lib/exports";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import bookConfig from "../../../book.config";
+
+const modules = bookEntryPoints.contentModules.chapters;
+const { items: chapterItems, completeness } = createLocalizedContentList(modules, {
+  defaultLocale: "en",
+  locale: Astro.locals?.locale,
+  mapEntry: ({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    const status = frontmatter.status ?? "draft";
+    return {
+      href: readItemPath("chapters", slug),
+      title: frontmatter.title ?? "Untitled chapter",
+      eyebrow: isFallback ? `${status} · fallback` : status,
+    };
+  },
+});
+const exportLinks = getBookExportLinks();
+const localizedLede = buildTranslationLede(
+  "Module outlines that define the intervention frame.",
+  completeness
+);
+---
+<BaseLayout title={`Chapters • ${bookConfig.title}`}>
+  <ContentIndexList
+    title="Chapters"
+    lede={localizedLede}
+    items={chapterItems}
+  >
+    <div slot="after-header" class="content-block chapter-status" style="margin-top: 0;">
+      <button class="button button--secondary" type="button" data-status-explainer-toggle aria-expanded="false">
+        Draft status: concept stable, wording evolving
+      </button>
+      <p class="meta" data-status-explainer hidden>
+        Draft chapters are readable and useful. Mechanism identity is stable, while wording, examples,
+        and ordering may still improve as validation continues.
+      </p>
+    </div>
+    <ExportPanel
+      slot="after-list"
+      title="Download exports"
+      description="Grab a print-ready PDF or an EPUB for offline reading. Need chapter-specific options? Visit Offline reading."
+      links={exportLinks}
+    />
+  </ContentIndexList>
+  <script>
+    const statusToggle = document.querySelector("[data-status-explainer-toggle]");
+    const statusCopy = document.querySelector("[data-status-explainer]");
+    statusToggle?.addEventListener("click", () => {
+      if (!statusCopy) return;
+      const isHidden = statusCopy.hasAttribute("hidden");
+      statusCopy.toggleAttribute("hidden", !isHidden);
+      statusToggle.setAttribute("aria-expanded", isHidden ? "true" : "false");
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  .chapter-status {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .chapter-status .button {
+    justify-self: start;
+  }
+</style>

@@ -1,0 +1,50 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import { getBookExportLinks, getChapterExportLinks } from "../lib/exports";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../lib/book-entrypoints";
+import { readItemPath } from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+
+const modules = bookEntryPoints.contentModules.chapters;
+const { items: chapterItems } = createLocalizedContentList(modules, {
+  defaultLocale: "en",
+  locale: Astro.locals?.locale,
+  mapEntry: ({ slug, module }) => ({
+    slug,
+    href: readItemPath("chapters", slug),
+    title: module.frontmatter?.title ?? "Untitled chapter",
+  }),
+});
+
+const bookExportLinks = getBookExportLinks();
+const chapterDownloadItems = chapterItems.map((chapter) => ({
+  href: chapter.href,
+  title: chapter.title,
+  eyebrow: "Chapter exports",
+  meta: getChapterExportLinks(chapter.slug, chapter.title)
+    .map((link) => `${link.format.toUpperCase()}: ${link.href}`)
+    .join(" • "),
+}));
+---
+<BaseLayout title={`Offline reading • ${bookConfig.title}`}>
+  <div class="section-header">
+    <h1>Offline reading</h1>
+    <p class="lede">Download full-book or chapter-specific exports for focused, offline use.</p>
+  </div>
+
+  <ExportPanel
+    title="Full book exports"
+    description="Choose PDF for print-ready formatting or EPUB for flexible reading devices."
+    links={bookExportLinks}
+  />
+
+  <ContentIndexList
+    title="Chapter exports"
+    lede="Open a chapter first if you want a focused PDF/EPUB for a single module."
+    items={chapterDownloadItems}
+    itemActionLabel="Open chapter export links"
+  />
+</BaseLayout>

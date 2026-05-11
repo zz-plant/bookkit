@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "bookkit-workspace",
@@ -11,6 +12,15 @@
     },
     "apps/bad-people": {
       "name": "@books/bad-people",
+      "version": "0.0.0",
+      "dependencies": {
+        "@astrojs/mdx": "^4.3.13",
+        "@bookkit/astro-bookkit": "workspace:*",
+        "astro": "^5.17.1",
+      },
+    },
+    "apps/crumple-zone": {
+      "name": "@books/crumple-zone",
       "version": "0.0.0",
       "dependencies": {
         "@astrojs/mdx": "^4.3.13",
@@ -65,6 +75,8 @@
     "@bookkit/astro-bookkit": ["@bookkit/astro-bookkit@workspace:packages/astro-bookkit"],
 
     "@books/bad-people": ["@books/bad-people@workspace:apps/bad-people"],
+
+    "@books/crumple-zone": ["@books/crumple-zone@workspace:apps/crumple-zone"],
 
     "@books/running-hot": ["@books/running-hot@workspace:apps/running-hot"],
 

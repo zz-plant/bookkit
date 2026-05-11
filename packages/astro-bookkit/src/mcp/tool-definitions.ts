@@ -5,6 +5,11 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.create_book",
     description: "Scaffold a new book app in apps/<book> using the workspace template command.",
+    safety: "requires_guard",
+    rateLimit: {
+      maxPerMinute: 5,
+      guidance: "Limit book creation to avoid workspace clutter. Clean up failed scaffolds before retrying.",
+    },
     expectedRuntime: "<=30s",
     expectedRuntimeClass: "moderate",
     sideEffectLevel: "local-write",
@@ -28,6 +33,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.read_book",
     description: "Read current book content records by section and optional slug.",
+    safety: "read_only",
     expectedRuntime: "<1s",
     expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
@@ -48,6 +54,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.list_books",
     description: "List available book slugs in this workspace.",
+    safety: "read_only",
     expectedRuntime: "<10s",
     expectedRuntimeClass: "short",
     sideEffectLevel: "read-only",
@@ -61,6 +68,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.list_content",
     description: "List available content section counts for this book.",
+    safety: "read_only",
     expectedRuntime: "<1s",
     expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
@@ -74,6 +82,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.list_skills",
     description: "List local agent skills that can guide contribution workflows.",
+    safety: "read_only",
     expectedRuntime: "<1s",
     expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
@@ -87,6 +96,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.list_mechanisms",
     description: "List mechanism slugs, titles, and MCP resource URIs.",
+    safety: "read_only",
     expectedRuntime: "<1s",
     expectedRuntimeClass: "instant",
     sideEffectLevel: "read-only",
@@ -106,6 +116,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
   {
     name: "bookkit.validate_book",
     description: "Run book validation and return structured command output.",
+    safety: "read_only",
     expectedRuntime: "<=10m",
     expectedRuntimeClass: "long",
     sideEffectLevel: "local-read/compute",
@@ -122,8 +133,53 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
     },
   },
   {
+    name: "bookkit.compile_book",
+    description: "Compile book content into build output. Runs the CLI compile command for a given book.",
+    safety: "mutating",
+    rateLimit: {
+      maxPerMinute: 10,
+      guidance: "Compilation is CPU-intensive. Limit calls; run validate_book first.",
+    },
+    expectedRuntime: "<=2m",
+    expectedRuntimeClass: "moderate",
+    sideEffectLevel: "local-write",
+    idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
+    retryGuidance: "Safe to retry. Output is deterministic for unchanged content.",
+    retryPolicyGuidance: "Retry on transient failures. If content hasn't changed, output will be identical.",
+    failureClassTaxonomy: ["validation", "configuration", "timeout", "transient-command", "unknown"],
+    inputSchema: {
+      type: "object",
+      properties: { book: { type: "string", description: "Optional book slug. Defaults to current endpoint book." } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "bookkit.export_book",
+    description: "Export compiled book output in GitBook-compatible format.",
+    safety: "mutating",
+    rateLimit: {
+      maxPerMinute: 10,
+      guidance: "Export writes to disk. Limit calls; run compile_book first.",
+    },
+    expectedRuntime: "<=1m",
+    expectedRuntimeClass: "moderate",
+    sideEffectLevel: "local-write",
+    idempotent: true,
+    idempotencyGuarantee: "idempotent-safe-retry",
+    retryGuidance: "Safe to retry. Export output overwrites previous export for the same book.",
+    retryPolicyGuidance: "Retry on transient failures. Re-run compile_book first if content changes between attempts.",
+    failureClassTaxonomy: ["validation", "configuration", "filesystem", "timeout", "transient-command", "unknown"],
+    inputSchema: {
+      type: "object",
+      properties: { book: { type: "string", description: "Optional book slug. Defaults to current endpoint book." } },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "bookkit.check_separation",
     description: "Run architecture-boundary checks for the workspace.",
+    safety: "read_only",
     expectedRuntime: "<30s",
     expectedRuntimeClass: "moderate",
     sideEffectLevel: "local-read/compute",

@@ -41,6 +41,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
           discovery: ["bookkit.list_books", "bookkit.list_content", "bookkit.list_skills"],
           content: ["bookkit.read_book", "bookkit.list_mechanisms"],
           governance: ["bookkit.validate_book", "bookkit.check_separation"],
+          pipeline: ["bookkit.compile_book", "bookkit.export_book"],
         },
         toolMetadata: TOOL_DEFINITIONS,
         resourceCategories: RESOURCE_CATEGORIES,
@@ -69,12 +70,12 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
           {
             label: "safe-mutation",
             intent: "Validate existing state before any mutating workspace operation.",
-            sequence: ["tools/call(bookkit.list_books)", "tools/call(bookkit.create_book)", "tools/call(bookkit.validate_book)"],
+            sequence: ["tools/call(bookkit.list_books)", "tools/call(bookkit.validate_book)", "tools/call(bookkit.compile_book)", "tools/call(bookkit.export_book)"],
           },
         ],
         agentProfile: {
           safetyMode: "safe-first",
-          mutatingTools: ["bookkit.create_book"],
+          mutatingTools: ["bookkit.compile_book", "bookkit.create_book", "bookkit.export_book"],
           safetyFlags: {
             defaultToolMode: "read-only",
             mutatingToolsRequireExplicitIntent: true,

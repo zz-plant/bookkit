@@ -2437,6 +2437,16 @@ p {
     padding: var(--space-2);
   }
 
+  /* On mobile, hide non-active primary nav links — bottom CTA bar handles those. */
+  .site-nav__primary:not(.site-nav__primary--active-route) {
+    display: none;
+  }
+
+  /* Search already lives in the bottom CTA bar on mobile. */
+  .search-toggle {
+    display: none;
+  }
+
   .site-nav__more-toggle {
     display: inline-flex;
     align-items: center;

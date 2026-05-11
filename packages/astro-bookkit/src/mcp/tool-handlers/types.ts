@@ -20,9 +20,18 @@ export type ToolFailureClass =
   | "configuration"
   | "unknown";
 
+export type ToolSafetyLevel = "read_only" | "mutating" | "requires_guard";
+
+export type ToolRateLimit = {
+  maxPerMinute: number;
+  guidance: string;
+};
+
 export type ToolDefinitionMetadata = {
   name: ToolName;
   description: string;
+  safety: ToolSafetyLevel;
+  rateLimit?: ToolRateLimit;
   expectedRuntime: string;
   expectedRuntimeClass: ToolExpectedRuntimeClass;
   sideEffectLevel: ToolSideEffectLevel;

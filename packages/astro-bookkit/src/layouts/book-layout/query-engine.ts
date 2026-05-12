@@ -24,7 +24,10 @@ export const createQueryEngine = ({ indexStore, onStatus }: QueryEngineOptions) 
 
   const run = async (
     value: string,
-    signals?: Record<string, number>
+    options?: {
+      signals?: Record<string, number>;
+      semanticScores?: Record<string, number>;
+    }
   ): Promise<QueryRunResult> => {
     const token = ++runToken;
     const index = await loadIndex();
@@ -42,7 +45,11 @@ export const createQueryEngine = ({ indexStore, onStatus }: QueryEngineOptions) 
       };
     }
 
-    const rankedResults = buildRankedResults(index, normalizedQuery, signals);
+    const rankedResults = buildRankedResults(index, normalizedQuery, {
+      signals: options?.signals,
+      semanticScores: options?.semanticScores,
+    });
+
     if (token !== runToken) {
       return { status: "stale" };
     }

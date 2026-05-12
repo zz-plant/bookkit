@@ -9,6 +9,13 @@ import { createQueryEngine } from "./query-engine";
 import type { RankedSearchResult } from "./search-ranking";
 import type { SearchIndexStore } from "./search-index-store";
 import { readStoredValue, writeStoredValue, type StorageLike } from "./storage";
+import { createEmbeddingStore } from "../../embeddings/store";
+import type { EmbeddingStore } from "../../embeddings/store";
+import { createLocalLlmEngine } from "../../llm-local";
+import type { LocalLlmMessage } from "../../llm-local";
+import { createRerankEngine } from "../../rerank";
+import type { RerankEngine } from "../../rerank";
+import type { SearchEntry } from "../../search";
 
 export type QaEventPayload = {
   type: "question" | "citation_click" | "opt_out" | "opt_in";
@@ -38,6 +45,9 @@ type QaControllerOptions = {
   apiEndpoint?: string;
   memoryKey?: string;
   signalsKey?: string;
+  enableLocalLlm?: boolean;
+  enableSemanticSearch?: boolean;
+  enableRerank?: boolean;
 };
 
 export const initializeQaController = ({
@@ -51,51 +61,10 @@ export const initializeQaController = ({
   apiEndpoint,
   memoryKey = "bookkit.qa.memory",
   signalsKey = "bookkit.qa.signals",
+  enableLocalLlm = true,
+  enableSemanticSearch = true,
+  enableRerank = true,
 }: QaControllerOptions): QaController => {
-  // --- Memory helpers (sessionStorage) ---
-  const loadMemory = (): QaTurn[] => {
-    try {
-      const raw = window.sessionStorage.getItem(memoryKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as QaTurn[]) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveMemory = (turns: QaTurn[]) => {
-    try {
-      window.sessionStorage.setItem(memoryKey, JSON.stringify(turns.slice(-3)));
-    } catch {
-      // Ignore quota errors
-    }
-  };
-
-  // --- Signal helpers (localStorage) ---
-  const loadSignals = (): Record<string, number> => {
-    try {
-      const raw = storage.getItem(signalsKey);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw);
-      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-        ? (parsed as Record<string, number>)
-        : {};
-    } catch {
-      return {};
-    }
-  };
-
-  const bumpSignal = (id: string) => {
-    try {
-      const signals = loadSignals();
-      signals[id] = (signals[id] ?? 0) + 1;
-      storage.setItem(signalsKey, JSON.stringify(signals));
-    } catch {
-      // Ignore quota errors
-    }
-  };
-
   const closeButton = queryElement(root, "[data-qa-close]", HTMLButtonElement);
   const form = queryElement(root, "[data-qa-form]", HTMLFormElement);
   const input = queryElement(root, "[data-qa-input]", HTMLTextAreaElement);
@@ -135,7 +104,72 @@ export const initializeQaController = ({
   };
 
   const queryEngine = createQueryEngine({ indexStore });
-  let lastSignals = loadSignals();
+
+  // Lazy-loaded AI engines
+  let embeddingStore: EmbeddingStore | null = null;
+  let localLlmEngine: Awaited<ReturnType<typeof createLocalLlmEngine>> = null;
+  let rerankEngine: Awaited<ReturnType<typeof createRerankEngine>> = null;
+  let enginesInitialized = false;
+
+  const loadMemory = (): QaTurn[] => {
+    try {
+      const raw = window.sessionStorage.getItem(memoryKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as QaTurn[]) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveMemory = (turns: QaTurn[]) => {
+    try {
+      window.sessionStorage.setItem(memoryKey, JSON.stringify(turns.slice(-3)));
+    } catch {
+      // Ignore quota errors
+    }
+  };
+
+  const loadSignals = (): Record<string, number> => {
+    try {
+      const raw = storage.getItem(signalsKey);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, number>)
+        : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const bumpSignal = (id: string) => {
+    try {
+      const signals = loadSignals();
+      signals[id] = (signals[id] ?? 0) + 1;
+      storage.setItem(signalsKey, JSON.stringify(signals));
+    } catch {
+      // Ignore quota errors
+    }
+  };
+
+  const initializeEngines = async (entries: SearchEntry[]) => {
+    if (enginesInitialized) return;
+    enginesInitialized = true;
+
+    if (enableSemanticSearch) {
+      embeddingStore = createEmbeddingStore();
+      await embeddingStore.load(entries, (msg) => updateStatus(msg));
+    }
+
+    if (enableLocalLlm && !apiEndpoint) {
+      localLlmEngine = await createLocalLlmEngine((msg) => updateStatus(msg));
+    }
+
+    if (enableRerank) {
+      rerankEngine = await createRerankEngine((msg) => updateStatus(msg));
+    }
+  };
 
   const updateDisplayMode = () => {
     root.dataset.qaDisplayMode = displayMode;
@@ -221,6 +255,81 @@ export const initializeQaController = ({
     citations.append(heading, list);
   };
 
+  const synthesizeWithLocalLlm = async (
+    normalizedQuery: string,
+    results: RankedSearchResult[],
+    history: QaTurn[]
+  ): Promise<{ answer: string; citations: Array<{ id: string; title: string; url: string }> } | null> => {
+    if (!localLlmEngine?.isReady()) return null;
+
+    const context = results
+      .slice(0, 8)
+      .map((entry, i) => `[${i + 1}] ${entry.title} (${entry.context})\n${entry.snippet}`)
+      .join("\n\n");
+
+    let userPrompt = `Question: ${normalizedQuery}\n\nBook passages:\n${context}`;
+    if (history.length > 0) {
+      const historyText = history
+        .map((turn, i) => `Q${i + 1}: ${turn.question}\nA${i + 1}: ${turn.answer}`)
+        .join("\n\n");
+      userPrompt = `Conversation so far:\n${historyText}\n\n${userPrompt}`;
+    }
+
+    const messages: LocalLlmMessage[] = [
+      {
+        role: "system",
+        content:
+          "You are a precise research assistant. Answer the user's question using ONLY the provided book passages. Be concise. If the passages don't contain enough information, say so clearly.",
+      },
+      { role: "user", content: userPrompt },
+    ];
+
+    try {
+      const response = await localLlmEngine.complete(messages);
+      if (!response.answer) return null;
+
+      return {
+        answer: response.answer,
+        citations: results.slice(0, 8).map((entry) => ({
+          id: entry.id,
+          title: entry.title,
+          url: entry.url,
+        })),
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const synthesizeWithApi = async (
+    normalizedQuery: string,
+    results: RankedSearchResult[],
+    history: QaTurn[]
+  ): Promise<{ answer: string; citations: Array<{ id: string; title: string; url: string }> } | null> => {
+    if (!apiEndpoint) return null;
+
+    try {
+      const response = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: normalizedQuery,
+          entries: results.slice(0, 8),
+          history: history.length > 0 ? history : undefined,
+        }),
+      });
+      if (response.ok) {
+        return (await response.json()) as {
+          answer: string;
+          citations: Array<{ id: string; title: string; url: string }>;
+        };
+      }
+    } catch {
+      // API failure
+    }
+    return null;
+  };
+
   const runQa = async (value: string) => {
     if (isDisabled()) {
       updateStatus("AI Q&A is disabled.");
@@ -228,8 +337,24 @@ export const initializeQaController = ({
     }
 
     query = value;
-    lastSignals = loadSignals();
-    const runResult = await queryEngine.run(value, lastSignals);
+    const lastSignals = loadSignals();
+
+    // Load index and initialize AI engines on first use
+    const index = await queryEngine.loadIndex();
+    await initializeEngines(index);
+
+    // Compute semantic scores if embeddings are ready
+    let semanticScores: Record<string, number> | undefined;
+    if (embeddingStore?.isReady()) {
+      const ranked = await embeddingStore.rank(value, 50);
+      semanticScores = Object.fromEntries(ranked.map((r) => [r.entryId, r.score]));
+    }
+
+    const runResult = await queryEngine.run(value, {
+      signals: lastSignals,
+      semanticScores,
+    });
+
     if (runResult.status === "stale") return;
 
     const { normalizedQuery, tokens, results } = runResult;
@@ -245,45 +370,61 @@ export const initializeQaController = ({
       return;
     }
 
-    if (apiEndpoint && results.length > 0) {
-      updateStatus("Synthesizing answer…");
+    let candidateResults = results;
+
+    // Optional reranking
+    if (rerankEngine?.isReady() && candidateResults.length > 0) {
+      updateStatus("Reranking results…");
       try {
-        const history = loadMemory();
-        const response = await fetch(apiEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: normalizedQuery,
-            entries: results.slice(0, 8),
-            history: history.length > 0 ? history : undefined,
-          }),
-        });
-        if (response.ok) {
-          const data = (await response.json()) as {
-            answer: string;
-            citations: Array<{ id: string; title: string; url: string }>;
-          };
-          renderSynthesizedAnswer(data, tokens);
-          updateStatus(
-            data.citations.length
-              ? `${data.citations.length} cited passage${data.citations.length === 1 ? "" : "s"} returned.`
-              : "No citations found."
-          );
-          recordEvent({
-            type: "question",
-            query: normalizedQuery,
-            matches: data.citations.length,
-          });
-          saveMemory([...history, { question: normalizedQuery, answer: data.answer }]);
-          return;
-        }
+        const reranked = await rerankEngine.rerank(normalizedQuery, candidateResults.slice(0, 20));
+        // Rebuild candidateResults with rerank scores
+        const scoreMap = new Map(reranked.map((r) => [r.entry.id, r.score]));
+        candidateResults = candidateResults.map((r) => ({
+          ...r,
+          score: scoreMap.get(r.id) ?? r.score,
+        }));
+        candidateResults.sort((a, b) => b.score - a.score);
       } catch {
-        // Fall through to local search on any API failure
+        // Keep original ranking on failure
       }
-      updateStatus("AI synthesis unavailable. Showing local results.");
     }
 
-    const topResults = results.slice(0, 3);
+    // Try synthesis: API first, then local LLM, then local snippets
+    const history = loadMemory();
+    let synthesized: { answer: string; citations: Array<{ id: string; title: string; url: string }> } | null = null;
+
+    // 1. Try API endpoint
+    if (apiEndpoint && candidateResults.length > 0) {
+      updateStatus("Synthesizing answer…");
+      synthesized = await synthesizeWithApi(normalizedQuery, candidateResults, history);
+    }
+
+    // 2. Try local LLM if API unavailable or not configured
+    if (!synthesized && candidateResults.length > 0) {
+      updateStatus("Using local model…");
+      synthesized = await synthesizeWithLocalLlm(normalizedQuery, candidateResults, history);
+    }
+
+    // 3. Render synthesis if successful
+    if (synthesized) {
+      renderSynthesizedAnswer(synthesized, tokens);
+      updateStatus(
+        synthesized.citations.length
+          ? `${synthesized.citations.length} cited passage${synthesized.citations.length === 1 ? "" : "s"} returned.`
+          : "No citations found."
+      );
+      recordEvent({
+        type: "question",
+        query: normalizedQuery,
+        matches: synthesized.citations.length,
+      });
+      saveMemory([...history, { question: normalizedQuery, answer: synthesized.answer }]);
+      return;
+    }
+
+    // 4. Fallback to local search snippets
+    updateStatus(apiEndpoint ? "AI synthesis unavailable. Showing local results." : "Showing local results.");
+    const topResults = candidateResults.slice(0, 3);
     renderAnswer(topResults, tokens);
     updateStatus(
       topResults.length

@@ -11,6 +11,10 @@
     "pdf-lib": "^1.17.1",
     "web-haptics": "^0.0.6"
   },
+  "optionalDependencies": {
+    "@xenova/transformers": "^2.21.0",
+    "@mlc-ai/web-llm": "^0.2.62"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./preview": "./src/preview/index.ts",

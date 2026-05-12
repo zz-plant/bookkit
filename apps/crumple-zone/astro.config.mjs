@@ -10,5 +10,14 @@ export default defineConfig({
     ssr: {
       noExternal: ["@bookkit/astro-bookkit"],
     },
+    build: {
+      rollupOptions: {
+        onwarn(warning, warn) {
+          const message = warning.message ?? "";
+          if (message.includes("Module level directives cause errors")) return;
+          warn(warning);
+        },
+      },
+    },
   },
 });

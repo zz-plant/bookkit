@@ -16,3 +16,4 @@ dist/
 
 # TypeScript
 *.tsbuildinfo
+opencode.json

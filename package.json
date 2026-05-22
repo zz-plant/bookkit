@@ -15,10 +15,10 @@
     "dev:bad-people": "bun run --filter @books/bad-people dev",
     "build:bad-people": "bun run --filter @books/bad-people build",
     "build:all": "bun run --workspaces build",
-    "lint": "bun run scripts/lint.ts",
+    "lint": "biome check .",
     "check:types": "bun run scripts/typecheck.ts",
     "check:upgrade": "bun run scripts/upgrade-check.ts",
-    "format": "bun run scripts/format.ts",
+    "format": "biome format --write .",
     "list:books": "bun run scripts/list-books.ts",
     "bookkit": "bun run scripts/bookkit.ts",
     "compile:book": "bun run scripts/compile-book.ts",
@@ -49,6 +49,7 @@
     "build:crumple-zone": "bun run --filter @books/crumple-zone build"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.3",
     "typescript": "^5.9.3"

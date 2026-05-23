@@ -48,7 +48,8 @@
     "dev:crumple-zone": "bun run --filter @books/crumple-zone dev",
     "build:crumple-zone": "bun run --filter @books/crumple-zone build",
     "prepare": "husky",
-    "test": "vitest run"
+    "test": "vitest run",
+    "setup": "mise trust && bun install"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",

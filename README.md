@@ -1,5 +1,9 @@
 # Bookkit — Recompilable Books (Astro + Bun)
 
+<p align="center">
+  <img src="docs/assets/bookkit-demo.gif" alt="bookkit demo animation" width="720">
+</p>
+
 Bookkit is a **book compiler workspace**: one reusable engine + one or more book apps.
 
 > A book is a specification that compiles into coherent reader experiences, not a static pile of chapters.

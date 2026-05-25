@@ -51,7 +51,8 @@
 		"test": "vitest run",
 		"setup": "mise trust && bun install",
 		"assets:check": "bun run scripts/check-assets.ts",
-		"check": "bun run assets:check"
+		"check": "bun run assets:check",
+		"assets:generate": "bun run scripts/generate-scenes.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.15",

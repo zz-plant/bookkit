@@ -17,3 +17,11 @@ dist/
 # TypeScript
 *.tsbuildinfo
 opencode.json
+
+# Tooling
+.cmux/
+.opencode/
+.sisyphus/
+.codex/
+.agent/
+.wrangler/

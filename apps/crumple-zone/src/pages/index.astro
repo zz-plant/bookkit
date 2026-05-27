@@ -78,7 +78,7 @@ const firstMechanism = mechanisms.entries[0];
 const primaryRoutes = [
   {
     eyebrow: "Start with context",
-    title: "I'm new. Guide me first",
+    title: "New reader path",
     description: "Open the overview path for objectives, frame, and constraints.",
     href: readRoutes.overview,
     cta: "Start with overview",
@@ -130,9 +130,9 @@ const availableBooks = [
   </div>
 
   <section class="content-block">
-    <div class="eyebrow">Choose your route</div>
-    <h2>Pick one first action</h2>
-    <p class="meta">Choose one entry point, complete it, then branch as needed.</p>
+    <div class="eyebrow">Entry points</div>
+    <h2>First action</h2>
+    <p class="meta">Complete one entry point, then branch as needed.</p>
     <div class="card-grid" data-funnel-group="home-start">
       {primaryRoutes.map((link, index) => (
         <a

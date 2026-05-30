@@ -20,7 +20,6 @@ opencode.json
 
 # Tooling
 .cmux/
-.opencode/
 .sisyphus/
 .codex/
 .agent/

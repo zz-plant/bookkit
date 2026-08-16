@@ -125,8 +125,8 @@ This keeps book apps compliant with Astro's routing constraints while avoiding d
 
 ## Prerequisites
 
-- **Bun 1.2.14+** (workspace package manager + task runner)
-- **Node.js 20.11+** (recommended 22+) for current Astro 5 compatibility
+- **Bun 1.3+** (workspace package manager + task runner)
+- **Node.js 22+** for Astro 7 compatibility
 
 Install dependencies:
 

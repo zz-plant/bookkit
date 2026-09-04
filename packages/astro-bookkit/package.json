@@ -1,8 +1,25 @@
 {
 	"name": "@bookkit/astro-bookkit",
-	"private": true,
-	"version": "0.0.0",
+	"version": "0.1.0",
+	"description": "Recompilable book compiler engine — structured content schemas, frame enforcement, graph-based ordering, and AI-agent integration for Astro.",
 	"type": "module",
+	"license": "CC0-1.0",
+	"keywords": [
+		"astro",
+		"book",
+		"compiler",
+		"mdx",
+		"recompilable",
+		"structured-content",
+		"pedagogy",
+		"mcp",
+		"ai-agent"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/zz-plant/bookkit",
+		"directory": "packages/astro-bookkit"
+	},
 	"main": "src/index.ts",
 	"dependencies": {
 		"js-yaml": "^4.1.1",
@@ -18,6 +35,8 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
+		"./integration": "./src/integration.ts",
+		"./schemas": "./src/schemas/index.ts",
 		"./preview": "./src/preview/index.ts",
 		"./components/PreviewLinksPanel.astro": "./src/components/PreviewLinksPanel.astro",
 		"./components/ExportPanel.astro": "./src/components/ExportPanel.astro",

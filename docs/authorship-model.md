@@ -1,121 +1,108 @@
-# Bookkit Authorship Model
+# The Book as Software
 
-This document defines the three-pillar model that distinguishes Bookkit from traditional publishing. It is canonical for the "Book as Software" philosophy and how authorship works under that paradigm.
-
-For architecture and commands, see [`README.md`](./README.md). For hard invariants, see [`AGENTS.md`](./AGENTS.md).
+A book is a specification that compiles into coherent reader experiences, not a static pile of chapters. This document defines the authorship model that makes that possible.
 
 ---
 
-## Core thesis
+## The problem
 
-Bookkit treats a book as an **executable specification for human and machine action**, not a static pile of chapters. This creates a new authorship model that is structured, governed, and programmable.
+Documentation systems render markdown into HTML. They don't answer the questions that matter:
+
+- Does this chapter cover the structural steps it claims to?
+- Are these concepts properly bounded, or drifting into vague prose?
+- Can a reader take a concrete action in under 10 minutes?
+- If the technology stack changes, does the book break or evolve?
+
+Traditional publishing treats a book as finished when printed. The result is content that rots, structure that decays, and governance that depends on human memory.
 
 ---
 
-## Pillar 1 — Authorship as Framing (Structured Intent)
+## Pillar 1 — Authorship as framing
 
-In traditional publishing, an author writes prose and hopes the reader finds the structure. In Bookkit, authorship starts with a **Frame**: a schema of intent that the compiler enforces.
+In traditional publishing, an author writes prose and hopes the reader finds the structure. In Bookkit, authorship starts with a **frame**: a declared sequence of structural steps that the compiler enforces.
 
-| Traditional model | Bookkit model |
+| Traditional | Bookkit |
 |---|---|
-| Author writes chapters | Author declares a frame contract (e.g., *Mechanism* → *Agency* → *Countermove*) |
+| Author writes chapters | Author declares a frame contract (e.g. Recognition → Mechanism → Agency) |
 | Reader discovers structure | Compiler validates required steps are structurally present |
-| Editorial judgment | Pedagogical engineering with machine-checkable constraints |
+| Editorial judgment | Machine-checkable structural constraints |
+
+A frame is not a table of contents. It's a schema of intent. The author declares what must exist; the compiler checks that it does.
 
 **How it works:**
 
-- `book.config.ts` declares the frame (`frame.slug`, `frame.steps`, `frame.intent`).
-- Frame definitions live in `packages/astro-bookkit/src/frames/` and are registered in the engine.
-- Content files (MDX with frontmatter) carry structured contracts: `is`/`isNot`, `predictions`, `tests`.
-- `packages/astro-bookkit/src/validators/frame.ts` checks that required steps are present, not implied in prose.
+- `book.config.ts` declares the frame: its slug, steps, and intent.
+- Content files (MDX with frontmatter) carry structured contracts: mechanism boundaries (`is`/`isNot`), predictions, tests.
+- The frame validator checks that required steps appear as headings — not implied in prose, not buried in paragraphs.
 
 The author is not just telling a story. They are building a mental model that the compiler validates.
 
 ---
 
-## Pillar 2 — The Recompilable Book (Durable yet Fluid)
+## Pillar 2 — The recompilable book
 
-A traditional book is "finished" when printed. A Bookkit book is a **living codebase**.
+A traditional book is frozen at print time. A Bookkit book is a living codebase with strict separation of concerns:
 
-| Layer | Owner | What it holds |
+| Layer | Owns | What it holds |
 |---|---|---|
-| Decisions | Author | `book.config.ts`, content bindings (`src/content/book/**`) |
-| Expression | Engine | UI, search index, exports, MCP surface |
+| **Author decisions** | Scarce, irreversible choices | Pedagogical strategy, mechanism boundaries, reader objectives |
+| **Engine logic** | Reusable expression | Rendering, search, exports, AI integration, MCP surface |
+| **Content bindings** | Replaceable data | Chapters, examples, glossary, tools — structured MDX with typed frontmatter |
 
-**Separation of concerns:**
+**The key insight:** author decisions and engine expression are decoupled. Engine upgrades — new export formats, new AI features, new MCP tools — propagate to every book without touching content. Content edits don't break the build.
 
-- The author owns scarce, irreversible decisions: pedagogical strategy, mechanism boundaries, reader objectives.
-- The engine owns reusable expression: how the book renders, how it exports, how agents interact with it.
+**Enforceable constraints:**
 
-**Recompilation surface:**
+- `examplesMustBeSwappable` — changing an example must not change the mechanism it illustrates.
+- `orderingModel: "constraint-graph"` — reading sequence is derived from prerequisite dependencies, not a single canonical order.
+- `actionPrimitiveMaxMinutes: 10` — every tool action must be executable by a depleted reader in under 10 minutes.
 
-- `bun run compile:book -- --book <slug>` rebuilds the book from config + content.
-- `bun run export:gitbook -- --book <slug>` generates GitBook-compatible output without touching prose.
-- Engine upgrades (new AI QA features, new export formats, MCP tool additions) propagate to all books without content edits.
-
-The book evolves as the technology stack evolves. Prose stays untouched while behavior changes.
-
-**Key invariants:**
-
-- `examplesMustBeSwappable: true` — changing examples must not change mechanism meaning.
-- `orderingModel: "constraint-graph"` — sequence is derived from dependencies, not a single canonical order.
-- `actionPrimitiveMaxMinutes: 10` — every toolkit action must be executable within 10 minutes.
+These are not guidelines. They are compile-time checks.
 
 ---
 
-## Pillar 3 — Asymmetric & Personal Authorship
+## Pillar 3 — Agentic authorship
 
-The most radical shift is from "one-to-many" broadcast to **agentic interaction**.
+The most radical shift: from one-to-many broadcast to **machine-interpretable structure**.
 
-### 3a — Agent-Assisted Authorship (implemented)
+Books are not just read by humans. They are queried, validated, and extended by AI agents. Bookkit's MCP endpoint exposes deterministic tools:
 
-Authors do not work alone. They work with agents that validate frames, detect semantic overlaps, and suggest missing toolkit actions.
+- `validate_book` — run schema + frame validation
+- `check_separation` — verify content stays data-only
+- `list_mechanisms` / `read_book` — discover and read structured content
+- `compile_book` — trigger a build
 
-**Current surface:**
+Agents read governance files (`AGENTS.md`, `CONTRIBUTING.md`) before acting. The governance layer becomes the shared contract between human authors and AI agents.
 
-- MCP endpoint: `apps/<book>/src/pages/api/mcp.json.ts`
-- Deterministic tools: `bookkit.validate_book`, `bookkit.check_separation`, `bookkit.list_mechanisms`, `bookkit.read_book`, etc.
-- Governance resources: agents read `AGENTS.md`, `CONTRIBUTING.md`, README, and local skills before acting.
-- Lane skills under `.codex/skills/**` guide content-edit, engine-change, and release workflows.
-
-### 3b — The Reader as Forker (conceptual)
-
-The next frontier is the reader boundary. Instead of a static read-only output, the reader creates a **personal fork** of the book.
-
-**What a fork means:**
-
-- The reader provides organizational data (their own workplace, their own healthcare system, their own jurisdiction).
-- They run simulations against the book's mechanism models.
-- They record progress, annotate with their own examples, and build a personalized toolkit.
-
-**Required infrastructure (not yet implemented):**
-
-- Runtime for reader-owned data (Durable Objects or D1-backed state).
-- Fork API: `POST /api/fork` creates a reader-scoped instance from a book template.
-- Artifact model: reader annotations, simulations, and progress stored as versioned artifacts.
-- Permission model: reader can read the author's framework, write their own bindings, but cannot mutate the source frame.
-
-**Target platform primitive:** Cloudflare Artifacts (or equivalent durable execution environment) where the author's compiled book is the base image and the reader's fork is a stateful overlay.
+This is not a chatbot bolted onto a book. It's a structured interface that agents can reason about deterministically.
 
 ---
 
-## Alignment with architecture invariants
+## What this enables
 
-Pillar 1 (Framing) enforces the `AGENTS.md` rule: **never implement book-specific logic inside content files**. If behavior is needed, implement it as an engine capability or express it as a frame/config option.
-
-Pillar 2 (Recompilable) enforces strict separation: author decisions in `apps/<book>/`, engine logic in `packages/astro-bookkit/`, content bindings as replaceable data.
-
-Pillar 3 (Agentic) extends the existing MCP surface from author tools to reader runtime. The governance layer (`AGENTS.md`, `CONTRIBUTING.md`, skill definitions) becomes the shared contract between human authors, AI agents, and reader forks.
+1. **Governed content** — structure is validated, not assumed. Drift is caught at build time.
+2. **Recompilable books** — the same content compiles into different reader experiences (web, PDF, EPUB, API) without modification.
+3. **Agent-readable knowledge** — AI tools can validate, extend, and interact with book content through a structured interface.
+4. **Durable authorship** — author decisions are explicit and machine-checkable. They survive technology changes.
 
 ---
 
-## Document map
+## Architecture
 
-| Document | Role |
-|---|---|
-| `README.md` | Architecture + operational commands |
-| `AGENTS.md` | Hard invariants + risk boundaries |
-| `CONTRIBUTING.md` | Contribution lanes + verification matrix |
-| `docs/authorship-model.md` | This document — the "Book as Software" philosophy |
-| `docs/commercial-roadmap.md` | How this model maps to productization |
-| `docs/mcp-agent-skills-research.md` | MCP/skill adoption details |
+```
+content + book.config.ts
+        │
+        ▼
+  schema validation  (Zod frontmatter schemas)
+        │
+        ▼
+  frame checks        (required structural steps)
+        │
+        ▼
+  graph ordering      (prerequisite-based reading sequences)
+        │
+        ▼
+  compiler outputs    (read UI, APIs, exports, MCP surface)
+```
+
+Each layer is independently testable. Validation fails with actionable errors: what failed, where, and how to fix it.

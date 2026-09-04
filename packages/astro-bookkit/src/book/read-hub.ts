@@ -1,250 +1,269 @@
+import {
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
+} from "../localization/content";
 import type { ReleaseSectionSlug } from "../releases/notes";
-import { buildLocalizedContentIndex, resolveLocalizedContent } from "../localization/content";
 import { readRoutes } from "./read-routes";
 
 export type ReadHubSectionKey = ReleaseSectionSlug | "overview";
 
 export type ReadHubHeroLink = {
-  label: string;
-  href: string;
-  primary?: boolean;
-  funnelStep?: string;
+	label: string;
+	href: string;
+	primary?: boolean;
+	funnelStep?: string;
 };
 
 export type ReadHubHeroConfig = {
-  eyebrow: string;
-  title: string;
-  lede: string;
-  quickLinks: ReadHubHeroLink[];
-  quickLinksAriaLabel?: string;
-  quickStartAriaLabel?: string;
+	eyebrow: string;
+	title: string;
+	lede: string;
+	quickLinks: ReadHubHeroLink[];
+	quickLinksAriaLabel?: string;
+	quickStartAriaLabel?: string;
 };
 
 export type ReadHubQuickStartCard = {
-  eyebrow: string;
-  title: string;
-  description: string;
-  href: string;
-  recommended?: boolean;
-  funnelStep?: string;
+	eyebrow: string;
+	title: string;
+	description: string;
+	href: string;
+	recommended?: boolean;
+	funnelStep?: string;
 };
 
 export type ReadHubIntroConfig = {
-  eyebrow: string;
-  title: string;
-  lede?: string;
+	eyebrow: string;
+	title: string;
+	lede?: string;
 };
 
 export type ReadHubBucket = {
-  id: string;
-  title: string;
-  description: string;
-  sectionKeys: ReadHubSectionKey[];
-  primary?: boolean;
+	id: string;
+	title: string;
+	description: string;
+	sectionKeys: ReadHubSectionKey[];
+	primary?: boolean;
 };
 
 export type ReadHubUtilityLink = {
-  label: string;
-  href: string;
-  primary?: boolean;
-  funnelStep?: string;
+	label: string;
+	href: string;
+	primary?: boolean;
+	funnelStep?: string;
 };
 
 export type ReadHubUtilityCard = {
-  eyebrow: string;
-  title: string;
-  description: string;
-  links: ReadHubUtilityLink[];
-  featured?: boolean;
-  deemphasizeUntilStarted?: boolean;
-  secondaryNote?: string;
+	eyebrow: string;
+	title: string;
+	description: string;
+	links: ReadHubUtilityLink[];
+	featured?: boolean;
+	deemphasizeUntilStarted?: boolean;
+	secondaryNote?: string;
 };
 
 export type ReadHubUtilitiesConfig = {
-  mode: "default" | "accordion";
-  eyebrow: string;
-  title: string;
-  lede?: string;
-  cards: ReadHubUtilityCard[];
-  id?: string;
+	mode: "default" | "accordion";
+	eyebrow: string;
+	title: string;
+	lede?: string;
+	cards: ReadHubUtilityCard[];
+	id?: string;
 };
 
 export type ReadHubReleaseFilterLabels = {
-  initialLabel: string;
-  activeLabel: string;
+	initialLabel: string;
+	activeLabel: string;
 };
 
 export type ReadHubLatestChange = {
-  version: string;
-  date: string;
+	version: string;
+	date: string;
 };
 
 export type ReadHubSection = {
-  sectionKey: ReadHubSectionKey;
-  title: string;
-  description: string;
-  href: string;
-  count: number;
-  completeness?: number | null;
-  keyHint?: string[];
-  latestChange?: ReadHubLatestChange;
+	sectionKey: ReadHubSectionKey;
+	title: string;
+	description: string;
+	href: string;
+	count: number;
+	completeness?: number | null;
+	keyHint?: string[];
+	latestChange?: ReadHubLatestChange;
 };
 
 export type ReadHubConfig = {
-  hero: ReadHubHeroConfig;
-  intro: ReadHubIntroConfig;
-  buckets: ReadHubBucket[];
-  quickStartCards?: ReadHubQuickStartCard[];
-  utilities?: ReadHubUtilitiesConfig;
-  bucketNavigation?: "stacked" | "tabs";
-  releaseFilter?: ReadHubReleaseFilterLabels;
+	hero: ReadHubHeroConfig;
+	intro: ReadHubIntroConfig;
+	buckets: ReadHubBucket[];
+	quickStartCards?: ReadHubQuickStartCard[];
+	utilities?: ReadHubUtilitiesConfig;
+	bucketNavigation?: "stacked" | "tabs";
+	releaseFilter?: ReadHubReleaseFilterLabels;
 };
 
 export type ReadHubSectionStats = {
-  count: number;
-  completeness?: number | null;
+	count: number;
+	completeness?: number | null;
 };
 
 export type ReadHubSectionStatsMap = {
-  chapters: ReadHubSectionStats;
-  mechanisms: ReadHubSectionStats;
-  toolkit: ReadHubSectionStats;
-  glossary: ReadHubSectionStats;
-  examples: ReadHubSectionStats;
+	chapters: ReadHubSectionStats;
+	mechanisms: ReadHubSectionStats;
+	toolkit: ReadHubSectionStats;
+	glossary: ReadHubSectionStats;
+	examples: ReadHubSectionStats;
 };
 
 export type ReadHubContentSectionKey = keyof ReadHubSectionStatsMap;
 
 type LocalizedContentFrontmatter = {
-  slug?: string;
-  locale?: string;
+	slug?: string;
+	locale?: string;
 };
 
 export type ReadHubContentModule = {
-  frontmatter?: LocalizedContentFrontmatter;
+	frontmatter?: LocalizedContentFrontmatter;
 };
 
-export type ReadHubContentModuleGroups<TModule extends ReadHubContentModule = ReadHubContentModule> = {
-  [K in ReadHubContentSectionKey]: Record<string, TModule>;
+export type ReadHubContentModuleGroups<
+	TModule extends ReadHubContentModule = ReadHubContentModule,
+> = {
+	[K in ReadHubContentSectionKey]: Record<string, TModule>;
 };
 
-export type ReadHubLocalizedSectionEntry<TModule extends ReadHubContentModule = ReadHubContentModule> = {
-  slug: string;
-  module: TModule;
-  locale: string;
-  isFallback: boolean;
+export type ReadHubLocalizedSectionEntry<
+	TModule extends ReadHubContentModule = ReadHubContentModule,
+> = {
+	slug: string;
+	module: TModule;
+	locale: string;
+	isFallback: boolean;
 };
 
-export type ReadHubSectionSummary<TModule extends ReadHubContentModule = ReadHubContentModule> = {
-  count: number;
-  completeness: number | null;
-  entries: ReadHubLocalizedSectionEntry<TModule>[];
+export type ReadHubSectionSummary<
+	TModule extends ReadHubContentModule = ReadHubContentModule,
+> = {
+	count: number;
+	completeness: number | null;
+	entries: ReadHubLocalizedSectionEntry<TModule>[];
 };
 
 export type ReadHubSectionSummaryMap<
-  TGroups extends ReadHubContentModuleGroups = ReadHubContentModuleGroups,
+	TGroups extends ReadHubContentModuleGroups = ReadHubContentModuleGroups,
 > = {
-  [K in keyof TGroups]: ReadHubSectionSummary<TGroups[K][string]>;
+	[K in keyof TGroups]: ReadHubSectionSummary<
+		TGroups[K] extends Record<string, infer TModule>
+			? TModule extends ReadHubContentModule
+				? TModule
+				: ReadHubContentModule
+			: ReadHubContentModule
+	>;
 };
 
 const READ_HUB_CONTENT_SECTION_KEYS = [
-  "chapters",
-  "mechanisms",
-  "toolkit",
-  "glossary",
-  "examples",
+	"chapters",
+	"mechanisms",
+	"toolkit",
+	"glossary",
+	"examples",
 ] as const satisfies ReadHubContentSectionKey[];
 
-export const createLocalizedReadHubSectionSummaries = <TGroups extends ReadHubContentModuleGroups>(
-  groups: TGroups,
-  options: {
-    locale?: string;
-    defaultLocale?: string;
-  } = {},
+export const createLocalizedReadHubSectionSummaries = <
+	TGroups extends ReadHubContentModuleGroups,
+>(
+	groups: TGroups,
+	options: {
+		locale?: string;
+		defaultLocale?: string;
+	} = {},
 ): ReadHubSectionSummaryMap<TGroups> => {
-  const summaries = {} as ReadHubSectionSummaryMap<TGroups>;
+	const summaries = {} as ReadHubSectionSummaryMap<TGroups>;
 
-  for (const sectionKey of READ_HUB_CONTENT_SECTION_KEYS) {
-    const resolved = resolveLocalizedContent(
-      buildLocalizedContentIndex(groups[sectionKey], {
-        defaultLocale: options.defaultLocale,
-      }),
-      { locale: options.locale },
-    );
+	for (const sectionKey of READ_HUB_CONTENT_SECTION_KEYS) {
+		const resolved = resolveLocalizedContent(
+			buildLocalizedContentIndex(groups[sectionKey], {
+				defaultLocale: options.defaultLocale,
+			}),
+			{ locale: options.locale },
+		);
 
-    summaries[sectionKey] = {
-      count: resolved.entries.length,
-      completeness: resolved.completeness,
-      entries: resolved.entries,
-    } as ReadHubSectionSummaryMap<TGroups>[typeof sectionKey];
-  }
+		summaries[sectionKey] = {
+			count: resolved.entries.length,
+			completeness: resolved.completeness,
+			entries: resolved.entries,
+		} as ReadHubSectionSummaryMap<TGroups>[typeof sectionKey];
+	}
 
-  return summaries;
+	return summaries;
 };
 
-export type ReadHubLatestChangeMap = Partial<Record<ReadHubSectionKey, ReadHubLatestChange>>;
+export type ReadHubLatestChangeMap = Partial<
+	Record<ReadHubSectionKey, ReadHubLatestChange>
+>;
 
 export const createDefaultReadHubSections = (
-  stats: ReadHubSectionStatsMap,
-  latestChanges: ReadHubLatestChangeMap = {},
+	stats: ReadHubSectionStatsMap,
+	latestChanges: ReadHubLatestChangeMap = {},
 ): ReadHubSection[] => [
-  {
-    title: "Overview",
-    description: "Objectives, frame, and constraints for this draft.",
-    href: readRoutes.overview,
-    count: 1,
-    keyHint: ["g", "o"],
-    sectionKey: "overview",
-    latestChange: latestChanges.overview,
-  },
-  {
-    title: "Chapters",
-    description: "Core modules and the intervention frame.",
-    href: readRoutes.chapters,
-    count: stats.chapters.count,
-    completeness: stats.chapters.completeness ?? null,
-    keyHint: ["g", "c"],
-    sectionKey: "chapters",
-    latestChange: latestChanges.chapters,
-  },
-  {
-    title: "Mechanisms",
-    description: "Named system patterns with stable definitions.",
-    href: readRoutes.mechanisms,
-    count: stats.mechanisms.count,
-    completeness: stats.mechanisms.completeness ?? null,
-    keyHint: ["g", "m"],
-    sectionKey: "mechanisms",
-    latestChange: latestChanges.mechanisms,
-  },
-  {
-    title: "Toolkit",
-    description: "Action primitives that fit inside ten minutes.",
-    href: readRoutes.toolkit,
-    count: stats.toolkit.count,
-    completeness: stats.toolkit.completeness ?? null,
-    keyHint: ["g", "t"],
-    sectionKey: "toolkit",
-    latestChange: latestChanges.toolkit,
-  },
-  {
-    title: "Glossary",
-    description: "Short definitions to keep shared language consistent.",
-    href: readRoutes.glossary,
-    count: stats.glossary.count,
-    completeness: stats.glossary.completeness ?? null,
-    keyHint: ["g", "l"],
-    sectionKey: "glossary",
-    latestChange: latestChanges.glossary,
-  },
-  {
-    title: "Examples",
-    description: "Replaceable cases that ground the modules.",
-    href: readRoutes.examples,
-    count: stats.examples.count,
-    completeness: stats.examples.completeness ?? null,
-    keyHint: ["g", "e"],
-    sectionKey: "examples",
-    latestChange: latestChanges.examples,
-  },
+	{
+		title: "Overview",
+		description: "Objectives, frame, and constraints for this draft.",
+		href: readRoutes.overview,
+		count: 1,
+		keyHint: ["g", "o"],
+		sectionKey: "overview",
+		latestChange: latestChanges.overview,
+	},
+	{
+		title: "Chapters",
+		description: "Core modules and the intervention frame.",
+		href: readRoutes.chapters,
+		count: stats.chapters.count,
+		completeness: stats.chapters.completeness ?? null,
+		keyHint: ["g", "c"],
+		sectionKey: "chapters",
+		latestChange: latestChanges.chapters,
+	},
+	{
+		title: "Mechanisms",
+		description: "Named system patterns with stable definitions.",
+		href: readRoutes.mechanisms,
+		count: stats.mechanisms.count,
+		completeness: stats.mechanisms.completeness ?? null,
+		keyHint: ["g", "m"],
+		sectionKey: "mechanisms",
+		latestChange: latestChanges.mechanisms,
+	},
+	{
+		title: "Toolkit",
+		description: "Action primitives that fit inside ten minutes.",
+		href: readRoutes.toolkit,
+		count: stats.toolkit.count,
+		completeness: stats.toolkit.completeness ?? null,
+		keyHint: ["g", "t"],
+		sectionKey: "toolkit",
+		latestChange: latestChanges.toolkit,
+	},
+	{
+		title: "Glossary",
+		description: "Short definitions to keep shared language consistent.",
+		href: readRoutes.glossary,
+		count: stats.glossary.count,
+		completeness: stats.glossary.completeness ?? null,
+		keyHint: ["g", "l"],
+		sectionKey: "glossary",
+		latestChange: latestChanges.glossary,
+	},
+	{
+		title: "Examples",
+		description: "Replaceable cases that ground the modules.",
+		href: readRoutes.examples,
+		count: stats.examples.count,
+		completeness: stats.examples.completeness ?? null,
+		keyHint: ["g", "e"],
+		sectionKey: "examples",
+		latestChange: latestChanges.examples,
+	},
 ];

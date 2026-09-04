@@ -1,6 +1,13 @@
 import { cpSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ensureDir, optionalArg, readText, requireArg, slugify, writeFileSafe } from "./_lib";
+import {
+	ensureDir,
+	optionalArg,
+	readText,
+	requireArg,
+	slugify,
+	writeFileSafe,
+} from "./_lib";
 import { syncShimTemplatesToBook } from "./_shim-templates";
 
 const rawBook = requireArg("--book");
@@ -11,28 +18,28 @@ const skipStarterContent = process.argv.includes("--skip-starter-content");
 const slug = slugify(rawBook);
 
 if (slug !== rawBook) {
-  console.warn(`⚠️ Normalizing book slug from "${rawBook}" to "${slug}".`);
+	console.warn(`⚠️ Normalizing book slug from "${rawBook}" to "${slug}".`);
 }
 
 const title =
-  titleArg ??
-  slug
-    .split("-")
-    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
-    .join(" ");
+	titleArg ??
+	slug
+		.split("-")
+		.map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+		.join(" ");
 
 const root = process.cwd();
 const templateDir = join(root, "apps", template);
 const targetDir = join(root, "apps", slug);
 
 if (!existsSync(templateDir)) {
-  console.error(`Template book not found at ${templateDir}`);
-  process.exit(1);
+	console.error(`Template book not found at ${templateDir}`);
+	process.exit(1);
 }
 
 if (existsSync(targetDir)) {
-  console.error(`Target directory already exists: ${targetDir}`);
-  process.exit(1);
+	console.error(`Target directory already exists: ${targetDir}`);
+	process.exit(1);
 }
 
 cpSync(templateDir, targetDir, { recursive: true });
@@ -42,12 +49,21 @@ syncShimTemplatesToBook(slug);
 const contentRoot = join(targetDir, "src", "content", "book");
 rmSync(contentRoot, { recursive: true, force: true });
 ensureDir(contentRoot);
-const contentDirs = ["chapters", "examples", "glossary", "mechanisms", "releases", "toolkit"];
-contentDirs.forEach((dir) => ensureDir(join(contentRoot, dir)));
+const contentDirs = [
+	"chapters",
+	"examples",
+	"glossary",
+	"mechanisms",
+	"releases",
+	"toolkit",
+];
+for (const dir of contentDirs) {
+	ensureDir(join(contentRoot, dir));
+}
 writeFileSync(
-  join(contentRoot, "README.md"),
-  `# Book content records\n\nStore structured content for the ${title} book instance in subfolders under this directory.\n\n- \`chapters/\` for chapter drafts and sequences.\n- \`examples/\` for replaceable examples and cases.\n- \`glossary/\` for glossary entries.\n- \`mechanisms/\` for mechanism definitions.\n- \`releases/\` for versioned release notes and changelog entries.\n- \`toolkit/\` for action primitives and tools.\n\nKeep book-specific content here. Engine logic belongs in \`packages/astro-bookkit/\`.\n`,
-  "utf8"
+	join(contentRoot, "README.md"),
+	`# Book content records\n\nStore structured content for the ${title} book instance in subfolders under this directory.\n\n- \`chapters/\` for chapter drafts and sequences.\n- \`examples/\` for replaceable examples and cases.\n- \`glossary/\` for glossary entries.\n- \`mechanisms/\` for mechanism definitions.\n- \`releases/\` for versioned release notes and changelog entries.\n- \`toolkit/\` for action primitives and tools.\n\nKeep book-specific content here. Engine logic belongs in \`packages/astro-bookkit/\`.\n`,
+	"utf8",
 );
 
 const pkgPath = join(targetDir, "package.json");
@@ -124,47 +140,54 @@ export default bookConfig;
 writeFileSync(bookConfigPath, bookConfig, "utf8");
 
 if (!skipStarterContent) {
-  scaffoldStarterContent({ contentRoot, title });
+	scaffoldStarterContent({ contentRoot, title });
 }
 
-if (!skipRootScripts) {
-  const rootPackagePath = join(root, "package.json");
-  const rootPackage = JSON.parse(readText(rootPackagePath));
-  rootPackage.scripts = rootPackage.scripts ?? {};
-  const rootScripts = rootPackage.scripts as Record<string, string>;
-  const devKey = `dev:${slug}`;
-  const buildKey = `build:${slug}`;
+const addRootScripts = process.argv.includes("--add-root-scripts");
 
-  if (!rootScripts[devKey]) {
-    rootScripts[devKey] = `bun run --filter @books/${slug} dev`;
-  }
-  if (!rootScripts[buildKey]) {
-    rootScripts[buildKey] = `bun run --filter @books/${slug} build`;
-  }
+if (addRootScripts) {
+	const rootPackagePath = join(root, "package.json");
+	const rootPackage = JSON.parse(readText(rootPackagePath));
+	rootPackage.scripts = rootPackage.scripts ?? {};
+	const rootScripts = rootPackage.scripts as Record<string, string>;
+	const devKey = `dev:${slug}`;
+	const buildKey = `build:${slug}`;
 
-  writeFileSync(rootPackagePath, `${JSON.stringify(rootPackage, null, 2)}\n`, "utf8");
+	if (!rootScripts[devKey]) {
+		rootScripts[devKey] = `bun run --filter @books/${slug} dev`;
+	}
+	if (!rootScripts[buildKey]) {
+		rootScripts[buildKey] = `bun run --filter @books/${slug} build`;
+	}
+
+	writeFileSync(
+		rootPackagePath,
+		`${JSON.stringify(rootPackage, null, 2)}\n`,
+		"utf8",
+	);
 }
 
 console.log(`✅ Scaffolded new book at apps/${slug}`);
+console.log(`👉 Run book: bun run bookkit dev ${slug}`);
 
 type StarterContentOptions = {
-  contentRoot: string;
-  title: string;
+	contentRoot: string;
+	title: string;
 };
 
 function scaffoldStarterContent({ contentRoot, title }: StarterContentOptions) {
-  const chapterPath = join(contentRoot, "chapters", "00-overview.mdx");
-  const mechanismSlug = "starter-mechanism";
-  const mechanismPath = join(contentRoot, "mechanisms", `${mechanismSlug}.mdx`);
-  const exampleDir = join(contentRoot, "examples", mechanismSlug);
-  const examplePath = join(exampleDir, "starter-example.mdx");
-  const toolSlug = `${mechanismSlug}--starter-tool`;
-  const toolPath = join(contentRoot, "toolkit", `${toolSlug}.mdx`);
-  const glossaryPath = join(contentRoot, "glossary", "starter-term.mdx");
+	const chapterPath = join(contentRoot, "chapters", "00-overview.mdx");
+	const mechanismSlug = "starter-mechanism";
+	const mechanismPath = join(contentRoot, "mechanisms", `${mechanismSlug}.mdx`);
+	const exampleDir = join(contentRoot, "examples", mechanismSlug);
+	const examplePath = join(exampleDir, "starter-example.mdx");
+	const toolSlug = `${mechanismSlug}--starter-tool`;
+	const toolPath = join(contentRoot, "toolkit", `${toolSlug}.mdx`);
+	const glossaryPath = join(contentRoot, "glossary", "starter-term.mdx");
 
-  ensureDir(exampleDir);
+	ensureDir(exampleDir);
 
-const chapter = `---
+	const chapter = `---
 slug: overview
 status: draft
 title: "Overview"
@@ -194,7 +217,7 @@ title: "Overview"
 - ${mechanismSlug}
 `;
 
-const mechanism = `---
+	const mechanism = `---
 slug: ${mechanismSlug}
 status: draft
 title: "Starter mechanism"
@@ -212,7 +235,7 @@ tests:
 Replace this placeholder mechanism with the first real mechanism in your book.
 `;
 
-const example = `---
+	const example = `---
 mechanism: ${mechanismSlug}
 domain: "Workplace"
 title: "Starter example"
@@ -226,7 +249,7 @@ Constraints:
 - Make the example swappable without changing the mechanism.
 `;
 
-const tool = `---
+	const tool = `---
 slug: ${toolSlug}
 status: draft
 mechanism: ${mechanismSlug}
@@ -244,7 +267,7 @@ legitimateDemand:
 Keep this tool runnable by a depleted reader. No heroics.
 `;
 
-  const glossary = `---
+	const glossary = `---
 slug: starter-term
 status: draft
 term: "Starter term"
@@ -253,9 +276,13 @@ term: "Starter term"
 Define the key term here. Keep it concise and replaceable.
 `;
 
-  const date = new Date().toISOString().slice(0, 10);
-  const releasePath = join(contentRoot, "releases", `${date}-initial-draft.mdx`);
-  const release = `---
+	const date = new Date().toISOString().slice(0, 10);
+	const releasePath = join(
+		contentRoot,
+		"releases",
+		`${date}-initial-draft.mdx`,
+	);
+	const release = `---
 title: "Initial draft"
 version: "0.1.0"
 date: "${date}"
@@ -268,10 +295,10 @@ highlights:
 This placeholder release note should be updated before publication.
 `;
 
-  writeFileSafe(chapterPath, chapter);
-  writeFileSafe(mechanismPath, mechanism);
-  writeFileSafe(examplePath, example);
-  writeFileSafe(toolPath, tool);
-  writeFileSafe(glossaryPath, glossary);
-  writeFileSafe(releasePath, release);
+	writeFileSafe(chapterPath, chapter);
+	writeFileSafe(mechanismPath, mechanism);
+	writeFileSafe(examplePath, example);
+	writeFileSafe(toolPath, tool);
+	writeFileSafe(glossaryPath, glossary);
+	writeFileSafe(releasePath, release);
 }

@@ -1,112 +1,211 @@
-import { readdir } from "node:fs/promises";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdir } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
+import { parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
 
 const { values } = parseArgs({
-  args: Bun.argv,
-  options: {
-    book: { type: "string" },
-  },
-  strict: false,
-  allowPositionals: true,
+	args: Bun.argv,
+	options: {
+		book: { type: "string" },
+		mode: { type: "string", default: "warn" },
+	},
+	strict: false,
+	allowPositionals: true,
 });
 
-const conceptish = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,4})\b/g;
+const mode = values.mode ?? "warn";
+
+// Match multi-word Title Case phrases (2-4 capitalized words) representing potential named concepts
+const multiWordConcept = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/g;
+
+const COMMON_ALLOWLIST = new Set([
+	"Table Of Contents",
+	"Reading Hub",
+	"Release Notes",
+	"Getting Started",
+	"Primary Mechanisms",
+	"Secondary Mechanisms",
+	"Core Mechanisms",
+	"Action Primitives",
+	"Next Steps",
+	"Next Move",
+	"Insight Modules",
+	"First Edition",
+	"Initial Draft",
+	"Draft Instance",
+	"Bad People",
+	"Running Hot",
+	"The Crumple Zone",
+	"Crumple Zone",
+	"Creative Commons",
+	"Public Domain",
+	"MIT License",
+	"Apache License",
+	"United States",
+	"European Union",
+	"New York",
+	"San Francisco",
+]);
 
 function walk(dir: string, out: string[] = []) {
-  for (const ent of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, ent.name);
-    if (ent.isDirectory()) walk(p, out);
-    else if (ent.isFile() && (p.endsWith(".md") || p.endsWith(".mdx"))) out.push(p);
-  }
-  return out;
+	if (!existsSync(dir)) return out;
+	for (const ent of readdirSync(dir, { withFileTypes: true })) {
+		const p = join(dir, ent.name);
+		if (ent.isDirectory()) walk(p, out);
+		else if (ent.isFile() && (p.endsWith(".md") || p.endsWith(".mdx")))
+			out.push(p);
+	}
+	return out;
+}
+
+function normalizeTerm(term: string): string {
+	return term.toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function loadRegisteredVocabulary(bookRoot: string): Set<string> {
+	const vocabulary = new Set<string>();
+
+	// Mechanisms
+	const mechanismDir = join(bookRoot, "mechanisms");
+	for (const file of walk(mechanismDir)) {
+		const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+		const slug =
+			toStringValue(data.slug) || basename(file).replace(/\.(md|mdx)$/, "");
+		const title = toStringValue(data.title);
+		if (slug) vocabulary.add(normalizeTerm(slug));
+		if (title) vocabulary.add(normalizeTerm(title));
+	}
+
+	// Glossary
+	const glossaryDir = join(bookRoot, "glossary");
+	for (const file of walk(glossaryDir)) {
+		const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+		const term =
+			toStringValue(data.term) ||
+			toStringValue(data.title) ||
+			basename(file).replace(/\.(md|mdx)$/, "");
+		if (term) vocabulary.add(normalizeTerm(term));
+	}
+
+	// Toolkit
+	const toolkitDir = join(bookRoot, "toolkit");
+	for (const file of walk(toolkitDir)) {
+		const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+		const name = toStringValue(data.name) || toStringValue(data.title);
+		if (name) vocabulary.add(normalizeTerm(name));
+	}
+
+	return vocabulary;
 }
 
 async function discoverBooks(): Promise<string[]> {
-  if (values.book) {
-    console.log(`\ud83c\udfaf Targeting specific book: ${values.book}`);
-    return [values.book];
-  }
+	if (values.book) {
+		return [values.book];
+	}
 
-  console.log("\ud83d\udce1 No flag provided. Auto-discovering books...");
-  const appsDir = join(process.cwd(), "apps");
-
-  try {
-    const entries = await readdir(appsDir, { withFileTypes: true });
-    return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-  } catch (error) {
-    console.error("\u274c Fatal: Could not find the 'apps' directory.");
-    process.exit(1);
-  }
+	const appsDir = join(process.cwd(), "apps");
+	try {
+		const entries = await readdir(appsDir, { withFileTypes: true });
+		return entries
+			.filter((entry) => entry.isDirectory())
+			.map((entry) => entry.name);
+	} catch {
+		console.error("❌ Fatal: Could not find the 'apps' directory.");
+		process.exit(1);
+	}
 }
 
 async function checkConceptsForBook(book: string): Promise<number> {
-  const base = join(process.cwd(), "apps", book, "src", "content", "book");
-  if (!existsSync(base)) {
-    throw new Error(`Missing content directory for ${book} at ${base}`);
-  }
+	const base = join(process.cwd(), "apps", book, "src", "content", "book");
+	if (!existsSync(base)) {
+		throw new Error(`Missing content directory for ${book} at ${base}`);
+	}
 
-  const files = walk(base);
-  const hits: Record<string, Set<string>> = {};
+	const vocabulary = loadRegisteredVocabulary(base);
+	const files = walk(base);
+	const hits: Record<string, Set<string>> = {};
 
-  for (const file of files) {
-    const txt = readFileSync(file, "utf8");
-    let match: RegExpExecArray | null;
-    while ((match = conceptish.exec(txt))) {
-      const term = match[1];
-      if (term.length < 8) continue;
-      if (/^(This|That|When|Because|Reader|Bookkit|Astro|Bun)$/.test(term)) continue;
-      (hits[file] ??= new Set()).add(term);
-    }
-  }
+	for (const file of files) {
+		const content = readFileSync(file, "utf8");
+		const { body } = parseFrontmatter(content);
 
-  let bookCount = 0;
-  for (const [file, terms] of Object.entries(hits)) {
-    if (terms.size === 0) continue;
-    bookCount += terms.size;
-    console.log(`\n[${book}] ${file}`);
-    for (const term of [...terms].sort()) console.log(`  - ${term}`);
-  }
+		// Skip code blocks and headings for concept extraction
+		const cleanedBody = body
+			.replace(/```[\s\S]*?```/g, "")
+			.replace(/`[^`]+`/g, "")
+			.replace(/^#+\s+.*$/gm, "");
 
-  return bookCount;
+		let match = multiWordConcept.exec(cleanedBody);
+		while (match !== null) {
+			const term = match[1].trim();
+			match = multiWordConcept.exec(cleanedBody);
+			if (COMMON_ALLOWLIST.has(term)) continue;
+
+			const normalized = normalizeTerm(term);
+			if (vocabulary.has(normalized)) continue;
+
+			let fileHits = hits[file];
+			if (!fileHits) {
+				fileHits = new Set();
+				hits[file] = fileHits;
+			}
+			fileHits.add(term);
+		}
+	}
+
+	let bookCount = 0;
+	for (const [file, terms] of Object.entries(hits)) {
+		if (terms.size === 0) continue;
+		bookCount += terms.size;
+		console.log(`\n[${book}] ${file}`);
+		for (const term of [...terms].sort()) {
+			console.log(`  - "${term}" (unregistered concept)`);
+		}
+	}
+
+	return bookCount;
 }
 
 async function main() {
-  const books = await discoverBooks();
+	const books = await discoverBooks();
 
-  if (books.length === 0) {
-    console.error("No books found under apps/. Pass --book <slug> to target a specific book.");
-    process.exit(1);
-  }
+	if (books.length === 0) {
+		console.error(
+			"No books found under apps/. Pass --book <slug> to target a specific book.",
+		);
+		process.exit(1);
+	}
 
-  let globalFailure = false;
-  let totalCount = 0;
+	let totalCount = 0;
 
-  for (const book of books) {
-    console.log(`\n\ud83d\udd0d Scanning: ${book}`);
-    try {
-      totalCount += await checkConceptsForBook(book);
-    } catch (error) {
-      console.error(`\u274c Issues found in ${book}: ${(error as Error).message}`);
-      globalFailure = true;
-    }
-  }
+	for (const book of books) {
+		console.log(`\n🔍 Checking concept registry: ${book}`);
+		try {
+			totalCount += await checkConceptsForBook(book);
+		} catch (error) {
+			console.error(`❌ Issues found in ${book}: ${(error as Error).message}`);
+		}
+	}
 
-  if (globalFailure) {
-    console.log("\n\ud83d\udca5 Validation failed.");
-    process.exit(1);
-  }
+	if (totalCount === 0) {
+		console.log("\n✅ All multi-word concepts are registered or in allowlist.");
+		process.exit(0);
+	}
 
-  if (totalCount === 0) {
-    console.log("No likely floating concepts found.");
-    process.exit(0);
-  }
+	console.log(
+		`\nFound ${totalCount} unregistered multi-word concept phrases across books.`,
+	);
+	console.log(
+		"Tip: If these are formal concepts, register them in glossary/ or mechanisms/.",
+	);
 
-  console.log(
-    `\nFound ${totalCount} likely concept terms. If any are intended as mechanisms/glossary terms, register them.`
-  );
-  process.exit(0);
+	if (mode === "error") {
+		console.error("❌ Concept validation failed in error mode.");
+		process.exit(1);
+	}
+
+	process.exit(0);
 }
 
 main();

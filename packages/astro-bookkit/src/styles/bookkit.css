@@ -252,7 +252,6 @@ a,
   background: none;
   border: none;
   padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
   cursor: pointer;
   transition:
     background var(--timing-snappy) ease,

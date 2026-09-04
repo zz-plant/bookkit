@@ -70,6 +70,13 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   breadcrumbItems,
   Astro.url
 );
+const rawHeadings = typeof module.getHeadings === "function" ? await module.getHeadings() : [];
+const stepHeadings = rawHeadings
+  .filter((h: { depth: number }) => h.depth === 2 || h.depth === 3)
+  .map((h: { slug: string; text: string }) => ({
+    id: h.slug,
+    text: h.text.replace(/^\d+[.)\s-]+/, ""),
+  }));
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
@@ -78,7 +85,15 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
     <aside class="chapter-meta-panel">
       <div class="eyebrow">{defaultChapterPageCopy.chapterMapLabel}</div>
       <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>
-      <ol class="chapter-step-list" data-chapter-step-list></ol>
+      <ol class="chapter-step-list" data-chapter-step-list>
+        {stepHeadings.map((heading: { id: string; text: string }, index: number) => (
+          <li>
+            <a href={`#${heading.id}`}>
+              <span>{index + 1}.</span> {heading.text}
+            </a>
+          </li>
+        ))}
+      </ol>
       <ExportPanel
         title={defaultChapterPageCopy.downloadChapterTitle}
         description={defaultChapterPageCopy.downloadChapterDescription}
@@ -118,34 +133,36 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   />
 </BaseLayout>
 
-<script is:inline>
-  const chapterStepList = document.querySelector("[data-chapter-step-list]");
-  const chapterSections = document.querySelector("[data-chapter-sections]");
+{stepHeadings.length === 0 && (
+  <script is:inline>
+    const chapterStepList = document.querySelector("[data-chapter-step-list]");
+    const chapterSections = document.querySelector("[data-chapter-sections]");
 
-  if (chapterStepList && chapterSections) {
-    const sectionHeadings = Array.from(chapterSections.querySelectorAll("h2[id], h3[id]"));
-    const nextStepsHeading = document.querySelector(".next-steps h2[id], .next-steps[id]");
-    const orderedHeadings =
-      nextStepsHeading && "id" in nextStepsHeading && nextStepsHeading.id
-        ? [...sectionHeadings, nextStepsHeading]
-        : sectionHeadings;
+    if (chapterStepList && chapterSections && chapterStepList.children.length === 0) {
+      const sectionHeadings = Array.from(chapterSections.querySelectorAll("h2[id], h3[id]"));
+      const nextStepsHeading = document.querySelector(".next-steps h2[id], .next-steps[id]");
+      const orderedHeadings =
+        nextStepsHeading && "id" in nextStepsHeading && nextStepsHeading.id
+          ? [...sectionHeadings, nextStepsHeading]
+          : sectionHeadings;
 
-    orderedHeadings.forEach((heading, index) => {
-      if (!("id" in heading) || !heading.id) return;
+      orderedHeadings.forEach((heading, index) => {
+        if (!("id" in heading) || !heading.id) return;
 
-      const stepItem = document.createElement("li");
-      const stepLink = document.createElement("a");
-      const stepNumber = document.createElement("span");
-      const rawHeadingText = heading.textContent?.trim() ?? "Section";
-      const cleanHeadingText = rawHeadingText.replace(/^\d+[.)\s-]+/, "");
-      stepNumber.textContent = `${index + 1}.`;
-      stepLink.href = `#${heading.id}`;
-      stepLink.append(stepNumber, ` ${cleanHeadingText}`);
-      stepItem.append(stepLink);
-      chapterStepList.append(stepItem);
-    });
-  }
-</script>
+        const stepItem = document.createElement("li");
+        const stepLink = document.createElement("a");
+        const stepNumber = document.createElement("span");
+        const rawHeadingText = heading.textContent?.trim() ?? "Section";
+        const cleanHeadingText = rawHeadingText.replace(/^\d+[.)\s-]+/, "");
+        stepNumber.textContent = `${index + 1}.`;
+        stepLink.href = `#${heading.id}`;
+        stepLink.append(stepNumber, ` ${cleanHeadingText}`);
+        stepItem.append(stepLink);
+        chapterStepList.append(stepItem);
+      });
+    }
+  </script>
+)}
 
 <style>
   :global(.site-main) {

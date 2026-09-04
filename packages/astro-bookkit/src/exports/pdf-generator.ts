@@ -63,24 +63,43 @@ export const createPdfExport = async (
 		cursorY -= spaceBelow;
 	};
 
-	const drawParagraph = (text: string, isBullet = false) => {
+	const drawParagraph = (text: string, isBullet = false, isCallout = false) => {
+		const rawText = isCallout ? text.replace(/^>\s*/, "") : text;
 		const indent = isBullet ? 14 : 0;
+		const calloutIndent = isCallout ? 14 : 0;
 		const bulletChar = isBullet ? "• " : "";
-		const cleanText = stripMarkdown(text).trim();
+		const cleanText = stripMarkdown(rawText).trim();
 		if (!cleanText) return;
 
-		const lines = wrapText(cleanText, font, 11, contentWidth - indent);
+		const maxWidth = contentWidth - indent - calloutIndent;
+		const lines = wrapText(cleanText, font, 11, maxWidth);
 		const lineHeight = 16;
-		ensureSpace(lines.length * lineHeight + 8);
+
+		if (isCallout) {
+			const totalHeight = lines.length * lineHeight + 8;
+			ensureSpace(totalHeight + 12);
+			currentPage.drawRectangle({
+				x: margin + indent,
+				y: cursorY - lines.length * lineHeight - 4,
+				width: maxWidth,
+				height: totalHeight + 4,
+				color: rgb(0.96, 0.96, 1.0),
+				borderColor: rgb(0.56, 0.47, 0.9),
+				borderWidth: 0,
+			});
+		} else {
+			ensureSpace(lines.length * lineHeight + 8);
+		}
 
 		lines.forEach((line, idx) => {
 			const prefix = idx === 0 && isBullet ? bulletChar : "";
-			currentPage.drawText(`${prefix}${line}`, {
-				x: margin + indent,
+			const lineText = idx === 0 ? `${prefix}${line}` : line;
+			currentPage.drawText(lineText, {
+				x: margin + indent + calloutIndent,
 				y: cursorY,
 				size: 11,
-				font,
-				color: rgb(0.15, 0.15, 0.15),
+				font: isCallout ? fontItalic : font,
+				color: isCallout ? rgb(0.35, 0.3, 0.7) : rgb(0.15, 0.15, 0.15),
 			});
 			cursorY -= lineHeight;
 		});
@@ -129,6 +148,12 @@ export const createPdfExport = async (
 			const h3Match = trimmed.match(/^###\s+(.*)$/);
 			if (h3Match) {
 				drawHeading(stripMarkdown(h3Match[1]), 12, 6);
+				continue;
+			}
+
+			const calloutMatch = trimmed.match(/^>\s+(.*)$/);
+			if (calloutMatch) {
+				drawParagraph(trimmed, false, true);
 				continue;
 			}
 

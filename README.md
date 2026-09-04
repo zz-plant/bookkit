@@ -72,7 +72,7 @@ This keeps books recompilable while allowing iterative content edits.
 
 ```txt
 .
-├─ package.json
+├─ package.json              # workspace scripts (no per-book scripts)
 ├─ apps/
 │  ├─ bad-people/
 │  │  ├─ src/book.config.ts
@@ -83,18 +83,24 @@ This keeps books recompilable while allowing iterative content edits.
 │  │     ├─ examples/
 │  │     ├─ glossary/
 │  │     └─ releases/
+│  ├─ crumple-zone/
 │  └─ running-hot/
-│     ├─ src/book.config.ts
-│     └─ src/content/book/
 ├─ packages/
 │  └─ astro-bookkit/
 │     └─ src/
-│        ├─ book/
-│        ├─ frames/
-│        ├─ mcp/
-│        ├─ releases/
-│        └─ validators/
-└─ scripts/
+│        ├─ book/             # graph engine, runtime, entrypoints
+│        ├─ frames/           # structural requirements
+│        ├─ schemas/          # Zod frontmatter schemas
+│        ├─ validators/       # book + separation + frame validators
+│        ├─ mcp/              # MCP tool handlers + endpoint
+│        ├─ exports/          # PDF/EPUB generation
+│        ├─ markdown/         # heading extraction, slugger
+│        ├─ layouts/          # BookLayout + UI islands
+│        └─ components/       # shared Astro components
+├─ scripts/                   # CLI tasks + governance checks
+├─ tests/                     # root-level test suites
+├─ docs/                      # roadmap, critiques, research
+└─ .github/workflows/ci.yml  # CI quality gate
 ```
 
 Use `bun run list:books` as the source of truth for currently active books.
@@ -155,7 +161,8 @@ bash scripts/codex-setup.sh --skip-install --skip-checks
 ### Run a book app
 
 ```bash
-bun run dev:bad-people
+bun run bookkit dev bad-people
+bun run bookkit dev running-hot
 ```
 
 ### Lint / format / types
@@ -164,6 +171,12 @@ bun run dev:bad-people
 bun run lint
 bun run format
 bun run check:types
+```
+
+### Tests
+
+```bash
+bun run test
 ```
 
 ### Validation
@@ -183,7 +196,7 @@ bun run check:upgrade -- --release
 ### Build / compile / export
 
 ```bash
-bun run build:all
+bun run bookkit build bad-people
 bun run compile:book -- --book bad-people
 bun run export:gitbook -- --book bad-people
 ```
@@ -204,22 +217,35 @@ bun run stack:capabilities
 Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp.json.ts`) so agentic LLM clients can:
 
 - list/read content and governance resources
-- discover lane skills under `.codex/skills/**`
+- discover lane skills under `.opencode/skills/**`
 - call deterministic workspace tools (`bookkit.list_books`, `bookkit.read_book`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
 - scaffold a new book via guarded mutation tooling (`bookkit.create_book`) when explicit creation is required
 
 Use this as the default machine interface instead of ad-hoc repository scraping.
+
+### CI
+
+GitHub Actions runs on every push and PR to `main`:
+
+- `bun run lint` — Biome style check
+- `bun run check:types` — TypeScript across all apps + package
+- `bun run check:separation` — content boundary enforcement
+- `bun run check:todos` — TODO policy check
+- `bun run check:shims` — shim consistency
+- `bun run validate` — schema + frame validation for all books
+- `bun run test` — Bun test runner across all suites
 
 
 ### Task-driven command recipes
 
 | If you need to… | Run | Why |
 | --- | --- | --- |
-| iterate on one book UI quickly | `bun run dev:bad-people` | Fast local feedback loop for content + layout work |
+| iterate on one book UI quickly | `bun run bookkit dev bad-people` | Fast local feedback loop for content + layout work |
 | verify architecture invariants before review | `bun run validate && bun run check:separation` | Catches frame/content boundary regressions |
 | sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
-| rebuild end-user artifacts | `bun run build:all && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
+| rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
+| run all quality gates | `bun run lint && bun run check:types && bun run test && bun run validate` | Full CI-equivalent local check |
 
 ---
 
@@ -297,11 +323,11 @@ Then:
 1. Update `apps/<new-book>/src/book.config.ts`.
 2. Replace starter content under `src/content/book/**`.
 3. Run `bun run validate` and `bun run validate:release`.
-4. Compile with `bun run compile:book -- --book <new-book> --mode error --no-drafts`.
+4. Run `bun run bookkit dev <new-book>` to iterate locally.
 
 Do not fork the engine to customize one book.
 
-To remove a scaffolded book app (and its root dev/build scripts):
+To remove a scaffolded book app:
 
 ```bash
 bun run remove:book -- --book <book-slug>

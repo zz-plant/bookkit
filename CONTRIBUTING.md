@@ -14,6 +14,7 @@ For architecture + commands see [`README.md`](./README.md). For hard invariants 
    - `bun run validate`
    - `bun run lint`
    - `bun run check:types`
+   - `bun run test`
 4. For release-critical work, also run:
    - `bun run validate:release`
    - `bun run check:upgrade -- --release`
@@ -113,9 +114,9 @@ Run the smallest complete check set for your lane.
 
 | Lane | Minimum checks | Escalate to |
 | --- | --- | --- |
-| A (content) | `bun run validate`, `bun run lint` | `bun run validate:release` when editing mechanism-adjacent prose |
-| B (mechanisms/tools) | `bun run validate`, `bun run lint`, `bun run check:types` | `bun run validate:release` when changing definitions/boundaries |
-| C (engine/schema/frame) | `bun run validate`, `bun run validate:release`, `bun run lint`, `bun run check:types` | `bun run check:upgrade -- --release` for behavior-affecting changes |
+| A (content) | `bun run validate`, `bun run lint`, `bun run test` | `bun run validate:release` when editing mechanism-adjacent prose |
+| B (mechanisms/tools) | `bun run validate`, `bun run lint`, `bun run check:types`, `bun run test` | `bun run validate:release` when changing definitions/boundaries |
+| C (engine/schema/frame) | `bun run validate`, `bun run validate:release`, `bun run lint`, `bun run check:types`, `bun run test` | `bun run check:upgrade -- --release` for behavior-affecting changes |
 
 If checks fail due to intended strictness changes, update error text so it stays actionable.
 
@@ -143,7 +144,7 @@ After running `bun run new:book -- --book <slug> --title "..."`:
 - update `src/book.config.ts`
 - replace starter files in `chapters/`, `mechanisms/`, `toolkit/`, `examples/`, `glossary/`, `releases/`
 - run `bun run validate` and `bun run validate:release`
-- verify `bun run dev:<book>` and `bun run build:<book>` (or equivalent filter commands)
+- verify `bun run bookkit dev <slug>` and `bun run bookkit build <slug>`
 
 ---
 
@@ -174,3 +175,19 @@ Use a concise structure to improve review speed:
 - `AGENTS.md` = invariants and guardrails
 
 Link to canonical sections instead of duplicating long policy text.
+
+---
+
+## CI
+
+GitHub Actions runs on every push and PR to `main` with the full quality gate:
+
+1. `bun run lint` — Biome style check
+2. `bun run check:types` — TypeScript across all apps + package
+3. `bun run check:separation` — content boundary enforcement
+4. `bun run check:todos` — TODO policy
+5. `bun run check:shims` — shim consistency
+6. `bun run validate` — schema + frame validation
+7. `bun run test` — Bun test runner across all 25 test files
+
+PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

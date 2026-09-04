@@ -15,7 +15,7 @@ type KeyboardShortcutsOptions = {
 	root: HTMLElement;
 	toggleButton: HTMLButtonElement | null;
 	mainRoot: HTMLElement | null;
-	search: SearchController;
+	search: SearchController | null;
 	qa: QaController | null;
 };
 
@@ -152,7 +152,7 @@ export const initializeKeyboardShortcuts = ({
 		command: ReturnType<typeof resolveKeyboardSequence>["command"],
 	) => {
 		if (command.type === "dismiss-panels") {
-			search.close();
+			search?.close();
 			qa?.close();
 			help.close();
 			return;
@@ -162,7 +162,7 @@ export const initializeKeyboardShortcuts = ({
 			return;
 		}
 		if (command.type === "open-search") {
-			void search.open();
+			void search?.open();
 			return;
 		}
 		if (command.type === "navigate") {
@@ -183,7 +183,7 @@ export const initializeKeyboardShortcuts = ({
 	document.addEventListener("keydown", (event) => {
 		if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
 			event.preventDefault();
-			search.toggle();
+			search?.toggle();
 			return;
 		}
 

@@ -15,6 +15,14 @@ This is a concrete Bookkit book instance.
 
 If behavior should apply across books, implement it in `packages/astro-bookkit/`.
 
+## Local development
+
+```bash
+bun run bookkit dev bad-people
+bun run bookkit build bad-people
+bun run bookkit validate bad-people
+```
+
 ## Local notes
 
 - Analytics dashboard stores anonymized browser-side events only (views/time/scroll).

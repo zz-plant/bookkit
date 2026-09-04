@@ -128,7 +128,7 @@ if (helpPanelRoot) {
 				root: helpPanelRoot,
 				toggleButton: helpToggle,
 				mainRoot,
-				search: searchController!,
+				search: searchController,
 				qa: qaController,
 			});
 		});

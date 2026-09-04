@@ -8,6 +8,10 @@ This package contains the reusable, book-agnostic compiler engine.
 - schemas and validation rules
 - compiler/orchestration utilities
 - shared components/styles reused by multiple books
+- MCP tool handlers and endpoint
+- PDF/EPUB export generation
+- heading extraction and markdown utilities
+- Astro integration hook
 
 ## What does not belong here
 
@@ -23,13 +27,111 @@ This package contains the reusable, book-agnostic compiler engine.
 
 Keep this README local in scope; link outward for policy.
 
+---
+
+## Package structure
+
+```
+src/
+├── book/          # Graph engine, runtime, entrypoints, read-hub
+├── components/    # Shared Astro components (Breadcrumbs, FeedbackWidget, etc.)
+├── exports/       # PDF/EPUB generation, export metadata
+├── frames/        # Structural requirements (e.g. intervention frame)
+├── layouts/       # BookLayout + UI islands (search, QA, keyboard shortcuts)
+├── markdown/      # Heading extraction, slugger, stripMarkdown
+├── mcp/           # MCP tool handlers + JSON-RPC endpoint
+├── schemas/       # Zod frontmatter schemas (mechanism, toolkit, chapter, example, glossary)
+├── validators/    # Book validator, separation validator, frame validator
+├── styles/        # Shared CSS (bookkit.css)
+└── utils/         # HTTP helpers, markdown utilities
+```
+
+---
+
+## Schemas
+
+Typed Zod schemas for all content entity frontmatter:
+
+- `mechanismSchema` — slug, title, definition, is/isNot boundaries, predictions, tests
+- `toolkitSchema` — slug, mechanism ref, trigger, timeboxMinutes (≤10), steps, failureLooksLike
+- `chapterSchema` — slug, title, status, prerequisites, order
+- `exampleSchema` — mechanism ref, domain, title, status
+- `glossarySchema` — slug, term, definition
+
+Schemas are used by both the CLI validators and the MCP in-memory validators. Import from `@bookkit/astro-bookkit/schemas`.
+
+---
+
+## Validators
+
+In-memory validation functions that return typed `NormalizedErrorPayload[]` results:
+
+- `validateBookInMemory(options)` — validates frontmatter schemas, frame steps, mechanism/tool cross-references
+- `checkSeparationInMemory(options)` — scans content for disallowed file extensions, imports, and script tags
+- `validateFrameSteps(frame, presentStepIds)` — checks required frame steps are structurally present
+
+These are consumed by the MCP tool handlers and can be called directly from scripts.
+
+---
+
+## Graph engine
+
+`src/book/graph.ts` provides a DAG topology validator for chapter and mechanism prerequisite chains:
+
+- `detectCycles(nodes)` — DFS cycle detection, returns cycle paths
+- `computeTopologicalOrder(nodes)` — deterministic reading order with alphabetical tie-breaking
+- `deriveReaderPathways(nodes)` — generates "Foundational" and "Fast-Path" reading sequences
+
+---
+
+## MCP endpoint
+
+The MCP interface exposes deterministic workspace tools for agentic clients:
+
+- `bookkit.list_books` / `bookkit.read_book` — discover and read book content
+- `bookkit.validate_book` — run schema + frame validation
+- `bookkit.check_separation` — verify content boundaries
+- `bookkit.compile_book` — trigger build
+- `bookkit.create_book` — scaffold a new book
+
+Tool handlers use in-memory validators for speed. The `command-runner.ts` provides a safe fallback when child process spawning is unavailable (e.g. edge runtimes).
+
+---
+
+## Exports
+
+PDF and EPUB generation from structured `ExportBundle` data:
+
+- `createPdfExport(bundle)` — renders headings, paragraphs, callout boxes, and bullet lists
+- `createEpubExport(bundle)` — EPUB3 generation
+- Export metadata and link helpers for chapter and book-level exports
+
+---
+
+## Astro integration
+
+`src/integration.ts` exports a `bookkit()` Astro integration that:
+
+- configures Vite SSR bundling for the engine package
+- suppresses known noisy Rollup warnings
+- optionally injects standard API/export routes
+
+```ts
+import { bookkit } from "@bookkit/astro-bookkit/integration";
+
+export default defineConfig({
+  integrations: [bookkit()],
+});
+```
+
+---
+
 ## Book bootstrap pattern
 
 New books should call the shared engine bootstrap once from a thin local module such as `src/lib/book-runtime.ts`. Keep author decisions in `src/book.config.ts`, and keep the local runtime responsible only for wiring Astro's file-local `import.meta.glob()` entrypoints into the engine.
 
 ```ts
 import { createBookRuntime } from "@bookkit/astro-bookkit";
-
 import bookConfig from "../book.config";
 
 export const bookRuntime = createBookRuntime({
@@ -42,33 +144,6 @@ export const bookRuntime = createBookRuntime({
       glossary: import.meta.glob("../content/book/glossary/*.mdx", { eager: true }),
       examples: import.meta.glob("../content/book/examples/**/*.mdx", { eager: true }),
     },
-    contentRawModules: {
-      chapters: import.meta.glob<string>("../content/book/chapters/*.mdx", {
-        eager: true,
-        query: "?raw",
-        import: "default",
-      }),
-      mechanisms: import.meta.glob<string>("../content/book/mechanisms/*.mdx", {
-        eager: true,
-        query: "?raw",
-        import: "default",
-      }),
-      toolkit: import.meta.glob<string>("../content/book/toolkit/*.mdx", {
-        eager: true,
-        query: "?raw",
-        import: "default",
-      }),
-      glossary: import.meta.glob<string>("../content/book/glossary/*.mdx", {
-        eager: true,
-        query: "?raw",
-        import: "default",
-      }),
-      examples: import.meta.glob<string>("../content/book/examples/**/*.mdx", {
-        eager: true,
-        query: "?raw",
-        import: "default",
-      }),
-    },
     releaseModules: import.meta.glob("../content/book/releases/*.mdx", { eager: true }),
   },
 });
@@ -77,64 +152,19 @@ export const bookRuntime = createBookRuntime({
 The resulting `bookRuntime` centralizes common bootstrap concerns:
 
 - content entrypoints (`bookRuntime.bookEntryPoints`)
-- release helpers (`bookRuntime.releaseModules`, `bookRuntime.getReleaseNotes()`, `bookRuntime.getVersionEntries()`)
-- export helpers (`bookRuntime.getBookExportBundle()`, `bookRuntime.getChapterExportLinks()`, `bookRuntime.exportRoutes`)
-- OG helper (`bookRuntime.getOgImageForPath()`)
+- release helpers (`bookRuntime.releaseModules`, `bookRuntime.getReleaseNotes()`)
+- export helpers (`bookRuntime.getBookExportBundle()`, `bookRuntime.getChapterExportLinks()`)
+- OG image helper (`bookRuntime.getOgImageForPath()`)
 - API handler setup (`bookRuntime.api.*`)
+
+---
 
 ## Route wrapper pattern
 
 Astro's file-based routing means a small set of app-local wrapper files must still exist under `src/pages/**` and `src/lib/**`. Keep those files declarative and route-shaped only:
 
-- `src/lib/book-runtime.ts` is the only place a book should call `createBookRuntime(...)`, because Astro/Vite require the local `import.meta.glob()` entrypoints to stay in the app.
-- `src/lib/book-entrypoints.ts`, `src/lib/exports.ts`, `src/lib/og.ts`, `src/lib/release-notes.ts`, and `src/lib/versions.ts` should be re-export shims from `book-runtime`.
-- `src/pages/api/**` and `src/pages/exports/**` must remain as thin route stubs because Astro discovers those endpoints by filename.
+- `src/lib/book-runtime.ts` — the only place a book calls `createBookRuntime(...)`
+- `src/lib/book-entrypoints.ts`, `src/lib/exports.ts`, etc. — re-export shims from `book-runtime`
+- `src/pages/api/**` — thin route stubs (Astro discovers endpoints by filename)
 
-The shared engine now provides `createBookAppShims(bookRuntime)` so app-local wrappers only alias runtime helpers instead of repeating setup.
-
-```ts
-import { createBookAppShims, createBookRuntime } from "@bookkit/astro-bookkit";
-
-import bookConfig from "../book.config";
-
-export const bookRuntime = createBookRuntime({ ... });
-
-export const {
-  bookEntryPoints,
-  createMcpApiHandlers,
-  analyticsApiHandlers,
-  bookPdfExportRoute,
-} = createBookAppShims(bookRuntime);
-```
-
-Static shim files should stay one-line re-exports whenever possible.
-
-```ts
-export { bookPdfExportGet as GET } from "../../lib/book-runtime";
-```
-
-The MCP wrapper still needs a tiny local call because `import.meta.url` is file-local, but no longer needs custom path boilerplate.
-
-```ts
-import { createMcpApiHandlers } from "../../lib/book-runtime";
-
-export const { GET, POST } = createMcpApiHandlers(import.meta.url);
-```
-
-Canonical wrapper templates live in `packages/astro-bookkit/templates/book-app/**`. Use `bun run check:shims` to verify app wrappers still match the canonical pattern, and `bun run sync:shims` to rewrite them from the template source.
-
-## `BookLayout` Mermaid runtime contract
-
-`BookLayout` only injects the Mermaid client runtime when a `hasMermaid` signal is `true`.
-
-- `BookLayout` accepts `hasMermaid?: boolean`.
-- `createBookLayoutState(...)` forwards `astro.props.hasMermaid` into `renderState.hasMermaid`.
-- `BookLayout` consumes either explicit `hasMermaid` or `renderState.hasMermaid` to decide whether to load `book-layout/mermaid.ts`.
-
-Recommended wiring in book apps:
-
-1. Detect Mermaid usage in the page/frontmatter/render pipeline (for example: `frontmatter.hasMermaid` or route-level detection).
-2. Pass `hasMermaid` into your app-local `BaseLayout`.
-3. Keep `BookLayout` usage declarative (`<BookLayout hasMermaid={hasMermaid} ...>` or through `renderState`).
-
-The Mermaid client keeps its own DOM-level guard (`querySelectorAll("pre > code.language-mermaid, pre > code.mermaid")`) as a safety fallback.
+Canonical wrapper templates live in `packages/astro-bookkit/templates/book-app/**`. Use `bun run check:shims` to verify app wrappers match the canonical pattern, and `bun run sync:shims` to rewrite them.

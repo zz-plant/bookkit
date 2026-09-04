@@ -1,4 +1,4 @@
-# Bad People (Book App)
+# The Crumple Zone (Book App)
 
 This is a concrete Bookkit book instance.
 
@@ -15,11 +15,13 @@ This is a concrete Bookkit book instance.
 
 If behavior should apply across books, implement it in `packages/astro-bookkit/`.
 
-## Local notes
+## Local development
 
-- Analytics dashboard stores anonymized browser-side events only (views/time/scroll).
-- No user-level identities are tracked.
-- Retention window is 90 days.
+```bash
+bun run bookkit dev crumple-zone
+bun run bookkit build crumple-zone
+bun run bookkit validate crumple-zone
+```
 
 ## Canonical docs
 

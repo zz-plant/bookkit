@@ -13,7 +13,6 @@ import { syncShimTemplatesToBook } from "./_shim-templates";
 const rawBook = requireArg("--book");
 const template = optionalArg("--template") ?? "bad-people";
 const titleArg = optionalArg("--title");
-const skipRootScripts = process.argv.includes("--skip-root-scripts");
 const skipStarterContent = process.argv.includes("--skip-starter-content");
 const slug = slugify(rawBook);
 
@@ -141,30 +140,6 @@ writeFileSync(bookConfigPath, bookConfig, "utf8");
 
 if (!skipStarterContent) {
 	scaffoldStarterContent({ contentRoot, title });
-}
-
-const addRootScripts = process.argv.includes("--add-root-scripts");
-
-if (addRootScripts) {
-	const rootPackagePath = join(root, "package.json");
-	const rootPackage = JSON.parse(readText(rootPackagePath));
-	rootPackage.scripts = rootPackage.scripts ?? {};
-	const rootScripts = rootPackage.scripts as Record<string, string>;
-	const devKey = `dev:${slug}`;
-	const buildKey = `build:${slug}`;
-
-	if (!rootScripts[devKey]) {
-		rootScripts[devKey] = `bun run --filter @books/${slug} dev`;
-	}
-	if (!rootScripts[buildKey]) {
-		rootScripts[buildKey] = `bun run --filter @books/${slug} build`;
-	}
-
-	writeFileSync(
-		rootPackagePath,
-		`${JSON.stringify(rootPackage, null, 2)}\n`,
-		"utf8",
-	);
 }
 
 console.log(`✅ Scaffolded new book at apps/${slug}`);

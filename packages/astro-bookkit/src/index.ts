@@ -217,7 +217,7 @@ export {
 	resolvePreviewToken,
 } from "./preview";
 export type { AiQaProviderConfig, QaRequest, QaResponse, QaTurn } from "./qa";
-export { createQaApiHandlers } from "./qa";
+export { createQaApiHandlers, filterEntriesToReadingWindow } from "./qa";
 export type { ReleaseEvent } from "./releases/analytics";
 export { recordReleaseEvent } from "./releases/analytics";
 export type {
@@ -334,6 +334,33 @@ export {
 } from "./seo/structured-data";
 export type { SiteUrlOptions } from "./seo/urls";
 export { buildAbsoluteUrl, normalizeSiteUrl } from "./seo/urls";
+export type {
+	BookContentInput,
+	ChapterRecord,
+	ConceptClassification,
+	ConceptFlag,
+	ConceptTriageOptions,
+	ContentSuggestion,
+	ExampleAuditOptions,
+	ExampleRecord,
+	MechanismDraft,
+	MechanismOverlapOptions,
+	MechanismProposalOptions,
+	MechanismRecord,
+	PrerequisiteSuggestionOptions,
+	SuggestionCategory,
+	SuggestionSeverity,
+} from "./suggestions";
+export {
+	analyzeMechanismOverlap,
+	auditExampleSwappability,
+	classifyConcept,
+	extractConceptFlags,
+	proposeMechanismCandidates,
+	runBookSuggestions,
+	suggestPrerequisiteEdges,
+	triageConcepts,
+} from "./suggestions";
 export {
 	validateFrameDefinition,
 	validateFrameSteps,

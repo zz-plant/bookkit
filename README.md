@@ -207,10 +207,13 @@ bun run export:gitbook -- --book bad-people
 bun run list:books
 bun run check:separation
 bun run check:concepts
+bun run check:suggestions
 bun run check:todos
 bun run check:shims
 bun run stack:capabilities
 ```
+
+`bun run check:suggestions [--book <slug>]` is the AI assistance layer: it analyzes a book and reports actionable, deterministic suggestions — overlapping mechanisms, unregistered recurring concepts (with candidate mechanism drafts), examples that restate a mechanism instead of illustrating it, and missing prerequisite edges for the reading graph. It never writes files; it proposes and you approve.
 
 ### MCP endpoint for agentic clients
 
@@ -243,6 +246,7 @@ GitHub Actions runs on every push and PR to `main`:
 | iterate on one book UI quickly | `bun run bookkit dev bad-people` | Fast local feedback loop for content + layout work |
 | verify architecture invariants before review | `bun run validate && bun run check:separation` | Catches frame/content boundary regressions |
 | sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
+| get AI-style editing suggestions | `bun run check:suggestions -- --book bad-people` | Flags overlaps, example restatement, and missing graph edges |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
 | rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
 | run all quality gates | `bun run lint && bun run check:types && bun run test && bun run validate` | Full CI-equivalent local check |

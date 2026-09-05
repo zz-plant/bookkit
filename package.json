@@ -33,6 +33,8 @@
 		"check:concepts:book": "bun run scripts/check-floating-concepts.ts --book",
 		"check:suggestions": "bun run scripts/check-suggestions.ts --book",
 		"check:suggestions:all": "bun run scripts/check-suggestions.ts --book",
+		"check:runbooks": "bun run scripts/check-runbooks.ts",
+		"check:runbooks:error": "bun run scripts/check-runbooks.ts --mode error",
 		"audit:unused": "bun run scripts/audit-unused.ts",
 		"fix:frontmatter": "bun run scripts/fix-frontmatter.ts",
 		"export:gitbook": "bun run scripts/export-gitbook.ts",

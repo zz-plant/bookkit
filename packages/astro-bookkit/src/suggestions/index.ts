@@ -8,7 +8,10 @@ import { proposeMechanismCandidates } from "./mechanism-proposals";
 import type { ChapterRecord } from "./prerequisite-suggestions";
 import { suggestPrerequisiteEdges } from "./prerequisite-suggestions";
 import type { ToolRecord } from "./runbook-coverage";
-import { auditRunbookCoverage } from "./runbook-coverage";
+import {
+	auditReleaseControlDrift,
+	auditRunbookCoverage,
+} from "./runbook-coverage";
 import type { ContentSuggestion } from "./types";
 
 export type {
@@ -43,9 +46,11 @@ export type {
 	AuditRunbookCoverageOptions,
 	ComplianceRow,
 	ComplianceSummary,
+	ReleaseRecord,
 	ToolRecord,
 } from "./runbook-coverage";
 export {
+	auditReleaseControlDrift,
 	auditRunbookCoverage,
 	deriveComplianceMatrix,
 	summarizeCompliance,

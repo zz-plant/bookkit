@@ -150,9 +150,9 @@ The wedge is not believable until a real runbook compiles through the engine.
 - ✅ **Phase 1** — `apps/on-call/` landed with the `runbook` frame, 4 control mechanisms (`satisfies` per control), 4 toolkit primitives bearing `owner`/`drills`/`escalation`/`runbookSteps`, examples, glossary, and a release note. `validate-book --book on-call` is clean.
 - ✅ **Phase 2** — `toolkitSchema` extended with `owner`, `reviewEveryDays`, `drills`, `escalation`, `satisfies`, `runbookSteps` (branching `{when?, action}`); `mechanismSchema` gains `satisfies`. All optional with defaults; existing books stay green.
 - ✅ **Phase 3** — `runbook` frame registered (ownership/trigger/steps/escalation/verification, all required). `book-validator` and `validate-book` now validate the overview header against the frame declared in `book.config.ts` (via `extractFrameConfigFromSource`, fallback intervention), so runbook books are checked structurally instead of against the intervention frame.
-- ✅ **Phase 4 (partial)** — `deriveComplianceMatrix` + `summarizeCompliance` feed a CLI compliance matrix for runbook books. Release-diff enrichment is not implemented.
-- ✅ **Phase 5 (partial)** — `auditRunbookCoverage` runs inside `check:suggestions` for runbook-frame books (tool↔mechanism coverage, drills, owner, escalation, satisfies). Independent `check:runbooks` script and MCP verify tool not implemented.
-- ⏳ **Open** — `check:runbooks` script, MCP verify tool, release-diff enrichment.
+- ✅ **Phase 4** — `deriveComplianceMatrix` + `summarizeCompliance` feed CLI compliance matrices (both `check:suggestions` and `check:runbooks`); `auditReleaseControlDrift` joins release narratives against HEAD coverage (release-diff enrichment).
+- ✅ **Phase 5** — `auditRunbookCoverage` runs inside `check:suggestions` for runbook-frame books; a dedicated `scripts/check-runbooks.ts` (`bun run check:runbooks`, `--mode error` supported) audits coverage and prints the matrix. The MCP `bookkit.validate_book` tool already existed and runs `validateBookInMemory` for deterministic verification.
+- ⏳ **Open** — external `create-bookkit` npm package (needs a namespace/publish decision), and treating the compliance matrix as an exportable artifact (PDF/JSON).
 
 ---
 

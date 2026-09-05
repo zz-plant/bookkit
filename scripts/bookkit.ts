@@ -133,6 +133,26 @@ switch (command) {
 		break;
 	}
 
+	case "import":
+	case "import-book":
+	case "book:import": {
+		const passthrough = args.slice(1);
+		const scriptPath = join(
+			process.cwd(),
+			"scripts",
+			"import-book-from-markdown.ts",
+		);
+		const result = spawnSync(
+			process.execPath,
+			["run", scriptPath, ...passthrough],
+			{
+				stdio: "inherit",
+			},
+		);
+		process.exit(result.status ?? 1);
+		break;
+	}
+
 	default:
 		console.error(`Unknown command: ${command}`);
 		printHelp();
@@ -152,10 +172,12 @@ Commands:
   list                    List all active books
   new-book -- --book <slug> [options]  Scaffold a new book app
   remove-book -- --book <slug>         Remove a book app
+  import -- --book <slug> --dir <path> Import markdown into a book's chapter layer
 
 Examples:
   bun run bookkit dev bad-people
   bun run bookkit build
   bun run bookkit validate running-hot
+  bun run bookkit import --book docs --dir ./notes
 `);
 }

@@ -95,6 +95,74 @@ export const summarizeCompliance = (
 	};
 };
 
+export type ReleaseRecord = {
+	version: string;
+	date: string;
+	title?: string;
+	changedSections?: string[];
+};
+
+/**
+ * Release-diff enrichment: joins the HEAD compliance matrix with the release
+ * narrative. Fully computable at HEAD — it never reconstructs past state.
+ * A toolkit release that leaves a declared control undrilled at HEAD is a
+ * drift signal (the release claimed tooling work without closing the loop).
+ */
+export const auditReleaseControlDrift = (
+	rows: ComplianceRow[],
+	releases: ReleaseRecord[],
+	book: string,
+): ContentSuggestion[] => {
+	const suggestions: ContentSuggestion[] = [];
+	const isRunbookSection = (sections: string[] | undefined): boolean =>
+		(sections ?? []).includes("toolkit") ||
+		(sections ?? []).includes("mechanisms");
+
+	const toolkitReleases = releases.filter((r) =>
+		isRunbookSection(r.changedSections),
+	);
+	if (toolkitReleases.length === 0) return suggestions;
+
+	const undrilledControls = rows.filter((row) => !row.drillReady);
+
+	if (undrilledControls.length === 0) {
+		suggestions.push({
+			category: "runbook-coverage",
+			severity: "info",
+			book,
+			message:
+				"All toolkit releases keep every declared control drilled at HEAD.",
+			nextAction: "No action needed; compliance evidence is current.",
+			evidence: {
+				releases: toolkitReleases.map((r) => r.version),
+				controls: rows.map((r) => r.control),
+			},
+		});
+		return suggestions;
+	}
+
+	for (const release of toolkitReleases) {
+		for (const row of undrilledControls) {
+			suggestions.push({
+				category: "runbook-coverage",
+				severity: "warning",
+				book,
+				message: `Release ${release.version} claims runbook section changes, but control "${row.control}" remains undrilled at HEAD (tool: ${row.tools.join(", ") || "none"}).`,
+				nextAction:
+					"Add a drill to the satisfying tool or mark the control not-applicable in its mechanism.",
+				evidence: {
+					release: release.version,
+					control: row.control,
+					mechanism: row.mechanism,
+					tools: row.tools,
+				},
+			});
+		}
+	}
+
+	return suggestions;
+};
+
 export const auditRunbookCoverage = (
 	options: RunbookCoverageOptions,
 ): ContentSuggestion[] => {

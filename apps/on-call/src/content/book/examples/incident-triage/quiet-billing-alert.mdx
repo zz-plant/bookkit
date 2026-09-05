@@ -1,0 +1,8 @@
+---
+mechanism: incident-triage
+domain: payments
+title: "Quiet billing alert"
+status: published
+---
+
+A billing reconciliation alert fires at 02:00 but the dashboard shows steady error rates. The on-call engineer classifies it as sev-2, names an owner, and captures a repro line before any diagnosis begins. The alert was a silent retry loop; the classification kept the response bounded.

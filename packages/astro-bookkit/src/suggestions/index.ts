@@ -7,6 +7,8 @@ import { analyzeMechanismOverlap } from "./mechanism-overlap";
 import { proposeMechanismCandidates } from "./mechanism-proposals";
 import type { ChapterRecord } from "./prerequisite-suggestions";
 import { suggestPrerequisiteEdges } from "./prerequisite-suggestions";
+import type { ToolRecord } from "./runbook-coverage";
+import { auditRunbookCoverage } from "./runbook-coverage";
 import type { ContentSuggestion } from "./types";
 
 export type {
@@ -38,6 +40,17 @@ export type {
 } from "./prerequisite-suggestions";
 export { suggestPrerequisiteEdges } from "./prerequisite-suggestions";
 export type {
+	AuditRunbookCoverageOptions,
+	ComplianceRow,
+	ComplianceSummary,
+	ToolRecord,
+} from "./runbook-coverage";
+export {
+	auditRunbookCoverage,
+	deriveComplianceMatrix,
+	summarizeCompliance,
+} from "./runbook-coverage";
+export type {
 	ContentSuggestion,
 	SuggestionCategory,
 	SuggestionSeverity,
@@ -53,6 +66,9 @@ export type BookContentInput = {
 	vocabulary?: string[];
 	causalStance?: string;
 	maxMechanismProposals?: number;
+	/** The book's configured frame slug (runbook books get coverage checks). */
+	frame?: string;
+	tools?: ToolRecord[];
 };
 
 export const runBookSuggestions = (
@@ -78,5 +94,11 @@ export const runBookSuggestions = (
 		vocabulary: input.vocabulary,
 		causalStance: input.causalStance,
 		maxCandidates: input.maxMechanismProposals,
+	}),
+	...auditRunbookCoverage({
+		book: input.book,
+		frame: input.frame,
+		mechanisms: input.mechanisms,
+		tools: input.tools ?? [],
 	}),
 ];

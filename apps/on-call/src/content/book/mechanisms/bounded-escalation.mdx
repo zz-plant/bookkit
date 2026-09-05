@@ -1,0 +1,32 @@
+---
+slug: bounded-escalation
+status: published
+title: "Bounded Escalation"
+definition: "An escalation is only useful when a target, trigger, and window are stated, because an unbounded escalation becomes noise nobody owns."
+is:
+  - "A named target with a stated trigger."
+  - "A time window after which the escalation fires automatically."
+  - "A record of who took ownership at each ramp."
+isNot:
+  - "A group chat that drags in everyone."
+  - "Handing the problem to no one in particular."
+  - "Waiting for the loudest voice to claim the incident."
+predictions:
+  - "Escalations with a named target and window resolve faster than broadcast messages."
+  - "Undrilled escalation ramps collapse under real incidents."
+  - "Ownership transfers are the failure point, not the notification."
+tests:
+  - "Run a mock sev-1 and ask who owns it at each ramp; if the answer is ambiguous, the ramp is not bounded."
+  - "Observe whether the escalation window fires without a human remembering to check."
+satisfies:
+  - "ESC-RAMP-01"
+---
+
+## Scope
+
+Keep escalation about the bounded handoff. The trigger and window belong in the same frontmatter as the procedure.
+
+## Boundaries
+
+- Broadcast is the fallback, never the plan.
+- An escalation that requires remembering is not a procedure.

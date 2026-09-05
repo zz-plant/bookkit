@@ -1,0 +1,25 @@
+---
+slug: drills
+status: published
+title: "Drills and recovery"
+mechanisms:
+  - incident-triage
+  - rollback-first-change
+  - minimal-repro-doc
+  - bounded-escalation
+---
+
+## Why drills
+
+A procedure that has never been exercised is a collection of intentions. The drills in each toolkit primitive turn the runbook into something measurable.
+
+## The drill set
+
+- **Classify severity**: three sample alerts to sev-1/2/3 in under 10 minutes.
+- **Identify rollback candidate**: each deploy owner states the candidate from memory at stand-up.
+- **Capture reproduction**: turn a vague report into a one-line repro in 10 minutes.
+- **Ramp escalation**: a mock sev-1 where ownership transfers without a single reminder.
+
+## Verification
+
+The runbook is working when an alert becomes a classified severity, a named owner, a written repro, and a verified recovery. The compliance matrix maps each control to the mechanism and drill that prove it.

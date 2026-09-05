@@ -22,6 +22,8 @@ export const mechanismSchema = z.object({
 	tests: z
 		.array(z.string().min(1))
 		.min(1, "Mechanism must have at least one test"),
+	/** Control IDs this mechanism satisfies (runbook/audit mapping). */
+	satisfies: z.array(z.string().min(1)).default([]),
 });
 
 export type MechanismFrontmatter = z.infer<typeof mechanismSchema>;

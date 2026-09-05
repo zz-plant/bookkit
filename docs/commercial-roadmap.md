@@ -116,6 +116,18 @@ Success criteria:
 
 For gap analysis and implementation sequencing, see [`docs/reader-forking-gap-analysis.md`](./reader-forking-gap-analysis.md).
 
+### Track 5: Runbook/SOP wedge (proposed)
+
+Before the reader-forking surface, validate the engine as a compiler for verifiable operating procedures (runbooks/SOPs). It needs no identity or persistence, exercises the governed-compiler story, and feeds Track 3 (governance APIs) and Track 4 (fork → site-specific overlay).
+
+Deliverables:
+
+- proof book (`apps/on-call/`) using a new `runbook` frame
+- runbook schema extensions (branching steps, ownership, drills, escalation, control mapping)
+- derived compliance/audit matrix + drill-coverage verification surface
+
+Sequencing and gap details: [`docs/sop-wedge-gap-analysis.md`](./sop-wedge-gap-analysis.md).
+
 ## Sequencing
 
 1. Track 1 + Track 2 in the same milestone (foundation)

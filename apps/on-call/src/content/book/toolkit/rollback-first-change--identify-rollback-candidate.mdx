@@ -1,0 +1,33 @@
+---
+slug: identify-rollback-candidate
+status: published
+mechanism: rollback-first-change
+name: "Identify rollback candidate"
+owner: release-eng
+reviewEveryDays: 14
+trigger: "A deploy is about to start and no rollback candidate has been named."
+timeboxMinutes: 10
+satisfies:
+  - "REL-ROLLBACK-01"
+drills:
+  - "During a stand-up, have each deploy owner state their rollback candidate and how they would verify it reverted."
+escalation:
+  to: "release-manager"
+  when: "No executable rollback candidate exists before go-live."
+  withinHours: 4
+runbookSteps:
+  - when: "The deploy has not started"
+    action: "Confirm the rollback candidate and the verification command."
+  - when: "The deploy is failing"
+    action: "Execute the candidate and confirm metrics recover before touching any config."
+steps:
+  - "State the rollback candidate in one sentence."
+  - "Verify the rollback command works against the current environment."
+  - "Declare the candidate in the deploy thread before go-live."
+failureLooksLike:
+  - "A deploy that fails and a team that debates fix-forward."
+legitimateDemand:
+  - "The deploy does not start until a verified rollback candidate exists."
+---
+
+The candidate must be executable, not conceptual. If it cannot be verified, the deploy waits.

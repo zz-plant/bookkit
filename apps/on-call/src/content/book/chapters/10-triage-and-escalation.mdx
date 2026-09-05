@@ -1,0 +1,26 @@
+---
+slug: triage-and-escalation
+status: published
+title: "Triage and escalation"
+mechanisms:
+  - incident-triage
+  - bounded-escalation
+---
+
+## Why triage first
+
+An unclassified alert has no safe first action. Triage is a time budget, not a diagnosis.
+
+Use **classify severity** when the pager fires. Use **ramp escalation** when the incident outgrows the current owner.
+
+## The triage loop
+
+1. Classify to sev-1/2/3 within 10 minutes.
+2. Name a single owner in the thread.
+3. If the window is close to firing, ramp to the named target.
+
+## Why escalation must be bounded
+
+A broadcast query becomes noise nobody owns. The procedure states the target, the trigger, and the window up front.
+
+Use the drills to keep both mechanisms sharp between incidents.

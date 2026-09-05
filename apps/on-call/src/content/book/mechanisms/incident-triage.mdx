@@ -1,0 +1,32 @@
+---
+slug: incident-triage
+status: published
+title: "Incident Triage"
+definition: "Alert chaos collapses when severity is classified under a time budget, because an unclassified alert receives no safe next action."
+is:
+  - "A severity classification made within the stated window."
+  - "A first action that is reversible and time-boxed."
+  - "A single owner who stays until verification."
+isNot:
+  - "A complete diagnosis before anyone acts."
+  - "A reason to wait for more context."
+  - "A description of how important an outage feels."
+predictions:
+  - "Alerts without a severity have no safe first action and stall."
+  - "Severity classified within 10 minutes reduces misdirected calls."
+  - "A sev-1 without a named owner escalates in volume, not resolution."
+tests:
+  - "Classify three alerts in under 10 minutes; if any stalls, triage is not a procedure yet."
+  - "Observe whether a sev-1 gets a named owner before the escalation window lapses."
+satisfies:
+  - "INC-TRIAGE-01"
+---
+
+## Scope
+
+Keep triage about the first safe move, not the root cause. Root cause analysis belongs to diagnostics.
+
+## Boundaries
+
+- Triage ends at classification plus a named owner.
+- A severity can be revised; a revision is not a failure.

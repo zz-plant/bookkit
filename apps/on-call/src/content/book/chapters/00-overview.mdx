@@ -1,0 +1,39 @@
+---
+slug: overview
+status: published
+title: "Own the incident, not the noise"
+mechanisms:
+  - incident-triage
+  - rollback-first-change
+  - minimal-repro-doc
+  - bounded-escalation
+---
+
+## Ownership
+
+Every alert needs a single named owner before anyone does anything else. The owner can change, but the handoff must be explicit and recorded.
+
+## Trigger
+
+You are in this runbook when the pager fires, when a handoff arrives without a repro, or when a deploy is about to start without a rollback candidate.
+
+## Steps
+
+- Classify the alert and name an owner.
+- Check the rollback plan before the deploy starts.
+- Capture a reproduction before the diagnosis moves.
+- Escalate to a named target when the window is close to firing.
+
+## Escalation
+
+Escalation is bounded: a target, a trigger, and a window. When the window is close, the owner ramps to the named target and records the transfer.
+
+## Verification
+
+The runbook works when an alert becomes a classified severity, a named owner, a written repro, and a verified recovery — measured by the drills.
+
+## Reader habits to use right away
+
+- Follow the load: when an incident appears, ask who owns it and what the rollback plan is.
+- Write the repro line before you debug: "trigger → expected → observed."
+- Pace the escalation: a sev-1 that stalls past its window is a procedure failure, not a willpower failure.

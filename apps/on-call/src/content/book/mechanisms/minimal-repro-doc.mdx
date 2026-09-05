@@ -1,0 +1,32 @@
+---
+slug: minimal-repro-doc
+status: published
+title: "Reproduction Discipline"
+definition: "A diagnosis that cannot be reproduced on paper will stall in a handoff, because the next owner has no stable reference point."
+is:
+  - "A written reproduction with the shortest possible trigger."
+  - "A handoff that includes the reproduce steps."
+  - "A test where the reproduction fails before it is declared fixed."
+isNot:
+  - "A log dump that substitutes for a repro."
+  - "A diagnosis that only works if the person who found it stays."
+  - "A reason to wait for a second occurrence."
+predictions:
+  - "Incidents without a written repro stall when the original owner ends a shift."
+  - "A minimal repro converts vague reports into testable claims."
+  - "Handoffs with a repro line resolve faster than handoffs with context only."
+tests:
+  - "Write a repro line for a recent vague report; if the steps exceed a page, it is not minimal."
+  - "Hand the repro to someone new and ask them to reproduce; if they cannot, the repro is not load-bearing."
+satisfies:
+  - "DIAG-REPRO-01"
+---
+
+## Scope
+
+Keep repro discipline about the written, minimal, handoff-ready reproduction. Diagnosis depth lives in diagnostics.
+
+## Boundaries
+
+- A repro is a claim to be tested, not a verdict.
+- If a fix cannot falsify the repro, the fix is unverified.

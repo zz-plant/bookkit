@@ -1,0 +1,22 @@
+---
+slug: rollback-first
+status: published
+title: "Rollback first"
+mechanisms:
+  - rollback-first-change
+---
+
+## Why rollback comes before go-live
+
+The rollback decision cannot be made safely under load. If the candidate is not named before the deploy starts, the team will debate fix-forward while the outage grows.
+
+Use **identify rollback candidate** before every deploy. The candidate must be executable, not conceptual.
+
+## The rule
+
+- No executable rollback candidate, no go-live.
+- When the deploy fails, execute the candidate, confirm metrics recover, then investigate.
+
+## Verification
+
+The drill should let any deploy owner state the candidate and its verification command from memory in under a minute.

@@ -1,0 +1,8 @@
+---
+mechanism: rollback-first-change
+domain: releases
+title: "Deploy without a candidate"
+status: published
+---
+
+A release engineer starts a deploy at 16:00 without naming a rollback candidate. The deploy breaks logins, and the team spends forty minutes debating fix-forward before anyone checks the migration. A single pre-deploy step — state the candidate and verify its command — would have made recovery a two-minute action.

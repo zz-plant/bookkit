@@ -365,3 +365,5 @@ export {
 	validateFrameDefinition,
 	validateFrameSteps,
 } from "./validators/frame";
+export type { FrameConfigFromSource } from "./validators/frame-config";
+export { extractFrameConfigFromSource } from "./validators/frame-config";

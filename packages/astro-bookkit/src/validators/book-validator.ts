@@ -1,14 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defaultFrames } from "../frames/defaults";
-import {
-	chapterSchema,
-	exampleSchema,
-	glossarySchema,
-	mechanismSchema,
-	toolkitSchema,
-} from "../schemas";
+import { mechanismSchema, toolkitSchema } from "../schemas";
 import { validateFrameSteps } from "./frame";
+import { extractFrameConfigFromSource } from "./frame-config";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type ValidateBookOptions = {
@@ -16,6 +11,8 @@ export type ValidateBookOptions = {
 	bookSlug: string;
 	mode?: "warn" | "error";
 	noDrafts?: boolean;
+	/** Override the frame slug declared in book.config.ts (defaults to the config value). */
+	frameSlug?: string;
 };
 
 export type ValidateBookResult = {
@@ -158,11 +155,30 @@ export function validateBookInMemory(
 		const headingMatches = Array.from(
 			content.matchAll(/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g),
 		).map((m) => m[1].toLowerCase());
-		const interventionFrame = defaultFrames.find(
-			(f) => f.slug === "intervention",
-		);
-		if (interventionFrame) {
-			const frameResult = validateFrameSteps(interventionFrame, headingMatches);
+
+		let configuredSlug = options.frameSlug;
+		if (!configuredSlug) {
+			const configPath = join(
+				root,
+				"apps",
+				options.bookSlug,
+				"src",
+				"book.config.ts",
+			);
+			if (existsSync(configPath)) {
+				configuredSlug =
+					extractFrameConfigFromSource(readFileSync(configPath, "utf8"))
+						?.slug ?? undefined;
+			}
+		}
+
+		// Author decisions live in book.config.ts; validate against the configured
+		// frame and fall back to the intervention frame when none is declared.
+		const activeFrame =
+			defaultFrames.find((f) => f.slug === configuredSlug) ??
+			defaultFrames.find((f) => f.slug === "intervention");
+		if (activeFrame) {
+			const frameResult = validateFrameSteps(activeFrame, headingMatches);
 			for (const err of frameResult.errors) {
 				warnings.push(err);
 			}

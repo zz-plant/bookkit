@@ -1,0 +1,37 @@
+---
+slug: classify-alert-severity
+status: published
+mechanism: incident-triage
+name: "Classify severity"
+owner: platform-oncall
+reviewEveryDays: 30
+trigger: "A pager alert fires and no one has stated what it means."
+timeboxMinutes: 10
+satisfies:
+  - "INC-TRIAGE-01"
+drills:
+  - "Classify three sample alerts to sev-1/2/3 in under 10 minutes as a team."
+escalation:
+  to: "duty-manager"
+  when: "A sev-1 is confirmed or suspected."
+  withinHours: 1
+runbookSteps:
+  - when: "Uptime or money is at risk"
+    action: "Classify as sev-1 and name an owner in the incident thread."
+  - when: "A feature is degraded but recoverable"
+    action: "Classify as sev-2 and check the rollback candidate."
+  - when: "No user impact is visible"
+    action: "Classify as sev-3 and capture a repro line."
+steps:
+  - "Read the alert payload and state the affected surface in one sentence."
+  - "Classify severity against the published scale."
+  - "Name a single owner in the incident thread."
+  - "Write the classification and next action to the timeline."
+failureLooksLike:
+  - "A long thread with many voices and no severity."
+legitimateDemand:
+  - "A classified severity and a named owner within the stated window."
+---
+
+Classify, name an owner, and stop. Diagnosis happens in the diagnostics chapter.
+Use the drill to keep the scale sharp between incidents.

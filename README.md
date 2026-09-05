@@ -34,6 +34,7 @@ For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | [`apps/bad-people/README.md`](./apps/bad-people/README.md) | Book-app-local orientation | Book contributors |
 | [`docs/mcp-agent-skills-research.md`](./docs/mcp-agent-skills-research.md) | MCP + agent-skill adoption options | Maintainers + AI workflow designers |
 | [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md) | Productization scope + sequencing | Maintainers + operators |
+| [`docs/sop-wedge-gap-analysis.md`](./docs/sop-wedge-gap-analysis.md) | Runbook/SOP wedge + build sequencing | Maintainers + operators |
 
 Prefer linking to canonical docs over duplicating policy text.
 
@@ -84,6 +85,7 @@ This keeps books recompilable while allowing iterative content edits.
 │  │     ├─ glossary/
 │  │     └─ releases/
 │  ├─ crumple-zone/
+│  ├─ on-call/               # runbook-frame proof book (SOP wedge)
 │  └─ running-hot/
 ├─ packages/
 │  └─ astro-bookkit/
@@ -311,6 +313,22 @@ compiler outputs (read UI, APIs, exports)
 ```
 
 Validation should fail with **actionable errors** (what failed, where, and how to fix).
+
+---
+
+## Migration notes
+
+### 2026-09-04 — runbook schema/frame extension
+
+- **Frames:** new `runbook` frame (required steps: `ownership`, `trigger`, `steps`, `escalation`, `verification`). Frame checks now validate the overview chapter against the frame declared in `book.config.ts` (fallback: `intervention`), so runbook books are checked against their own frame instead of the intervention frame. **Conflict type:** none — existing books declare `intervention` and behave as before.
+- **Toolkit schema** (all optional with defaults; existing tools are unaffected):
+  - `owner` (string), `reviewEveryDays` (positive int)
+  - `drills` (string[]) — evidence the procedure works
+  - `escalation` (`{ to, when, withinHours? }`) — named handoff path
+  - `satisfies` (string[]) — control IDs mapped in the compliance matrix
+  - `runbookSteps` (`[{ when?, action }]`) — branching steps for runbook procedures
+- **Mechanism schema:** `satisfies` (string[], default `[]`) — control IDs this mechanism satisfies.
+- **Validation errors:** missing runbook frame steps surface as `FRAME_REQUIRED_STEP_MISSING` against the configured frame; the `check:suggestions` analyzer emits `runbook-coverage` advisories for missing owner/drills/escalation/satisfies.
 
 ---
 

@@ -1,0 +1,33 @@
+---
+slug: ramp-escalation
+status: published
+mechanism: bounded-escalation
+name: "Ramp escalation"
+owner: duty-manager
+reviewEveryDays: 30
+trigger: "An incident is bigger than the current owner can absorb within the window."
+timeboxMinutes: 10
+satisfies:
+  - "ESC-RAMP-01"
+drills:
+  - "Run a mock sev-1 where the ramp fires and ownership transfers to the named target without a single reminder."
+escalation:
+  to: "head-of-platform"
+  when: "A sev-1 persists past 45 minutes."
+  withinHours: 2
+runbookSteps:
+  - when: "The window is close to firing"
+    action: "Escalate to the named target and record the transfer in the thread."
+  - when: "Ownership is ambiguous"
+    action: "Name one owner out loud in the thread before continuing any work."
+steps:
+  - "State the current owner and the remaining window."
+  - "Escalate to the named target when the trigger fires."
+  - "Record every ownership transfer in the incident thread."
+failureLooksLike:
+  - "A broadcast query asking who can take over."
+legitimateDemand:
+  - "A named target who accepts ownership within the window."
+---
+
+An escalation that requires remembering is not a procedure. Automation fires the ramp; the record shows who owns it.

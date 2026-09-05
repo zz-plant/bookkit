@@ -50,6 +50,7 @@ import {
 	mechanismSchema,
 	toolkitSchema,
 } from "../packages/astro-bookkit/src/schemas";
+import { extractFrameConfigFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 
 const mechanismFiles = listContentFiles(join(bookRoot, "mechanisms"));
 const toolkitFiles = listContentFiles(join(bookRoot, "toolkit"));
@@ -206,14 +207,21 @@ if (existsSync(overviewChapter)) {
 	const headingMatches = Array.from(
 		content.matchAll(/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g),
 	).map((m) => m[1].toLowerCase());
-	const interventionFrame = defaultFrames.find(
-		(f) => f.slug === "intervention",
-	);
-	if (interventionFrame) {
-		const frameResult = validateFrameSteps(interventionFrame, headingMatches);
+
+	// Author decisions live in book.config.ts; validate against the configured
+	// frame and fall back to the intervention frame when none is declared.
+	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
+	const configuredSlug = existsSync(configPath)
+		? extractFrameConfigFromSource(readFileSync(configPath, "utf8"))?.slug
+		: undefined;
+	const frame =
+		defaultFrames.find((f) => f.slug === configuredSlug) ??
+		defaultFrames.find((f) => f.slug === "intervention");
+	if (frame) {
+		const frameResult = validateFrameSteps(frame, headingMatches);
 		if (frameResult.missingRequiredSteps.length > 0) {
 			warnings.push(
-				`Framing chapter (00-overview.mdx) is missing required frame step(s): ${frameResult.missingRequiredSteps.join(", ")}`,
+				`Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${frameResult.missingRequiredSteps.join(", ")}`,
 			);
 		}
 	}

@@ -1,0 +1,41 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../../../lib/book-entrypoints";
+import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import bookConfig from "../../../book.config";
+
+const modules = bookEntryPoints.contentModules.toolkit;
+const { items: toolItems, completeness } = createLocalizedContentList(modules, {
+  defaultLocale: "en",
+  locale: Astro.locals?.locale,
+  mapEntry: ({ slug, module, isFallback }) => {
+    const frontmatter = module.frontmatter ?? {};
+    const name = frontmatter.name ?? "Untitled action";
+    return {
+      href: readItemPath("toolkit", slug),
+      title: isFallback ? `${name} (fallback)` : name,
+      meta: `${frontmatter.mechanism ?? "general"} • ${
+        frontmatter.timeboxMinutes ?? 10
+      } min`,
+    };
+  },
+  sort: (a, b) => a.title.localeCompare(b.title),
+});
+const localizedLede = buildTranslationLede(
+  "Action primitives designed to be executed in ≤10 minutes.",
+  completeness
+);
+---
+<BaseLayout title={`Toolkit • ${bookConfig.title}`}>
+  <ContentIndexList
+    title="Toolkit"
+    lede={localizedLede}
+    items={toolItems}
+    filterMode="always"
+    filterPlaceholder="Filter by action, mechanism, or timebox..."
+    filterHint="Filter actions by name, mechanism, or timebox."
+    alphaMode="always"
+  />
+</BaseLayout>

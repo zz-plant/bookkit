@@ -1,0 +1,32 @@
+---
+slug: rollback-first-change
+status: published
+title: "Rollback First"
+definition: "Every deploy is reversible only when a rollback candidate exists before go-live, because the rollback decision cannot be made safely under load."
+is:
+  - "A named rollback candidate declared before the deploy starts."
+  - "A reversible first action when the deploy misbehaves."
+  - "A test that the rollback path actually works."
+isNot:
+  - "A promise never to roll back."
+  - "A preference for fix-forward over revert."
+  - "A reason to skip monitoring because a revert exists."
+predictions:
+  - "Deploys without a rollback candidate produce longer outages."
+  - "Teams that drill rollbacks recover faster than teams that plan them."
+  - "The rollback decision stalls precisely when the deploy fails."
+tests:
+  - "Ask the deploy owner to state the rollback candidate from memory; if it takes longer than a minute, the plan is not load-bearing."
+  - "Compare recovery time for failures with a declared candidate versus none."
+satisfies:
+  - "REL-ROLLBACK-01"
+---
+
+## Scope
+
+Keep rollback about the pre-declared candidate and its verification. If the change is not reversible, the deploy should not start.
+
+## Boundaries
+
+- Rollback is a path, not a preference.
+- A candidate that cannot be executed is not a candidate.

@@ -1,0 +1,43 @@
+---
+import AnalyticsDashboard from "@bookkit/astro-bookkit/components/AnalyticsDashboard.astro";
+import FeedbackDashboard from "@bookkit/astro-bookkit/components/FeedbackDashboard.astro";
+import PreviewLinksPanel from "@bookkit/astro-bookkit/components/PreviewLinksPanel.astro";
+import { createPreviewLinks } from "@bookkit/astro-bookkit/preview";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import bookConfig from "../../book.config";
+import { readRoutes } from "@bookkit/astro-bookkit";
+
+const lastUpdated = new Date().toLocaleDateString("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
+  baseUrl: bookConfig.site?.url,
+  path: readRoutes.root,
+});
+---
+<BaseLayout title={`Analytics • ${bookConfig.title}`}>
+  <a class="back-link" href={readRoutes.root}>← Back to reading hub</a>
+  <div class="section-header">
+    <div class="eyebrow">Author dashboard</div>
+    <h1>Engagement analytics</h1>
+    <p class="lede">
+      Local, privacy-conscious analytics based on anonymized session events.
+    </p>
+  </div>
+
+  <PreviewLinksPanel
+    title="Private preview links"
+    description="Share draft access with reviewers. Links can expire or be revoked without changing the content."
+    links={previewLinks}
+  />
+
+  <AnalyticsDashboard lastUpdated={lastUpdated} endpoint="/api/analytics.json" />
+
+  <section class="content-block">
+    <FeedbackDashboard endpoint="/api/feedback.json" />
+  </section>
+
+</BaseLayout>

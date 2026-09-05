@@ -2,11 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	type ChapterRecord,
+	deriveComplianceMatrix,
 	type ExampleRecord,
 	extractConceptFlags,
 	type MechanismRecord,
 	runBookSuggestions,
+	summarizeCompliance,
+	type ToolRecord,
 } from "../packages/astro-bookkit/src/suggestions";
+import { extractFrameConfigFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 import { listBookDirs, optionalArg } from "./_lib";
 import {
 	arrayValue,
@@ -46,9 +50,52 @@ const checkBook = (book: string): number => {
 			isNot: arrayValue(data.isNot),
 			predictions: arrayValue(data.predictions),
 			tests: arrayValue(data.tests),
+			satisfies: arrayValue(data.satisfies),
 			file,
 		};
 	});
+
+	const tools: ToolRecord[] = toolkitFiles.map((file) => {
+		const { data } = parseFrontmatter(read(file));
+		const escalationRaw = Array.isArray(data.escalation)
+			? undefined
+			: (data.escalation as unknown as Record<string, unknown> | undefined);
+		const escalationTo =
+			typeof escalationRaw?.to === "string" ? escalationRaw.to : undefined;
+		const escalationWhen =
+			typeof escalationRaw?.when === "string" ? escalationRaw.when : undefined;
+		return {
+			slug: toStringValue(data.slug),
+			mechanism: toStringValue(data.mechanism),
+			name: toStringValue(data.name),
+			owner: toStringValue(data.owner),
+			drills: arrayValue(data.drills),
+			satisfies: arrayValue(data.satisfies),
+			escalation:
+				escalationRaw && escalationTo && escalationWhen
+					? {
+							to: escalationTo,
+							when: escalationWhen,
+							withinHours:
+								typeof escalationRaw.withinHours === "number"
+									? escalationRaw.withinHours
+									: undefined,
+						}
+					: undefined,
+			file,
+		};
+	});
+
+	const bookConfigPath = join(
+		workspaceRoot,
+		"apps",
+		book,
+		"src",
+		"book.config.ts",
+	);
+	const frame = existsSync(bookConfigPath)
+		? extractFrameConfigFromSource(read(bookConfigPath))?.slug
+		: undefined;
 
 	const chapterParsed = chapterFiles.map((file) => {
 		const { data, body } = parseFrontmatter(read(file));
@@ -106,6 +153,8 @@ const checkBook = (book: string): number => {
 		chapterBodies,
 		conceptFlags: extractConceptFlags(chapterBodies),
 		vocabulary,
+		frame,
+		tools,
 		maxMechanismProposals: maxProposals,
 	});
 
@@ -136,7 +185,37 @@ const checkBook = (book: string): number => {
 		}
 	}
 
+	if (frame === "runbook") {
+		printComplianceMatrix(book, mechanisms, tools);
+	}
+
 	return warnings.length;
+};
+
+const printComplianceMatrix = (
+	book: string,
+	mechanisms: MechanismRecord[],
+	tools: ToolRecord[],
+): void => {
+	const rows = deriveComplianceMatrix(mechanisms, tools);
+	if (rows.length === 0) return;
+
+	const summary = summarizeCompliance(rows);
+	console.log(`\nCOMPLIANCE MATRIX (${book})`);
+	console.log(
+		`Controls: ${summary.total} rows, ${summary.covered} with tool coverage`,
+	);
+	for (const row of rows) {
+		const toolsLabel =
+			row.tools.length > 0 ? row.tools.join(", ") : "(none — uncovered)";
+		const drilled = row.drillReady ? " ✓drilled" : "";
+		console.log(
+			`- ${row.control} → ${row.mechanism} [${toolsLabel}]${drilled}`,
+		);
+	}
+	if (summary.uncoveredControls.length > 0) {
+		console.log(`Uncovered controls: ${summary.uncoveredControls.join(", ")}`);
+	}
 };
 
 const books = requestedBook ? [requestedBook] : listBookDirs();

@@ -9,6 +9,7 @@ export type MechanismRecord = {
 	isNot: string[];
 	predictions: string[];
 	tests: string[];
+	satisfies?: string[];
 	file?: string;
 };
 

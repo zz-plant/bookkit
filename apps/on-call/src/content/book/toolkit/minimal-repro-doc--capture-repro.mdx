@@ -1,0 +1,35 @@
+---
+slug: capture-repro
+status: published
+mechanism: minimal-repro-doc
+name: "Capture reproduction"
+owner: diag-eng
+reviewEveryDays: 30
+trigger: "A report is vague or a diagnosis only works for the person holding it."
+timeboxMinutes: 10
+satisfies:
+  - "DIAG-REPRO-01"
+escalation:
+  to: "diag-lead"
+  when: "A repro line cannot be produced within the window or the trigger spans multiple services."
+  withinHours: 2
+drills:
+  - "Take a deliberately vague bug report and turn it into a one-line repro in 10 minutes."
+runbookSteps:
+  - when: "The report is vague"
+    action: "Turn the report into a repro line: trigger, expected, observed."
+  - when: "The repro is long"
+    action: "Trim it until each step is necessary; paste it into the incident thread."
+  - when: "Someone new must continue"
+    action: "Hand over with the repro line as step one of the handoff."
+steps:
+  - "Write trigger, expected, observed in one line."
+  - "Run the repro against the current state."
+  - "Paste the repro and the failing evidence into the thread."
+failureLooksLike:
+  - "An incident that 'only Dave can debug' because nothing is written down."
+legitimateDemand:
+  - "The next owner can reproduce the issue from the thread alone."
+---
+
+A repro is a claim, not a verdict. The fix must falsify it before it is called done.

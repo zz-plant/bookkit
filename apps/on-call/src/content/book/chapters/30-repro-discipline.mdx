@@ -1,0 +1,21 @@
+---
+slug: repro-discipline
+status: published
+title: "Reproduction discipline"
+mechanisms:
+  - minimal-repro-doc
+---
+
+## Why the repro line
+
+A diagnosis that only lives inside one person's head will stall at the next handoff. The written repro gives the next owner a stable reference point and gives the fix something to falsify.
+
+Use **capture reproduction** whenever a report is vague or a diagnosis works only for its author.
+
+## The format
+
+Trigger → expected → observed. One line, then paste it and the failing evidence into the thread.
+
+## Handoff rule
+
+The next owner can reproduce the issue from the thread alone. If they cannot, the repro is not load-bearing — keep trimming until it is.

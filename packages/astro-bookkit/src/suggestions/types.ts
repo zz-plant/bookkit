@@ -5,7 +5,8 @@ export type SuggestionCategory =
 	| "concept-triage"
 	| "example-swap"
 	| "prerequisite-edge"
-	| "mechanism-proposal";
+	| "mechanism-proposal"
+	| "runbook-coverage";
 
 export type ContentSuggestion = {
 	category: SuggestionCategory;

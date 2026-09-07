@@ -7,10 +7,10 @@ import { getOgImageForPath } from "../lib/og";
 import { getVersionEntries } from "../lib/versions";
 
 const viewModel = buildVersionArchivePageProps({
-  book: bookConfig,
-  versionEntries: getVersionEntries(),
-  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
-  ogImage: getOgImageForPath("/versions"),
+	book: bookConfig,
+	versionEntries: getVersionEntries(),
+	requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+	ogImage: getOgImageForPath("/versions"),
 });
 ---
 <VersionArchivePage {...viewModel} />

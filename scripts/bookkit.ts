@@ -153,6 +153,22 @@ switch (command) {
 		break;
 	}
 
+	case "propose":
+	case "proposal":
+	case "propose-book": {
+		const passthrough = args.slice(1);
+		const scriptPath = join(process.cwd(), "scripts", "propose-book.ts");
+		const result = spawnSync(
+			process.execPath,
+			["run", scriptPath, ...passthrough],
+			{
+				stdio: "inherit",
+			},
+		);
+		process.exit(result.status ?? 1);
+		break;
+	}
+
 	default:
 		console.error(`Unknown command: ${command}`);
 		printHelp();
@@ -173,11 +189,13 @@ Commands:
   new-book -- --book <slug> [options]  Scaffold a new book app
   remove-book -- --book <slug>         Remove a book app
   import -- --book <slug> --dir <path> Import markdown into a book's chapter layer
+  propose -- --book <slug> [options]   Build + apply a proposal bundle (mechanisms, tools, config draft)
 
 Examples:
   bun run bookkit dev bad-people
   bun run bookkit build
   bun run bookkit validate running-hot
   bun run bookkit import --book docs --dir ./notes
+  bun run bookkit propose --book docs --apply mechanisms --apply tools
 `);
 }

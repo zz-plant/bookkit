@@ -152,7 +152,8 @@ The wedge is not believable until a real runbook compiles through the engine.
 - ✅ **Phase 3** — `runbook` frame registered (ownership/trigger/steps/escalation/verification, all required). `book-validator` and `validate-book` now validate the overview header against the frame declared in `book.config.ts` (via `extractFrameConfigFromSource`, fallback intervention), so runbook books are checked structurally instead of against the intervention frame.
 - ✅ **Phase 4** — `deriveComplianceMatrix` + `summarizeCompliance` feed CLI compliance matrices (both `check:suggestions` and `check:runbooks`); `auditReleaseControlDrift` joins release narratives against HEAD coverage (release-diff enrichment).
 - ✅ **Phase 5** — `auditRunbookCoverage` runs inside `check:suggestions` for runbook-frame books; a dedicated `scripts/check-runbooks.ts` (`bun run check:runbooks`, `--mode error` supported) audits coverage and prints the matrix. The MCP `bookkit.validate_book` tool already existed and runs `validateBookInMemory` for deterministic verification.
-- ⏳ **Open** — external `create-bookkit` npm package (needs a namespace/publish decision), and treating the compliance matrix as an exportable artifact (PDF/JSON).
+- ✅ **Exports** — the compliance matrix is exportable as JSON via `bun run check:runbooks --export <file.json>`.
+- ⏳ **Open** — publishing `create-bookkit` and `@bookkit/astro-bookkit` to a package registry (needs a namespace/publish decision); the generator already scaffolds a standalone, self-contained project without it.
 
 ---
 

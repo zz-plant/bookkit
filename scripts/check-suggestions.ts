@@ -1,160 +1,47 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
-	type ChapterRecord,
 	deriveComplianceMatrix,
-	type ExampleRecord,
 	extractConceptFlags,
 	type MechanismRecord,
 	runBookSuggestions,
 	summarizeCompliance,
 	type ToolRecord,
 } from "../packages/astro-bookkit/src/suggestions";
-import { extractFrameConfigFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 import { listBookDirs, optionalArg } from "./_lib";
-import {
-	arrayValue,
-	listContentFiles,
-	parseFrontmatter,
-	toStringValue,
-} from "./lib/content-frontmatter";
+import { loadBookContent } from "./lib/load-book";
 
 const requestedBook = optionalArg("--book");
 const mode = optionalArg("--mode") ?? "warn";
 const showInfo = process.argv.includes("--info");
 const maxProposals = Number(optionalArg("--max-proposals") ?? "5");
 
-const workspaceRoot = join(import.meta.dir, "..");
-const read = (file: string) => readFileSync(file, "utf8");
+type CrossBookRecord = {
+	book: string;
+	slug: string;
+	definition: string;
+};
+const crossBookRecords: CrossBookRecord[] = [];
 
 const checkBook = (book: string): number => {
-	const bookRoot = join(workspaceRoot, "apps", book, "src", "content", "book");
-	if (!existsSync(bookRoot)) {
-		console.error(`Missing content directory: ${bookRoot}`);
-		return 0;
+	const content = loadBookContent(book);
+
+	for (const mechanism of content.mechanisms) {
+		crossBookRecords.push({
+			book,
+			slug: mechanism.slug,
+			definition: mechanism.definition,
+		});
 	}
-
-	const mechanismFiles = listContentFiles(join(bookRoot, "mechanisms"));
-	const chapterFiles = listContentFiles(join(bookRoot, "chapters"));
-	const exampleFiles = listContentFiles(join(bookRoot, "examples"));
-	const glossaryFiles = listContentFiles(join(bookRoot, "glossary"));
-	const toolkitFiles = listContentFiles(join(bookRoot, "toolkit"));
-
-	const mechanisms: MechanismRecord[] = mechanismFiles.map((file) => {
-		const { data } = parseFrontmatter(read(file));
-		return {
-			slug: toStringValue(data.slug),
-			title: toStringValue(data.title) || toStringValue(data.slug),
-			definition: toStringValue(data.definition),
-			is: arrayValue(data.is),
-			isNot: arrayValue(data.isNot),
-			predictions: arrayValue(data.predictions),
-			tests: arrayValue(data.tests),
-			satisfies: arrayValue(data.satisfies),
-			file,
-		};
-	});
-
-	const tools: ToolRecord[] = toolkitFiles.map((file) => {
-		const { data } = parseFrontmatter(read(file));
-		const escalationRaw = Array.isArray(data.escalation)
-			? undefined
-			: (data.escalation as unknown as Record<string, unknown> | undefined);
-		const escalationTo =
-			typeof escalationRaw?.to === "string" ? escalationRaw.to : undefined;
-		const escalationWhen =
-			typeof escalationRaw?.when === "string" ? escalationRaw.when : undefined;
-		return {
-			slug: toStringValue(data.slug),
-			mechanism: toStringValue(data.mechanism),
-			name: toStringValue(data.name),
-			owner: toStringValue(data.owner),
-			drills: arrayValue(data.drills),
-			satisfies: arrayValue(data.satisfies),
-			escalation:
-				escalationRaw && escalationTo && escalationWhen
-					? {
-							to: escalationTo,
-							when: escalationWhen,
-							withinHours:
-								typeof escalationRaw.withinHours === "number"
-									? escalationRaw.withinHours
-									: undefined,
-						}
-					: undefined,
-			file,
-		};
-	});
-
-	const bookConfigPath = join(
-		workspaceRoot,
-		"apps",
-		book,
-		"src",
-		"book.config.ts",
-	);
-	const frame = existsSync(bookConfigPath)
-		? extractFrameConfigFromSource(read(bookConfigPath))?.slug
-		: undefined;
-
-	const chapterParsed = chapterFiles.map((file) => {
-		const { data, body } = parseFrontmatter(read(file));
-		return {
-			slug: toStringValue(data.slug) || file,
-			title: toStringValue(data.title) || toStringValue(data.slug) || file,
-			mechanisms: arrayValue(data.mechanisms),
-			prerequisites: arrayValue(data.prerequisites),
-			file,
-			body,
-		};
-	});
-
-	const chapters: ChapterRecord[] = chapterParsed.map(
-		({ body, ...chapter }) => ({
-			...chapter,
-			body,
-		}),
-	);
-	const chapterBodies = chapterParsed.map((c) => ({
-		file: c.file ?? c.slug,
-		body: c.body,
-	}));
-
-	const examples: ExampleRecord[] = exampleFiles.map((file) => {
-		const { data, body } = parseFrontmatter(read(file));
-		return {
-			mechanism: toStringValue(data.mechanism),
-			domain: toStringValue(data.domain),
-			title: toStringValue(data.title) || file,
-			body,
-			file,
-			frontmatterKeys: Object.keys(data),
-		};
-	});
-
-	const glossaryTerms = glossaryFiles.map((file) =>
-		toStringValue(parseFrontmatter(read(file)).data.term),
-	);
-	const toolkitNames = toolkitFiles.map((file) =>
-		toStringValue(parseFrontmatter(read(file)).data.name),
-	);
-	const vocabulary = [
-		...mechanisms.map((m) => m.slug),
-		...mechanisms.map((m) => m.title),
-		...glossaryTerms,
-		...toolkitNames,
-	].filter(Boolean);
 
 	const suggestions = runBookSuggestions({
 		book,
-		mechanisms,
-		chapters,
-		examples,
-		chapterBodies,
-		conceptFlags: extractConceptFlags(chapterBodies),
-		vocabulary,
-		frame,
-		tools,
+		mechanisms: content.mechanisms,
+		chapters: content.chapters,
+		examples: content.examples,
+		chapterBodies: content.chapterBodies,
+		conceptFlags: extractConceptFlags(content.chapterBodies),
+		vocabulary: content.vocabulary,
+		frame: content.frame,
+		tools: content.tools,
 		maxMechanismProposals: maxProposals,
 	});
 
@@ -165,7 +52,7 @@ const checkBook = (book: string): number => {
 		console.log(`\nSUGGESTIONS (${visible.length}) [${book}]`);
 		for (const suggestion of visible) {
 			const location = suggestion.file
-				? suggestion.file.replace(`${bookRoot}/`, "")
+				? suggestion.file.replace(`${content.bookRoot}/`, "")
 				: "(book)";
 			console.log(
 				`- [${suggestion.category}/${suggestion.severity}] ${location}: ${suggestion.message}`,
@@ -185,8 +72,8 @@ const checkBook = (book: string): number => {
 		}
 	}
 
-	if (frame === "runbook") {
-		printComplianceMatrix(book, mechanisms, tools);
+	if (content.frame === "runbook") {
+		printComplianceMatrix(book, content.mechanisms, content.tools);
 	}
 
 	return warnings.length;
@@ -218,11 +105,53 @@ const printComplianceMatrix = (
 	}
 };
 
+const printCrossBookMechanismIdentity = (): number => {
+	const bySlug = new Map<string, CrossBookRecord[]>();
+	for (const record of crossBookRecords) {
+		const list = bySlug.get(record.slug) ?? [];
+		list.push(record);
+		bySlug.set(record.slug, list);
+	}
+
+	const collisions = [...bySlug.entries()].filter(
+		([, records]) => records.length > 1,
+	);
+	if (collisions.length === 0) {
+		console.log(
+			"\nCROSS-BOOK CHECK: no mechanism slug is defined in more than one book.",
+		);
+		return 0;
+	}
+
+	console.log(`\nCROSS-BOOK MECHANISM COLLISIONS (${collisions.length})`);
+	for (const [slug, records] of collisions) {
+		const diverging = new Set(records.map((r) => r.definition.trim())).size > 1;
+		console.log(
+			`- [mechanism-identity/${diverging ? "warning" : "advisory"}] slug "${slug}" is defined in: ${records.map((r) => r.book).join(", ")}`,
+		);
+		for (const record of records) {
+			console.log(
+				`    ${record.book}: ${record.definition || "(no definition)"}`,
+			);
+		}
+		console.log(
+			`    → ${
+				diverging
+					? "Definitions diverge. Reconcile the boundaries to one referent, or rename one slug — slugs are durable identities (design-notes Invariant 1)."
+					: "Definitions agree at name level. Keep the definitions cross-linked so they do not drift apart."
+			}`,
+		);
+	}
+	return collisions.length;
+};
+
 const books = requestedBook ? [requestedBook] : listBookDirs();
 let totalWarnings = 0;
 for (const book of books) {
 	totalWarnings += checkBook(book);
 }
+
+totalWarnings += printCrossBookMechanismIdentity();
 
 if (books.length === 0) {
 	console.error("No books found under apps/.");

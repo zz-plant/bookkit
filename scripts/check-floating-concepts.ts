@@ -16,8 +16,9 @@ const { values } = parseArgs({
 
 const mode = values.mode ?? "warn";
 
-// Match multi-word Title Case phrases (2-4 capitalized words) representing potential named concepts
-const multiWordConcept = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/g;
+// Match multi-word Title Case phrases (2-4 capitalized words) representing potential named concepts.
+// Hyphens are treated as word separators so "On-Call Runbook" is one phrase, not "Call Runbook".
+const multiWordConcept = /\b([A-Z][a-z]+(?:(?:\s+|-)[A-Z][a-z]+){1,3})\b/g;
 
 const COMMON_ALLOWLIST = new Set([
 	"Table Of Contents",
@@ -66,6 +67,24 @@ function normalizeTerm(term: string): string {
 function loadRegisteredVocabulary(bookRoot: string): Set<string> {
 	const vocabulary = new Set<string>();
 
+	// The book's own title and slug (from book.config.ts) are registered labels.
+	const bookConfigPath = join(bookRoot, "../../book.config.ts");
+	if (existsSync(bookConfigPath)) {
+		const configSource = readFileSync(bookConfigPath, "utf8");
+		const configTitle = configSource.match(/title:\s*"([^"]+)"/)?.[1];
+		const configSlug = configSource.match(/slug:\s*"([^"]+)"/)?.[1];
+		if (configTitle) vocabulary.add(normalizeTerm(configTitle));
+		if (configSlug) vocabulary.add(normalizeTerm(configSlug));
+	}
+
+	// Chapters (their titles are what TOC prose and cross-references repeat).
+	const chapterDir = join(bookRoot, "chapters");
+	for (const file of walk(chapterDir)) {
+		const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+		const title = toStringValue(data.title) || toStringValue(data.slug);
+		if (title) vocabulary.add(normalizeTerm(title));
+	}
+
 	// Mechanisms
 	const mechanismDir = join(bookRoot, "mechanisms");
 	for (const file of walk(mechanismDir)) {
@@ -96,6 +115,22 @@ function loadRegisteredVocabulary(bookRoot: string): Set<string> {
 		if (name) vocabulary.add(normalizeTerm(name));
 	}
 
+	// Releases (their titles appear in release-note prose).
+	const releasesDir = join(bookRoot, "releases");
+	for (const file of walk(releasesDir)) {
+		const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+		const title = toStringValue(data.title);
+		if (title) vocabulary.add(normalizeTerm(title));
+	}
+
+	// Examples (their titles are formal labels, not floating concepts).
+	const examplesDir = join(bookRoot, "examples");
+	for (const file of walk(examplesDir)) {
+		const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+		const title = toStringValue(data.title);
+		if (title) vocabulary.add(normalizeTerm(title));
+	}
+
 	return vocabulary;
 }
 
@@ -123,6 +158,7 @@ async function checkConceptsForBook(book: string): Promise<number> {
 	}
 
 	const vocabulary = loadRegisteredVocabulary(base);
+	const registeredTerms = [...vocabulary];
 	const files = walk(base);
 	const hits: Record<string, Set<string>> = {};
 
@@ -134,7 +170,9 @@ async function checkConceptsForBook(book: string): Promise<number> {
 		const cleanedBody = body
 			.replace(/```[\s\S]*?```/g, "")
 			.replace(/`[^`]+`/g, "")
-			.replace(/^#+\s+.*$/gm, "");
+			.replace(/^#+\s+.*$/gm, "")
+			// "Source:" lines cite external essays; provenance is not concept usage.
+			.replace(/Source: [^.\n]*\.?/g, "");
 
 		let match = multiWordConcept.exec(cleanedBody);
 		while (match !== null) {
@@ -144,6 +182,11 @@ async function checkConceptsForBook(book: string): Promise<number> {
 
 			const normalized = normalizeTerm(term);
 			if (vocabulary.has(normalized)) continue;
+
+			// A phrase that is part of a registered title (e.g. a chapter title
+			// repeated in the overview TOC, or a hyphenated book title) is not a
+			// floating concept.
+			if (registeredTerms.some((t) => t.includes(normalized))) continue;
 
 			let fileHits = hits[file];
 			if (!fileHits) {

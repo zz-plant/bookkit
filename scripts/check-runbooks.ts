@@ -1,8 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
 import {
 	auditReleaseControlDrift,
 	auditRunbookCoverage,
+	type ComplianceRow,
+	type ComplianceSummary,
 	deriveComplianceMatrix,
 	type MechanismRecord,
 	type ReleaseRecord,
@@ -20,8 +22,35 @@ import {
 
 const requestedBook = optionalArg("--book");
 const mode = optionalArg("--mode") ?? "warn";
+const exportFile = optionalArg("--export");
 
 const workspaceRoot = join(import.meta.dir, "..");
+
+const exportComplianceTo = (
+	book: string,
+	rows: ComplianceRow[],
+	summary: ComplianceSummary,
+	warnings: number,
+	target: string,
+): void => {
+	const artifact = {
+		book,
+		generatedAt: new Date().toISOString(),
+		frame: "runbook",
+		compliance: summary,
+		rows: rows.map((r) => ({
+			control: r.control,
+			mechanism: r.mechanism,
+			tools: r.tools,
+			drillReady: r.drillReady,
+		})),
+		openWarnings: warnings,
+	};
+	const targetPath = isAbsolute(target) ? target : join(workspaceRoot, target);
+	mkdirSync(dirname(targetPath), { recursive: true });
+	writeFileSync(targetPath, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+	console.log(`\nCompliance artifact written to ${targetPath}`);
+};
 
 const checkBook = (book: string): number => {
 	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
@@ -136,6 +165,10 @@ const checkBook = (book: string): number => {
 		if (summary.uncoveredControls.length > 0) {
 			console.log(`  Uncovered: ${summary.uncoveredControls.join(", ")}`);
 		}
+	}
+
+	if (exportFile && frame === "runbook") {
+		exportComplianceTo(book, rows, summary, warnings.length, exportFile);
 	}
 
 	return warnings.length;

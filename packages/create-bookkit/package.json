@@ -1,0 +1,30 @@
+{
+	"name": "create-bookkit",
+	"version": "0.1.0",
+	"description": "Scaffold a recompilable book project: structured content, enforceable frames, graph-based ordering, and compiler-gated agent workflows.",
+	"type": "module",
+	"license": "CC0-1.0",
+	"keywords": [
+		"book",
+		"compiler",
+		"mdx",
+		"astro",
+		"recompilable",
+		"structured-content",
+		"scaffold"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/zz-plant/bookkit",
+		"directory": "packages/create-bookkit"
+	},
+	"bin": {
+		"create-bookkit": "./src/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"engines": {
+		"bun": ">=1.2"
+	}
+}

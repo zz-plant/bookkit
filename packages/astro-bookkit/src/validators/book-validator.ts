@@ -50,17 +50,39 @@ function parseSimpleFrontmatter(content: string): {
 	const body = content.slice(end + 4).trim();
 	const data: Record<string, unknown> = {};
 
+	let lastKey: string | null = null;
 	for (const line of raw.split("\n")) {
 		const trimmed = line.trim();
 		if (!trimmed || trimmed.startsWith("#")) continue;
+		const listMatch = trimmed.match(/^-\s+(.*)$/);
+		if (listMatch) {
+			if (lastKey) {
+				const item = parseScalarValue(listMatch[1]);
+				const current = data[lastKey];
+				if (Array.isArray(current)) current.push(item);
+				else if (current === undefined || current === "")
+					data[lastKey] = [item];
+				else data[lastKey] = [current, item];
+			}
+			continue;
+		}
 		const match = trimmed.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
 		if (match) {
-			const key = match[1];
-			const val = match[2].replace(/^["']|["']$/g, "").trim();
-			data[key] = val;
+			lastKey = match[1];
+			data[lastKey] = parseScalarValue(match[2]);
 		}
 	}
 	return { data, body };
+}
+
+function parseScalarValue(value: string): string | number | boolean {
+	const trimmed = value.replace(/^["']|["']$/g, "").trim();
+	if (trimmed === "") return "";
+	if (trimmed === "true") return true;
+	if (trimmed === "false") return false;
+	if (trimmed === "null" || trimmed === "~") return "";
+	if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+	return trimmed;
 }
 
 export function validateBookInMemory(

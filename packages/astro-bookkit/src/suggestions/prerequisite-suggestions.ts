@@ -18,6 +18,14 @@ export type PrerequisiteSuggestionOptions = {
 	mechanismSlugs?: string[];
 };
 
+/**
+ * Root chapters ("overview") survey the whole book. They declare mechanisms
+ * without introducing them and legitimately reference mechanisms before the
+ * dedicated chapters exist, so they must not create introducer obligations.
+ */
+const isRootChapter = (chapter: { slug: string }): boolean =>
+	chapter.slug === "overview" || chapter.slug === "00-overview";
+
 export const suggestPrerequisiteEdges = (
 	options: PrerequisiteSuggestionOptions,
 ): ContentSuggestion[] => {
@@ -43,8 +51,11 @@ export const suggestPrerequisiteEdges = (
 		transitivePrereqs(from).has(to);
 
 	// Chapters that introduce each mechanism, keyed to first (ordered) introducer.
+	// Root chapters survey mechanisms rather than introducing them, so they are
+	// excluded: a mechanism declared only in the overview is not "introduced" there.
 	const introducers = new Map<string, ChapterRecord[]>();
 	for (const chapter of options.chapters) {
+		if (isRootChapter(chapter)) continue;
 		for (const mechanism of chapter.mechanisms) {
 			if (!knownMechanisms.has(mechanism)) continue;
 			const list = introducers.get(mechanism) ?? [];
@@ -70,6 +81,10 @@ export const suggestPrerequisiteEdges = (
 				});
 				continue;
 			}
+
+			// Root chapters are entry points; they are not required to sequence
+			// against the mechanisms they survey.
+			if (isRootChapter(chapter)) continue;
 
 			for (const introducer of introducers.get(mechanism) ?? []) {
 				if (introducer.slug === chapter.slug) continue;

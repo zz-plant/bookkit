@@ -4,7 +4,7 @@ const forceNoindex = process.env.BOOKKIT_NOINDEX === "true";
 export const bookConfig = {
 	slug: "on-call",
 	title: "On-Call Runbook",
-	status: "draft",
+	status: "published",
 	site: {
 		url: "https://on-call.book",
 		enforceHttps: true,

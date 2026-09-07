@@ -2,7 +2,7 @@
 
 You do not need full-system context to contribute safely. Pick a lane, run checks, and keep architecture boundaries intact.
 
-For architecture + commands see [`README.md`](./README.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
+For commands see [`README.md`](./README.md). For how the system is structured — layers, engine module map, import tiers — see [`docs/architecture.md`](./docs/architecture.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
 
 ---
 
@@ -105,6 +105,8 @@ Requirements:
 - keep validation errors actionable
 - include rationale in comments or PR notes
 - include before/after behavior in commit/PR description
+- respect engine module tiers — imports point strictly down; see the module map in [`docs/architecture.md`](./docs/architecture.md)
+- if you add, rename, remove, or re-layer a module, update `docs/architecture.md` in the same change
 
 ---
 
@@ -116,7 +118,7 @@ Run the smallest complete check set for your lane.
 | --- | --- | --- |
 | A (content) | `bun run validate`, `bun run lint`, `bun run test` | `bun run validate:release` when editing mechanism-adjacent prose |
 | B (mechanisms/tools) | `bun run validate`, `bun run lint`, `bun run check:types`, `bun run test` | `bun run validate:release` when changing definitions/boundaries |
-| C (engine/schema/frame) | `bun run validate`, `bun run validate:release`, `bun run lint`, `bun run check:types`, `bun run test` | `bun run check:upgrade -- --release` for behavior-affecting changes |
+| C (engine/schema/frame) | `bun run validate`, `bun run validate:release`, `bun run lint`, `bun run check:types`, `bun run check:architecture`, `bun run test` | `bun run check:upgrade -- --release` for behavior-affecting changes |
 
 If checks fail due to intended strictness changes, update error text so it stays actionable.
 
@@ -170,7 +172,8 @@ Use a concise structure to improve review speed:
 
 ## Documentation governance
 
-- `README.md` = architecture and operations
+- `README.md` = orientation and operations
+- `docs/architecture.md` = system structure, module map, import tiers
 - `CONTRIBUTING.md` = workflow and lane selection
 - `AGENTS.md` = invariants and guardrails
 
@@ -185,9 +188,10 @@ GitHub Actions runs on every push and PR to `main` with the full quality gate:
 1. `bun run lint` — Biome style check
 2. `bun run check:types` — TypeScript across all apps + package
 3. `bun run check:separation` — content boundary enforcement
-4. `bun run check:todos` — TODO policy
-5. `bun run check:shims` — shim consistency
-6. `bun run validate` — schema + frame validation
-7. `bun run test` — Bun test runner across all 25 test files
+4. `bun run check:architecture` — architecture doc matches the tree
+5. `bun run check:todos` — TODO policy
+6. `bun run check:shims` — shim consistency
+7. `bun run validate` — schema + frame validation
+8. `bun run test` — Bun test runner across all test files
 
 PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

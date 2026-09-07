@@ -34,7 +34,7 @@ COMPLIANCE on-call: 4/4 controls with tool coverage
 ## Headline numbers (measured on this repo)
 
 - **4 books**, including two teaching books and a runbook — all sharing one engine.
-- **110 tests**, compile-and-validate the whole workspace in **~1.4s**.
+- **122 tests**, compile-and-validate the whole workspace in **~1.4s**.
 - **0 schema drift**: schemas, frames, and shims are enforced by gates (`validate`, `check:shims`, `check:separation`), so books can't silently diverge.
 
 ---
@@ -47,7 +47,7 @@ COMPLIANCE on-call: 4/4 controls with tool coverage
 - Do not put book-specific behavior in content files.
 - Run `bun run validate` before opening a PR.
 
-For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md). For non-negotiable architectural rules, see [`AGENTS.md`](./AGENTS.md). For the reasoning behind the invariants, see [`docs/design-notes.md`](./docs/design-notes.md).
+For how the whole system fits together, see [`docs/architecture.md`](./docs/architecture.md). For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md). For non-negotiable architectural rules, see [`AGENTS.md`](./AGENTS.md). For the reasoning behind the invariants, see [`docs/design-notes.md`](./docs/design-notes.md).
 
 ---
 
@@ -55,7 +55,8 @@ For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 | Document | Canonical for | Audience |
 | --- | --- | --- |
-| [`README.md`](./README.md) | Architecture + operational commands | Developers + maintainers |
+| [`README.md`](./README.md) | Orientation + operational commands | Developers + maintainers |
+| [`docs/architecture.md`](./docs/architecture.md) | System structure: layers, pipelines, module map, import rules | Developers + agents |
 | [`AGENTS.md`](./AGENTS.md) | Architectural invariants + risk boundaries | Agents + reviewers |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow + lanes | Human + AI contributors |
 | [`docs/design-notes.md`](./docs/design-notes.md) | Why the invariants exist + error philosophy | Reviewers + new contributors |
@@ -99,65 +100,19 @@ Bookkit enforces strict separation of concerns:
 
 This keeps books recompilable while allowing iterative content edits.
 
-### Repo layout
-
 ```txt
 .
-├─ package.json              # workspace scripts (no per-book scripts)
-├─ apps/
-│  ├─ bad-people/
-│  │  ├─ src/book.config.ts
-│  │  └─ src/content/book/
-│  │     ├─ chapters/
-│  │     ├─ mechanisms/
-│  │     ├─ toolkit/
-│  │     ├─ examples/
-│  │     ├─ glossary/
-│  │     └─ releases/
-│  ├─ crumple-zone/
-│  ├─ on-call/               # runbook-frame proof book (SOP wedge)
-│  └─ running-hot/
-├─ packages/
-│  └─ astro-bookkit/
-│     └─ src/
-│        ├─ book/             # graph engine, runtime, entrypoints
-│        ├─ frames/           # structural requirements
-│        ├─ schemas/          # Zod frontmatter schemas
-│        ├─ validators/       # book + separation + frame validators
-│        ├─ mcp/              # MCP tool handlers + endpoint
-│        ├─ exports/          # PDF/EPUB generation
-│        ├─ markdown/         # heading extraction, slugger
-│        ├─ layouts/          # BookLayout + UI islands
-│        └─ components/       # shared Astro components
-├─ scripts/                   # CLI tasks + governance checks
-├─ tests/                     # root-level test suites
-├─ docs/                      # roadmap, critiques, research
-└─ .github/workflows/ci.yml  # CI quality gate
+├─ apps/       # one directory per book: config, content, routes, thin runtime wiring
+├─ packages/   # astro-bookkit (the engine) + create-bookkit (project generator)
+├─ scripts/    # CLI entrypoints: governance gates, scaffolds, compile/export tasks
+└─ docs/       # architecture, design notes, roadmaps, research
 ```
 
+**[`docs/architecture.md`](./docs/architecture.md) is canonical for the rest**: the engine module map, the tier rules that govern which module may import which, the two pipelines (Astro render vs. Bun governance CLI), the content-section contract, and the extension points for adding a frame, a schema field, a gate, or an agent tool.
+
+That document is verified rather than trusted — `bun run check:architecture` fails CI if it stops matching the tree, so the module map, layering, and import cycles it describes are the real ones. Book apps stay thin for one reason worth knowing up front: Vite resolves `import.meta.glob()` relative to the calling file and Astro discovers routes by filename, so `src/lib/book-runtime.ts` and `src/pages/**` must be app-local. Everything else is a re-export held identical across books by `bun run check:shims`.
+
 Use `bun run list:books` as the source of truth for currently active books.
-
----
-
-## Book bootstrap and wrapper pattern
-
-Each book app should bootstrap the shared engine exactly once in `apps/<book>/src/lib/book-runtime.ts`.
-That file is allowed to stay app-local because Astro/Vite require local `import.meta.glob()` calls for content discovery.
-Everything else should lean on shared engine helpers or canonical wrapper templates instead of ad-hoc copy/paste.
-
-### What stays app-local
-
-- `src/lib/book-runtime.ts` for file-local `import.meta.glob()` wiring.
-- `src/pages/api/**` and `src/pages/exports/**` route files, because Astro's file-based routing discovers handlers by filename.
-- The tiny MCP route call that passes `import.meta.url` into the shared helper.
-
-### What should be shared
-
-- Runtime aliasing belongs in `packages/astro-bookkit/src/book/**`.
-- Compatibility shims such as `src/lib/book-entrypoints.ts` and `src/lib/release-notes.ts` should re-export from `book-runtime`.
-- Canonical wrapper file contents live in `packages/astro-bookkit/templates/book-app/**` and are enforced with `bun run check:shims` / `bun run sync:shims`.
-
-This keeps book apps compliant with Astro's routing constraints while avoiding drift between books.
 
 ---
 
@@ -238,6 +193,7 @@ bun run export:gitbook -- --book bad-people
 ```bash
 bun run list:books
 bun run check:separation
+bun run check:architecture
 bun run check:concepts
 bun run check:suggestions
 bun run check:runbooks
@@ -248,6 +204,16 @@ bun run stack:capabilities
 ```
 
 `bun run check:suggestions [--book <slug>]` is the AI assistance layer: it analyzes a book and reports actionable, deterministic suggestions — overlapping mechanisms, unregistered recurring concepts (with candidate mechanism drafts), examples that restate a mechanism instead of illustrating it, and missing prerequisite edges for the reading graph. It never writes files; it proposes and you approve.
+
+`bun run bookkit propose <book>` is the materialization layer: it turns the suggestion set into a reviewable **proposal bundle** — an end-to-end trace from raw source to compiled structure. Give it a book that is imported-but-unstructured (or any book mid-edit) and it returns: a frame proposal (runbook vs intervention, from keyword signals), drafts for every unregistered recurring mechanism, prerequisite edges the reading graph is missing, toolkit bindings for uncovered mechanisms, and a `book.config.ts` draft for a book that has none.
+
+```bash
+bun run bookkit propose <book>                 # review the bundle
+bun run bookkit propose <book> --write          # write bundle artifacts to apps/<book>/proposals/
+bun run bookkit propose <book> --apply mechanisms --apply tools --apply config
+```
+
+`--apply` materializes approved proposals into the content tree (`mechanisms/`, `toolkit/`, and a config draft under `proposals/`), refusing to overwrite or redefine anything already registered. Frame choice, mechanism identity, and config stay author decisions — the tool proposes and writes draft structure, never a live `book.config.ts`. Pass `--detect-frame` to see what the content implies even when a frame is already declared, and `--id <proposal>` to accept a specific proposal.
 
 `bun run check:runbooks [--book <slug>]` is the runbook verification layer: for runbook-frame books it audits control coverage (mechanism → tool → drill → escalation → owner), derives the compliance matrix, and joins release narratives against HEAD coverage to flag drift. Pass `--mode error` to fail on any open coverage item.
 
@@ -269,6 +235,7 @@ GitHub Actions runs on every push and PR to `main`:
 - `bun run lint` — Biome style check
 - `bun run check:types` — TypeScript across all apps + package
 - `bun run check:separation` — content boundary enforcement
+- `bun run check:architecture` — architecture doc matches the tree (module map, tiers, cycles)
 - `bun run check:todos` — TODO policy check
 - `bun run check:shims` — shim consistency
 - `bun run validate` — schema + frame validation for all books
@@ -280,9 +247,10 @@ GitHub Actions runs on every push and PR to `main`:
 | If you need to… | Run | Why |
 | --- | --- | --- |
 | iterate on one book UI quickly | `bun run bookkit dev bad-people` | Fast local feedback loop for content + layout work |
-| verify architecture invariants before review | `bun run validate && bun run check:separation` | Catches frame/content boundary regressions |
+| verify architecture invariants before review | `bun run validate && bun run check:separation && bun run check:architecture` | Catches frame/content boundary regressions and architecture-doc drift |
 | sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
 | get AI-style editing suggestions | `bun run check:suggestions -- --book bad-people` | Flags overlaps, example restatement, and missing graph edges |
+| turn raw markdown into structured content | `bun run bookkit import --book <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
 | rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
 | run all quality gates | `bun run lint && bun run check:types && bun run test && bun run validate` | Full CI-equivalent local check |
@@ -398,6 +366,24 @@ To remove a scaffolded book app:
 ```bash
 bun run remove:book -- --book <book-slug>
 ```
+
+### Scaffold a standalone project
+
+To generate a self-contained book project (app + vendored engine + checker scripts) in a new directory:
+
+```bash
+bun run create-bookkit <dir> --book <slug> --title "Book Title" [--dir /path/to/markdown]
+```
+
+The generated project works without publishing anything: `packages/astro-bookkit/` is vendored into it. Try it:
+
+```bash
+cd <dir> && bun install
+bun run validate
+bun run dev
+```
+
+Switch from `intervention` to `runbook` in `src/book.config.ts` to add drill-owned actions, and `bun run runbooks` produces the compliance matrix.
 
 ---
 

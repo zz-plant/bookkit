@@ -1,29 +1,33 @@
 ---
+import { readRoutes } from "@bookkit/astro-bookkit";
 import ToolsPage from "@bookkit/astro-bookkit/components/ToolsPage.astro";
 import bookConfig from "../../book.config";
 import { getVersionEntries } from "../../lib/versions";
-import { readRoutes } from "@bookkit/astro-bookkit";
 
 const toolLinks = [
-  {
-    title: "Engagement analytics",
-    description: "View reader behavior, drop-off signals, and feedback dashboards.",
-    href: readRoutes.analytics,
-  },
-  {
-    title: "Release notes",
-    description: "Review version summaries and change rationale for published updates.",
-    href: "/release-notes",
-  },
-  {
-    title: "Offline exports",
-    description: "Access book and chapter export options for offline reading workflows.",
-    href: "/downloads",
-  },
+	{
+		title: "Engagement analytics",
+		description:
+			"View reader behavior, drop-off signals, and feedback dashboards.",
+		href: readRoutes.analytics,
+	},
+	{
+		title: "Release notes",
+		description:
+			"Review version summaries and change rationale for published updates.",
+		href: "/release-notes",
+	},
+	{
+		title: "Offline exports",
+		description:
+			"Access book and chapter export options for offline reading workflows.",
+		href: "/downloads",
+	},
 ];
 
 const versionEntries = getVersionEntries();
-const currentVersion = versionEntries.find((entry) => entry.isLatest)?.version ?? bookConfig.status;
+const currentVersion =
+	versionEntries.find((entry) => entry.isLatest)?.version ?? bookConfig.status;
 ---
 <ToolsPage
   title={`Tools • ${bookConfig.title}`}

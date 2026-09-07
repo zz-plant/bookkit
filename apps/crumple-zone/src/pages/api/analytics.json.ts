@@ -1,1 +1,4 @@
-export { analyticsApiGet as GET, analyticsApiPost as POST } from "../../lib/book-runtime";
+export {
+	analyticsApiGet as GET,
+	analyticsApiPost as POST,
+} from "../../lib/book-runtime";

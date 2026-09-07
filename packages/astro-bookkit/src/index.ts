@@ -216,6 +216,23 @@ export {
 	resolvePreviewLinks,
 	resolvePreviewToken,
 } from "./preview";
+export type {
+	BuildProposalBundleOptions,
+	ConfigDraft,
+	ConfigProposalOptions,
+	EdgeProposal,
+	FrameDetection,
+	MechanismProposal,
+	ProposalBundle,
+	ToolProposal,
+} from "./proposals";
+export {
+	buildProposalBundle,
+	detectFrameFromBodies,
+	mechanismFrontmatter,
+	proposeConfigDraft,
+	toolFrontmatter,
+} from "./proposals";
 export type { AiQaProviderConfig, QaRequest, QaResponse, QaTurn } from "./qa";
 export { createQaApiHandlers, filterEntriesToReadingWindow } from "./qa";
 export type { ReleaseEvent } from "./releases/analytics";

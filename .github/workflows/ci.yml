@@ -34,6 +34,9 @@ jobs:
       - name: Check Separation
         run: bun run check:separation
 
+      - name: Check Architecture Doc
+        run: bun run check:architecture
+
       - name: Check TODOs
         run: bun run check:todos
 

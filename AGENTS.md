@@ -6,12 +6,15 @@ This file defines non-negotiable rules for human and AI contributors. If guidanc
 
 ## Canonical document roles
 
-- `README.md` → architecture + operational commands
+- `README.md` → orientation + operational commands
+- `docs/architecture.md` → system structure: layers, pipelines, engine module map, import tiers
 - `CONTRIBUTING.md` → contribution workflow + lanes
 - `AGENTS.md` → hard invariants + risk boundaries
 - app/package READMEs → local orientation only
 
 Prefer linking over policy duplication.
+
+`docs/architecture.md` is machine-checked by `bun run check:architecture`. If you add, rename, remove, or re-layer an engine module, update that document in the same change — CI fails otherwise.
 
 ---
 
@@ -51,6 +54,16 @@ If behavior is needed, either:
 ✅ register as mechanisms or glossary terms
 
 ❌ do not introduce floating concepts in prose
+
+### Engine module layering
+
+Engine modules are tiered in the module map in `docs/architecture.md`.
+
+✅ import from a strictly lower tier
+
+❌ do not import sideways or upward, and do not introduce a new import cycle
+
+Two cycles are declared and tolerated (`frames` ↔ `validators`, `book` ↔ `components` ↔ `layouts`). Any other cycle fails `bun run check:architecture`. Break it by moving shared code down a tier or inverting the dependency — not by adding an entry to the declared list.
 
 ---
 
@@ -128,6 +141,7 @@ Before finalizing work:
 3. summarize risks and migration impact for risky changes
 4. avoid introducing duplicate policy docs
 5. if your work changes the authorship model, update `docs/authorship-model.md`
+6. if your work adds, renames, removes, or re-layers an engine module, update `docs/architecture.md` and run `bun run check:architecture`
 
 ---
 

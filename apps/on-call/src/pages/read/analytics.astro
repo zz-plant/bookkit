@@ -1,21 +1,21 @@
 ---
+import { readRoutes } from "@bookkit/astro-bookkit";
 import AnalyticsDashboard from "@bookkit/astro-bookkit/components/AnalyticsDashboard.astro";
 import FeedbackDashboard from "@bookkit/astro-bookkit/components/FeedbackDashboard.astro";
 import PreviewLinksPanel from "@bookkit/astro-bookkit/components/PreviewLinksPanel.astro";
 import { createPreviewLinks } from "@bookkit/astro-bookkit/preview";
-import BaseLayout from "../../layouts/BaseLayout.astro";
 import bookConfig from "../../book.config";
-import { readRoutes } from "@bookkit/astro-bookkit";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 
 const lastUpdated = new Date().toLocaleDateString("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
+	month: "short",
+	day: "numeric",
+	year: "numeric",
 });
 
 const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
-  baseUrl: bookConfig.site?.url,
-  path: readRoutes.root,
+	baseUrl: bookConfig.site?.url,
+	path: readRoutes.root,
 });
 ---
 <BaseLayout title={`Analytics • ${bookConfig.title}`}>

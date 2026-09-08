@@ -6,7 +6,7 @@ This review traverses three common reader journeys on a narrow mobile viewport a
 
 - Traversed these route sequences in a running local app:
   1. Home (`/`) → Reading hub (`/read`) → Chapters (`/read/chapters`)
-  2. Reading hub (`/read`) → Mechanisms index (`/read/mechanisms`) → Mechanism detail (`/read/mechanisms/delay-as-force`)
+  2. Reading hub (`/read`) → Mechanisms index (`/read/mechanisms`) → Mechanism detail (`/read/mechanisms/coercive-waiting`)
   3. Home/Read entry → Release notes (`/release-notes`)
 - Verified rendered route structure with local requests and extracted heading/link affordances from each page.
 - Focus of critique: information scent, tap efficiency, orientation, and continuity on phone-sized screens.
@@ -36,7 +36,7 @@ This review traverses three common reader journeys on a narrow mobile viewport a
 
 ## Journey 2: Problem-focused concept lookup
 
-**Path:** `/read` → `/read/mechanisms` → `/read/mechanisms/delay-as-force`
+**Path:** `/read` → `/read/mechanisms` → `/read/mechanisms/coercive-waiting`
 
 ### What works well on mobile
 - Mechanism index has lightweight metadata chips (“core”, “high leverage”, etc.) that improve scanability.

@@ -21,8 +21,8 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
   data-feedback-type={contentType}
   data-feedback-endpoint={endpoint}
 >
-  <div class="feedback-widget__prompt">
-    <span>{prompt}</span>
+  <div class="feedback-widget__main">
+    <span class="feedback-widget__prompt">{prompt}</span>
     <div class="feedback-widget__actions">
       <button
         type="button"
@@ -30,7 +30,7 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
         data-feedback-choice="helpful"
         aria-pressed="false"
       >
-        👍 Helpful
+        <span aria-hidden="true">👍</span> Yes
       </button>
       <button
         type="button"
@@ -38,38 +38,35 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
         data-feedback-choice="not_helpful"
         aria-pressed="false"
       >
-        👎 Not helpful
+        <span aria-hidden="true">👎</span> No
       </button>
     </div>
+    <div class="feedback-widget__emoji" aria-label="Reactions">
+      <button type="button" data-feedback-choice="emoji:😀" aria-label="Happy" aria-pressed="false">😀</button>
+      <button type="button" data-feedback-choice="emoji:🤔" aria-label="Thoughtful" aria-pressed="false">🤔</button>
+      <button type="button" data-feedback-choice="emoji:😕" aria-label="Confused" aria-pressed="false">😕</button>
+      <button type="button" data-feedback-choice="emoji:🔥" aria-label="Excited" aria-pressed="false">🔥</button>
+    </div>
   </div>
-  <div class="feedback-widget__emoji" aria-label="Quick reactions">
-    <button type="button" data-feedback-choice="emoji:😀" aria-label="Happy" aria-pressed="false">😀</button>
-    <button type="button" data-feedback-choice="emoji:🤔" aria-label="Thoughtful" aria-pressed="false">🤔</button>
-    <button type="button" data-feedback-choice="emoji:😕" aria-label="Confused" aria-pressed="false">😕</button>
-    <button type="button" data-feedback-choice="emoji:🔥" aria-label="Excited" aria-pressed="false">🔥</button>
-  </div>
-  <button
-    type="button"
-    class="feedback-widget__note-toggle"
-    data-feedback-note-toggle
-    aria-expanded="false"
-    aria-controls={noteId}
-  >
-    Add a note
-  </button>
-  <div class="feedback-widget__note" id={noteId} data-feedback-note hidden>
-    <label>
-      <span class="sr-only">Optional feedback note</span>
+
+  <div class="feedback-widget__step2" id={noteId} data-feedback-note hidden>
+    <label class="feedback-widget__note-label">
+      <span class="sr-only">Optional note</span>
       <textarea
-        rows="3"
+        rows="2"
         maxlength="240"
-        placeholder="Optional: What should we improve?"
+        placeholder="Anything specific to share? (optional)"
         data-feedback-comment
       ></textarea>
     </label>
-    <button type="button" class="feedback-widget__submit" data-feedback-submit>
-      Send feedback
-    </button>
+    <div class="feedback-widget__step2-actions">
+      <button type="button" class="feedback-widget__submit" data-feedback-submit>
+        Send
+      </button>
+      <button type="button" class="feedback-widget__skip" data-feedback-skip>
+        Skip note
+      </button>
+    </div>
   </div>
   <div class="feedback-widget__status" data-feedback-status aria-live="polite"></div>
 </div>
@@ -161,10 +158,10 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     const contentType = widget.dataset.feedbackType || "chapter";
     const endpoint = resolveEndpoint(widget.dataset.feedbackEndpoint);
     const status = widget.querySelector("[data-feedback-status]");
-    const noteToggle = widget.querySelector("[data-feedback-note-toggle]");
     const notePanel = widget.querySelector("[data-feedback-note]");
     const commentField = widget.querySelector("[data-feedback-comment]");
     const submitButton = widget.querySelector("[data-feedback-submit]");
+    const skipButton = widget.querySelector("[data-feedback-skip]");
     const choiceButtons = Array.from(widget.querySelectorAll("[data-feedback-choice]"));
 
     const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
@@ -179,8 +176,9 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     const disable = () => {
       widget.classList.add("is-submitted");
       choiceButtons.forEach((button) => (button.disabled = true));
-      noteToggle && (noteToggle.disabled = true);
-      submitButton && (submitButton.disabled = true);
+      if (notePanel) notePanel.hidden = true;
+      if (submitButton) submitButton.disabled = true;
+      if (skipButton) skipButton.disabled = true;
       if (commentField) commentField.disabled = true;
     };
 
@@ -209,7 +207,6 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     }
 
     let selectedChoice = null;
-    let noteOpen = false;
 
     const submitFeedback = (choice, comment) => {
       if (!choice) {
@@ -233,21 +230,9 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
       saveEvent(storageKey, feedbackEvent);
       sendToEndpoint(endpoint, feedbackEvent);
       pulseHaptic("success");
-      announce("Thanks for the feedback!");
+      announce("Thanks for your feedback!");
       disable();
     };
-
-    noteToggle?.addEventListener("click", () => {
-      noteOpen = !noteOpen;
-      pulseHaptic("light");
-      if (!notePanel) return;
-      notePanel.hidden = !noteOpen;
-      noteToggle.textContent = noteOpen ? "Hide note" : "Add a note";
-      noteToggle.setAttribute("aria-expanded", noteOpen ? "true" : "false");
-      if (noteOpen) {
-        commentField?.focus();
-      }
-    });
 
     choiceButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -259,16 +244,21 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
         choiceButtons.forEach((btn) => {
           btn.setAttribute("aria-pressed", btn === button ? "true" : "false");
         });
-        if (noteOpen) {
-          announce("Reaction selected. Add a note or send feedback.");
-          return;
+
+        // Open step 2 smoothly for optional note
+        if (notePanel) {
+          notePanel.hidden = false;
+          commentField?.focus();
         }
-        submitFeedback(selectedChoice, "");
       });
     });
 
     submitButton?.addEventListener("click", () => {
       submitFeedback(selectedChoice, commentField?.value ?? "");
+    });
+
+    skipButton?.addEventListener("click", () => {
+      submitFeedback(selectedChoice, "");
     });
   };
 

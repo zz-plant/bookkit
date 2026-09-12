@@ -153,28 +153,47 @@ const filterId = `list-filter-${String(title ?? "items")
         </a>
       ))}
 </div>
+<div class="list-empty" data-list-empty hidden style="padding: var(--space-6); text-align: center; border: 1px dashed var(--color-border); border-radius: var(--radius-card); margin: var(--space-4) 0;">
+  <p style="margin: 0; color: var(--color-muted);">No matching entries found.</p>
+  <button type="button" class="pill" data-list-reset style="margin-top: var(--space-3); cursor: pointer;">Clear filter</button>
+</div>
 <slot name="after-list" />
 {(showFilter || showDensityToggle) && (
   <script define:vars={{ filterId }}>
     const input = document.querySelector(`[data-list-filter="${filterId}"]`);
     const list = document.querySelector(`[data-list-container="${filterId}"]`);
+    const emptyState = document.querySelector(`[data-list-empty]`);
+    const resetButton = document.querySelector(`[data-list-reset]`);
     if (list) {
       const items = Array.from(list.querySelectorAll("[data-list-item]"));
       const groups = Array.from(list.querySelectorAll("[data-alpha-group]"));
       const densityButtons = Array.from(document.querySelectorAll("button[data-list-density]"));
       const applyFilter = () => {
         const query = input instanceof HTMLInputElement ? input.value.trim().toLowerCase() : "";
+        let visibleCount = 0;
         items.forEach((item) => {
           const text = item.dataset.filterText || "";
-          item.hidden = query.length > 0 && !text.includes(query);
+          const isHidden = query.length > 0 && !text.includes(query);
+          item.hidden = isHidden;
+          if (!isHidden) visibleCount++;
         });
         groups.forEach((group) => {
           const visibleItems = group.querySelectorAll("[data-list-item]:not([hidden])");
           group.hidden = visibleItems.length === 0;
         });
+        if (emptyState) {
+          emptyState.hidden = visibleCount > 0 || items.length === 0;
+        }
       };
       if (input instanceof HTMLInputElement) {
         input.addEventListener("input", applyFilter);
+      }
+      if (resetButton && input instanceof HTMLInputElement) {
+        resetButton.addEventListener("click", () => {
+          input.value = "";
+          applyFilter();
+          input.focus();
+        });
       }
       densityButtons.forEach((button) => {
         button.addEventListener("click", () => {

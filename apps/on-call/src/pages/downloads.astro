@@ -20,31 +20,26 @@ const { items: chapterItems } = createLocalizedContentList(modules, {
 });
 
 const bookExportLinks = getBookExportLinks();
-const chapterDownloadItems = chapterItems.map((chapter) => ({
-  href: chapter.href,
-  title: chapter.title,
-  eyebrow: "Chapter exports",
-  meta: getChapterExportLinks(chapter.slug, chapter.title)
-    .map((link) => `${link.format.toUpperCase()}: ${link.href}`)
-    .join(" • "),
-}));
+const allChapterExportLinks = chapterItems.flatMap((chapter) =>
+  getChapterExportLinks(chapter.slug, chapter.title)
+);
 ---
 <BaseLayout title={`Offline reading • ${bookConfig.title}`}>
   <div class="section-header">
     <h1>Offline reading</h1>
     <p class="lede">Download full-book or chapter-specific exports for focused, offline use.</p>
+    <p class="meta">Tip: PDF is best for print markup. EPUB is best for reflowable mobile reading.</p>
   </div>
 
   <ExportPanel
     title="Full book exports"
-    description="Choose PDF for print-ready formatting or EPUB for flexible reading devices."
+    description="Choose PDF for print-ready formatting or EPUB for flexible reading devices. Metadata shows rough size and freshness when available."
     links={bookExportLinks}
   />
 
-  <ContentIndexList
+  <ExportPanel
     title="Chapter exports"
-    lede="Open a chapter first if you want a focused PDF/EPUB for a single module."
-    items={chapterDownloadItems}
-    itemActionLabel="Open chapter export links"
+    description="Direct PDF and EPUB downloads for each individual chapter."
+    links={allChapterExportLinks}
   />
 </BaseLayout>

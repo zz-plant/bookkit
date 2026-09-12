@@ -106,6 +106,7 @@ export const initializeMobileNav = ({
 			return;
 		}
 
+		if (isMenuOpen()) return;
 		const currentY = window.scrollY;
 		const delta = currentY - lastScrollY;
 		const nearTop = currentY < 80;
@@ -145,9 +146,20 @@ export const initializeMobileNav = ({
 	document.addEventListener("click", (event) => {
 		const target = event.target instanceof HTMLElement ? event.target : null;
 		if (!target || !siteNavMore || !isMenuOpen()) return;
-		if (target.closest("[data-site-nav-more]")) return;
+		if (
+			target.closest("[data-site-nav-more]") ||
+			target.closest("[data-mobile-menu]")
+		)
+			return;
 		setMenuOpen(false);
 		syncMobileToggleState();
+	});
+
+	document.addEventListener("keydown", (event) => {
+		if (event.key === "Escape" && isMenuOpen()) {
+			setMenuOpen(false);
+			syncMobileToggleState();
+		}
 	});
 
 	syncOverflow(desktopNavMedia.matches);

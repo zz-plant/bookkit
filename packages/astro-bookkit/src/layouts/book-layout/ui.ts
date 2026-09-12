@@ -4,7 +4,7 @@
  * buffers) are initialized once and passed to islands that request them.
  */
 import { createBufferedTracker } from "./analytics-buffer";
-import { queryElement } from "./dom";
+import { initializeHeadingAnchors, queryElement } from "./dom";
 import { getSharedIndexStore } from "./shared-index";
 
 const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
@@ -120,6 +120,7 @@ const helpToggle = queryElement(
 	HTMLButtonElement,
 );
 const mainRoot = queryElement(document, "#main-content", HTMLElement);
+initializeHeadingAnchors(mainRoot ?? document);
 
 if (helpPanelRoot) {
 	Promise.all(controllerPromises).then(() => {
@@ -139,7 +140,8 @@ if (helpPanelRoot) {
 const hasReaderControls =
 	headerRoot &&
 	(queryElement(headerRoot, "[data-reader-density]", HTMLButtonElement) ||
-		queryElement(headerRoot, "[data-reader-font]", HTMLButtonElement));
+		queryElement(headerRoot, "[data-reader-font]", HTMLButtonElement) ||
+		queryElement(headerRoot, "[data-reader-theme]", HTMLButtonElement));
 
 if (headerRoot && hasReaderControls) {
 	import("./reader-prefs").then(({ initializeReaderPrefs }) => {

@@ -1,0 +1,66 @@
+---
+export type TocHeading = {
+  depth: number;
+  slug: string;
+  text: string;
+};
+
+export type Props = {
+  headings?: TocHeading[];
+  label?: string;
+};
+
+const { headings = [], label = "On this page" } = Astro.props;
+const filteredHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+{filteredHeadings.length > 0 && (
+  <nav class="chapter-toc" aria-label={label} data-chapter-toc>
+    <ol class="chapter-step-list">
+      {filteredHeadings.map((heading, index) => {
+        const cleanText = heading.text.replace(/^\d+[.)\s-]+/, "");
+        return (
+          <li class={`chapter-toc__depth-${heading.depth}`}>
+            <a href={`#${heading.slug}`} data-toc-link={heading.slug}>
+              <span>{index + 1}.</span>
+              {cleanText}
+            </a>
+          </li>
+        );
+      })}
+    </ol>
+  </nav>
+)}
+
+<script>
+  const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>("[data-toc-link]"));
+  if (tocLinks.length > 0) {
+    const headings = tocLinks
+      .map((link) => {
+        const id = link.getAttribute("data-toc-link");
+        return id ? document.getElementById(id) : null;
+      })
+      .filter((h): h is HTMLElement => h !== null);
+
+    let activeLink: HTMLAnchorElement | null = null;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.id;
+            const match = tocLinks.find((link) => link.getAttribute("data-toc-link") === id);
+            if (match && match !== activeLink) {
+              activeLink?.classList.remove("is-active");
+              activeLink?.removeAttribute("aria-current");
+              match.classList.add("is-active");
+              match.setAttribute("aria-current", "location");
+              activeLink = match;
+            }
+          }
+        }
+      },
+      { rootMargin: "0px 0px -70% 0px", threshold: 0.1 }
+    );
+
+    headings.forEach((heading) => observer.observe(heading));
+  }
+</script>

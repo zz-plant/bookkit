@@ -2,6 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import FeedbackWidget from "@bookkit/astro-bookkit/components/FeedbackWidget.astro";
 import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import ChapterToc from "@bookkit/astro-bookkit/components/ChapterToc.astro";
 import { getChapterExportLinks } from "../../../lib/exports";
 import {
   buildLocalizedContentIndex,
@@ -49,6 +50,8 @@ if (!module) {
 const { frontmatter, default: Content } = module;
 const exportLinks = getChapterExportLinks(frontmatter.slug, frontmatter.title ?? "Chapter");
 const isFallback = missingSlugs.includes(frontmatter.slug);
+const headings = typeof module.getHeadings === "function" ? module.getHeadings() : [];
+const chapterMechanisms = Array.isArray(frontmatter.mechanisms) ? frontmatter.mechanisms : [];
 const chapterOrder = entries
   .map(({ slug, module: chapterModule }) => ({
     slug,
@@ -56,6 +59,7 @@ const chapterOrder = entries
   }))
   .sort((a, b) => a.slug.localeCompare(b.slug));
 const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
+const previousChapter = currentIndex > 0 ? chapterOrder[currentIndex - 1] : null;
 const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
@@ -70,57 +74,68 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   breadcrumbItems,
   Astro.url
 );
-const rawHeadings = typeof module.getHeadings === "function" ? await module.getHeadings() : [];
-const stepHeadings = rawHeadings
-  .filter((h: { depth: number }) => h.depth === 2 || h.depth === 3)
-  .map((h: { slug: string; text: string }) => ({
-    id: h.slug,
-    text: h.text.replace(/^\d+[.)\s-]+/, ""),
-  }));
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <a class="back-link" href={readRoutes.chapters}>← Chapters</a>
   <div class="chapter-shell">
-    <aside class="chapter-meta-panel">
-      <div class="eyebrow">{defaultChapterPageCopy.chapterMapLabel}</div>
-      <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>
-      <ol class="chapter-step-list" data-chapter-step-list>
-        {stepHeadings.map((heading: { id: string; text: string }, index: number) => (
-          <li>
-            <a href={`#${heading.id}`}>
-              <span>{index + 1}.</span> {heading.text}
-            </a>
-          </li>
-        ))}
-      </ol>
-      <ExportPanel
-        title={defaultChapterPageCopy.downloadChapterTitle}
-        description={defaultChapterPageCopy.downloadChapterDescription}
-        links={exportLinks}
-      />
-    </aside>
-
     <article>
       <div class="eyebrow">
         {frontmatter.status ?? "draft"}
         {isFallback ? " • fallback" : ""}
       </div>
       <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
+      {chapterMechanisms.length > 0 && (
+        <div class="chapter-mechanisms" style="display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0 1rem; flex-wrap: wrap;">
+          <span class="meta" style="font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;">Mechanisms:</span>
+          {chapterMechanisms.map((mechSlug: string) => (
+            <a class="pill" href={readItemPath("mechanisms", mechSlug)}>
+              {mechSlug}
+            </a>
+          ))}
+        </div>
+      )}
+      {headings.length > 0 && (
+        <details class="chapter-toc-mobile">
+          <summary>{defaultChapterPageCopy.chapterStepsHeading} ({headings.filter((h: any) => h.depth <= 3).length})</summary>
+          <ChapterToc headings={headings} label={defaultChapterPageCopy.chapterMapLabel} />
+        </details>
+      )}
       <section class="content-block chapter-content" data-chapter-sections>
         <Content />
       </section>
     </article>
+
+    <aside class="chapter-meta-panel">
+      <div class="eyebrow">{defaultChapterPageCopy.chapterMapLabel}</div>
+      <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>
+      <ChapterToc headings={headings} label={defaultChapterPageCopy.chapterMapLabel} />
+      <ExportPanel
+        title={defaultChapterPageCopy.downloadChapterTitle}
+        description={defaultChapterPageCopy.downloadChapterDescription}
+        links={exportLinks}
+      />
+    </aside>
   </div>
+
+  <nav class="chapter-pagination" aria-label="Chapter navigation">
+    {previousChapter ? (
+      <a class="chapter-pagination__card chapter-pagination__card--prev" href={readItemPath("chapters", previousChapter.slug)}>
+        <span class="chapter-pagination__label">← Previous chapter</span>
+        <span class="chapter-pagination__title">{previousChapter.title}</span>
+      </a>
+    ) : <div />}
+    {nextChapter ? (
+      <a class="chapter-pagination__card chapter-pagination__card--next" href={readItemPath("chapters", nextChapter.slug)}>
+        <span class="chapter-pagination__label">Next chapter →</span>
+        <span class="chapter-pagination__title">{nextChapter.title}</span>
+      </a>
+    ) : <div />}
+  </nav>
 
   <section class="next-steps" id="next-steps">
     <h2>{defaultChapterPageCopy.nextMoveHeading}</h2>
     <div class="next-steps__links next-steps__branches">
-      {nextChapter && (
-        <a class="next-steps__link" href={readItemPath("chapters", nextChapter.slug)}>
-          {defaultChapterPageCopy.continueChapterPrefix} → {nextChapter.title}
-        </a>
-      )}
       <a class="next-steps__link" href={readRoutes.mechanisms}>{defaultChapterPageCopy.mechanismsLinkLabel}</a>
       <a class="next-steps__link" href={readRoutes.toolkit}>{defaultChapterPageCopy.toolkitLinkLabel}</a>
     </div>
@@ -133,100 +148,14 @@ const stepHeadings = rawHeadings
   />
 </BaseLayout>
 
-{stepHeadings.length === 0 && (
-  <script is:inline>
-    const chapterStepList = document.querySelector("[data-chapter-step-list]");
-    const chapterSections = document.querySelector("[data-chapter-sections]");
-
-    if (chapterStepList && chapterSections && chapterStepList.children.length === 0) {
-      const sectionHeadings = Array.from(chapterSections.querySelectorAll("h2[id], h3[id]"));
-      const nextStepsHeading = document.querySelector(".next-steps h2[id], .next-steps[id]");
-      const orderedHeadings =
-        nextStepsHeading && "id" in nextStepsHeading && nextStepsHeading.id
-          ? [...sectionHeadings, nextStepsHeading]
-          : sectionHeadings;
-
-      orderedHeadings.forEach((heading, index) => {
-        if (!("id" in heading) || !heading.id) return;
-
-        const stepItem = document.createElement("li");
-        const stepLink = document.createElement("a");
-        const stepNumber = document.createElement("span");
-        const rawHeadingText = heading.textContent?.trim() ?? "Section";
-        const cleanHeadingText = rawHeadingText.replace(/^\d+[.)\s-]+/, "");
-        stepNumber.textContent = `${index + 1}.`;
-        stepLink.href = `#${heading.id}`;
-        stepLink.append(stepNumber, ` ${cleanHeadingText}`);
-        stepItem.append(stepLink);
-        chapterStepList.append(stepItem);
-      });
-    }
-  </script>
-)}
-
 <style>
   :global(.site-main) {
-    max-width: min(72rem, 100%);
+    max-width: min(76rem, 100%);
     padding-inline: clamp(1rem, 4vw, 2rem);
   }
 
   :global(.site-main > h1) {
     max-width: 25ch;
-  }
-
-  .chapter-shell {
-    display: grid;
-    grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
-    gap: 1.5rem;
-    align-items: start;
-    margin-top: 0.75rem;
-  }
-
-  .chapter-meta-panel {
-    position: sticky;
-    top: 1.25rem;
-    border: 1px solid rgba(91, 76, 230, 0.16);
-    border-radius: 1rem;
-    background: linear-gradient(180deg, #ffffff, rgba(245, 244, 255, 0.8));
-    padding: 1rem;
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  .chapter-meta-panel h2 {
-    margin: 0;
-    font-size: 1rem;
-  }
-
-  .chapter-step-list {
-    margin: 0;
-    padding-left: 0;
-    list-style: none;
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .chapter-step-list a {
-    color: var(--color-ink);
-    text-decoration: none;
-    display: flex;
-    gap: 0.35rem;
-    align-items: baseline;
-    padding: 0.35rem 0.5rem;
-    border-radius: 0.6rem;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .chapter-step-list a:hover {
-    color: var(--color-accent-strong);
-    background: rgba(91, 76, 230, 0.08);
-    text-decoration: none;
-  }
-
-  .chapter-step-list span {
-    color: var(--color-muted);
-    font-variant-numeric: tabular-nums;
-    min-width: 1.3rem;
   }
 
   .next-steps__branches {
@@ -237,16 +166,5 @@ const stepHeadings = rawHeadings
 
   .chapter-content {
     padding: clamp(1rem, 2vw, 1.35rem);
-  }
-
-  @media (max-width: 900px) {
-    .chapter-shell {
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-
-    .chapter-meta-panel {
-      position: static;
-    }
   }
 </style>

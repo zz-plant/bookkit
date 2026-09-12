@@ -208,8 +208,15 @@ const renderState = createBookLayoutRenderState({
       const visitNote = document.querySelector("[data-release-visit-note]");
       const cards = Array.from(document.querySelectorAll("[data-release-date]"));
       const storageKey = `${bookKey}:release:lastVisit`;
+      const sessionKey = `${bookKey}:release:sessionVisit`;
       const nowIso = new Date().toISOString();
-      const previousVisit = localStorage.getItem(storageKey);
+      let previousVisit = sessionStorage.getItem(sessionKey);
+      if (!previousVisit) {
+        previousVisit = localStorage.getItem(storageKey);
+        if (previousVisit) {
+          sessionStorage.setItem(sessionKey, previousVisit);
+        }
+      }
       const previousVisitMs = previousVisit ? new Date(previousVisit).getTime() : Number.NaN;
 
       if (Number.isFinite(previousVisitMs)) {
@@ -248,7 +255,9 @@ const renderState = createBookLayoutRenderState({
         });
       }
 
-      localStorage.setItem(storageKey, nowIso);
+      window.addEventListener("beforeunload", () => {
+        localStorage.setItem(storageKey, nowIso);
+      });
     </script>
   )}
 </BookLayout>

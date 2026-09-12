@@ -8,6 +8,7 @@ import {
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
   buildLocalizedReadRoutePath,
@@ -112,14 +113,26 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   <section class="content-block">
     <Content />
   </section>
-  <section class="next-steps">
-    <h2>Next steps</h2>
-    <div class="next-steps__links">
-      <a class="next-steps__link" href={readItemPath("mechanisms", frontmatter.mechanism)}>
-        Review the {frontmatter.mechanism} mechanism
-      </a>
-      <a class="next-steps__link" href={readRoutes.examples}>Find related examples</a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Next action</a>
-    </div>
-  </section>
+  <NextActionPanel
+    variant="compact"
+    title="After this, try"
+    description="Keep momentum by chaining one related move."
+    links={[
+      {
+        href: readItemPath("mechanisms", frontmatter.mechanism),
+        label: `Review ${frontmatter.mechanism}`,
+        meta: "Pattern check",
+      },
+      {
+        href: readRoutes.examples,
+        label: "See concrete examples",
+        meta: "Ground the action in a case",
+      },
+      {
+        href: readRoutes.toolkit,
+        label: "Choose another 10-minute action",
+        meta: "Build a short action chain",
+      },
+    ]}
+  />
 </BaseLayout>

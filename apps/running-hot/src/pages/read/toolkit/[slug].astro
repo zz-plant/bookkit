@@ -71,28 +71,6 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   <p class="lede">
     {frontmatter.mechanism} • {frontmatter.timeboxMinutes ?? 10} min
   </p>
-  <NextActionPanel
-    variant="compact"
-    title="After this, try"
-    description="Keep momentum by chaining one related move."
-    links={[
-      {
-        href: readItemPath("mechanisms", frontmatter.mechanism),
-        label: `Review ${frontmatter.mechanism}`,
-        meta: "Pattern check",
-      },
-      {
-        href: readRoutes.examples,
-        label: "See concrete examples",
-        meta: "Ground the action in a case",
-      },
-      {
-        href: readRoutes.toolkit,
-        label: "Choose another 10-minute action",
-        meta: "Build a short action chain",
-      },
-    ]}
-  />
   {frontmatter.trigger && (
     <section class="content-block">
       <h2>When to use this</h2>
@@ -135,4 +113,26 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   <section class="content-block">
     <Content />
   </section>
+  <NextActionPanel
+    variant="compact"
+    title="After this, try"
+    description="Keep momentum by chaining one related move."
+    links={[
+      {
+        href: readItemPath("mechanisms", frontmatter.mechanism),
+        label: `Review ${frontmatter.mechanism}`,
+        meta: "Pattern check",
+      },
+      {
+        href: readRoutes.examples,
+        label: "See concrete examples",
+        meta: "Ground the action in a case",
+      },
+      {
+        href: readRoutes.toolkit,
+        label: "Choose another 10-minute action",
+        meta: "Build a short action chain",
+      },
+    ]}
+  />
 </BaseLayout>

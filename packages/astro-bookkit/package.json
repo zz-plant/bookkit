@@ -60,6 +60,9 @@
 		"./components/Breadcrumbs.astro": "./src/components/Breadcrumbs.astro",
 		"./components/ReaderUtilityStrip.astro": "./src/components/ReaderUtilityStrip.astro",
 		"./components/ReadHub.astro": "./src/components/ReadHub.astro",
-		"./components/RedirectPage.astro": "./src/components/RedirectPage.astro"
+		"./components/RedirectPage.astro": "./src/components/RedirectPage.astro",
+		"./components/ChapterToc.astro": "./src/components/ChapterToc.astro",
+		"./components/ReadingProgressBar.astro": "./src/components/ReadingProgressBar.astro",
+		"./components/ConceptPopover.astro": "./src/components/ConceptPopover.astro"
 	}
 }

@@ -6,8 +6,8 @@ import bookLayoutMermaidClient from "./book-layout/mermaid.ts?url";
 import SiteHeader from "./book-layout/SiteHeader.astro";
 import MobileCta from "./book-layout/MobileCta.astro";
 import SearchPanel from "./book-layout/SearchPanel.astro";
-import QaPanel from "./book-layout/QaPanel.astro";
 import KeyboardHelp from "./book-layout/KeyboardHelp.astro";
+import ReadingProgressBar from "../components/ReadingProgressBar.astro";
 import { createBookLayoutRenderState, type BookLayoutRenderState } from "../book/layout";
 
 const {
@@ -59,6 +59,7 @@ const {
   includeDefaultLocalePrefix = false,
   localeLabel = "Language",
   showLocaleNotice = true,
+  enableAuthorTools,
   renderState: precomputedRenderState,
 } = Astro.props;
 
@@ -157,6 +158,7 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
   >
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="page">
+      <ReadingProgressBar />
       <SiteHeader
         bookTitle={bookTitle}
         isPreview={renderState.preview.isPreview}
@@ -177,6 +179,7 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
         includeDefaultLocalePrefix={renderState.locale.includeDefaultLocalePrefix}
         localeLabel={renderState.locale.label}
         aiQaEnabled={aiQaEnabled}
+        enableAuthorTools={enableAuthorTools ?? renderState.preview.isPreview}
       />
       {renderState.translationNotice.show && (
         <div class="translation-notice" role="status">

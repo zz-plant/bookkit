@@ -22,6 +22,7 @@ const {
   includeDefaultLocalePrefix,
   localeLabel,
   aiQaEnabled,
+  enableAuthorTools = isPreview ?? false,
 } = Astro.props;
 
 const emphasizeReadCta = !isReadRoute;
@@ -95,11 +96,13 @@ const activeReadSectionLabel =
                 <p class="site-nav__group-label">Reader tools</p>
                 <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
               </div>
-              <div class="site-nav__group site-nav__group--author">
-                <p class="site-nav__group-label">Author tools</p>
-                <a href="/read/tools" aria-keyshortcuts="g a">Publishing tools</a>
-                <a href="/new-book" aria-keyshortcuts="g b">Start a new book</a>
-              </div>
+              {enableAuthorTools && (
+                <div class="site-nav__group site-nav__group--author">
+                  <p class="site-nav__group-label">Author tools</p>
+                  <a href="/read/tools" aria-keyshortcuts="g a">Publishing tools</a>
+                  <a href="/new-book" aria-keyshortcuts="g b">Start a new book</a>
+                </div>
+              )}
               <hr class="site-nav__separator" />
               {(hasVersions || localeEntries.length > 1) && (
                 <details class="site-settings" data-site-settings>
@@ -131,12 +134,26 @@ const activeReadSectionLabel =
                 </details>
               )}
               <details class="reader-settings" data-reader-settings>
-                <summary class="reader-settings__toggle">
-                  Reading view
+                <summary class="reader-settings__toggle" title="Reading appearance (density, font, theme)">
+                  Aa Reading view
                   <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
                 </summary>
                 <div class="reader-settings__panel">
-                  <p class="reader-settings__hint">Tune text spacing and font for this device.</p>
+                  <p class="reader-settings__hint">Tune text spacing, font, and theme for this device.</p>
+                  <div class="reader-settings__group" role="group" aria-label="Reading theme">
+                    <span class="reader-settings__label">Theme</span>
+                    <label class="sr-only" for="reader-theme-select">Theme</label>
+                    <select id="reader-theme-select" data-reader-theme-select>
+                      <option value="auto" selected>Auto</option>
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                    </select>
+                    <div class="reader-settings__options">
+                      <button type="button" data-reader-theme="auto">Auto</button>
+                      <button type="button" data-reader-theme="light">Light</button>
+                      <button type="button" data-reader-theme="dark">Dark</button>
+                    </div>
+                  </div>
                   <div class="reader-settings__group" role="group" aria-label="Reading density">
                     <span class="reader-settings__label">Density</span>
                     <label class="sr-only" for="reader-density-select">Reading density</label>

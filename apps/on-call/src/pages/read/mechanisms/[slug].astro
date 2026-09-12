@@ -8,6 +8,7 @@ import {
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
   buildLocalizedReadRoutePath,
@@ -126,19 +127,15 @@ const mechanismStructuredData = createDefinedTermStructuredData({
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
   <p class="lede" id="definition">{frontmatter.definition}</p>
 
-  <section class="content-block" style="margin-top: 0;">
-    <h2>On this page</h2>
-    <div class="stack">
-      <a class="list-link" href="#definition"><strong>Definition</strong></a>
-      {(hasIs || hasIsNot || hasPredictions || hasTests) && (
-        <a class="list-link" href="#recognize"><strong>How to recognize it</strong></a>
-      )}
-      {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
-        <a class="list-link" href="#next-steps"><strong>Next steps</strong></a>
-      )}
-      <a class="list-link" href="#keep-going"><strong>Keep going</strong></a>
-    </div>
-  </section>
+  <nav class="reader-utility-strip" aria-label="On this page" style="margin: 0.75rem 0 1.5rem;">
+    <a class="pill" href="#definition">Definition</a>
+    {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+      <a class="pill" href="#recognize">How to recognize it</a>
+    )}
+    {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+      <a class="pill" href="#next-steps">Next steps</a>
+    )}
+  </nav>
 
   <section class="content-block">
     <Content />
@@ -221,12 +218,29 @@ const mechanismStructuredData = createDefinedTermStructuredData({
       )}
     </section>
   )}
-  <section class="next-steps" id="keep-going">
-    <h2>Keep going</h2>
-    <div class="next-steps__links">
-      <a class="next-steps__link" href={readRoutes.toolkit}>Explore toolkit actions</a>
-      <a class="next-steps__link" href={readRoutes.examples}>Browse examples</a>
-      <a class="next-steps__link" href={readRoutes.chapters}>Read the next chapter</a>
-    </div>
-  </section>
+  <NextActionPanel
+    title="Try this next"
+    description="Move from diagnosis to execution with one click."
+    links={[
+      relatedToolkit[0]
+        ? {
+            href: readItemPath("toolkit", relatedToolkit[0].slug),
+            label: relatedToolkit[0].frontmatter.name ?? "Open related action",
+            meta: `${relatedToolkit[0].frontmatter.timeboxMinutes ?? 10} min`,
+          }
+        : null,
+      relatedExamples[0]
+        ? {
+            href: readItemPath("examples", relatedExamples[0].slug),
+            label: relatedExamples[0].frontmatter.title ?? "See related example",
+            meta: relatedExamples[0].frontmatter.domain ?? "Example",
+          }
+        : null,
+      {
+        href: readRoutes.chapters,
+        label: "Return to chapter flow",
+        meta: "Keep the intervention frame in view",
+      },
+    ].filter(Boolean)}
+  />
 </BaseLayout>

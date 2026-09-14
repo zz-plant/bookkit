@@ -29,6 +29,7 @@ This maps to the [three-pillar authorship model](./authorship-model.md):
 - [ ] **Track 2: MCP discovery and metadata hardening** — in progress.
 - [ ] **Track 3: Governance APIs** — next.
 - [ ] **Track 4: Reader Forking** — future. Blocked on Track 3 infrastructure (validation + schema reuse).
+- [x] **Track 5: Runbook/SOP wedge** — shipped 2026-09-04 (see `docs/sop-wedge-gap-analysis.md` for phase evidence).
 
 Use `docs/tech-debt-register.md` as the canonical queue for open remediation tasks tied to these tracks.
 
@@ -116,7 +117,7 @@ Success criteria:
 
 For gap analysis and implementation sequencing, see [`docs/reader-forking-gap-analysis.md`](./reader-forking-gap-analysis.md).
 
-### Track 5: Runbook/SOP wedge (proposed)
+### Track 5: Runbook/SOP wedge (shipped 2026-09-04)
 
 Before the reader-forking surface, validate the engine as a compiler for verifiable operating procedures (runbooks/SOPs). It needs no identity or persistence, exercises the governed-compiler story, and feeds Track 3 (governance APIs) and Track 4 (fork → site-specific overlay).
 

@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import type { MechanismRecord } from "./mechanism-overlap";
 import {
 	auditReleaseControlDrift,
+	auditReviewCadence,
 	auditRunbookCoverage,
 	deriveComplianceMatrix,
+	deriveReviewCadence,
 	type ReleaseRecord,
 	summarizeCompliance,
 	type ToolRecord,
@@ -196,5 +198,118 @@ describe("auditReleaseControlDrift", () => {
 			"on-call",
 		);
 		expect(result).toEqual([]);
+	});
+});
+
+describe("deriveReviewCadence", () => {
+	const cadenceTools: ToolRecord[] = [
+		{
+			slug: "weekly-proc",
+			mechanism: "incident-triage",
+			reviewEveryDays: 7,
+			file: "toolkit/weekly-proc.mdx",
+		},
+		{
+			slug: "biweekly-proc",
+			mechanism: "incident-triage",
+			reviewEveryDays: 14,
+			file: "toolkit/biweekly-proc.mdx",
+		},
+		{
+			slug: "no-cadence",
+			mechanism: "incident-triage",
+			file: "toolkit/no-cadence.mdx",
+		},
+	];
+
+	test("computes due date as latest release plus cadence", () => {
+		const result = deriveReviewCadence(
+			cadenceTools,
+			[{ version: "0.1.0", date: "2026-09-01" }],
+			"2026-09-14",
+		);
+		expect(result).toHaveLength(2);
+		const weekly = result.find((c) => c.tool === "weekly-proc");
+		expect(weekly?.nextReviewDue).toBe("2026-09-08");
+		expect(weekly?.overdue).toBe(true);
+		const biweekly = result.find((c) => c.tool === "biweekly-proc");
+		expect(biweekly?.nextReviewDue).toBe("2026-09-15");
+		expect(biweekly?.overdue).toBe(false);
+	});
+
+	test("is a no-op when no release has a parseable date", () => {
+		const result = deriveReviewCadence(cadenceTools, [
+			{ version: "0.1.0", date: "" },
+		]);
+		expect(result).toEqual([]);
+	});
+});
+
+describe("auditReviewCadence", () => {
+	const auditTools: ToolRecord[] = [
+		{
+			slug: "weekly-proc",
+			mechanism: "incident-triage",
+			reviewEveryDays: 7,
+			file: "toolkit/weekly-proc.mdx",
+		},
+	];
+
+	test("emits one warning per overdue procedure", () => {
+		const result = auditReviewCadence(
+			"on-call",
+			auditTools,
+			[{ version: "0.1.0", date: "2026-09-01" }],
+			"2026-09-14",
+		);
+		expect(result).toHaveLength(1);
+		expect(result[0].category).toBe("runbook-coverage");
+		expect(result[0].severity).toBe("warning");
+		expect(result[0].message).toContain("7-day review cadence");
+		expect(result[0].evidence.nextReviewDue).toBe("2026-09-08");
+	});
+});
+
+describe("deriveComplianceMatrix with releases", () => {
+	test("annotates rows with the earliest due date and overdue flag", () => {
+		const rows = deriveComplianceMatrix(
+			[mechanism("incident-triage", { satisfies: ["c-1"] })],
+			[
+				{
+					slug: "proc-a",
+					mechanism: "incident-triage",
+					reviewEveryDays: 7,
+					drills: ["drill a"],
+				},
+				{
+					slug: "proc-b",
+					mechanism: "incident-triage",
+					reviewEveryDays: 14,
+					drills: ["drill b"],
+				},
+			],
+			{
+				releases: [{ version: "0.1.0", date: "2026-09-01" }],
+				asOf: "2026-09-14",
+			},
+		);
+		expect(rows[0].nextReviewDue).toBe("2026-09-08");
+		expect(rows[0].reviewOverdue).toBe(true);
+	});
+
+	test("leaves rows unannotated when no releases are passed", () => {
+		const rows = deriveComplianceMatrix(
+			[mechanism("incident-triage", { satisfies: ["c-1"] })],
+			[
+				{
+					slug: "proc-a",
+					mechanism: "incident-triage",
+					reviewEveryDays: 7,
+					drills: ["drill a"],
+				},
+			],
+		);
+		expect(rows[0].nextReviewDue).toBeUndefined();
+		expect(rows[0].reviewOverdue).toBeUndefined();
 	});
 });

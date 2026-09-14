@@ -8,7 +8,6 @@ Metadata format: `[owner: <role>] [milestone: <target>] [debt: <ID?>]`
 - _No open P0 backlog hygiene items._
 
 ## P1 — Runbook coverage follow-through
-- [ ] Surface review cadence: every toolkit primitive declares `reviewEveryDays` (14–30), but nothing computes a due date or flags an overdue procedure. Extend `check:runbooks` to compare the declared cadence against the latest release date. `[owner: platform maintainers] [milestone: 2026-10 runbook hardening] [debt: TD-008]`
 - [ ] Add a second release note so `auditReleaseControlDrift` is exercised against real history rather than a single initial draft. `[owner: book maintainers] [milestone: 2026-10 runbook hardening] [debt: ]`
 
 ## P2 — Wedge sequencing

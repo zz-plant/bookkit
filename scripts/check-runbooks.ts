@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import {
 	auditReleaseControlDrift,
+	auditReviewCadence,
 	auditRunbookCoverage,
 	type ComplianceRow,
 	type ComplianceSummary,
@@ -43,6 +44,8 @@ const exportComplianceTo = (
 			mechanism: r.mechanism,
 			tools: r.tools,
 			drillReady: r.drillReady,
+			nextReviewDue: r.nextReviewDue,
+			reviewOverdue: r.reviewOverdue,
 		})),
 		openWarnings: warnings,
 	};
@@ -101,6 +104,10 @@ const checkBook = (book: string): number => {
 			mechanism: toStringValue(data.mechanism),
 			name: toStringValue(data.name),
 			owner: toStringValue(data.owner),
+			reviewEveryDays:
+				typeof data.reviewEveryDays === "number"
+					? data.reviewEveryDays
+					: undefined,
 			drills: arrayValue(data.drills),
 			satisfies: arrayValue(data.satisfies),
 			escalation:
@@ -136,10 +143,11 @@ const checkBook = (book: string): number => {
 		tools,
 	});
 
-	const rows = deriveComplianceMatrix(mechanisms, tools);
+	const rows = deriveComplianceMatrix(mechanisms, tools, { releases });
 	const drift = auditReleaseControlDrift(rows, releases, book);
+	const cadence = auditReviewCadence(book, tools, releases);
 
-	const all = [...suggestions, ...drift];
+	const all = [...suggestions, ...drift, ...cadence];
 	const warnings = all.filter((s) => s.severity === "warning");
 
 	if (all.length > 0) {
@@ -158,8 +166,13 @@ const checkBook = (book: string): number => {
 		);
 		for (const row of rows) {
 			const drilled = row.drillReady ? " ✓drilled" : "";
+			const review = row.reviewOverdue
+				? ` ⚠review overdue (due ${row.nextReviewDue})`
+				: row.nextReviewDue
+					? ` ·review due ${row.nextReviewDue}`
+					: "";
 			console.log(
-				`  ${row.control} → ${row.mechanism} [${row.tools.join(", ") || "uncovered"}]${drilled}`,
+				`  ${row.control} → ${row.mechanism} [${row.tools.join(", ") || "uncovered"}]${drilled}${review}`,
 			);
 		}
 		if (summary.uncoveredControls.length > 0) {

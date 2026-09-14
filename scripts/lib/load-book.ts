@@ -93,6 +93,10 @@ export const loadBookContent = (book: string): LoadedBookContent => {
 			mechanism: toStringValue(data.mechanism),
 			name: toStringValue(data.name),
 			owner: toStringValue(data.owner),
+			reviewEveryDays:
+				typeof data.reviewEveryDays === "number"
+					? data.reviewEveryDays
+					: undefined,
 			drills: arrayValue(data.drills),
 			satisfies: arrayValue(data.satisfies),
 			escalation:

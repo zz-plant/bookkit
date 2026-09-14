@@ -89,7 +89,6 @@ export type ReadHubSection = {
 	href: string;
 	count: number;
 	completeness?: number | null;
-	keyHint?: string[];
 	latestChange?: ReadHubLatestChange;
 };
 
@@ -212,7 +211,6 @@ export const createDefaultReadHubSections = (
 		description: "Objectives, frame, and constraints for this draft.",
 		href: readRoutes.overview,
 		count: 1,
-		keyHint: ["g", "o"],
 		sectionKey: "overview",
 		latestChange: latestChanges.overview,
 	},
@@ -222,7 +220,6 @@ export const createDefaultReadHubSections = (
 		href: readRoutes.chapters,
 		count: stats.chapters.count,
 		completeness: stats.chapters.completeness ?? null,
-		keyHint: ["g", "c"],
 		sectionKey: "chapters",
 		latestChange: latestChanges.chapters,
 	},
@@ -232,7 +229,6 @@ export const createDefaultReadHubSections = (
 		href: readRoutes.mechanisms,
 		count: stats.mechanisms.count,
 		completeness: stats.mechanisms.completeness ?? null,
-		keyHint: ["g", "m"],
 		sectionKey: "mechanisms",
 		latestChange: latestChanges.mechanisms,
 	},
@@ -242,7 +238,6 @@ export const createDefaultReadHubSections = (
 		href: readRoutes.toolkit,
 		count: stats.toolkit.count,
 		completeness: stats.toolkit.completeness ?? null,
-		keyHint: ["g", "t"],
 		sectionKey: "toolkit",
 		latestChange: latestChanges.toolkit,
 	},
@@ -252,7 +247,6 @@ export const createDefaultReadHubSections = (
 		href: readRoutes.glossary,
 		count: stats.glossary.count,
 		completeness: stats.glossary.completeness ?? null,
-		keyHint: ["g", "l"],
 		sectionKey: "glossary",
 		latestChange: latestChanges.glossary,
 	},
@@ -262,7 +256,6 @@ export const createDefaultReadHubSections = (
 		href: readRoutes.examples,
 		count: stats.examples.count,
 		completeness: stats.examples.completeness ?? null,
-		keyHint: ["g", "e"],
 		sectionKey: "examples",
 		latestChange: latestChanges.examples,
 	},

@@ -123,7 +123,6 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
           hidden={bucketNavigation === "tabs" && index > 0 ? true : undefined}
           tabindex={bucketNavigation === "tabs" ? "0" : undefined}
         >
-          <div class="eyebrow">{bucket.title}</div>
           <h3>{bucket.title}</h3>
           <p class="meta">{bucket.description}</p>
           <div class="card-grid" data-reader-sections>
@@ -132,46 +131,29 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
               if (!section) {
                 return null;
               }
-              const label = section.count === 1 ? "item" : "items";
-              const keyShortcut = section.keyHint ? section.keyHint.join(" ") : undefined;
               const completenessLabel = formatTranslationCompleteness(section.completeness ?? null);
               const changeMeta = section.latestChange;
               return (
                 <a
                   class="card read-surface-card"
                   href={section.href}
-                  aria-keyshortcuts={keyShortcut}
                   data-section-key={section.sectionKey}
                   data-change-date={changeMeta?.date ?? ""}
                 >
                   <div class="read-surface-card__meta" aria-label="Section metadata">
-                    <span class="read-meta-chip" title="Number of entries in this section">{section.count} {label}</span>
                     {completenessLabel && (
                       <span class="read-meta-chip read-meta-chip--status" title="Translation completeness status">
                         {completenessLabel}
                       </span>
                     )}
-                    {changeMeta && (
-                      <>
-                        <span class="read-meta-chip read-meta-chip--update" title="Mentioned in the latest release notes">
-                          Marked in v{changeMeta.version} notes
-                        </span>
-                        <span class="read-meta-chip read-meta-chip--new" data-read-new hidden title="Updated since your last visit">
-                          New for you
-                        </span>
-                      </>
+                    {!completenessLabel && changeMeta && (
+                      <span class="read-meta-chip read-meta-chip--update" title="Mentioned in the latest release notes">
+                        Marked in v{changeMeta.version} notes
+                      </span>
                     )}
                   </div>
                   <h4>{section.title}</h4>
                   <p class="meta">{section.description}</p>
-                  {section.keyHint && (
-                    <div class="read-surface-card__shortcut" aria-label="Keyboard shortcut">
-                      <span class="kbd-hint" title={`Shortcut ${section.keyHint[0]} ${section.keyHint[1]}`}>
-                        <kbd>{section.keyHint[0]}</kbd>
-                        <kbd>{section.keyHint[1]}</kbd>
-                      </span>
-                    </div>
-                  )}
                 </a>
               );
             })}

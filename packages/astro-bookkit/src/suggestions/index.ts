@@ -44,15 +44,19 @@ export type {
 export { suggestPrerequisiteEdges } from "./prerequisite-suggestions";
 export type {
 	AuditRunbookCoverageOptions,
+	ComplianceMatrixOptions,
 	ComplianceRow,
 	ComplianceSummary,
 	ReleaseRecord,
+	ReviewCadenceStatus,
 	ToolRecord,
 } from "./runbook-coverage";
 export {
 	auditReleaseControlDrift,
+	auditReviewCadence,
 	auditRunbookCoverage,
 	deriveComplianceMatrix,
+	deriveReviewCadence,
 	summarizeCompliance,
 } from "./runbook-coverage";
 export type {

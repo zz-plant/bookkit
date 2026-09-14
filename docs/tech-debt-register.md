@@ -12,7 +12,7 @@ Use this register as the single prioritized queue for cross-cutting debt remedia
 | TD-006 | Monolithic workspace scripts increase change risk | Medium | Workspace maintainers | `scripts/lib/content-frontmatter.ts`, `scripts/validate-book.ts`, `scripts/audit-unused.ts` | 2026-04 tooling hardening | Done | Extracted shared content file traversal/frontmatter parsing utilities and migrated validation/audit scripts to composable modules. |
 
 | TD-007 | Architecture documentation drifts silently across four unsynchronised docs | Medium | Workspace maintainers | `docs/architecture.md`, `scripts/check-architecture.ts`, `README.md`, `packages/astro-bookkit/src/README.md` | 2026-09 docs hygiene | Done | Recurrence of TD-002, which was closed by manual correction and drifted again: the README repo-layout tree listed 9 of 26 engine modules, and the engine source map listed 6 while crediting the empty `compiler/` directory with compile/ordering/export logic that lives in `book/` and `exports/`. Closed structurally rather than by editing prose: `docs/architecture.md` is now canonical and `bun run check:architecture` fails CI when the module map, import tiers, declared cycles, workspace paths, or content sections stop matching the tree. |
-| TD-008 | `reviewEveryDays` is declared on runbook tools but never enforced | Low | Platform maintainers | `packages/astro-bookkit/src/schemas/toolkit.ts`, `packages/astro-bookkit/src/suggestions/runbook-coverage.ts`, `apps/on-call/TODOS.md` | 2026-10 runbook hardening | Open | The field parses and is carried into the coverage record type, but nothing computes a review due date or flags an overdue procedure, so a stale runbook reads as compliant. Extend `check:runbooks` to compare declared cadence against the latest release date. |
+| TD-008 | `reviewEveryDays` is declared on runbook tools but never enforced | Low | Platform maintainers | `packages/astro-bookkit/src/schemas/toolkit.ts`, `packages/astro-bookkit/src/suggestions/runbook-coverage.ts`, `apps/on-call/TODOS.md` | 2026-10 runbook hardening | Done | Closed 2026-09-14: `deriveReviewCadence` computes each tool's next review due date from the latest release narrative (`date` + `reviewEveryDays`), and `auditReviewCadence` emits one warning per overdue procedure; `deriveComplianceMatrix` annotates rows with the earliest due date plus an `reviewOverdue` flag when releases are passed (back-compat: rows stay unannotated otherwise). `check:runbooks` prints the annotations and includes them in the exported artifact. |
 
 | TD-009 | Pre-commit formatting fights `check:shims`, making the gate unpassable for any touched book | Medium | Platform maintainers | `packages/astro-bookkit/templates/book-app/**`, `scripts/check-shims.ts`, `.lintstagedrc.json` | 2026-09 docs hygiene | Done | `check:shims` compares app shims byte-for-byte against the canonical templates, but the templates were space-indented with unsorted imports while `biome.json` specifies tabs and `organizeImports`. The husky/lint-staged hook runs `biome check --write` on staged files only, so committing any book's shim reformatted it out of step with its own template — an unbreakable loop that surfaced the moment `apps/on-call/` was added. Fixed by formatting the canonical templates with Biome and re-syncing, so `sync:shims` output is now a fixed point of the formatter. Keep the templates Biome-formatted; if they are ever hand-edited back to spaces the loop returns. |
 
@@ -30,9 +30,10 @@ Use this register as the single prioritized queue for cross-cutting debt remedia
   - Track 1 complete
   - Track 2 in progress
   - Track 3 next
+  - Track 5 shipped 2026-09-04
 - **Per-book open work:**
   - `apps/bad-people/TODOS.md`
   - `apps/crumple-zone/TODOS.md`
   - `apps/on-call/TODOS.md`
   - `apps/running-hot/TODOS.md`
-- **Cross-cutting open debt IDs:** TD-008 (runbook review cadence unenforced).
+- **Cross-cutting open debt IDs:** none.

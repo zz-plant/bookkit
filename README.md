@@ -14,13 +14,22 @@ The flagship demo is the **On-Call Runbook** (`apps/on-call/`): a recompilable o
 
 ```txt
 $ bun run check:runbooks
-RUNBOOK CHECKS (1) [on-call]
+RUNBOOK CHECKS (5) [on-call]
 - [runbook-coverage/info] (book): All toolkit releases keep every declared control drilled at HEAD.
+    → No action needed; compliance evidence is current.
+- [runbook-coverage/warning] toolkit/incident-triage--classify-alert-severity.mdx: Tool "classify-alert-severity" declares a 30-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-03-12 (186 days overdue).
+    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
+- [runbook-coverage/warning] toolkit/bounded-escalation--ramp-escalation.mdx: Tool "ramp-escalation" declares a 30-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-03-12 (186 days overdue).
+    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
+- [runbook-coverage/warning] toolkit/minimal-repro-doc--capture-repro.mdx: Tool "capture-repro" declares a 30-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-03-12 (186 days overdue).
+    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
+- [runbook-coverage/warning] toolkit/rollback-first-change--identify-rollback-candidate.mdx: Tool "identify-rollback-candidate" declares a 14-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-02-24 (202 days overdue).
+    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
 COMPLIANCE on-call: 4/4 controls with tool coverage
-  DIAG-REPRO-01 → minimal-repro-doc [capture-repro] ✓drilled
-  ESC-RAMP-01   → bounded-escalation [ramp-escalation]  ✓drilled
-  INC-TRIAGE-01 → incident-triage [classify-alert-severity] ✓drilled
-  REL-ROLLBACK-01 → rollback-first-change [identify-rollback-candidate] ✓drilled
+  DIAG-REPRO-01 → minimal-repro-doc [capture-repro] ✓drilled ⚠review overdue (due 2026-03-12)
+  ESC-RAMP-01 → bounded-escalation [ramp-escalation] ✓drilled ⚠review overdue (due 2026-03-12)
+  INC-TRIAGE-01 → incident-triage [classify-alert-severity] ✓drilled ⚠review overdue (due 2026-03-12)
+  REL-ROLLBACK-01 → rollback-first-change [identify-rollback-candidate] ✓drilled ⚠review overdue (due 2026-02-24)
 ```
 
 ## How a book compiles

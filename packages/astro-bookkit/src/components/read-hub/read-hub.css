@@ -222,22 +222,10 @@
   color: #094777;
 }
 
-.read-meta-chip--new {
-  border-color: rgba(6, 110, 56, 0.36);
-  background: rgba(6, 110, 56, 0.14);
-  color: #0a5d31;
-}
-
 .read-meta-actions {
   display: grid;
   justify-items: end;
   gap: 0.45rem;
-}
-
-.read-surface-card__shortcut {
-  margin-top: auto;
-  justify-content: flex-end;
-  display: flex;
 }
 
 .read-tools-grid {

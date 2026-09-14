@@ -7,6 +7,7 @@ export type NextActionLink = {
 
 const {
   title = "What to do next",
+  eyebrow = "Momentum",
   description,
   links = [],
   variant = "default",
@@ -17,7 +18,7 @@ const resolvedLinks = Array.isArray(links) ? links.filter((link) => link?.href &
 ---
 {resolvedLinks.length > 0 && (
   <section class:list={["next-action-panel", {"next-action-panel--compact": isCompact}]} aria-label={title}>
-    <div class="eyebrow">Momentum</div>
+    <div class="eyebrow">{eyebrow}</div>
     <h2>{title}</h2>
     {description && <p class="meta">{description}</p>}
     <div class="next-action-panel__links">

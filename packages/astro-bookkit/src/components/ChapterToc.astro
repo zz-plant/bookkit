@@ -16,12 +16,11 @@ const filteredHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
 {filteredHeadings.length > 0 && (
   <nav class="chapter-toc" aria-label={label} data-chapter-toc>
     <ol class="chapter-step-list">
-      {filteredHeadings.map((heading, index) => {
+      {filteredHeadings.map((heading) => {
         const cleanText = heading.text.replace(/^\d+[.)\s-]+/, "");
         return (
           <li class={`chapter-toc__depth-${heading.depth}`}>
             <a href={`#${heading.slug}`} data-toc-link={heading.slug}>
-              <span>{index + 1}.</span>
               {cleanText}
             </a>
           </li>

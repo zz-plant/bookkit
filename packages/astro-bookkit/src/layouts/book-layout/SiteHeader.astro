@@ -38,7 +38,9 @@ const readSectionLabels = {
   tools: "Author tools",
 };
 const activeReadSectionLabel =
-  isReadRoute && readSectionFromPath ? readSectionLabels[readSectionFromPath] ?? "Reading route" : null;
+  isReadRoute && readSectionFromPath
+    ? readSectionLabels[readSectionFromPath as keyof typeof readSectionLabels] ?? "Reading route"
+    : null;
 ---
       <header class="site-header">
         <div class="site-brand">
@@ -142,12 +144,6 @@ const activeReadSectionLabel =
                   <p class="reader-settings__hint">Tune text spacing, font, and theme for this device.</p>
                   <div class="reader-settings__group" role="group" aria-label="Reading theme">
                     <span class="reader-settings__label">Theme</span>
-                    <label class="sr-only" for="reader-theme-select">Theme</label>
-                    <select id="reader-theme-select" data-reader-theme-select>
-                      <option value="auto" selected>Auto</option>
-                      <option value="light">Light</option>
-                      <option value="dark">Dark</option>
-                    </select>
                     <div class="reader-settings__options">
                       <button type="button" data-reader-theme="auto">Auto</button>
                       <button type="button" data-reader-theme="light">Light</button>
@@ -156,12 +152,6 @@ const activeReadSectionLabel =
                   </div>
                   <div class="reader-settings__group" role="group" aria-label="Reading density">
                     <span class="reader-settings__label">Density</span>
-                    <label class="sr-only" for="reader-density-select">Reading density</label>
-                    <select id="reader-density-select" data-reader-density-select>
-                      <option value="compact">Compact</option>
-                      <option value="comfortable" selected>Comfortable</option>
-                      <option value="relaxed">Relaxed</option>
-                    </select>
                     <div class="reader-settings__options">
                       <button type="button" data-reader-density="compact">Compact</button>
                       <button type="button" data-reader-density="comfortable">Comfortable</button>
@@ -170,11 +160,6 @@ const activeReadSectionLabel =
                   </div>
                   <div class="reader-settings__group" role="group" aria-label="Reading font">
                     <span class="reader-settings__label">Font</span>
-                    <label class="sr-only" for="reader-font-select">Reading font</label>
-                    <select id="reader-font-select" data-reader-font-select>
-                      <option value="serif" selected>Serif</option>
-                      <option value="sans">Sans</option>
-                    </select>
                     <div class="reader-settings__options">
                       <button type="button" data-reader-font="serif">Serif</button>
                       <button type="button" data-reader-font="sans">Sans</button>

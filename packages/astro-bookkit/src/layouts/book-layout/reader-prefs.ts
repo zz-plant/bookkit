@@ -1,4 +1,4 @@
-import { queryAllElements, queryElement } from "./dom";
+import { queryAllElements } from "./dom";
 import { readStoredJson, type StorageLike, writeStoredJson } from "./storage";
 
 type ReaderPreferences = {
@@ -36,21 +36,6 @@ export const initializeReaderPrefs = ({
 		root,
 		"[data-reader-theme]",
 		HTMLButtonElement,
-	);
-	const densitySelect = queryElement(
-		root,
-		"[data-reader-density-select]",
-		HTMLSelectElement,
-	);
-	const fontSelect = queryElement(
-		root,
-		"[data-reader-font-select]",
-		HTMLSelectElement,
-	);
-	const themeSelect = queryElement(
-		root,
-		"[data-reader-theme-select]",
-		HTMLSelectElement,
 	);
 
 	const updateButtonState = (
@@ -90,7 +75,6 @@ export const initializeReaderPrefs = ({
 		const prefs = loadPreferences();
 		savePreferences({ ...prefs, density });
 		updateButtonState(densityButtons, density);
-		if (densitySelect) densitySelect.value = density;
 	};
 
 	const setFont = (font: string) => {
@@ -99,7 +83,6 @@ export const initializeReaderPrefs = ({
 		const prefs = loadPreferences();
 		savePreferences({ ...prefs, font });
 		updateButtonState(fontButtons, font);
-		if (fontSelect) fontSelect.value = font;
 	};
 
 	const setTheme = (theme: string) => {
@@ -112,7 +95,6 @@ export const initializeReaderPrefs = ({
 		const prefs = loadPreferences();
 		savePreferences({ ...prefs, theme: theme as "light" | "dark" | "auto" });
 		updateButtonState(themeButtons, theme);
-		if (themeSelect) themeSelect.value = theme;
 	};
 
 	const initialize = () => {
@@ -146,16 +128,6 @@ export const initializeReaderPrefs = ({
 		button.addEventListener("click", () => {
 			if (button.dataset.readerTheme) setTheme(button.dataset.readerTheme);
 		});
-	});
-	densitySelect?.addEventListener("change", (event) => {
-		if (event.target instanceof HTMLSelectElement)
-			setDensity(event.target.value);
-	});
-	fontSelect?.addEventListener("change", (event) => {
-		if (event.target instanceof HTMLSelectElement) setFont(event.target.value);
-	});
-	themeSelect?.addEventListener("change", (event) => {
-		if (event.target instanceof HTMLSelectElement) setTheme(event.target.value);
 	});
 
 	initialize();

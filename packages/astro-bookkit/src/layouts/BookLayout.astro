@@ -6,6 +6,7 @@ import bookLayoutMermaidClient from "./book-layout/mermaid.ts?url";
 import SiteHeader from "./book-layout/SiteHeader.astro";
 import MobileCta from "./book-layout/MobileCta.astro";
 import SearchPanel from "./book-layout/SearchPanel.astro";
+import QaPanel from "./book-layout/QaPanel.astro";
 import KeyboardHelp from "./book-layout/KeyboardHelp.astro";
 import ReadingProgressBar from "../components/ReadingProgressBar.astro";
 import { createBookLayoutRenderState, type BookLayoutRenderState } from "../book/layout";
@@ -41,9 +42,9 @@ const {
   aiQaEnabled = true,
   aiQaProvider,
   aiQaSamples = [
-    "What is the core mechanism behind transfer success?",
-    "How do I spot a compliance trap in an organization?",
-    "Which actions help reverse moral technology?",
+    "What does this book cover?",
+    "Which section should I read first?",
+    "What changed in the latest release notes?",
   ],
   isPreview = false,
   previewLabel = "Preview",
@@ -201,16 +202,19 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
       )}
       {renderState.statusActions.show && (
         <div class="status-actions" role="status" aria-live="polite">
-          {renderState.version.showVersionHint && (
+          {renderState.version.showVersionHint && renderState.translationNotice.show ? (
+            <a class="status-actions__link" href="/release-notes">
+              You are viewing v{renderState.version.resolvedVersion} and translation is still in progress. Check release notes for the most stable update before sharing.
+            </a>
+          ) : renderState.version.showVersionHint ? (
             <a class="status-actions__link" href="/release-notes">
               You are viewing v{renderState.version.resolvedVersion}. Open release notes to compare with the latest version.
             </a>
-          )}
-          {renderState.translationNotice.show && (
+          ) : renderState.translationNotice.show ? (
             <a class="status-actions__link" href="/release-notes">
               Translation is still in progress. Check release notes for the most stable update before sharing.
             </a>
-          )}
+          ) : null}
           {renderState.preview.isPreview && (
             <a class="status-actions__link" href="/downloads">
               Using preview mode? Download an offline copy if you need to read without access interruptions.

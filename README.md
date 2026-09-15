@@ -43,7 +43,7 @@ COMPLIANCE on-call: 4/4 controls with tool coverage
 ## Headline numbers (measured on this repo)
 
 - **4 books**, including two teaching books and a runbook — all sharing one engine.
-- **122 tests**, compile-and-validate the whole workspace in **~1.4s**.
+- **140 tests**, compile-and-validate the whole workspace in **under 2s**.
 - **0 schema drift**: schemas, frames, and shims are enforced by gates (`validate`, `check:shims`, `check:separation`), so books can't silently diverge.
 
 ---
@@ -197,6 +197,27 @@ bun run compile:book -- --book bad-people
 bun run export:gitbook -- --book bad-people
 ```
 
+### Deploy
+
+Every book builds to a static site and ships to [Cloudflare Workers static assets](https://developers.cloudflare.com/workers/static-assets/). Each app carries a `wrangler.jsonc` (Worker name `bookkit-<slug>`, `dist/` as the asset directory, `404.html` for misses, and URLs served without trailing slashes so they match the canonical links in the sitemap).
+
+```bash
+bun run qa                                   # lint, types, tests, validate, build, verify dist/
+bun run bookkit deploy on-call --dry-run     # build + verify + wrangler dry run
+bun run bookkit deploy on-call               # publish one book
+bun run deploy                               # publish every book
+```
+
+`deploy` refuses to publish a book whose `dist/` fails `bun run check:build` (see below). Before the first real deploy: run `wrangler login` once, then set `site.url` in `apps/<book>/src/book.config.ts` to the real domain and attach that domain to the Worker in the Cloudflare dashboard. The `*.workers.dev` address works immediately and is marked `noindex` by `public/_headers`.
+
+What a static deployment serves, and what it cannot:
+
+- **Served**: the read UI, search, PDF/EPUB exports, sitemap, robots.txt, RSS, OG images, the MCP discovery manifest (`GET /api/mcp.json`), and the `_headers` security and caching rules.
+- **Inert**: everything that needs a request handler. Feedback and analytics collection, AI Q&A synthesis (the panel falls back to on-device answers), release webhooks and email, and MCP JSON-RPC calls (`POST /api/mcp.json`) all need on-demand rendering plus durable storage, which the current file-backed handlers do not have. The client code degrades silently.
+- **Not enforceable**: `previewAccess`. Astro runs middleware while prerendering, so a token gate cannot protect static files; the engine skips it for prerendered routes and warns during the build. Protect drafts at the edge (for example Cloudflare Access) instead.
+
+`bun run check:build` verifies each `dist/`: no page rendered as a preview lockout, real PDF and EPUB bytes, the 404 page and SEO artifacts present, one site URL across canonical links, robots.txt, and the sitemap, and no `noindex` on a book whose status is `published`. CI runs it after every build.
+
 ### Helpful utilities
 
 ```bash
@@ -235,7 +256,7 @@ Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp
 - call deterministic workspace tools (`bookkit.list_books`, `bookkit.read_book`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
 - scaffold a new book via guarded mutation tooling (`bookkit.create_book`) when explicit creation is required
 
-Use this as the default machine interface instead of ad-hoc repository scraping.
+Use this as the default machine interface instead of ad-hoc repository scraping. On a static deployment only the `GET` manifest is served; tool calls need an on-demand runtime (run `bun run bookkit dev <book>` locally).
 
 ### CI
 
@@ -249,6 +270,8 @@ GitHub Actions runs on every push and PR to `main`:
 - `bun run check:shims` — shim consistency
 - `bun run validate` — schema + frame validation for all books
 - `bun run test` — Bun test runner across all suites
+- `bun run build:all` — static build of every book
+- `bun run check:build` — deployability check on every `dist/`
 
 
 ### Task-driven command recipes
@@ -262,7 +285,7 @@ GitHub Actions runs on every push and PR to `main`:
 | turn raw markdown into structured content | `bun run bookkit import --book <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
 | rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
-| run all quality gates | `bun run lint && bun run check:types && bun run test && bun run validate` | Full CI-equivalent local check |
+| run all quality gates | `bun run qa` | Full CI-equivalent local check, including the build and `dist/` verification |
 
 ---
 
@@ -281,6 +304,11 @@ If your first instinct is “just special-case this one book,” stop and re-eva
 ---
 
 ## Troubleshooting and diagnostics
+
+### Build succeeds but every page is a "preview required" lockout
+
+- `previewAccess.enabled` was true while every token was expired or revoked, and Astro rendered the middleware's 401 page into `dist/`. The engine now bypasses the gate for prerendered routes, and `bun run check:build` fails on any lockout page, so this cannot ship silently.
+- Disable `previewAccess` for published books; static output cannot honor tokens anyway.
 
 ### Validation fails but content "looks right"
 

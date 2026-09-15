@@ -41,7 +41,12 @@ if (existsSync(targetDir)) {
 	process.exit(1);
 }
 
-cpSync(templateDir, targetDir, { recursive: true });
+cpSync(templateDir, targetDir, {
+	recursive: true,
+	// Never copy a template book's build output or dependency tree.
+	filter: (source) =>
+		!/(^|[\\/])(node_modules|dist|\.astro)([\\/]|$)/.test(source),
+});
 
 syncShimTemplatesToBook(slug);
 
@@ -71,6 +76,18 @@ pkg.name = `@books/${slug}`;
 pkg.scripts = pkg.scripts ?? {};
 pkg.scripts.validate = `bun run ../../scripts/validate-book.ts --book ${slug}`;
 writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
+
+const wranglerPath = join(targetDir, "wrangler.jsonc");
+if (existsSync(wranglerPath)) {
+	writeFileSync(
+		wranglerPath,
+		readText(wranglerPath).replace(
+			/"name": "bookkit-[^"]+"/,
+			`"name": "bookkit-${slug}"`,
+		),
+		"utf8",
+	);
+}
 
 const bookConfigPath = join(targetDir, "src", "book.config.ts");
 const bookConfig = `export const bookConfig = {

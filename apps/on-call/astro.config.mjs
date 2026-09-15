@@ -1,9 +1,12 @@
 import mdx from "@astrojs/mdx";
 import { rehypeBookkitHeadingIds } from "@bookkit/astro-bookkit";
 import { defineConfig } from "astro/config";
+import { bookConfig } from "./src/book.config";
 
+// `site` derives from book.config.ts so canonical URLs, the sitemap, robots.txt,
+// and the RSS feed share one declaration. Change the URL there, not here.
 export default defineConfig({
-	site: "https://on-call.book",
+	site: bookConfig.site.url,
 	integrations: [mdx({ rehypePlugins: [rehypeBookkitHeadingIds] })],
 	devToolbar: { enabled: false },
 	vite: {

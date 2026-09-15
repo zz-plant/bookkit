@@ -29,16 +29,10 @@ export const bookConfig = {
 		],
 	},
 	previewAccess: {
-		enabled: true,
+		enabled: false,
 		paramName: "preview",
 		protectedPaths: ["/"],
-		tokens: [
-			{
-				token: "oncall-preview-review-7c4d2e",
-				label: "Editorial review",
-				expiresAt: "2026-06-30",
-			},
-		],
+		tokens: [],
 	},
 	features: {
 		aiQa: true,

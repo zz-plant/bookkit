@@ -17,6 +17,10 @@ const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
 	baseUrl: bookConfig.site?.url,
 	path: readRoutes.root,
 });
+
+// This dashboard is not access-controlled, so tokenized links are only rendered
+// in local development. A built site never contains them.
+const revealPreviewLinks = import.meta.env.DEV;
 ---
 <BaseLayout title={`Analytics • ${bookConfig.title}`}>
   <a class="back-link" href={readRoutes.root}>← Back to reading hub</a>
@@ -32,6 +36,7 @@ const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
     title="Private preview links"
     description="Share draft access with reviewers. Links can expire or be revoked without changing the content."
     links={previewLinks}
+    revealLinks={revealPreviewLinks}
   />
 
   <AnalyticsDashboard lastUpdated={lastUpdated} endpoint="/api/analytics.json" />

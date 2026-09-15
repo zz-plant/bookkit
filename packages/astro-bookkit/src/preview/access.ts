@@ -2,161 +2,184 @@ import type { MiddlewareHandler } from "astro";
 import { getOriginalUrl } from "../utils/request";
 
 export type PreviewTokenRecord = {
-  token: string;
-  label?: string;
-  expiresAt?: string;
-  revoked?: boolean;
+	token: string;
+	label?: string;
+	expiresAt?: string;
+	revoked?: boolean;
 };
 
 export type PreviewAccessConfig = {
-  enabled?: boolean;
-  tokens: readonly PreviewTokenRecord[];
-  paramName?: string;
-  cookieName?: string;
-  protectedPaths?: readonly string[];
-  publicPaths?: readonly string[];
-  cookieMaxAgeDays?: number;
+	enabled?: boolean;
+	tokens: readonly PreviewTokenRecord[];
+	paramName?: string;
+	cookieName?: string;
+	protectedPaths?: readonly string[];
+	publicPaths?: readonly string[];
+	cookieMaxAgeDays?: number;
 };
 
-export type PreviewAccessStatus = "active" | "expired" | "revoked" | "missing" | "invalid";
+export type PreviewAccessStatus =
+	| "active"
+	| "expired"
+	| "revoked"
+	| "missing"
+	| "invalid";
 
 export type PreviewAccessState = {
-  isPreview: boolean;
-  status: PreviewAccessStatus;
-  token?: string;
-  tokenHint?: string;
-  label?: string;
-  expiresAt?: string;
+	isPreview: boolean;
+	status: PreviewAccessStatus;
+	token?: string;
+	tokenHint?: string;
+	label?: string;
+	expiresAt?: string;
 };
 
 export type PreviewLinkStatus = PreviewTokenRecord & {
-  status: Exclude<PreviewAccessStatus, "missing" | "invalid">;
-  tokenHint: string;
+	status: Exclude<PreviewAccessStatus, "missing" | "invalid">;
+	tokenHint: string;
 };
 
 export type PreviewLinkBuildOptions = {
-  baseUrl?: string;
-  path?: string;
-  paramName?: string;
+	baseUrl?: string;
+	path?: string;
+	paramName?: string;
 };
 
 export type PreviewAccessMiddlewareOptions = PreviewAccessConfig & {
-  siteTitle?: string;
-  allowDev?: boolean;
+	siteTitle?: string;
+	allowDev?: boolean;
 };
 
 const defaultCookieName = "preview_token";
 
 const toDate = (value?: string): Date | null => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
+	if (!value) return null;
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) return null;
+	return parsed;
 };
 
 const isExpired = (expiresAt?: string): boolean => {
-  const date = toDate(expiresAt);
-  if (!date) return false;
-  return date.getTime() <= Date.now();
+	const date = toDate(expiresAt);
+	if (!date) return false;
+	return date.getTime() <= Date.now();
 };
 
-const matchesPath = (pathname: string, prefixes: readonly string[] = []): boolean =>
-  prefixes.some((prefix) => {
-    if (!prefix) return false;
-    if (prefix === "/") return true;
-    if (pathname === prefix) return true;
-    return pathname.startsWith(`${prefix}/`);
-  });
+const matchesPath = (
+	pathname: string,
+	prefixes: readonly string[] = [],
+): boolean =>
+	prefixes.some((prefix) => {
+		if (!prefix) return false;
+		if (prefix === "/") return true;
+		if (pathname === prefix) return true;
+		return pathname.startsWith(`${prefix}/`);
+	});
 
 export const getPreviewTokenHint = (token: string): string =>
-  token.length <= 6 ? token : token.slice(-6);
+	token.length <= 6 ? token : token.slice(-6);
 
 export const resolvePreviewToken = (
-  config: PreviewAccessConfig,
-  token: string | undefined | null
+	config: PreviewAccessConfig,
+	token: string | undefined | null,
 ): PreviewAccessState => {
-  if (!token) {
-    return { isPreview: false, status: "missing" };
-  }
+	if (!token) {
+		return { isPreview: false, status: "missing" };
+	}
 
-  const match = config.tokens.find((entry) => entry.token === token);
-  if (!match) {
-    return { isPreview: false, status: "invalid" };
-  }
+	const match = config.tokens.find((entry) => entry.token === token);
+	if (!match) {
+		return { isPreview: false, status: "invalid" };
+	}
 
-  if (match.revoked) {
-    return {
-      isPreview: false,
-      status: "revoked",
-      token,
-      tokenHint: getPreviewTokenHint(token),
-      label: match.label,
-      expiresAt: match.expiresAt,
-    };
-  }
+	if (match.revoked) {
+		return {
+			isPreview: false,
+			status: "revoked",
+			token,
+			tokenHint: getPreviewTokenHint(token),
+			label: match.label,
+			expiresAt: match.expiresAt,
+		};
+	}
 
-  if (isExpired(match.expiresAt)) {
-    return {
-      isPreview: false,
-      status: "expired",
-      token,
-      tokenHint: getPreviewTokenHint(token),
-      label: match.label,
-      expiresAt: match.expiresAt,
-    };
-  }
+	if (isExpired(match.expiresAt)) {
+		return {
+			isPreview: false,
+			status: "expired",
+			token,
+			tokenHint: getPreviewTokenHint(token),
+			label: match.label,
+			expiresAt: match.expiresAt,
+		};
+	}
 
-  return {
-    isPreview: true,
-    status: "active",
-    token,
-    tokenHint: getPreviewTokenHint(token),
-    label: match.label,
-    expiresAt: match.expiresAt,
-  };
+	return {
+		isPreview: true,
+		status: "active",
+		token,
+		tokenHint: getPreviewTokenHint(token),
+		label: match.label,
+		expiresAt: match.expiresAt,
+	};
 };
 
-export const resolvePreviewLinks = (config: PreviewAccessConfig): PreviewLinkStatus[] =>
-  config.tokens.map((entry) => {
-    const status = entry.revoked ? "revoked" : isExpired(entry.expiresAt) ? "expired" : "active";
-    return {
-      ...entry,
-      status,
-      tokenHint: getPreviewTokenHint(entry.token),
-    };
-  });
+export const resolvePreviewLinks = (
+	config: PreviewAccessConfig,
+): PreviewLinkStatus[] =>
+	config.tokens.map((entry) => {
+		const status = entry.revoked
+			? "revoked"
+			: isExpired(entry.expiresAt)
+				? "expired"
+				: "active";
+		return {
+			...entry,
+			status,
+			tokenHint: getPreviewTokenHint(entry.token),
+		};
+	});
 
 export const buildPreviewLink = (
-  token: string,
-  { baseUrl, path = "/", paramName = "preview" }: PreviewLinkBuildOptions = {}
+	token: string,
+	{ baseUrl, path = "/", paramName = "preview" }: PreviewLinkBuildOptions = {},
 ): string => {
-  const base = baseUrl ? new URL(baseUrl) : new URL("http://localhost");
-  const url = new URL(path, base);
-  url.searchParams.set(paramName, token);
-  if (!baseUrl) {
-    return `${url.pathname}${url.search}`;
-  }
-  return url.toString();
+	const base = baseUrl ? new URL(baseUrl) : new URL("http://localhost");
+	const url = new URL(path, base);
+	url.searchParams.set(paramName, token);
+	if (!baseUrl) {
+		return `${url.pathname}${url.search}`;
+	}
+	return url.toString();
 };
 
 export const createPreviewLinks = (
-  config: PreviewAccessConfig,
-  { baseUrl, path, paramName }: PreviewLinkBuildOptions = {}
+	config: PreviewAccessConfig,
+	{ baseUrl, path, paramName }: PreviewLinkBuildOptions = {},
 ): Array<PreviewLinkStatus & { href: string }> => {
-  const resolvedParam = paramName ?? config.paramName ?? "preview";
-  return resolvePreviewLinks(config).map((link) => ({
-    ...link,
-    href: buildPreviewLink(link.token, { baseUrl, path, paramName: resolvedParam }),
-  }));
+	const resolvedParam = paramName ?? config.paramName ?? "preview";
+	return resolvePreviewLinks(config).map((link) => ({
+		...link,
+		href: buildPreviewLink(link.token, {
+			baseUrl,
+			path,
+			paramName: resolvedParam,
+		}),
+	}));
 };
 
-export const getPreviewContext = (locals: Record<string, unknown>): PreviewAccessState | null => {
-  const value = locals?.preview;
-  if (!value || typeof value !== "object") return null;
-  return value as PreviewAccessState;
+export const getPreviewContext = (
+	locals: Record<string, unknown>,
+): PreviewAccessState | null => {
+	const value = locals?.preview;
+	if (!value || typeof value !== "object") return null;
+	return value as PreviewAccessState;
 };
 
-const buildDeniedHtml = (title: string, message: string): string => `<!doctype html>
+const buildDeniedHtml = (
+	title: string,
+	message: string,
+): string => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -194,99 +217,125 @@ const buildDeniedHtml = (title: string, message: string): string => `<!doctype h
 </html>`;
 
 export const createPreviewAccessMiddleware = (
-  options: PreviewAccessMiddlewareOptions
+	options: PreviewAccessMiddlewareOptions,
 ): MiddlewareHandler => {
-  const {
-    enabled = false,
-    tokens,
-    paramName = "preview",
-    cookieName = defaultCookieName,
-    protectedPaths = ["/"],
-    publicPaths = [],
-    cookieMaxAgeDays = 7,
-    siteTitle = "Preview",
-    allowDev = true,
-  } = options;
+	const {
+		enabled = false,
+		tokens,
+		paramName = "preview",
+		cookieName = defaultCookieName,
+		protectedPaths = ["/"],
+		publicPaths = [],
+		cookieMaxAgeDays = 7,
+		siteTitle = "Preview",
+		allowDev = true,
+	} = options;
 
-  return async (context, next) => {
-    if (!enabled) {
-      return next();
-    }
-    if (allowDev && import.meta.env?.DEV) {
-      return next();
-    }
+	let warnedPrerendered = false;
 
-    const url = new URL(context.request.url);
-    const originalUrl = getOriginalUrl(context);
-    const redirectUrl = originalUrl ? new URL(originalUrl) : new URL(context.request.url);
-    const pathname = url.pathname;
+	return async (context, next) => {
+		if (!enabled) {
+			return next();
+		}
+		if (context.isPrerendered) {
+			// Astro runs middleware while prerendering. A token check there either locks
+			// every visitor out (there is no token at build time) or is bypassed by the
+			// static file itself, so it protects nothing. Preview access is only
+			// enforceable on requests rendered on demand; let prerendered routes through
+			// and say so once per build.
+			if (!warnedPrerendered) {
+				warnedPrerendered = true;
+				console.warn(
+					`[bookkit] previewAccess is enabled for "${siteTitle}" but its routes are prerendered, so tokens cannot be enforced and the built output is public. Disable previewAccess or protect the deployment at the edge.`,
+				);
+			}
+			return next();
+		}
+		if (allowDev && import.meta.env?.DEV) {
+			return next();
+		}
 
-    if (matchesPath(pathname, publicPaths)) {
-      return next();
-    }
+		const url = new URL(context.request.url);
+		const originalUrl = getOriginalUrl(context);
+		const redirectUrl = originalUrl
+			? new URL(originalUrl)
+			: new URL(context.request.url);
+		const pathname = url.pathname;
 
-    if (!matchesPath(pathname, protectedPaths)) {
-      return next();
-    }
+		if (matchesPath(pathname, publicPaths)) {
+			return next();
+		}
 
-    const queryToken = url.searchParams.get(paramName);
-    const cookieToken = context.cookies.get(cookieName)?.value;
-    const queryState = queryToken ? resolvePreviewToken({ tokens }, queryToken) : null;
-    const cookieState = cookieToken ? resolvePreviewToken({ tokens }, cookieToken) : null;
-    const previewState = queryToken
-      ? queryState?.isPreview
-        ? queryState
-        : cookieState?.isPreview
-          ? cookieState
-          : queryState ?? { isPreview: false, status: "missing" }
-      : cookieState ?? { isPreview: false, status: "missing" };
+		if (!matchesPath(pathname, protectedPaths)) {
+			return next();
+		}
 
-    if (!previewState.isPreview) {
-      if (cookieToken && !cookieState?.isPreview) {
-        context.cookies.delete(cookieName, { path: "/" });
-      }
-      const title = `${siteTitle} preview required`;
-      const message =
-        previewState.status === "revoked"
-          ? "This preview link has been revoked. Please request a new one from the author."
-          : previewState.status === "expired"
-            ? "This preview link has expired. Please request an updated preview link."
-            : "This page is available only through a private preview link.";
-      return new Response(buildDeniedHtml(title, message), {
-        status: 401,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store, max-age=0",
-          "X-Robots-Tag": "noindex, nofollow",
-        },
-      });
-    }
+		const queryToken = url.searchParams.get(paramName);
+		const cookieToken = context.cookies.get(cookieName)?.value;
+		const queryState = queryToken
+			? resolvePreviewToken({ tokens }, queryToken)
+			: null;
+		const cookieState = cookieToken
+			? resolvePreviewToken({ tokens }, cookieToken)
+			: null;
+		const previewState = queryToken
+			? queryState?.isPreview
+				? queryState
+				: cookieState?.isPreview
+					? cookieState
+					: (queryState ?? { isPreview: false, status: "missing" })
+			: (cookieState ?? { isPreview: false, status: "missing" });
 
-    (context.locals as Record<string, unknown>).preview = previewState;
+		if (!previewState.isPreview) {
+			if (cookieToken && !cookieState?.isPreview) {
+				context.cookies.delete(cookieName, { path: "/" });
+			}
+			const title = `${siteTitle} preview required`;
+			const message =
+				previewState.status === "revoked"
+					? "This preview link has been revoked. Please request a new one from the author."
+					: previewState.status === "expired"
+						? "This preview link has expired. Please request an updated preview link."
+						: "This page is available only through a private preview link.";
+			return new Response(buildDeniedHtml(title, message), {
+				status: 401,
+				headers: {
+					"Content-Type": "text/html; charset=utf-8",
+					"Cache-Control": "no-store, max-age=0",
+					"X-Robots-Tag": "noindex, nofollow",
+				},
+			});
+		}
 
-    if (queryToken && queryState?.isPreview) {
-      const expires = previewState.expiresAt ? new Date(previewState.expiresAt) : undefined;
-      const maxAge = previewState.expiresAt ? undefined : cookieMaxAgeDays * 24 * 60 * 60;
-      context.cookies.set(cookieName, queryToken, {
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: url.protocol === "https:",
-        expires,
-        maxAge,
-      });
+		(context.locals as Record<string, unknown>).preview = previewState;
 
-      redirectUrl.searchParams.delete(paramName);
-      return Response.redirect(redirectUrl.toString(), 302);
-    }
+		if (queryToken && queryState?.isPreview) {
+			const expires = previewState.expiresAt
+				? new Date(previewState.expiresAt)
+				: undefined;
+			const maxAge = previewState.expiresAt
+				? undefined
+				: cookieMaxAgeDays * 24 * 60 * 60;
+			context.cookies.set(cookieName, queryToken, {
+				path: "/",
+				httpOnly: true,
+				sameSite: "lax",
+				secure: url.protocol === "https:",
+				expires,
+				maxAge,
+			});
 
-    if (queryToken) {
-      redirectUrl.searchParams.delete(paramName);
-      return Response.redirect(redirectUrl.toString(), 302);
-    }
+			redirectUrl.searchParams.delete(paramName);
+			return Response.redirect(redirectUrl.toString(), 302);
+		}
 
-    const response = await next();
-    response.headers.set("X-Robots-Tag", "noindex, nofollow");
-    return response;
-  };
+		if (queryToken) {
+			redirectUrl.searchParams.delete(paramName);
+			return Response.redirect(redirectUrl.toString(), 302);
+		}
+
+		const response = await next();
+		response.headers.set("X-Robots-Tag", "noindex, nofollow");
+		return response;
+	};
 };

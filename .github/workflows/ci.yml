@@ -48,3 +48,9 @@ jobs:
 
       - name: Run Tests
         run: bun run test
+
+      - name: Build All Books
+        run: bun run build:all
+
+      - name: Check Build Output
+        run: bun run check:build

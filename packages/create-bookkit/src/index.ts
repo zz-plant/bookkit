@@ -106,6 +106,7 @@ for (const entry of [
 	"package.json",
 	"astro.config.mjs",
 	"tsconfig.json",
+	"wrangler.jsonc",
 	"public",
 	"src",
 ]) {
@@ -131,7 +132,7 @@ for (const dir of [
 writeStarterContent(contentRoot, { title });
 writeConfig(join(appDir, "src", "book.config.ts"), { bookSlug, title });
 writeAppPackageJson(join(appDir, "package.json"), { bookSlug });
-rewriteSite(join(appDir, "astro.config.mjs"), { bookSlug });
+rewriteWorkerName(join(appDir, "wrangler.jsonc"), { bookSlug });
 
 for (const rel of [
 	"tsconfig.base.json",
@@ -426,13 +427,14 @@ function writeAppPackageJson(path: string, opts: { bookSlug: string }): void {
 	);
 }
 
-function rewriteSite(path: string, opts: { bookSlug: string }): void {
+// astro.config.mjs reads `site` from book.config.ts, so only the Worker name needs rewriting.
+function rewriteWorkerName(path: string, opts: { bookSlug: string }): void {
 	const content = readFileSync(path, "utf8");
 	write(
 		path,
 		content.replace(
-			/site: "https:\/\/[^"]+"/,
-			`site: "https://${opts.bookSlug}.book"`,
+			/"name": "bookkit-[^"]+"/,
+			`"name": "bookkit-${opts.bookSlug}"`,
 		),
 	);
 }
@@ -476,14 +478,16 @@ dist/
 		"validate:error": "bun run scripts/validate.ts --mode error",
 		"suggest": "bun run scripts/check-suggestions.ts",
 		"runbooks": "bun run scripts/check-runbooks.ts",
-		"import": "bun run scripts/import-book-from-markdown.ts"
+		"import": "bun run scripts/import-book-from-markdown.ts",
+		"deploy": "bun run --cwd apps/${opts.bookSlug} astro build && bun run --cwd apps/${opts.bookSlug} wrangler deploy"
 	},
 	"devDependencies": {
 		"@astrojs/mdx": "^6.0.1",
 		"astro": "^7.2.2",
 		"bun-types": "^1.2.0",
 		"js-yaml": "^4.1.1",
-		"typescript": "^5.8.0"
+		"typescript": "^5.8.0",
+		"wrangler": "^4.131.2"
 	}
 }
 `,
@@ -505,6 +509,7 @@ bun run suggest         # analyzer proposes mechanism/tool drafts
 bun run dev             # local Astro dev server
 bun run build           # static build of the book
 bun run runbooks        # compliance matrix for runbook-frame books
+bun run deploy          # build, then publish dist/ to Cloudflare Workers static assets
 bun run import --book ${opts.bookSlug} --dir ./notes   # pull existing markdown into chapters
 \`\`\`
 

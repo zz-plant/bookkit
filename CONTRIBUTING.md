@@ -193,5 +193,7 @@ GitHub Actions runs on every push and PR to `main` with the full quality gate:
 6. `bun run check:shims` — shim consistency
 7. `bun run validate` — schema + frame validation
 8. `bun run test` — Bun test runner across all test files
+9. `bun run build:all` — static build of every book
+10. `bun run check:build` — every `dist/` is deployable (no lockout pages, real exports, SEO artifacts, one site URL)
 
 PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

@@ -5,10 +5,13 @@ const {
   title = "Preview links",
   description = "Share these private links with reviewers. Access can be revoked or set to expire.",
   links = [],
+  revealLinks = true,
 } = Astro.props as {
   title?: string;
   description?: string;
   links?: Array<PreviewLinkStatus & { href: string }>;
+  /** Render the full tokenized links. Pass false for public builds, where the page is not access-controlled. */
+  revealLinks?: boolean;
 };
 
 const hasLinks = links.length > 0;
@@ -48,22 +51,28 @@ const hasLinks = links.length > 0;
             </div>
           </div>
           <div class="preview-link__actions">
-            <input
-              class="preview-link__input"
-              type="text"
-              readonly
-              aria-readonly="true"
-              aria-labelledby={`preview-link-label-${index}`}
-              value={link.href}
-            />
-            <button
-              class="preview-link__copy"
-              type="button"
-              data-preview-copy={link.href}
-              aria-label={`Copy preview link for ${link.label ?? `Preview ${link.tokenHint}`}`}
-            >
-              Copy link
-            </button>
+            {revealLinks ? (
+              <Fragment>
+                <input
+                  class="preview-link__input"
+                  type="text"
+                  readonly
+                  aria-readonly="true"
+                  aria-labelledby={`preview-link-label-${index}`}
+                  value={link.href}
+                />
+                <button
+                  class="preview-link__copy"
+                  type="button"
+                  data-preview-copy={link.href}
+                  aria-label={`Copy preview link for ${link.label ?? `Preview ${link.tokenHint}`}`}
+                >
+                  Copy link
+                </button>
+              </Fragment>
+            ) : (
+              <span class="preview-link__masked">Link ending in …{link.tokenHint}</span>
+            )}
           </div>
         </article>
       ))}
@@ -72,6 +81,12 @@ const hasLinks = links.length > 0;
     <div class="preview-empty">
       <p class="meta">No preview links have been configured yet.</p>
     </div>
+  )}
+
+  {hasLinks && !revealLinks && (
+    <p class="meta preview-panel__note">
+      Full links are shown only in local development. Built pages are public, so tokens are never written into them.
+    </p>
   )}
 
   <script>

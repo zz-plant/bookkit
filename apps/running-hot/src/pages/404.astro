@@ -1,0 +1,17 @@
+---
+import { readRoutes } from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout title={`Page not found • ${bookConfig.title}`} robots="noindex, nofollow">
+  <div class="section-header">
+    <div class="eyebrow">404</div>
+    <h1>Page not found</h1>
+    <p class="lede">
+      This address does not exist in the current version of the book. It may have moved between releases.
+    </p>
+  </div>
+  <p>
+    <a class="back-link" href={readRoutes.root}>← Go to the reading hub</a>
+  </p>
+</BaseLayout>

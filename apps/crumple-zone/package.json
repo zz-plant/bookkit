@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "astro dev",
 		"build": "astro build",
-		"validate": "bun run ../../scripts/validate-book.ts --book crumple-zone"
+		"validate": "bun run ../../scripts/validate-book.ts --book crumple-zone",
+		"deploy": "wrangler deploy"
 	},
 	"dependencies": {
 		"@astrojs/mdx": "^6.0.1",

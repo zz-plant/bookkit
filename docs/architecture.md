@@ -59,6 +59,8 @@ flowchart LR
     RT --> OUT
 ```
 
+`OUT` is a plain `dist/` directory. `bun run check:build` verifies it is deployable and `bun run bookkit deploy` publishes it as Cloudflare Workers static assets (see README → Deploy). Anything that needs a request handler at runtime — preview tokens, feedback and analytics collection, Q&A synthesis, MCP JSON-RPC — is inert on that static host; the middleware and the client code both degrade rather than break.
+
 ### Governance pipeline — Bun CLI, at check time
 
 Nothing here touches Astro. Scripts read the content tree from disk, parse frontmatter into records, and run validators and analyzers over them.
@@ -161,7 +163,6 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `book/` | 4 | runtime assembly, entrypoints, reading graph, ordering, read routes, layout state |
 | `components/` | 4 | shared Astro components and page-level compositions |
 | `layouts/` | 4 | `BookLayout` and the reader shell islands |
-| `compiler/` | 4 | empty placeholder — carries no source files; delete or implement |
 
 <!-- architecture:modules:end -->
 

@@ -14,6 +14,9 @@
 		"dev": "bun run bookkit dev",
 		"build": "bun run bookkit build",
 		"build:all": "bun run --workspaces build",
+		"check:build": "bun run scripts/check-build.ts",
+		"qa": "bun run lint && bun run check:types && bun run test && bun run validate && bun run build:all && bun run check:build",
+		"deploy": "bun run bookkit deploy",
 		"lint": "biome lint .",
 		"check:types": "bun run scripts/typecheck.ts",
 		"check:upgrade": "bun run scripts/upgrade-check.ts",
@@ -64,6 +67,7 @@
 		"husky": "^9.1.7",
 		"lint-staged": "^17.0.5",
 		"typescript": "^5.9.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.10",
+		"wrangler": "^4.131.2"
 	}
 }

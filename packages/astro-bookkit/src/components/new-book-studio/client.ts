@@ -71,7 +71,7 @@ if (!form || !output) {
 
     output.removeAttribute("hidden");
     output.scrollIntoView({ behavior: "smooth", block: "start" });
-    pushToast("Starter package generated.");
+    pushToast("Starter files generated.");
   });
 
   form.addEventListener("input", updateProgress);
@@ -131,7 +131,7 @@ if (!form || !output) {
     link.click();
     link.remove();
     URL.revokeObjectURL(href);
-    pushToast("Downloaded starter package JSON.");
+    pushToast("Downloaded.");
   });
 
   document.querySelector("[data-reset-form]")?.addEventListener("click", () => {

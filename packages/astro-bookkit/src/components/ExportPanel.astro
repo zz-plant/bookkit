@@ -22,11 +22,10 @@ const { title = "Downloads", description, links = [] } = Astro.props as {
         data-export-scope={link.scope ?? "book"}
         data-export-slug={link.slug}
       >
-        <div>
+        <div class="export-panel__label">
           <strong>{link.label}</strong>
           <span class="meta">
-            {link.size && <span>{link.size}</span>}
-            {link.updatedAt && <span>{` • Updated ${link.updatedAt}`}</span>}
+            {[link.size, link.updatedAt && `updated ${link.updatedAt}`].filter(Boolean).join(" · ")}
           </span>
         </div>
         <span class="export-panel__badge">{link.format.toUpperCase()}</span>

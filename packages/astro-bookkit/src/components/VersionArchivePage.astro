@@ -33,7 +33,7 @@ const {
   bookVersion,
   bookKey = "book",
   versions,
-  description = "Browse published versions and archived releases of this book.",
+  description = "Every published version of this book.",
   prefixSegment = "v",
   siteUrl,
   metaDescription,
@@ -135,12 +135,8 @@ const entries = versions.map((entry) => ({
             )}
           </div>
           {entry.summary && <p class="version-card__summary">{entry.summary}</p>}
-          <div class="version-card__chips">
-            <span class="version-card__chip">Impact: reader</span>
-            {entry.highlights?.length ? (
-              <span class="version-card__chip">{entry.highlights.length} highlight{entry.highlights.length === 1 ? "" : "s"}</span>
-            ) : null}
-            <span class="version-card__chip version-card__chip--new" data-version-new hidden>Updated since last visit</span>
+          <div class="version-card__chips" data-version-new hidden>
+            <span class="version-card__chip version-card__chip--new">New since your last visit</span>
           </div>
           {entry.highlights?.length ? (
             <ul class="version-card__highlights">

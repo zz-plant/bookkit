@@ -35,7 +35,7 @@ const toggleUpdateFilter = (): void => {
 		const defaultLabel =
 			filterButton.dataset.filterDefaultLabel ||
 			filterButton.textContent ||
-			"Show updates";
+			"Show recently updated";
 		const activeLabel =
 			filterButton.dataset.filterActiveLabel || "Show all sections";
 		let isFiltered = false;

@@ -24,22 +24,13 @@ const allChapterExportLinks = chapterItems.flatMap((chapter) =>
   getChapterExportLinks(chapter.slug, chapter.title)
 );
 ---
-<BaseLayout title={`Offline reading • ${bookConfig.title}`}>
+<BaseLayout title={`Downloads • ${bookConfig.title}`}>
   <div class="section-header">
-    <h1>Offline reading</h1>
-    <p class="lede">Download full-book or chapter-specific exports for focused, offline use.</p>
-    <p class="meta">Tip: PDF is best for print markup. EPUB is best for reflowable mobile reading.</p>
+    <h1>Downloads</h1>
+    <p class="lede">The whole book or single chapters. PDF is best for printing and annotating; EPUB reflows to fit phones and e-readers.</p>
   </div>
 
-  <ExportPanel
-    title="Full book exports"
-    description="Choose PDF for print-ready formatting or EPUB for flexible reading devices. Metadata shows rough size and freshness when available."
-    links={bookExportLinks}
-  />
+  <ExportPanel title="Whole book" links={bookExportLinks} />
 
-  <ExportPanel
-    title="Chapter exports"
-    description="Direct PDF and EPUB downloads for each individual chapter."
-    links={allChapterExportLinks}
-  />
+  <ExportPanel title="Single chapters" links={allChapterExportLinks} />
 </BaseLayout>

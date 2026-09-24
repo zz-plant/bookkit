@@ -24,27 +24,25 @@ const urgencyOrder: Record<string, number> = {
 const summarizeMeta = (value: string) => {
   const firstSentence = value.split(/(?<=[.!?])\s+/)[0] ?? value;
   if (firstSentence.length <= 110) return firstSentence;
-  return `${firstSentence.slice(0, 107).trimEnd()}…`;
+  return `${firstSentence.slice(0, 107).replace(/\s+\S*$/, "")}…`;
 };
 const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
   defaultLocale: "en",
   locale: Astro.locals?.locale,
   mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
-    const urgency = urgencyBySlug[slug] ?? "stabilize";
+    const urgency = urgencyBySlug[slug] ?? null;
     const tags = [
       urgency,
       coreMechanismSlugs.has(slug) ? "core" : null,
       isFallback ? "fallback" : null,
     ].filter(Boolean);
-    const predictions = Array.isArray(frontmatter.predictions) ? frontmatter.predictions : [];
-    const quickTrigger = typeof predictions[0] === "string" ? predictions[0] : null;
     const definition = typeof frontmatter.definition === "string" ? frontmatter.definition : "";
     return {
       href: readItemPath("mechanisms", slug),
       title: frontmatter.title ?? "Untitled mechanism",
       eyebrow: tags.join(" • "),
-      meta: summarizeMeta(quickTrigger ? `Use this when: ${quickTrigger}` : definition),
+      meta: summarizeMeta(definition),
     };
   },
   sort: (a, b) => {
@@ -54,8 +52,29 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
     return a.title.localeCompare(b.title);
   },
 });
+// A tag that every mechanism carries doesn't help anyone choose between them,
+// so it is neither shown on the list nor offered as a filter.
+const tagCounts = new Map<string, number>();
+for (const item of mechanismItems) {
+  for (const tag of item.eyebrow?.split(" • ") ?? []) {
+    if (tag) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  }
+}
+const isDistinguishingTag = (tag: string) => {
+  const count = tagCounts.get(tag) ?? 0;
+  return count > 0 && count < mechanismItems.length;
+};
+const listedMechanisms = mechanismItems.map((item) => ({
+  ...item,
+  eyebrow: item.eyebrow?.split(" • ").filter(isDistinguishingTag).join(" • ") || null,
+}));
+const quickFilters = [
+  { value: "urgent", label: "Urgent" },
+  { value: "high-leverage", label: "High leverage" },
+  { value: "core", label: "Core" },
+].filter((filter) => isDistinguishingTag(filter.value));
 const localizedLede = buildTranslationLede(
-  "Stable patterns that explain how harm stays normalized. Pick one by trigger language, then open its next action.",
+  "Patterns that explain how harm stays normalized, and how to recognize each one.",
   completeness
 );
 ---
@@ -63,32 +82,30 @@ const localizedLede = buildTranslationLede(
   <ContentIndexList
     title="Mechanisms"
     lede={localizedLede}
-    items={mechanismItems}
-    filterMode="always"
-    filterPlaceholder="Filter by mechanism, urgency tag, or trigger language..."
-    filterHint="Use quick filters for urgency/core, then type your situation language."
+    items={listedMechanisms}
+    filterMode={quickFilters.length > 0 ? "always" : "auto"}
+    filterPlaceholder="Filter by name or definition"
     alphaMode={false}
-    itemActionLabel="Open mechanism"
   >
-    <Fragment slot="after-header">
-      <div class="mechanism-quick-filters" role="group" aria-label="Quick filters" data-toggle-group="mechanism-filters">
-        <span class="mechanism-quick-filters__label">Quick filters</span>
-        <button type="button" class="mechanism-filter-pill" data-filter-value="urgent" aria-pressed="false" title="Show urgent mechanisms first">Urgent</button>
-        <button type="button" class="mechanism-filter-pill" data-filter-value="high-leverage" aria-pressed="false" title="Show high-leverage mechanisms">High leverage</button>
-        <button type="button" class="mechanism-filter-pill" data-filter-value="core" aria-pressed="false" title="Show core stable mechanisms">Core</button>
-        <button type="button" class="mechanism-filter-pill mechanism-filter-pill--clear" data-filter-clear>Clear</button>
-      </div>
-    </Fragment>
+    {quickFilters.length > 0 && (
+      <Fragment slot="after-header">
+        <div class="mechanism-quick-filters" role="group" aria-label="Filter by tag" data-toggle-group="mechanism-filters">
+          <span class="mechanism-quick-filters__label">Show</span>
+          {quickFilters.map((filter) => (
+            <button type="button" class="mechanism-filter-pill" data-filter-value={filter.value} aria-pressed="false">{filter.label}</button>
+          ))}
+          <button type="button" class="mechanism-filter-pill mechanism-filter-pill--clear" data-filter-clear>All</button>
+        </div>
+      </Fragment>
+    )}
     <Fragment slot="after-list">
       <section class="content-block mechanisms-tail">
         <div>
-          <div class="eyebrow">Next step</div>
-          <h2>Turn diagnosis into a ten-minute move</h2>
-          <p class="meta">After naming the pattern, open Toolkit to choose a reversible action you can run now.</p>
+          <h2>Then pick an action</h2>
+          <p class="meta">Each mechanism links to toolkit actions that take ten minutes or less.</p>
         </div>
         <div class="link-group">
-          <a class="button" href={readRoutes.toolkit}>Open toolkit</a>
-          <a class="button button--secondary" href={readRoutes.overview}>Review framing constraints</a>
+          <a class="button" href={readRoutes.toolkit}>Toolkit</a>
         </div>
       </section>
     </Fragment>
@@ -183,7 +200,7 @@ const localizedLede = buildTranslationLede(
 
   .mechanism-filter-pill {
     border-radius: 999px;
-    border: 1px solid rgba(91, 76, 230, 0.25);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
     background: rgba(255, 255, 255, 0.85);
     color: var(--color-accent-strong);
     font-size: var(--text-xs);
@@ -194,8 +211,8 @@ const localizedLede = buildTranslationLede(
 
   .mechanism-filter-pill:hover,
   .mechanism-filter-pill.is-active {
-    background: rgba(91, 76, 230, 0.14);
-    border-color: rgba(91, 76, 230, 0.42);
+    background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+    border-color: color-mix(in srgb, var(--color-accent) 42%, transparent);
   }
 
   .mechanism-filter-pill--clear {

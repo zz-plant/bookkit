@@ -74,16 +74,18 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   breadcrumbItems,
   Astro.url
 );
+const chapterEyebrow = [
+  frontmatter.status === "published" ? null : (frontmatter.status ?? "draft"),
+  isFallback ? "not yet translated" : null,
+]
+  .filter(Boolean)
+  .join(" · ");
 ---
 <BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
-  <a class="back-link" href={readRoutes.chapters}>← Chapters</a>
   <div class="chapter-shell">
     <article>
-      <div class="eyebrow">
-        {frontmatter.status ?? "draft"}
-        {isFallback ? " • fallback" : ""}
-      </div>
+      {chapterEyebrow && <div class="eyebrow">{chapterEyebrow}</div>}
       <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
       {chapterMechanisms.length > 0 && (
         <div class="chapter-mechanisms" style="display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0 1rem; flex-wrap: wrap;">
@@ -107,8 +109,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
     </article>
 
     <aside class="chapter-meta-panel">
-      <div class="eyebrow">{defaultChapterPageCopy.chapterMapLabel}</div>
-      <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>
+      {headings.length > 0 && <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>}
       <ChapterToc headings={headings} label={defaultChapterPageCopy.chapterMapLabel} />
       <ExportPanel
         title={defaultChapterPageCopy.downloadChapterTitle}

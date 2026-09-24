@@ -23,18 +23,17 @@ const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
 const revealPreviewLinks = import.meta.env.DEV;
 ---
 <BaseLayout title={`Analytics • ${bookConfig.title}`}>
-  <a class="back-link" href={readRoutes.root}>← Back to reading hub</a>
+  <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
-    <div class="eyebrow">Author dashboard</div>
-    <h1>Engagement analytics</h1>
+    <h1>Analytics</h1>
     <p class="lede">
-      Local, privacy-conscious analytics based on anonymized session events.
+      Page views, reading time, and scroll depth from anonymized sessions.
     </p>
   </div>
 
   <PreviewLinksPanel
     title="Private preview links"
-    description="Share draft access with reviewers. Links can expire or be revoked without changing the content."
+    description="Give reviewers access to a draft. You can let links expire or revoke them at any time."
     links={previewLinks}
     revealLinks={revealPreviewLinks}
   />

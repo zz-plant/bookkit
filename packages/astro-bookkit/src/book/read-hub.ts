@@ -15,7 +15,7 @@ export type ReadHubHeroLink = {
 };
 
 export type ReadHubHeroConfig = {
-	eyebrow: string;
+	eyebrow?: string;
 	title: string;
 	lede: string;
 	quickLinks: ReadHubHeroLink[];
@@ -24,7 +24,7 @@ export type ReadHubHeroConfig = {
 };
 
 export type ReadHubQuickStartCard = {
-	eyebrow: string;
+	eyebrow?: string;
 	title: string;
 	description: string;
 	href: string;
@@ -33,7 +33,7 @@ export type ReadHubQuickStartCard = {
 };
 
 export type ReadHubIntroConfig = {
-	eyebrow: string;
+	eyebrow?: string;
 	title: string;
 	lede?: string;
 };
@@ -54,7 +54,7 @@ export type ReadHubUtilityLink = {
 };
 
 export type ReadHubUtilityCard = {
-	eyebrow: string;
+	eyebrow?: string;
 	title: string;
 	description: string;
 	links: ReadHubUtilityLink[];
@@ -65,7 +65,7 @@ export type ReadHubUtilityCard = {
 
 export type ReadHubUtilitiesConfig = {
 	mode: "default" | "accordion";
-	eyebrow: string;
+	eyebrow?: string;
 	title: string;
 	lede?: string;
 	cards: ReadHubUtilityCard[];
@@ -208,7 +208,7 @@ export const createDefaultReadHubSections = (
 ): ReadHubSection[] => [
 	{
 		title: "Overview",
-		description: "Objectives, frame, and constraints for this draft.",
+		description: "What the book is for, how it is framed, and its limits.",
 		href: readRoutes.overview,
 		count: 1,
 		sectionKey: "overview",
@@ -216,7 +216,7 @@ export const createDefaultReadHubSections = (
 	},
 	{
 		title: "Chapters",
-		description: "Core modules and the intervention frame.",
+		description: "The full argument, read in order.",
 		href: readRoutes.chapters,
 		count: stats.chapters.count,
 		completeness: stats.chapters.completeness ?? null,
@@ -225,7 +225,7 @@ export const createDefaultReadHubSections = (
 	},
 	{
 		title: "Mechanisms",
-		description: "Named system patterns with stable definitions.",
+		description: "Named patterns and how to recognize them.",
 		href: readRoutes.mechanisms,
 		count: stats.mechanisms.count,
 		completeness: stats.mechanisms.completeness ?? null,
@@ -234,7 +234,7 @@ export const createDefaultReadHubSections = (
 	},
 	{
 		title: "Toolkit",
-		description: "Action primitives that fit inside ten minutes.",
+		description: "Actions that take ten minutes or less.",
 		href: readRoutes.toolkit,
 		count: stats.toolkit.count,
 		completeness: stats.toolkit.completeness ?? null,
@@ -243,7 +243,7 @@ export const createDefaultReadHubSections = (
 	},
 	{
 		title: "Glossary",
-		description: "Short definitions to keep shared language consistent.",
+		description: "Definitions of the terms the book uses.",
 		href: readRoutes.glossary,
 		count: stats.glossary.count,
 		completeness: stats.glossary.completeness ?? null,
@@ -252,7 +252,7 @@ export const createDefaultReadHubSections = (
 	},
 	{
 		title: "Examples",
-		description: "Replaceable cases that ground the modules.",
+		description: "Worked cases for each mechanism.",
 		href: readRoutes.examples,
 		count: stats.examples.count,
 		completeness: stats.examples.completeness ?? null,

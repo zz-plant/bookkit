@@ -39,7 +39,7 @@ const readSectionLabels = {
 };
 const activeReadSectionLabel =
   isReadRoute && readSectionFromPath
-    ? readSectionLabels[readSectionFromPath as keyof typeof readSectionLabels] ?? "Reading route"
+    ? readSectionLabels[readSectionFromPath as keyof typeof readSectionLabels] ?? null
     : null;
 ---
       <header class="site-header">
@@ -76,7 +76,7 @@ const activeReadSectionLabel =
             aria-current={isDownloadsRoute ? "page" : undefined}
             aria-keyshortcuts="g d"
           >
-            Offline reading
+            Downloads
           </a>
           <button
             class="search-toggle"
@@ -95,13 +95,13 @@ const activeReadSectionLabel =
             </button>
             <div class="site-nav__overflow" data-site-nav-overflow hidden>
               <div class="site-nav__group site-nav__group--reader">
-                <p class="site-nav__group-label">Reader tools</p>
+                <p class="site-nav__group-label">Updates</p>
                 <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>
               </div>
               {enableAuthorTools && (
                 <div class="site-nav__group site-nav__group--author">
-                  <p class="site-nav__group-label">Author tools</p>
-                  <a href="/read/tools" aria-keyshortcuts="g a">Publishing tools</a>
+                  <p class="site-nav__group-label">For authors</p>
+                  <a href="/read/tools" aria-keyshortcuts="g a">Author tools</a>
                   <a href="/new-book" aria-keyshortcuts="g b">Start a new book</a>
                 </div>
               )}
@@ -109,7 +109,7 @@ const activeReadSectionLabel =
               {(hasVersions || localeEntries.length > 1) && (
                 <details class="site-settings" data-site-settings>
                   <summary class="site-settings__toggle">
-                    View settings
+                    Version and language
                     <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
                   </summary>
                   <div class="site-settings__panel">
@@ -136,12 +136,12 @@ const activeReadSectionLabel =
                 </details>
               )}
               <details class="reader-settings" data-reader-settings>
-                <summary class="reader-settings__toggle" title="Reading appearance (density, font, theme)">
-                  Aa Reading view
+                <summary class="reader-settings__toggle">
+                  Appearance
                   <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
                 </summary>
                 <div class="reader-settings__panel">
-                  <p class="reader-settings__hint">Tune text spacing, font, and theme for this device.</p>
+                  <p class="reader-settings__hint">Saved on this device.</p>
                   <div class="reader-settings__group" role="group" aria-label="Reading theme">
                     <span class="reader-settings__label">Theme</span>
                     <div class="reader-settings__options">

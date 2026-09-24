@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import ReaderUtilityStrip from "@bookkit/astro-bookkit/components/ReaderUtilityStrip.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
@@ -16,38 +15,29 @@ const { items: toolItems, completeness } = createLocalizedContentList(modules, {
     const name = frontmatter.name ?? "Untitled action";
     return {
       href: readItemPath("toolkit", slug),
-      title: isFallback ? `${name} (fallback)` : name,
-      eyebrow: "tool",
-      badges: [
-        frontmatter.timeboxMinutes ? `${frontmatter.timeboxMinutes} min` : "10 min",
-      ],
-      meta: `${frontmatter.mechanism ?? "general"} • ${
-        frontmatter.timeboxMinutes ?? 10
-      } min`,
+      title: isFallback ? `${name} (not yet translated)` : name,
+      meta: [
+        frontmatter.mechanism,
+        frontmatter.timeboxMinutes ? `${frontmatter.timeboxMinutes} min` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Action primitives designed to be executed in ≤10 minutes.",
+  "Actions you can take in ten minutes or less.",
   completeness
 );
 ---
 <BaseLayout title={`Toolkit • ${bookConfig.title}`}>
-  <ReaderUtilityStrip
-    label="Reading utilities"
-    links={[
-      { href: "/release-notes", label: "Release notes" },
-      { href: "/downloads", label: "Offline downloads" },
-    ]}
-  />
   <ContentIndexList
     title="Toolkit"
     lede={localizedLede}
     items={toolItems}
     filterMode="always"
-    filterPlaceholder="Filter by action, mechanism, or timebox..."
-    filterHint="Filter actions by name, mechanism, or timebox."
+    filterPlaceholder="Filter by name or mechanism"
     alphaMode="always"
   />
 </BaseLayout>

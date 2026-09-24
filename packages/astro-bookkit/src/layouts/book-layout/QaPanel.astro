@@ -13,17 +13,16 @@ const { aiQaSamples = [] } = Astro.props;
       <strong>Ask the book</strong>
       <div class="qa-panel__actions">
         <button type="button" class="qa-panel__toggle" data-qa-disable>
-          Disable AI Q&amp;A
+          Turn off
         </button>
-        <button type="button" class="kbd-close" data-qa-close aria-label="Close AI Q&A">
+        <button type="button" class="kbd-close" data-qa-close aria-label="Close Ask the book">
           Esc
         </button>
       </div>
     </div>
     <div class="qa-panel__body" data-qa-body>
       <p class="meta">
-        This assistant matches your question to passages in the book. Responses are grounded in cited
-        sections and won’t include external knowledge.
+        Answers are drawn only from this book and cite the sections they come from.
       </p>
       <form class="qa-panel__form" data-qa-form>
         <label class="qa-panel__field">
@@ -37,19 +36,19 @@ const { aiQaSamples = [] } = Astro.props;
             data-qa-input
           ></textarea>
         </label>
-        <button type="submit" class="qa-panel__submit">Get answer</button>
+        <button type="submit" class="qa-panel__submit">Ask</button>
       </form>
       <div class="qa-panel__display" role="group" aria-label="Answer display mode">
-        <span class="meta">Display mode</span>
+        <span class="meta">Show</span>
         <button type="button" class="qa-panel__display-toggle" data-qa-display-toggle>
           Show citations first
         </button>
       </div>
       <div class="qa-panel__meta" id="qa-status" role="status" aria-live="polite" data-qa-status>
-        Try a question to see cited answers. Uses local book index only.
+        Ask a question to see answers.
       </div>
       <div class="qa-panel__suggestions">
-        <div class="eyebrow">Sample prompts</div>
+        <div class="eyebrow">Try asking</div>
         <div class="qa-panel__suggestion-list">
           {aiQaSamples.map((prompt) => (
             <button type="button" class="qa-panel__suggestion" data-qa-suggestion>{prompt}</button>
@@ -62,9 +61,9 @@ const { aiQaSamples = [] } = Astro.props;
       <div class="qa-panel__citations" data-qa-citations></div>
     </div>
     <div class="qa-panel__disabled" data-qa-disabled hidden>
-      <p>AI Q&amp;A is disabled for this book in your browser.</p>
+      <p>Ask the book is turned off in this browser.</p>
       <button type="button" class="qa-panel__submit" data-qa-enable>
-        Re-enable AI Q&amp;A
+        Turn it back on
       </button>
     </div>
   </div>

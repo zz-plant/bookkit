@@ -43,8 +43,8 @@ const {
   versionArchivePath = "/versions",
   rssUrl,
   releases,
-  description = "Track new releases, subscribe to updates, and review the latest changes.",
-  subscribeLabel = "Subscribe via RSS",
+  description = "What changed in each version of the book, newest first.",
+  subscribeLabel = "RSS feed",
   subscribeAnalyticsUrl = "/api/release-analytics.json",
   siteUrl,
   metaDescription,
@@ -127,7 +127,7 @@ const renderState = createBookLayoutRenderState({
     </div>
     <div class="release-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
       <button class="button button--secondary" type="button" data-release-filter hidden>
-        Show since last visit
+        Only new since my last visit
       </button>
       <a
         class="button"
@@ -144,29 +144,18 @@ const renderState = createBookLayoutRenderState({
       const Content = release.Content;
       return (
         <article class="release-card" id={`release-${release.version}`} data-release-date={release.date}>
-          <header class="release-header">
-            <div class="release-meta">
-              <p class="eyebrow">Version {release.version}</p>
-              <h2>{release.title}</h2>
-            </div>
-            <time class="release-date" datetime={release.date}>
-              {formatReleaseDate(release.date)}
-            </time>
+          <header class="release-meta">
+            <p class="eyebrow">
+              v{release.version} · <time datetime={release.date}>{formatReleaseDate(release.date)}</time>
+            </p>
+            <h2>{release.title}</h2>
           </header>
-          <p class="eyebrow">Reader impact summary</p>
           <p class="release-summary">{release.summary}</p>
-          <div class="release-chip-row">
-            <span class="release-chip">Impact: reader</span>
-            {release.changedSections.length > 0 && (
-              <span class="release-chip">{release.changedSections.length} updated section{release.changedSections.length === 1 ? "" : "s"}</span>
-            )}
-            {release.highlights.length > 0 && (
-              <span class="release-chip">{release.highlights.length} key highlight{release.highlights.length === 1 ? "" : "s"}</span>
-            )}
-            <span class="release-chip release-chip--new" data-release-new hidden>Updated since last visit</span>
+          <div class="release-chip-row" data-release-new hidden>
+            <span class="release-chip release-chip--new">New since your last visit</span>
           </div>
           {release.changedSections.length > 0 && (
-            <p class="meta">Updated sections: {release.changedSections.join(", ")}</p>
+            <p class="meta">Changed: {release.changedSections.join(", ")}</p>
           )}
           {release.highlights.length > 0 && (
             <ul class="release-highlights">
@@ -177,7 +166,7 @@ const renderState = createBookLayoutRenderState({
           )}
           {Content && (
             <details class="release-details">
-              <summary>Read details</summary>
+              <summary>Full notes</summary>
               <section class="content-block">
                 <Content />
               </section>
@@ -251,7 +240,7 @@ const renderState = createBookLayoutRenderState({
           }
           filterButton.textContent = showingFiltered
             ? "Show all releases"
-            : "Show since last visit";
+            : "Only new since my last visit";
         });
       }
 

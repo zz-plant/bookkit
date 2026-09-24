@@ -11,7 +11,7 @@ export const bookConfig = {
 		indexable: isProduction && !forceNoindex,
 		defaultMeta: {
 			description:
-				"A recompilable runbook for on-call engineering: classify alerts, pick a safe first action, escalate to the right owner, and verify recovery.",
+				"A runbook for on-call engineers: classify the alert, pick a safe first action, escalate to the right owner, and verify recovery.",
 			ogImage: "/og/default.svg",
 		},
 	},

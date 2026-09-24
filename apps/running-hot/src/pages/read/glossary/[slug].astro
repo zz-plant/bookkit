@@ -68,26 +68,17 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
 ---
 <BaseLayout title={`${frontmatter.term} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
-  <a class="back-link" href={readRoutes.glossary}>← Glossary</a>
-  <div class="eyebrow">Glossary{isFallback ? " • fallback" : ""}</div>
+  <div class="eyebrow">Glossary{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>
   <NextActionPanel
     variant="compact"
-    title="Use this term right away"
-    description="Bridge shared language to mechanism and examples."
+    title="Keep going"
     links={[
       {
         href: matchingMechanism ? readItemPath("mechanisms", matchingMechanism.slug) : readRoutes.mechanisms,
-        label: matchingMechanism ? `Open ${frontmatter.term} mechanism` : "Open mechanisms guide",
-        meta: matchingMechanism
-          ? "See the full definition and tests"
-          : `Apply “${frontmatter.term}” in pattern matching`,
+        label: matchingMechanism ? `The ${frontmatter.term} mechanism` : "Mechanisms",
       },
-      {
-        href: readRoutes.examples,
-        label: "Find examples using this term",
-        meta: "Ground language in cases",
-      },
+      { href: readRoutes.examples, label: "Examples" },
     ]}
   />
   <section class="content-block">

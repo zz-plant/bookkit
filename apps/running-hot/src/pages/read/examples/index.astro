@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import ReaderUtilityStrip from "@bookkit/astro-bookkit/components/ReaderUtilityStrip.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
@@ -16,34 +15,24 @@ const { items: exampleItems, completeness } = createLocalizedContentList(modules
     const title = frontmatter.title ?? "Untitled example";
     return {
       href: readItemPath("examples", slug),
-      title: isFallback ? `${title} (fallback)` : title,
-      eyebrow: frontmatter.status ?? "draft",
-      badges: [frontmatter.domain ?? "unknown domain"],
-      meta: `${frontmatter.mechanism ?? "general"} • ${frontmatter.domain ?? "unknown"}`,
+      title: isFallback ? `${title} (not yet translated)` : title,
+      meta: [frontmatter.mechanism, frontmatter.domain].filter(Boolean).join(" · "),
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Replaceable cases that ground each mechanism.",
+  "Worked cases for each mechanism.",
   completeness
 );
 ---
 <BaseLayout title={`Examples • ${bookConfig.title}`}>
-  <ReaderUtilityStrip
-    label="Reading utilities"
-    links={[
-      { href: "/release-notes", label: "Release notes" },
-      { href: "/downloads", label: "Offline downloads" },
-    ]}
-  />
   <ContentIndexList
     title="Examples"
     lede={localizedLede}
     items={exampleItems}
     filterMode="always"
-    filterPlaceholder="Filter by example, mechanism, or domain..."
-    filterHint="Filter by example title, mechanism, or domain."
+    filterPlaceholder="Filter by title, mechanism, or domain"
     alphaMode="always"
   />
 </BaseLayout>

@@ -14,17 +14,24 @@ const { items: chapterItems, completeness } = createLocalizedContentList(modules
   locale: Astro.locals?.locale,
   mapEntry: ({ slug, module, isFallback }) => {
     const frontmatter = module.frontmatter ?? {};
-    const status = frontmatter.status ?? "draft";
     return {
       href: readItemPath("chapters", slug),
       title: frontmatter.title ?? "Untitled chapter",
-      eyebrow: isFallback ? `${status} · fallback` : status,
+      status: String(frontmatter.status ?? "draft"),
+      badges: isFallback ? ["Not yet translated"] : null,
     };
   },
 });
+// A status only helps when chapters differ; if every chapter is a draft, say so once.
+const hasMixedStatus = new Set(chapterItems.map((item) => item.status)).size > 1;
+const listedChapters = chapterItems.map(({ status, ...item }) => ({
+  ...item,
+  eyebrow: hasMixedStatus && status !== "published" ? status : null,
+}));
+const draftCount = chapterItems.filter((item) => item.status === "draft").length;
 const exportLinks = getBookExportLinks();
 const localizedLede = buildTranslationLede(
-  "Module outlines that define the intervention frame.",
+  "The full argument, one chapter at a time.",
   completeness
 );
 ---
@@ -32,43 +39,25 @@ const localizedLede = buildTranslationLede(
   <ContentIndexList
     title="Chapters"
     lede={localizedLede}
-    items={chapterItems}
+    items={listedChapters}
+    filterPlaceholder="Filter by title"
   >
-    <div slot="after-header" class="content-block chapter-status" style="margin-top: 0;">
-      <button class="button button--secondary" type="button" data-status-explainer-toggle aria-expanded="false">
-        Draft status: concept stable, wording evolving
-      </button>
-      <p class="meta" data-status-explainer hidden>
-        Draft chapters are readable and useful. Mechanism identity is stable, while wording, examples,
-        and ordering may still improve as validation continues.
-      </p>
-    </div>
+    {draftCount > 0 && (
+      <details slot="after-header" class="content-block" style="margin-top: 0;">
+        <summary>
+          <strong>{draftCount === chapterItems.length ? "These chapters are drafts" : "Some chapters are drafts"}</strong>
+        </summary>
+        <p class="meta">
+          Drafts are complete enough to use. The mechanisms they describe won’t change, but wording,
+          examples, and order may.
+        </p>
+      </details>
+    )}
     <ExportPanel
       slot="after-list"
-      title="Download exports"
-      description="Grab a print-ready PDF or an EPUB for offline reading. Need chapter-specific options? Visit Offline reading."
+      title="Download the book"
+      description="PDF for print, EPUB for e-readers. Single chapters are on the Downloads page."
       links={exportLinks}
     />
   </ContentIndexList>
-  <script>
-    const statusToggle = document.querySelector("[data-status-explainer-toggle]");
-    const statusCopy = document.querySelector("[data-status-explainer]");
-    statusToggle?.addEventListener("click", () => {
-      if (!statusCopy) return;
-      const isHidden = statusCopy.hasAttribute("hidden");
-      statusCopy.toggleAttribute("hidden", !isHidden);
-      statusToggle.setAttribute("aria-expanded", isHidden ? "true" : "false");
-    });
-  </script>
 </BaseLayout>
-
-<style>
-  .chapter-status {
-    display: grid;
-    gap: 0.6rem;
-  }
-
-  .chapter-status .button {
-    justify-self: start;
-  }
-</style>

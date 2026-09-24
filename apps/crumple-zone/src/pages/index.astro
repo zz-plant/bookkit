@@ -5,7 +5,7 @@ import {
   resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../lib/book-entrypoints";
-import { formatTranslationCompleteness, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import { formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
@@ -44,64 +44,63 @@ const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey }
 const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
-const metaDescription =
-  bookConfig.site?.defaultMeta?.description ?? "Draft book instance content.";
+const metaDescription = bookConfig.site?.defaultMeta?.description;
 const stats = [
   {
     label: "Chapters",
+    href: readRoutes.chapters,
     count: chapters.entries.length,
     completeness: chapters.completeness,
   },
   {
     label: "Mechanisms",
+    href: readRoutes.mechanisms,
     count: mechanisms.entries.length,
     completeness: mechanisms.completeness,
   },
   {
-    label: "Toolkit entries",
+    label: "Toolkit actions",
+    href: readRoutes.toolkit,
     count: toolkit.entries.length,
     completeness: toolkit.completeness,
   },
   {
     label: "Glossary terms",
+    href: readRoutes.glossary,
     count: glossary.entries.length,
     completeness: glossary.completeness,
   },
   {
     label: "Examples",
+    href: readRoutes.examples,
     count: examples.entries.length,
     completeness: examples.completeness,
   },
 ];
-const firstChapter = chapters.entries[0];
-const firstMechanism = mechanisms.entries[0];
-const primaryRoutes = [
+const startLinks = [
   {
-    eyebrow: "Start with context",
-    title: "New reader path",
-    description: "Open the overview path for objectives, frame, and constraints.",
+    title: "Read the overview",
+    description: "What the book covers and how it’s organized.",
     href: readRoutes.overview,
-    cta: "Start with overview",
   },
   {
-    eyebrow: "Start with pressure",
-    title: "I have a problem right now",
-    description: "Open mechanisms to diagnose what pattern you are dealing with.",
-    href:
-      firstMechanism && !firstMechanism.isFallback
-        ? readItemPath("mechanisms", firstMechanism.slug)
-        : readRoutes.mechanisms,
-    cta: "Find a mechanism",
+    title: "Find the pattern",
+    description: "Match what you’re seeing to a named pattern and what to do about it.",
+    href: readRoutes.mechanisms,
   },
   {
-    eyebrow: "Start with reading",
-    title: "Open the full reading hub",
-    description: "Browse all route buckets if you already know where you want to go.",
+    title: "Browse everything",
+    description: "Chapters, toolkit, glossary, and examples.",
     href: readRoutes.root,
-    cta: "Open reading hub",
   },
 ];
-const availableBooks = [
+const otherBooks = [
+  {
+    slug: "on-call",
+    title: "On-Call Runbook",
+    description: "Classify alerts, pick a safe first action, escalate with a named target, and verify recovery.",
+    href: "https://on-call.book",
+  },
   {
     slug: "bad-people",
     title: "Bad People",
@@ -114,90 +113,61 @@ const availableBooks = [
     description: "Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
     href: "https://running-hot.book",
   },
-];
+].filter((book) => book.slug !== bookConfig.slug);
 ---
 <BaseLayout title={bookConfig.title}>
   <div class="hero-shell">
-    <p class="hero-kicker">Recompilable field guide</p>
+    <p class="hero-kicker">Field guide</p>
     <div class="section-header hero-shell__header">
       <h1>{bookConfig.title}</h1>
-      <p class="lede">{metaDescription}</p>
-    </div>
-    <div class="hero-primary-cta" data-funnel-group="home-hero-links">
-      <a href={readRoutes.overview} class="pill pill--hero-primary" data-funnel-step="hero_to_overview">Start with overview (3 min)</a>
-      <span class="meta">One clear first action for new readers.</span>
+      {metaDescription && <p class="lede">{metaDescription}</p>}
     </div>
   </div>
 
   <section class="content-block">
-    <div class="eyebrow">Entry points</div>
-    <h2>First action</h2>
-    <p class="meta">Complete one entry point, then branch as needed.</p>
+    <h2>Where to start</h2>
     <div class="card-grid" data-funnel-group="home-start">
-      {primaryRoutes.map((link, index) => (
+      {startLinks.map((link, index) => (
         <a
           class="card"
           href={link.href}
           data-funnel-step={`home_quickstart_step_${index + 1}`}
         >
-          <div class="eyebrow">{link.eyebrow}</div>
           <h3>{link.title}</h3>
           <p class="meta">{link.description}</p>
-          <span class="next-steps__link">{link.cta}</span>
         </a>
       ))}
     </div>
   </section>
 
   <section class="content-block">
-    <div class="eyebrow">Bookshelf</div>
-    <h2>Switch books only when needed</h2>
-    <p class="meta">Stay in this book by default. Open another title only if your context changes.</p>
-    <div class="card-grid">
-      {availableBooks.map((book) => (
-        <a
-          class="card"
-          href={book.slug === bookConfig.slug ? readRoutes.root : book.href}
-          target={book.slug === bookConfig.slug ? undefined : "_blank"}
-          rel={book.slug === bookConfig.slug ? undefined : "noreferrer"}
-        >
-          <div class="eyebrow">{book.slug === bookConfig.slug ? "Current book" : "Switch book (external)"}</div>
-          <h3>{book.title}</h3>
-          <p class="meta">{book.description}</p>
-        </a>
-      ))}
-    </div>
-  </section>
-
-  <section class="content-block">
-    <div class="eyebrow">Book snapshot</div>
-    <h2>What’s available now</h2>
-    <p class="meta">
-      Counts and translation coverage for the active locale.
-    </p>
+    <h2>What’s inside</h2>
     <div class="stats-grid">
       {stats.map((stat) => (
-        <div class="stat-card">
+        <a class="stat-card" href={stat.href}>
           <div class="stat-value">{stat.count}</div>
           <div class="stat-label">{stat.label}</div>
           {formatTranslationCompleteness(stat.completeness) && (
             <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
           )}
-        </div>
+        </a>
       ))}
     </div>
-    {firstChapter && !firstChapter.isFallback && (
-      <div class="link-group" style="margin-top: 1rem;">
-        <a
-          class="next-steps__link"
-          href={readItemPath("chapters", firstChapter.slug)}
-          data-funnel-step="home_snapshot_to_first_chapter"
-        >
-          Open first chapter
-        </a>
-      </div>
-    )}
   </section>
+
+  {otherBooks.length > 0 && (
+    <section class="content-block">
+      <h2>Other books</h2>
+      <div class="card-grid">
+        {otherBooks.map((book) => (
+          <a class="card" href={book.href} target="_blank" rel="noreferrer">
+            <h3>{book.title} <span aria-hidden="true">↗</span></h3>
+            <p class="meta">{book.description}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
   <script>
     const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");

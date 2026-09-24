@@ -8,7 +8,6 @@ import {
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
-import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
   buildLocalizedReadRoutePath,
@@ -122,13 +121,11 @@ const mechanismStructuredData = createDefinedTermStructuredData({
   structuredData={[breadcrumbStructuredData, mechanismStructuredData]}
 >
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
-  <a class="back-link" href={readRoutes.mechanisms}>← Mechanisms</a>
-  <div class="eyebrow">Mechanism{isFallback ? " • fallback" : ""}</div>
+  <div class="eyebrow">Mechanism{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
   <p class="lede" id="definition">{frontmatter.definition}</p>
 
   <nav class="reader-utility-strip" aria-label="On this page" style="margin: 0.75rem 0 1.5rem;">
-    <a class="pill" href="#definition">Definition</a>
     {(hasIs || hasIsNot || hasPredictions || hasTests) && (
       <a class="pill" href="#recognize">How to recognize it</a>
     )}
@@ -190,7 +187,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
       <h2>Next steps</h2>
       {relatedToolkit.length > 0 && (
         <>
-          <div class="eyebrow">Related actions (shortest first)</div>
+          <div class="eyebrow">Actions, shortest first</div>
           <div class="stack">
             {relatedToolkit.map((entry) => (
               <a class="list-link" href={readItemPath("toolkit", entry.slug)}>
@@ -205,12 +202,12 @@ const mechanismStructuredData = createDefinedTermStructuredData({
       )}
       {relatedExamples.length > 0 && (
         <>
-          <div class="eyebrow">Related examples</div>
+          <div class="eyebrow">Examples</div>
           <div class="stack">
             {relatedExamples.map((entry) => (
               <a class="list-link" href={readItemPath("examples", entry.slug)}>
                 <strong>{entry.frontmatter.title ?? "Untitled example"}</strong>
-                <span class="meta">{entry.frontmatter.domain ?? "unknown domain"}</span>
+                {entry.frontmatter.domain && <span class="meta">{entry.frontmatter.domain}</span>}
               </a>
             ))}
           </div>
@@ -218,29 +215,4 @@ const mechanismStructuredData = createDefinedTermStructuredData({
       )}
     </section>
   )}
-  <NextActionPanel
-    title="Try this next"
-    description="Move from diagnosis to execution with one click."
-    links={[
-      relatedToolkit[0]
-        ? {
-            href: readItemPath("toolkit", relatedToolkit[0].slug),
-            label: relatedToolkit[0].frontmatter.name ?? "Open related action",
-            meta: `${relatedToolkit[0].frontmatter.timeboxMinutes ?? 10} min`,
-          }
-        : null,
-      relatedExamples[0]
-        ? {
-            href: readItemPath("examples", relatedExamples[0].slug),
-            label: relatedExamples[0].frontmatter.title ?? "See related example",
-            meta: relatedExamples[0].frontmatter.domain ?? "Example",
-          }
-        : null,
-      {
-        href: readRoutes.chapters,
-        label: "Return to chapter flow",
-        meta: "Keep the intervention frame in view",
-      },
-    ].filter(Boolean)}
-  />
 </BaseLayout>

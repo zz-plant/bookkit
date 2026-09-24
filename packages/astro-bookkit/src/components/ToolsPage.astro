@@ -28,8 +28,8 @@ const {
   backHref,
   links,
   heading = "Author tools",
-  lede = "Use these tools to publish updates, manage versions, and maintain this book.",
-  eyebrow = "For authors",
+  lede = "Analytics, release notes, and downloads for this book.",
+  eyebrow,
 } = Astro.props;
 
 const renderState = createBookLayoutRenderState({
@@ -47,9 +47,9 @@ const renderState = createBookLayoutRenderState({
 });
 ---
 <BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey} renderState={renderState}>
-  <a class="back-link" href={backHref}>← Back to reading hub</a>
+  <a class="back-link" href={backHref}>← Reading hub</a>
   <div class="section-header">
-    <div class="eyebrow">{eyebrow}</div>
+    {eyebrow && <div class="eyebrow">{eyebrow}</div>}
     <h1>{heading}</h1>
     <p class="lede">{lede}</p>
   </div>

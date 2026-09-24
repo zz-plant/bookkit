@@ -15,16 +15,19 @@ const { items: toolItems, completeness } = createLocalizedContentList(modules, {
     const name = frontmatter.name ?? "Untitled action";
     return {
       href: readItemPath("toolkit", slug),
-      title: isFallback ? `${name} (fallback)` : name,
-      meta: `${frontmatter.mechanism ?? "general"} • ${
-        frontmatter.timeboxMinutes ?? 10
-      } min`,
+      title: isFallback ? `${name} (not yet translated)` : name,
+      meta: [
+        frontmatter.mechanism,
+        frontmatter.timeboxMinutes ? `${frontmatter.timeboxMinutes} min` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Action primitives designed to be executed in ≤10 minutes.",
+  "Actions you can take in ten minutes or less.",
   completeness
 );
 ---
@@ -34,8 +37,7 @@ const localizedLede = buildTranslationLede(
     lede={localizedLede}
     items={toolItems}
     filterMode="always"
-    filterPlaceholder="Filter by action, mechanism, or timebox..."
-    filterHint="Filter actions by name, mechanism, or timebox."
+    filterPlaceholder="Filter by name or mechanism"
     alphaMode="always"
   />
 </BaseLayout>

@@ -44,7 +44,7 @@ export const buildExportLinks = ({ bundle, scope, slug, title, basePath = "/expo
   if (scope === "chapter" && !slug) return [];
   const normalizedBase = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
   const updatedAt = formatExportUpdatedDate(bundle.updatedAt ?? new Date().toISOString());
-  const label = scope === "book" ? "Full book export" : `${title ?? "Chapter"} export`;
+  const label = scope === "book" ? "Full book" : (title ?? "Chapter");
   return formats.map((format) => {
     const meta = buildExportMetadata(bundle, format, scope, slug);
     const href = scope === "book" ? `${normalizedBase}/book.${format}` : `${normalizedBase}/chapters/${slug}.${format}`;

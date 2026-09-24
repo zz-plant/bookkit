@@ -15,13 +15,13 @@ const { items: entryItems, completeness } = createLocalizedContentList(modules, 
     const term = frontmatter.term ?? "Untitled term";
     return {
       href: readItemPath("glossary", slug),
-      title: isFallback ? `${term} (fallback)` : term,
+      title: isFallback ? `${term} (not yet translated)` : term,
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Shared language that keeps mechanisms stable.",
+  "The terms this book uses, defined.",
   completeness
 );
 ---
@@ -31,8 +31,7 @@ const localizedLede = buildTranslationLede(
     lede={localizedLede}
     items={entryItems}
     filterMode="always"
-    filterPlaceholder="Filter glossary terms..."
-    filterHint="Start typing to narrow terms or scan the A–Z index."
+    filterPlaceholder="Filter terms"
     alphaMode="always"
   />
 </BaseLayout>

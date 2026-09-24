@@ -15,15 +15,15 @@ const { items: exampleItems, completeness } = createLocalizedContentList(modules
     const title = frontmatter.title ?? "Untitled example";
     return {
       href: readItemPath("examples", slug),
-      title: isFallback ? `${title} (fallback)` : title,
+      title: isFallback ? `${title} (not yet translated)` : title,
       eyebrow: frontmatter.status ?? "draft",
-      meta: `${frontmatter.mechanism ?? "general"} • ${frontmatter.domain ?? "unknown"}`,
+      meta: [frontmatter.mechanism, frontmatter.domain].filter(Boolean).join(" · "),
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Replaceable cases that ground each mechanism.",
+  "Worked cases for each mechanism.",
   completeness
 );
 ---
@@ -33,8 +33,7 @@ const localizedLede = buildTranslationLede(
     lede={localizedLede}
     items={exampleItems}
     filterMode="always"
-    filterPlaceholder="Filter by example, mechanism, or domain..."
-    filterHint="Filter by example title, mechanism, or domain."
+    filterPlaceholder="Filter by title, mechanism, or domain"
     alphaMode="always"
   />
 </BaseLayout>

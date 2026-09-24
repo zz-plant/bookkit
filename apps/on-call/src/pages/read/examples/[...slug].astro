@@ -68,47 +68,40 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   structuredData={[breadcrumbStructuredData]}
 >
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
-  <a class="back-link" href={readRoutes.examples}>← Examples</a>
-  <div class="eyebrow">Example{isFallback ? " • fallback" : ""}</div>
+  <div class="eyebrow">Example{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={slugParam.replaceAll("/", "-")}>{frontmatter.title}</h1>
   <p class="lede">
-    {frontmatter.mechanism} • {frontmatter.domain}
+    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{frontmatter.mechanism}</a>
+    {frontmatter.domain && <> · {frontmatter.domain}</>}
   </p>
-  <section class="content-block">
-    <div class="eyebrow">Replaceable example</div>
-    <p class="meta">
-      Swap this example without changing the mechanism it illustrates. Keep the causal pattern
-      intact, even if the domain changes.
-    </p>
-  </section>
-  <section class="content-block" id="swap-template">
-    <h2>Swap this example template</h2>
-    <ol class="step-list">
-      <li class="step-card">
-        <span class="step-card__number">1</span>
-        <span>Restate the mechanism in one sentence (keep the same causal pattern).</span>
-      </li>
-      <li class="step-card">
-        <span class="step-card__number">2</span>
-        <span>Replace the domain and actors, but keep the same incentives and constraints.</span>
-      </li>
-      <li class="step-card">
-        <span class="step-card__number">3</span>
-        <span>Confirm the same harm persists without changing the mechanism.</span>
-      </li>
-    </ol>
-  </section>
   <section class="content-block">
     <Content />
   </section>
+  <details class="content-block" id="swap-template">
+    <summary><strong>Adapt this example to your own situation</strong></summary>
+    <p class="meta">The mechanism holds even when the setting changes.</p>
+    <ol class="step-list">
+      <li class="step-card">
+        <span class="step-card__number">1</span>
+        <span>Restate the mechanism in one sentence.</span>
+      </li>
+      <li class="step-card">
+        <span class="step-card__number">2</span>
+        <span>Swap in your own setting and people, but keep the same incentives and constraints.</span>
+      </li>
+      <li class="step-card">
+        <span class="step-card__number">3</span>
+        <span>Check that the same outcome still follows.</span>
+      </li>
+    </ol>
+  </details>
   <section class="next-steps">
-    <h2>Next steps</h2>
+    <h2>Keep going</h2>
     <div class="next-steps__links">
       <a class="next-steps__link" href={readItemPath("mechanisms", frontmatter.mechanism)}>
-        Review the {frontmatter.mechanism} mechanism
+        The {frontmatter.mechanism} mechanism
       </a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit action</a>
-      <a class="next-steps__link" href="#swap-template">Swap this example</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit</a>
     </div>
   </section>
 </BaseLayout>

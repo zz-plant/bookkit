@@ -367,7 +367,7 @@ export const createBookLayoutRenderState = (
       percentage: localeCompleteness === null ? null : Math.round(localeCompleteness * 100),
     },
     statusActions: {
-      show: showTranslationNotice || isPreview || showVersionHint,
+      show: isPreview || showVersionHint,
     },
     head,
   };

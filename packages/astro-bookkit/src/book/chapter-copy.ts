@@ -11,11 +11,11 @@ export type ChapterPageCopy = {
 
 export const defaultChapterPageCopy: ChapterPageCopy = {
   chapterMapLabel: "On this page",
-  chapterStepsHeading: "Quick outline",
+  chapterStepsHeading: "In this chapter",
   downloadChapterTitle: "Download this chapter",
-  downloadChapterDescription: "Save an offline copy for reference or sharing.",
-  nextMoveHeading: "What to do next",
-  continueChapterPrefix: "Continue to next chapter",
-  mechanismsLinkLabel: "Go to mechanisms guide",
-  toolkitLinkLabel: "Go to 10-minute toolkit actions",
+  downloadChapterDescription: "PDF for print, EPUB for e-readers.",
+  nextMoveHeading: "Keep going",
+  continueChapterPrefix: "Next chapter",
+  mechanismsLinkLabel: "Mechanisms",
+  toolkitLinkLabel: "Toolkit",
 };

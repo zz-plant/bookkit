@@ -1,82 +1,58 @@
-import { readRoutes, type ReadHubConfig } from "@bookkit/astro-bookkit";
+import { type ReadHubConfig, readRoutes } from "@bookkit/astro-bookkit";
 
 export const readHubConfig: ReadHubConfig = {
   hero: {
-    eyebrow: "Reading hub",
-    title: "Pick a route, then move forward in one click.",
-    lede: "Use the buckets below: start, solve, or reference. Follow one route first, then branch only if needed.",
-    quickLinksAriaLabel: "Quick ways to start",
-    quickLinks: [
-      {
-        label: "Start here",
-        href: "#start-here",
-        primary: true,
-        funnelStep: "read_to_start_here",
-      },
-      {
-        label: "Solve now",
-        href: "#solve-now",
-        funnelStep: "read_to_solve_now",
-      },
-      {
-        label: "Reference",
-        href: "#reference",
-        funnelStep: "read_to_reference",
-      },
-    ],
+    title: "Reading hub",
+    lede: "Start with the overview, go straight to a problem you have, or look something up.",
+    quickLinks: [],
+    quickStartAriaLabel: "Where to start",
   },
   intro: {
-    eyebrow: "Route buckets",
-    title: "Choose one bucket and begin",
-    lede: "Start, solve, and reference routes are intentionally separated.",
+    title: "All sections",
   },
-  bucketNavigation: "tabs",
+  bucketNavigation: "stacked",
   buckets: [
     {
       id: "start-here",
       title: "Start here",
-      description: "Orientation and first-pass reading.",
+      description: "Read these first.",
       sectionKeys: ["overview", "chapters"],
       primary: true,
     },
     {
       id: "solve-now",
-      title: "Solve now",
-      description: "Diagnose patterns and pick a ten-minute action.",
+      title: "Solve a problem",
+      description: "Name the pattern, then pick an action.",
       sectionKeys: ["mechanisms", "toolkit"],
     },
     {
       id: "reference",
-      title: "Reference",
-      description: "Shared language and replaceable examples.",
+      title: "Look something up",
+      description: "Terms and worked cases.",
       sectionKeys: ["glossary", "examples"],
     },
   ],
   utilities: {
     mode: "accordion",
-    eyebrow: "Meta",
-    title: "More reading utilities",
-    lede: "Release notes, downloads, and author diagnostics",
+    title: "Release notes, downloads, and author tools",
     cards: [
       {
-        eyebrow: "Reader meta",
-        title: "Reader updates",
-        description: "Track changes or download an offline copy.",
+        title: "Updates",
+        description: "See what changed, or download a copy to read offline.",
         links: [
-          { label: "See what changed", href: "/release-notes" },
-          { label: "Download for offline reading", href: "/downloads" },
+          { label: "Release notes", href: "/release-notes" },
+          { label: "Downloads", href: "/downloads" },
         ],
       },
       {
-        eyebrow: "Author meta",
-        title: "Author diagnostics",
-        description: "Open analytics and publishing diagnostics.",
-        links: [{ label: "Open author diagnostics", href: readRoutes.tools }],
+        title: "For authors",
+        description: "Analytics and publishing tools.",
+        links: [{ label: "Author tools", href: readRoutes.tools }],
       },
     ],
   },
   releaseFilter: {
-    initialLabel: "Show sections marked in latest release notes",
+    initialLabel: "Show recently updated",
     activeLabel: "Show all sections",
   },
 };

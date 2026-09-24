@@ -18,16 +18,16 @@ export const readItemPath = (section: ReadIndexKey, slug: string): string =>
   `${readRoutes[section]}/${slug}`;
 
 export const buildTranslationLede = (base: string, completeness: number | null): string => {
-  if (typeof completeness !== "number") {
+  if (typeof completeness !== "number" || completeness >= 1) {
     return base;
   }
 
   const percent = Math.round(completeness * 100);
-  return `${base} Translation completeness: ${percent}%.`;
+  return `${base} ${percent}% translated so far.`;
 };
 
 export const formatTranslationCompleteness = (completeness: number | null): string | null => {
-  if (typeof completeness !== "number") {
+  if (typeof completeness !== "number" || completeness >= 1) {
     return null;
   }
 

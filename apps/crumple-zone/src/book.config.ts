@@ -9,7 +9,7 @@ export const bookConfig = {
 		indexable: false,
 		defaultMeta: {
 			description:
-				"Draft book instance for The Crumple Zone: How Systems Externalize Harm and What to Build Instead.",
+				"When systems fail, people absorb the impact. This book names the patterns that make that happen and what to build instead.",
 			ogImage: "/og/default.svg",
 		},
 	},

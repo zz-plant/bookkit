@@ -11,7 +11,7 @@ export const bookConfig = {
 		indexable: isProduction && !forceNoindex,
 		defaultMeta: {
 			description:
-				"A draft book instance exploring how systems normalize harm and how readers can respond with small, reversible actions.",
+				"How systems normalize harm, and how to respond with small, reversible actions.",
 			ogImage: "/og/default.svg",
 		},
 	},

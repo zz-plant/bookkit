@@ -22,20 +22,24 @@ const {
   bucketNavigation = "stacked",
   releaseFilterPlacement = "utilities",
   releaseFilter = {
-    initialLabel: "Show sections marked in latest release notes",
+    initialLabel: "Show recently updated",
     activeLabel: "Show all sections",
   },
 } = Astro.props;
 
 const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, section]));
+// "Updated" only means something when some sections changed and others didn't.
+const changedSectionCount = sections.filter((section) => section.latestChange).length;
+const showChangeMarkers = changedSectionCount > 0 && changedSectionCount < sections.length;
 ---
 <div class="read-hub">
   <section class="content-block read-hero" style="margin-top: 0;">
     <div class="read-hero__copy">
-      <div class="eyebrow">{hero.eyebrow}</div>
+      {hero.eyebrow && <div class="eyebrow">{hero.eyebrow}</div>}
       <h1>{hero.title}</h1>
-      <p class="lede">{hero.lede}</p>
+      {hero.lede && <p class="lede">{hero.lede}</p>}
     </div>
+    {hero.quickLinks.length > 0 && (
     <div class="read-hero__quicklinks" aria-label={hero.quickLinksAriaLabel ?? "Quick ways to start"} data-funnel-group="read-start">
       {hero.quickLinks.map((link) => (
         <a
@@ -47,8 +51,9 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
         </a>
       ))}
     </div>
+    )}
     {quickStartCards.length > 0 && (
-      <div class="quick-start-grid" aria-label={hero.quickStartAriaLabel ?? "Quick start paths"}>
+      <div class="quick-start-grid" aria-label={hero.quickStartAriaLabel ?? "Where to start"}>
         {quickStartCards.map((card) => (
           <a
             class:list={[
@@ -59,7 +64,7 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
             href={card.href}
             data-funnel-step={card.funnelStep ?? undefined}
           >
-            <div class="eyebrow">{card.eyebrow}</div>
+            {card.eyebrow && <div class="eyebrow">{card.eyebrow}</div>}
             <h2>{card.title}</h2>
             <p class="meta">{card.description}</p>
           </a>
@@ -71,10 +76,10 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
   <section class="content-block read-section" id="reading-surfaces">
     <div class="read-section__intro">
       <div>
-        <div class="eyebrow">{intro.eyebrow}</div>
+        {intro.eyebrow && <div class="eyebrow">{intro.eyebrow}</div>}
         <h2>{intro.title}</h2>
       </div>
-      {releaseFilterPlacement === "intro" ? (
+      {releaseFilterPlacement === "intro" && showChangeMarkers ? (
         <div class="read-section__controls">
           {intro.lede && <p class="meta">{intro.lede}</p>}
           <button
@@ -94,7 +99,7 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
     </div>
 
     {bucketNavigation === "tabs" && (
-      <div class="bucket-tabs" role="tablist" aria-label="Reading route buckets">
+      <div class="bucket-tabs" role="tablist" aria-label="Sections">
         {buckets.map((bucket, index) => (
           <button
             type="button"
@@ -132,7 +137,7 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
                 return null;
               }
               const completenessLabel = formatTranslationCompleteness(section.completeness ?? null);
-              const changeMeta = section.latestChange;
+              const changeMeta = showChangeMarkers ? section.latestChange : undefined;
               return (
                 <a
                   class="card read-surface-card"
@@ -140,18 +145,16 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
                   data-section-key={section.sectionKey}
                   data-change-date={changeMeta?.date ?? ""}
                 >
-                  <div class="read-surface-card__meta" aria-label="Section metadata">
-                    {completenessLabel && (
-                      <span class="read-meta-chip read-meta-chip--status" title="Translation completeness status">
-                        {completenessLabel}
-                      </span>
-                    )}
-                    {!completenessLabel && changeMeta && (
-                      <span class="read-meta-chip read-meta-chip--update" title="Mentioned in the latest release notes">
-                        Marked in v{changeMeta.version} notes
-                      </span>
-                    )}
-                  </div>
+                  {(completenessLabel || changeMeta) && (
+                    <div class="read-surface-card__meta">
+                      {completenessLabel && (
+                        <span class="read-meta-chip read-meta-chip--status">{completenessLabel}</span>
+                      )}
+                      {!completenessLabel && changeMeta && (
+                        <span class="read-meta-chip read-meta-chip--update">Updated in v{changeMeta.version}</span>
+                      )}
+                    </div>
+                  )}
                   <h4>{section.title}</h4>
                   <p class="meta">{section.description}</p>
                 </a>
@@ -168,7 +171,7 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
       <section class="content-block read-section read-utility-disclosure" id={utilities.id ?? "tools-by-role"} data-accordion>
         <button type="button" class="read-accordion__toggle" aria-expanded="false" data-accordion-toggle>
           <span>
-            <span class="eyebrow">{utilities.eyebrow}</span>
+            {utilities.eyebrow && <span class="eyebrow">{utilities.eyebrow}</span>}
             <strong>{utilities.title}</strong>
           </span>
           {utilities.lede && <span class="meta">{utilities.lede}</span>}
@@ -184,7 +187,7 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
               data-release-card={card.deemphasizeUntilStarted ? "true" : undefined}
               data-release-secondary-note={card.secondaryNote ?? undefined}
             >
-              <div class="eyebrow">{card.eyebrow}</div>
+              {card.eyebrow && <div class="eyebrow">{card.eyebrow}</div>}
               <h3>{card.title}</h3>
               <p class="meta">{card.description}</p>
               <div class="read-hero__quicklinks">
@@ -206,12 +209,12 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
       <section id={utilities.id ?? "tools-by-role"} class="content-block read-section" style="margin-top: 0;">
         <div class="read-section__intro">
           <div>
-            <div class="eyebrow">{utilities.eyebrow}</div>
+            {utilities.eyebrow && <div class="eyebrow">{utilities.eyebrow}</div>}
             <h2>{utilities.title}</h2>
           </div>
           <div class="read-meta-actions">
             {utilities.lede && <p class="meta">{utilities.lede}</p>}
-            {releaseFilterPlacement === "utilities" && (
+            {releaseFilterPlacement === "utilities" && showChangeMarkers && (
               <button
                 class="button button--secondary"
                 type="button"
@@ -236,7 +239,7 @@ const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, sec
               data-release-card={card.deemphasizeUntilStarted ? "true" : undefined}
               data-release-secondary-note={card.secondaryNote ?? undefined}
             >
-              <div class="eyebrow">{card.eyebrow}</div>
+              {card.eyebrow && <div class="eyebrow">{card.eyebrow}</div>}
               <h3>{card.title}</h3>
               <p class="meta">{card.description}</p>
               <div class="read-hero__quicklinks">

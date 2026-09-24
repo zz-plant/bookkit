@@ -2,8 +2,8 @@
 import newBookStudioClient from "./new-book-studio/client.ts?url";
 
 const {
-  title = "Create a new book",
-  description = "Answer a few questions in plain language. We’ll generate a starter plan you can share with a technical helper or an AI agent.",
+  title = "Start a new book",
+  description = "Fill this in to get a starter config, a setup checklist, and a short brief for whoever builds the book.",
 } = Astro.props;
 ---
 <section class="studio" aria-labelledby="studio-title">
@@ -12,29 +12,17 @@ const {
     <p class="lede">{description}</p>
   </div>
 
-  <div class="studio__intro" role="note">
-    <p><strong>Who this is for:</strong> editors, operators, founders, and subject-matter experts.</p>
-    <p><strong>No coding needed:</strong> you can complete this and hand the generated plan to someone technical.</p>
-  </div>
-
   <nav class="studio__progress" aria-label="Form progress">
-    <span class="studio__progress-label">Jump to step</span>
-    <a href="#studio-step-1">1/4 Name</a>
-    <a href="#studio-step-2">2/4 Structure</a>
-    <a href="#studio-step-3">3/4 Technical</a>
-    <a href="#studio-step-4">4/4 SEO + social</a>
+    <a href="#studio-step-1">Name</a>
+    <a href="#studio-step-2">Structure</a>
+    <a href="#studio-step-3">Technical</a>
+    <a href="#studio-step-4">Search and sharing</a>
     <a href="#studio-output">Output</a>
   </nav>
 
-  <div class="studio__completion" role="status" aria-live="polite">
-    <label for="studio-progress">Completion</label>
-    <progress id="studio-progress" max="100" value="0" data-studio-progress>0%</progress>
-    <span data-studio-progress-label>0% complete</span>
-  </div>
-
   <form class="studio__form" data-new-book-form>
     <fieldset id="studio-step-1">
-      <legend>1) Name and purpose</legend>
+      <legend>Name and purpose</legend>
       <label>
         Working title
         <input name="bookTitle" required placeholder="Operational Clarity" />
@@ -50,15 +38,15 @@ const {
     </fieldset>
 
     <fieldset id="studio-step-2">
-      <legend>2) Practical structure</legend>
+      <legend>Structure</legend>
       <label>
         Topic tags (one per line)
-        <textarea name="mechanisms" rows="4" placeholder="failure-triage\nsignal-budget\nhandoff-contract"></textarea>
-        <small>Use simple slugs or short labels. We’ll clean formatting in the generated files.</small>
+        <textarea name="mechanisms" rows="4" placeholder={"failure-triage\nsignal-budget\nhandoff-contract"}></textarea>
+        <small>Slugs or short labels. Formatting is cleaned up for you.</small>
       </label>
       <label>
         Chapter ideas (one per line)
-        <textarea name="chapters" rows="4" placeholder="overview\ncore-loops\naction-playbooks"></textarea>
+        <textarea name="chapters" rows="4" placeholder={"overview\ncore-loops\naction-playbooks"}></textarea>
       </label>
       <label>
         Languages needed
@@ -67,16 +55,16 @@ const {
     </fieldset>
 
     <fieldset id="studio-step-3">
-      <legend>3) Optional technical details</legend>
+      <legend>Technical details (optional)</legend>
       <label>
         Internal ID (letters, numbers, dashes)
         <input name="bookKey" pattern="[a-z0-9-]+" placeholder="operator-playbook" />
-        <small>If left blank, we auto-generate one from your title.</small>
+        <small>Leave blank to derive it from the title.</small>
       </label>
     </fieldset>
 
     <fieldset id="studio-step-4">
-      <legend>4) SEO + social sharing</legend>
+      <legend>Search and social sharing</legend>
       <label>
         Canonical site URL
         <input name="siteUrl" placeholder="https://operator-playbook.book" />
@@ -119,29 +107,29 @@ const {
         Index this book in production by default
       </label>
       <label>
-        Open Graph SVG templates by surface (path=svg path)
+        Open Graph image per page type
         <textarea
           name="ogSurfaces"
           rows="8"
-          placeholder="home=/og/home.svg\nread-hub=/og/read-hub.svg\noverview=/og/overview.svg\nchapters-index=/og/chapters.svg\nchapter-detail=/og/chapter-detail.svg\nmechanisms-index=/og/mechanisms.svg\nmechanism-detail=/og/mechanism-detail.svg\ntoolkit-index=/og/toolkit.svg\ntoolkit-detail=/og/toolkit-detail.svg\nglossary-index=/og/glossary.svg\nglossary-detail=/og/glossary-detail.svg\nexamples-index=/og/examples.svg\nexample-detail=/og/example-detail.svg\nrelease-notes=/og/release-notes.svg\nversions=/og/versions.svg\ndownloads=/og/downloads.svg"
+          placeholder={"home=/og/home.svg\nread-hub=/og/read-hub.svg\noverview=/og/overview.svg\nchapters-index=/og/chapters.svg\nchapter-detail=/og/chapter-detail.svg\nmechanisms-index=/og/mechanisms.svg\nmechanism-detail=/og/mechanism-detail.svg\ntoolkit-index=/og/toolkit.svg\ntoolkit-detail=/og/toolkit-detail.svg\nglossary-index=/og/glossary.svg\nglossary-detail=/og/glossary-detail.svg\nexamples-index=/og/examples.svg\nexample-detail=/og/example-detail.svg\nrelease-notes=/og/release-notes.svg\nversions=/og/versions.svg\ndownloads=/og/downloads.svg"}
         ></textarea>
-        <small>These become a handoff map so each page type can expose a dedicated OG image.</small>
+        <small>One line per page type, as <code>page-type=/path/to/image.svg</code>.</small>
       </label>
     </fieldset>
 
     <div class="studio__actions">
-      <button type="submit" class="studio__button studio__button--primary">Create my starter plan</button>
-      <button type="button" class="studio__button studio__button--secondary" data-fill-example>Fill with example</button>
+      <button type="submit" class="studio__button studio__button--primary">Generate starter files</button>
+      <button type="button" class="studio__button studio__button--secondary" data-fill-example>Fill in an example</button>
     </div>
   </form>
 
   <section class="studio__output" id="studio-output" data-studio-output hidden>
-    <h2>Your starter package</h2>
-    <p class="meta">Share this with a collaborator, or use it directly with an AI coding agent.</p>
+    <h2>Starter files</h2>
+    <p class="meta">Copy each block, or download everything as one JSON file.</p>
 
     <article>
       <div class="studio__output-header">
-        <h3>Plain-language brief</h3>
+        <h3>Brief</h3>
         <button type="button" class="studio__button studio__button--secondary" data-copy-target="brief">Copy</button>
       </div>
       <pre data-output="brief"></pre>
@@ -149,7 +137,7 @@ const {
 
     <article>
       <div class="studio__output-header">
-        <h3>Action checklist</h3>
+        <h3>Setup checklist</h3>
         <button type="button" class="studio__button studio__button--secondary" data-copy-target="checklist">Copy</button>
       </div>
       <pre data-output="checklist"></pre>
@@ -165,7 +153,7 @@ const {
 
     <article>
       <div class="studio__output-header">
-        <h3>SEO + social overrides (starter)</h3>
+        <h3>SEO and social settings</h3>
         <button type="button" class="studio__button studio__button--secondary" data-copy-target="seo">Copy</button>
       </div>
       <pre data-output="seo"></pre>
@@ -173,14 +161,14 @@ const {
 
     <article>
       <div class="studio__output-header">
-        <h3>Open Graph image URLs to expose</h3>
+        <h3>Open Graph image URLs</h3>
         <button type="button" class="studio__button studio__button--secondary" data-copy-target="ogUrls">Copy</button>
       </div>
       <pre data-output="ogUrls"></pre>
     </article>
 
     <details class="studio__advanced">
-      <summary>Advanced: agent payload + commands</summary>
+      <summary>Agent payload and CLI commands</summary>
 
       <article>
         <div class="studio__output-header">
@@ -192,7 +180,7 @@ const {
 
       <article>
         <div class="studio__output-header">
-          <h3>Technical command sequence</h3>
+          <h3>Commands</h3>
           <button type="button" class="studio__button studio__button--secondary" data-copy-target="commands">Copy</button>
         </div>
         <pre data-output="commands"></pre>
@@ -200,7 +188,7 @@ const {
     </details>
 
     <div class="studio__actions">
-      <button type="button" class="studio__button studio__button--primary" data-download-package>Download package (.json)</button>
+      <button type="button" class="studio__button studio__button--primary" data-download-package>Download JSON</button>
       <button type="button" class="studio__button studio__button--secondary" data-reset-form>Reset form</button>
     </div>
   </section>
@@ -255,11 +243,6 @@ const {
     box-shadow: var(--shadow-soft);
   }
 
-  .studio__progress-label {
-    font-size: var(--text-xs);
-    color: var(--color-muted);
-    margin-right: 0.25rem;
-  }
 
   .studio__progress a {
     font-size: var(--text-sm);
@@ -277,39 +260,6 @@ const {
     text-decoration: none;
   }
 
-  .studio__intro {
-    border: 1px solid var(--color-border);
-    border-radius: 0.9rem;
-    background: color-mix(in oklab, var(--color-surface), #7cc5ff 12%);
-    padding: 1rem 1.1rem;
-  }
-
-  .studio__intro p {
-    margin: 0;
-  }
-
-  .studio__intro p + p {
-    margin-top: 0.5rem;
-  }
-
-  .studio__completion {
-    display: grid;
-    gap: 0.35rem;
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 0.75rem 0.9rem;
-    background: var(--color-surface);
-  }
-
-  .studio__completion label {
-    font-size: var(--text-sm);
-    color: var(--color-muted);
-    font-weight: 600;
-  }
-
-  .studio__completion progress {
-    width: 100%;
-  }
 
   .studio__form {
     display: grid;
@@ -415,7 +365,7 @@ const {
 
   .studio__button--primary {
     background: var(--color-accent-strong);
-    color: #fff;
+    color: var(--color-on-accent);
     border-color: transparent;
   }
 

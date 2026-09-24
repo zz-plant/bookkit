@@ -13,8 +13,8 @@ const {
   items = [],
   backHref = "/read",
   backLabel = "Reading hub",
-  filterLabel = "Filter list",
-  filterPlaceholder = "Filter by title, mechanism, or domain...",
+  filterLabel = "Filter",
+  filterPlaceholder = "Filter by title, mechanism, or domain",
   filterMode = "auto",
   filterHint,
   alphaMode = "auto",
@@ -53,8 +53,9 @@ const filterId = `list-filter-${String(title ?? "items")
   {lede && <p class="lede">{lede}</p>}
 </div>
 <slot name="after-header" />
+{(showFilter || showDensityToggle || showAlphaNav || Astro.slots.has("list-tools-extra")) && (
 <section class="list-tools" aria-label="List tools">
-  <p class="list-summary">{listSummary}{showAlphaNav ? ` • ${alphaKeys.length} groups` : ""}</p>
+  <p class="list-summary">{listSummary}</p>
   {showDensityToggle && (
     <div class="list-density-toggle" role="group" aria-label="List density">
       <span class="list-density-toggle__label">Density</span>
@@ -93,6 +94,7 @@ const filterId = `list-filter-${String(title ?? "items")
   )}
   <slot name="list-tools-extra" />
 </section>
+)}
 <div class="stack list-stack" data-list-container={filterId} data-list-density="comfortable">
   {showAlphaNav
     ? alphaKeys.map((letter) => (
@@ -108,7 +110,7 @@ const filterId = `list-filter-${String(title ?? "items")
                 data-list-item
                 data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
               >
-                {(item.eyebrow || item.badges?.length) && (
+                {(item.eyebrow || (item.badges?.length ?? 0) > 0) && (
                   <div class="list-link__meta-row">
                     {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
                     {item.badges?.length ? (
@@ -135,7 +137,7 @@ const filterId = `list-filter-${String(title ?? "items")
           data-list-item
           data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
         >
-          {(item.eyebrow || item.badges?.length) && (
+          {(item.eyebrow || (item.badges?.length ?? 0) > 0) && (
             <div class="list-link__meta-row">
               {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
               {item.badges?.length ? (
@@ -154,7 +156,7 @@ const filterId = `list-filter-${String(title ?? "items")
       ))}
 </div>
 <div class="list-empty" data-list-empty hidden style="padding: var(--space-6); text-align: center; border: 1px dashed var(--color-border); border-radius: var(--radius-card); margin: var(--space-4) 0;">
-  <p style="margin: 0; color: var(--color-muted);">No matching entries found.</p>
+  <p style="margin: 0; color: var(--color-muted);">Nothing matches that filter.</p>
   <button type="button" class="pill" data-list-reset style="margin-top: var(--space-3); cursor: pointer;">Clear filter</button>
 </div>
 <slot name="after-list" />

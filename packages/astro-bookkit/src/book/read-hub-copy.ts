@@ -14,16 +14,15 @@ export type ReadHubCopy = {
 
 export const defaultReadHubCopy: ReadHubCopy = {
 	heroEyebrow: "Reading hub",
-	heroTitle: "Choose where to start, then keep going.",
+	heroTitle: "Where to start",
 	heroLede:
-		"Pick the path that matches your goal: start, solve, or look something up. The next step is shown on every page.",
+		"Read from the beginning, go straight to a problem you have, or look something up.",
 	quickLinkStart: "Start here",
-	quickLinkSolve: "Solve now",
-	quickLinkReference: "Reference",
-	quickStartRecommendedEyebrow: "Recommended start",
-	quickStartProblemTitle: "Find the pattern first",
-	bucketsEyebrow: "Reading paths",
-	bucketsTitle: "Choose the path that fits what you need",
-	bucketsLede:
-		"Each path is focused so you can move faster with less guesswork.",
+	quickLinkSolve: "Solve a problem",
+	quickLinkReference: "Look something up",
+	quickStartRecommendedEyebrow: "Start here",
+	quickStartProblemTitle: "Find the pattern",
+	bucketsEyebrow: "",
+	bucketsTitle: "All sections",
+	bucketsLede: "",
 };

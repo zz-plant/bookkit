@@ -8,7 +8,7 @@ export const bookConfig = {
     indexable: false,
     defaultMeta: {
       description:
-        "A draft BookKit title arguing that institutional stability is often purchased by externalizing volatility into people.",
+        "Institutions often buy their stability by pushing volatility onto people. Where that heat lands, who absorbs it, and how to cool it down.",
       ogImage: "/og/default.svg",
     },
   },

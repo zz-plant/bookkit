@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import ReaderUtilityStrip from "@bookkit/astro-bookkit/components/ReaderUtilityStrip.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
@@ -16,31 +15,23 @@ const { items: entryItems, completeness } = createLocalizedContentList(modules, 
     const term = frontmatter.term ?? "Untitled term";
     return {
       href: readItemPath("glossary", slug),
-      title: isFallback ? `${term} (fallback)` : term,
+      title: isFallback ? `${term} (not yet translated)` : term,
     };
   },
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Shared language that keeps mechanisms stable.",
+  "The terms this book uses, defined.",
   completeness
 );
 ---
 <BaseLayout title={`Glossary • ${bookConfig.title}`}>
-  <ReaderUtilityStrip
-    label="Reading utilities"
-    links={[
-      { href: "/release-notes", label: "Release notes" },
-      { href: "/downloads", label: "Offline downloads" },
-    ]}
-  />
   <ContentIndexList
     title="Glossary"
     lede={localizedLede}
     items={entryItems}
     filterMode="always"
-    filterPlaceholder="Filter glossary terms..."
-    filterHint="Start typing to narrow terms or scan the A–Z index."
+    filterPlaceholder="Filter terms"
     alphaMode="always"
   />
 </BaseLayout>

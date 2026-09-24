@@ -1,69 +1,69 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import bookConfig from "../../book.config";
+import { bookEntryPoints } from "../../lib/book-entrypoints";
 import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
 
 const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
+const mechanismTitles = new Map(
+  Object.values(bookEntryPoints.contentModules.mechanisms)
+    .filter((module) => !module.frontmatter?.locale || module.frontmatter.locale === "en")
+    .map((module) => [module.frontmatter?.slug, module.frontmatter?.title]),
+);
 ---
 <BaseLayout title={`Overview • ${bookConfig.title}`}>
   <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
-    <h1>Book overview</h1>
-    <p class="lede">Intent, frame, and constraints that anchor the draft. <strong>Estimated read time:</strong> 3–5 minutes.</p>
+    <h1>Overview</h1>
+    <p class="lede">What the book sets out to do, how it approaches the problem, and the rules it follows.</p>
   </div>
   <section class="content-block">
-    <h2>Objectives</h2>
+    <h2>What you’ll get from it</h2>
     <ul>
-      <li><strong>Reader start:</strong> {objectives.readerStart}</li>
-      <li><strong>Reader end:</strong> {objectives.readerEnd}</li>
-      <li><strong>Transformation:</strong> {objectives.transformation}</li>
+      <li><strong>Starting point:</strong> {objectives.readerStart}</li>
+      <li><strong>By the end:</strong> {objectives.readerEnd}</li>
+      <li><strong>The change:</strong> {objectives.transformation}</li>
     </ul>
-    <p class="meta"><strong>Next step:</strong> Open <a href={readRoutes.mechanisms}>Mechanisms</a> to map these objectives to concrete pattern diagnosis.</p>
 
-    <h2>Intervention frame</h2>
-    <p class="meta">{frame.intent}</p>
-    <ul>
+    <h2>Approach</h2>
+    <p>{frame.intent}</p>
+    <ol>
       {frame.steps.map((step) => (
         <li>{step}</li>
       ))}
-    </ul>
-    <p class="meta"><strong>Next step:</strong> Continue to <a href={readRoutes.chapters}>Chapters</a> for the full intervention walkthrough.</p>
+    </ol>
 
-    <h2>Causal stance</h2>
+    <h2>Core claim</h2>
     <p>{causalStance}</p>
-    <p class="meta"><strong>Next step:</strong> If you need immediate action, jump to <a href={readRoutes.toolkit}>Toolkit</a>.</p>
 
-    <h2>Constraints</h2>
+    <h2>Ground rules</h2>
     <ul>
-      <li>
-        <strong>Mechanism target:</strong> {constraints.mechanismCountTarget[0]}-
-        {constraints.mechanismCountTarget[1]}
-      </li>
-      <li>
-        <strong>Action primitive cap:</strong> {constraints.actionPrimitiveMaxMinutes}
-        minutes
-      </li>
-      <li>
-        <strong>Examples swappable:</strong>{" "}
-        {constraints.examplesMustBeSwappable ? "yes" : "no"}
-      </li>
-      <li>
-        <strong>Ordering model:</strong> {constraints.orderingModel}
-      </li>
+      <li>Every toolkit action takes {constraints.actionPrimitiveMaxMinutes} minutes or less.</li>
+      {constraints.examplesMustBeSwappable && (
+        <li>Examples are interchangeable: swap in your own and the mechanism still holds.</li>
+      )}
     </ul>
-    <p class="meta"><strong>Next step:</strong> Review <a href={readRoutes.examples}>Examples</a> to see these constraints in replaceable cases.</p>
 
     <h2>Core mechanisms</h2>
     <ul>
       {mechanisms.map((mechanism) => (
         <li>
           <strong>
-            <a href={readItemPath("mechanisms", mechanism.slug)}>{mechanism.slug}</a>:
+            <a href={readItemPath("mechanisms", mechanism.slug)}>
+              {mechanismTitles.get(mechanism.slug) ?? mechanism.slug}
+            </a>:
           </strong>{" "}
           {mechanism.focus}
         </li>
       ))}
     </ul>
-    <p class="meta"><strong>Next step:</strong> Start with <a href={readRoutes.mechanisms}>Mechanisms</a> and pick one pattern that best matches your current situation.</p>
+  </section>
+  <section class="next-steps">
+    <h2>Keep going</h2>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href={readRoutes.chapters}>Chapters</a>
+      <a class="next-steps__link" href={readRoutes.mechanisms}>Mechanisms</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit</a>
+    </div>
   </section>
 </BaseLayout>

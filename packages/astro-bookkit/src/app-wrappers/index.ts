@@ -151,7 +151,7 @@ export const buildReleaseNotesPageProps = (options: {
     requestUrl: options.requestUrl,
     ogImage: options.ogImage,
     description:
-      options.description ?? "Track new releases, subscribe to updates, and review the latest changes.",
+      options.description ?? "What changed in each version of the book, newest first.",
   });
 
   return {
@@ -163,7 +163,7 @@ export const buildReleaseNotesPageProps = (options: {
     releases: options.releases,
     versions: options.versionEntries,
     description: seoProps.metaDescription,
-    subscribeLabel: "Subscribe via RSS",
+    subscribeLabel: "RSS feed",
     subscribeAnalyticsUrl: options.subscribeAnalyticsUrl ?? "/api/release-analytics.json",
     ...seoProps,
   };

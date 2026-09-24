@@ -64,12 +64,11 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
 ---
 <BaseLayout title={`${frontmatter.name} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
-  <a class="back-link" href={readRoutes.toolkit}>← Toolkit</a>
-  <div class="eyebrow">Toolkit{isFallback ? " • fallback" : ""}</div>
+  <div class="eyebrow">Toolkit action{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.name}</h1>
-  <div class="pill">{frontmatter.timeboxMinutes ?? 10} min action</div>
   <p class="lede">
-    {frontmatter.mechanism} • {frontmatter.timeboxMinutes ?? 10} min
+    {frontmatter.timeboxMinutes ?? 10} minutes · for{" "}
+    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{frontmatter.mechanism}</a>
   </p>
   {frontmatter.trigger && (
     <section class="content-block">
@@ -115,24 +114,15 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   </section>
   <NextActionPanel
     variant="compact"
-    title="After this, try"
-    description="Keep momentum by chaining one related move."
+    title="Keep going"
     links={[
       {
         href: readItemPath("mechanisms", frontmatter.mechanism),
-        label: `Review ${frontmatter.mechanism}`,
-        meta: "Pattern check",
+        label: "The mechanism behind this action",
+        meta: frontmatter.mechanism,
       },
-      {
-        href: readRoutes.examples,
-        label: "See concrete examples",
-        meta: "Ground the action in a case",
-      },
-      {
-        href: readRoutes.toolkit,
-        label: "Choose another 10-minute action",
-        meta: "Build a short action chain",
-      },
+      { href: readRoutes.examples, label: "Examples" },
+      { href: readRoutes.toolkit, label: "Other actions" },
     ]}
   />
 </BaseLayout>

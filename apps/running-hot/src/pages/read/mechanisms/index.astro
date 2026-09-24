@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
-import ReaderUtilityStrip from "@bookkit/astro-bookkit/components/ReaderUtilityStrip.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
@@ -21,7 +20,6 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
     return {
       href: readItemPath("mechanisms", slug),
       title: frontmatter.title ?? "Untitled mechanism",
-      eyebrow: "mechanism",
       badges: tags,
       meta: frontmatter.definition ?? "",
     };
@@ -29,25 +27,17 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(modul
   sort: (a, b) => a.title.localeCompare(b.title),
 });
 const localizedLede = buildTranslationLede(
-  "Stable patterns that explain how harm stays normalized.",
+  "Patterns that push institutional heat onto people, and how to recognize each one.",
   completeness
 );
 ---
 <BaseLayout title={`Mechanisms • ${bookConfig.title}`}>
-  <ReaderUtilityStrip
-    label="Reading utilities"
-    links={[
-      { href: "/release-notes", label: "Release notes" },
-      { href: "/downloads", label: "Offline downloads" },
-    ]}
-  />
   <ContentIndexList
     title="Mechanisms"
     lede={localizedLede}
     items={mechanismItems}
     filterMode="always"
-    filterPlaceholder="Filter by mechanism name or definition..."
-    filterHint="Search by name, definition, or domain signal."
+    filterPlaceholder="Filter by name or definition"
     alphaMode="auto"
   />
 </BaseLayout>

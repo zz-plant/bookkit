@@ -125,7 +125,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
   <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
   <p class="lede" id="definition">{frontmatter.definition}</p>
 
-  <nav class="reader-utility-strip" aria-label="On this page" style="margin: 0.75rem 0 1.5rem;">
+  <nav class="jump-nav" aria-label="On this page">
     {(hasIs || hasIsNot || hasPredictions || hasTests) && (
       <a class="pill" href="#recognize">How to recognize it</a>
     )}

@@ -19,14 +19,18 @@ const {
   filterHint,
   alphaMode = "auto",
   itemActionLabel,
+  quickFilters = [],
+  quickFiltersLabel = "Show",
+  quickFiltersClearLabel = "All",
 } = Astro.props;
 
 const resolvedItems = Array.isArray(items) ? items : [];
+const resolvedQuickFilters = Array.isArray(quickFilters) ? quickFilters : [];
 const shouldAutoFilter = resolvedItems.length > 6;
 const showFilter =
   filterMode === true ||
   filterMode === "always" ||
-  (filterMode === "auto" && shouldAutoFilter);
+  (filterMode === "auto" && (shouldAutoFilter || resolvedQuickFilters.length > 0));
 const shouldAutoAlpha = resolvedItems.length > 10;
 const showAlphaNav =
   alphaMode === true ||
@@ -53,6 +57,28 @@ const filterId = `list-filter-${String(title ?? "items")
   {lede && <p class="lede">{lede}</p>}
 </div>
 <slot name="after-header" />
+{resolvedQuickFilters.length > 0 && (
+  <div class="list-quick-filters" role="group" aria-label="Filter by tag" data-quick-filters={filterId}>
+    <span class="list-quick-filters__label">{quickFiltersLabel}</span>
+    {resolvedQuickFilters.map((filter) => (
+      <button
+        class="list-quick-filter"
+        type="button"
+        data-quick-filter={filter.value}
+        aria-pressed="false"
+      >
+        {filter.label}
+      </button>
+    ))}
+    <button
+      class="list-quick-filter list-quick-filter--clear"
+      type="button"
+      data-quick-filter-clear
+    >
+      {quickFiltersClearLabel}
+    </button>
+  </div>
+)}
 {(showFilter || showDensityToggle || showAlphaNav || Astro.slots.has("list-tools-extra")) && (
 <section class="list-tools" aria-label="List tools">
   <p class="list-summary">{listSummary}</p>
@@ -155,9 +181,9 @@ const filterId = `list-filter-${String(title ?? "items")
         </a>
       ))}
 </div>
-<div class="list-empty" data-list-empty hidden style="padding: var(--space-6); text-align: center; border: 1px dashed var(--color-border); border-radius: var(--radius-card); margin: var(--space-4) 0;">
-  <p style="margin: 0; color: var(--color-muted);">Nothing matches that filter.</p>
-  <button type="button" class="pill" data-list-reset style="margin-top: var(--space-3); cursor: pointer;">Clear filter</button>
+<div class="list-empty" data-list-empty hidden>
+  <p>Nothing matches that filter.</p>
+  <button type="button" class="pill" data-list-reset>Clear filter</button>
 </div>
 <slot name="after-list" />
 {(showFilter || showDensityToggle) && (
@@ -195,6 +221,35 @@ const filterId = `list-filter-${String(title ?? "items")
           input.value = "";
           applyFilter();
           input.focus();
+        });
+      }
+      const quickFiltersRoot = document.querySelector(`[data-quick-filters="${filterId}"]`);
+      if (quickFiltersRoot) {
+        const quickButtons = Array.from(quickFiltersRoot.querySelectorAll("[data-quick-filter]"));
+        const quickClear = quickFiltersRoot.querySelector("[data-quick-filter-clear]");
+        const syncQuickButtons = (activeValue) => {
+          quickButtons.forEach((button) => {
+            const isActive = button.getAttribute("data-quick-filter") === activeValue;
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+          });
+        };
+        quickButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            if (!(input instanceof HTMLInputElement)) return;
+            const value = button.getAttribute("data-quick-filter") || "";
+            input.value = value;
+            applyFilter();
+            syncQuickButtons(value);
+          });
+        });
+        quickClear?.addEventListener("click", () => {
+          if (!(input instanceof HTMLInputElement)) return;
+          input.value = "";
+          applyFilter();
+          syncQuickButtons(null);
+        });
+        input.addEventListener("input", () => {
+          syncQuickButtons(input.value);
         });
       }
       densityButtons.forEach((button) => {

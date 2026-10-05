@@ -33,7 +33,7 @@ const changedSectionCount = sections.filter((section) => section.latestChange).l
 const showChangeMarkers = changedSectionCount > 0 && changedSectionCount < sections.length;
 ---
 <div class="read-hub">
-  <section class="content-block read-hero" style="margin-top: 0;">
+  <section class="content-block content-block--flush read-hero">
     <div class="read-hero__copy">
       {hero.eyebrow && <div class="eyebrow">{hero.eyebrow}</div>}
       <h1>{hero.title}</h1>
@@ -206,7 +206,7 @@ const showChangeMarkers = changedSectionCount > 0 && changedSectionCount < secti
         </div>
       </section>
     ) : (
-      <section id={utilities.id ?? "tools-by-role"} class="content-block read-section" style="margin-top: 0;">
+      <section id={utilities.id ?? "tools-by-role"} class="content-block content-block--flush read-section">
         <div class="read-section__intro">
           <div>
             {utilities.eyebrow && <div class="eyebrow">{utilities.eyebrow}</div>}

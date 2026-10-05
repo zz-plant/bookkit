@@ -43,7 +43,7 @@ const localizedLede = buildTranslationLede(
     filterPlaceholder="Filter by title"
   >
     {draftCount > 0 && (
-      <details slot="after-header" class="content-block" style="margin-top: 0;">
+      <details slot="after-header" class="content-block content-block--flush">
         <summary>
           <strong>{draftCount === chapterItems.length ? "These chapters are drafts" : "Some chapters are drafts"}</strong>
         </summary>

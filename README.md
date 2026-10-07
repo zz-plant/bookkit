@@ -157,6 +157,13 @@ bun run bookkit dev bad-people
 bun run bookkit dev running-hot
 ```
 
+### Check a change
+
+```bash
+bun run verify             # the checks your change needs, judged by the files it touches
+bun run verify -- --all    # everything CI runs
+```
+
 ### Lint / format / types
 
 ```bash

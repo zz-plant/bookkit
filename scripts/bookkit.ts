@@ -44,8 +44,19 @@ const runScript = (script: string, scriptArgs: string[]): number =>
 
 switch (command) {
 	case "status": {
-		await printStatus();
+		if (args.includes("--json")) {
+			console.log(
+				JSON.stringify(await Promise.all(books.map(summarizeBook)), null, 2),
+			);
+		} else {
+			await printStatus();
+		}
 		process.exit(0);
+		break;
+	}
+
+	case "verify": {
+		process.exit(runScript("verify.ts", args.slice(1)));
 		break;
 	}
 
@@ -542,8 +553,9 @@ Write
   propose --book <slug> [--apply …]         draft mechanisms, tools, and config from a book's text
 
 Check
-  status                                    chapters, stubs, mechanisms, and tools per book
+  status [--json]                           chapters, stubs, mechanisms, and tools per book
   check [book] [--quick]                    structure, plus mechanisms that overlap across books
+  verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
   validate [book]                           structure only
 
 Preview and publish

@@ -3,6 +3,19 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — `bun run verify`: the checks a change needs
+
+- **New: `bun run verify`** (also `bookkit verify`). It reads what changed since `origin/main` (committed, staged, unstaged, and untracked files) and runs only the checks those paths need. The mapping is CONTRIBUTING's verification matrix as code, in `scripts/lib/verify-plan.ts`. For example:
+  - a chapter edit validates and builds that book (about 6s);
+  - an engine edit runs types, tests, shims, the architecture check, and one book's build.
+- **Output is one line per check.** A failed check prints the tail of its output. `--all` runs every gate CI runs, `--list` shows the plan, `--json` prints one summary object, and `--base <ref>` changes the comparison.
+- **Content checks report only findings in the files you changed,** so Crumple Zone's existing warnings don't hide a new one. An error-level finding in a changed file fails the check.
+- **`check:types` covers `scripts/`**, tests included (`scripts/tsconfig.json`, `@types/bun`). It found:
+  - `check:concepts` read a bare `--book` or `--mode` flag as the value `true`;
+  - the governance output type import didn't resolve, so its payload was typed `any`.
+- **`validate-book --json`** prints one object per finding, with a repo-relative `file` when the finding names one.
+- **`bookkit status --json`** prints the per-book summary.
+
 ## 2026-10-07 — One formatting baseline, enforced
 
 - **Every file now matches `biome.json`.** 250 files had drifted (247 of 511 didn't match before), mostly 2-space indentation from before the formatter was configured. Running the formatter or the pre-commit hook on any file used to rewrite hundreds of unrelated lines. That commit is formatting and Biome's safe fixes only, and is listed in `.git-blame-ignore-revs`.

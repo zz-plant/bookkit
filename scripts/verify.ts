@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
-import type { Finding } from "./lib/authoring";
+import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { type Gate, planGates } from "./lib/verify-plan";
 
 /**
@@ -155,17 +155,26 @@ if (!asJson) {
 
 const results: GateResult[] = [];
 for (const gate of gates) {
-	if (!asJson) process.stdout.write(`  … ${gate.label}`);
+	// The progress marker is overwritten in place, which only works on a terminal.
+	if (!asJson && process.stdout.isTTY)
+		process.stdout.write(`  … ${gate.label}`);
 	const result = runGate(gate);
 	results.push(result);
 	if (asJson) continue;
 	process.stdout.write(
-		`\r  ${result.ok ? "✓" : "✗"} ${gate.label.padEnd(24)} ${result.seconds.toFixed(1)}s\n`,
+		`${process.stdout.isTTY ? "\r" : ""}  ${result.ok ? "✓" : "✗"} ${gate.label.padEnd(24)} ${result.seconds.toFixed(1)}s\n`,
 	);
-	for (const finding of result.findings ?? []) {
-		console.log(
-			`      ${finding.level === "error" ? "error" : "warning"}: ${finding.file ? `${finding.file}: ` : ""}${finding.message}`,
-		);
+	for (const level of ["error", "warning"] as const) {
+		const messages = (result.findings ?? [])
+			.filter((finding) => finding.level === level)
+			.map((finding) =>
+				finding.file
+					? `${finding.message}: ${join(root, finding.file)}`
+					: finding.message,
+			);
+		for (const line of groupFindingsByFile(messages)) {
+			console.log(`      ${level}: ${line}`);
+		}
 	}
 	if (!result.ok && result.output) {
 		const tail = result.output.trimEnd().split("\n").slice(-40);

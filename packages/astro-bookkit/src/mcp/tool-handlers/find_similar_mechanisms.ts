@@ -22,10 +22,12 @@ export const handleFindSimilarMechanisms: ToolHandler = ({ options, args }) => {
 		"similar",
 		title,
 		...(definition ? ["--definition", definition] : []),
+		...(args?.semantic === true ? ["--semantic"] : []),
 		"--json",
 	]);
 	let result: {
 		existingSlug?: string[];
+		method?: string;
 		similar?: Array<{ slug: string; books: string[] }>;
 	} | null = null;
 	try {
@@ -43,7 +45,7 @@ export const handleFindSimilarMechanisms: ToolHandler = ({ options, args }) => {
 			: existing.length > 0
 				? `Its slug already exists in ${existing.join(", ")}; share that mechanism instead of creating one.`
 				: similar.length > 0
-					? `${similar.length} existing mechanism(s) share wording; bind one if it fits: ${similar.map((match) => match.slug).join(", ")}.`
+					? `Closest by ${result.method ?? "wording"}: ${similar.map((match) => match.slug).join(", ")}. Bind one if it is the same idea.`
 					: "No existing mechanism shares its wording.",
 		payload: {
 			result,

@@ -353,9 +353,10 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.find_similar_mechanisms",
 		description:
-			"Before coining a mechanism, list existing ones in any book that share its wording, and whether its slug already exists. Bind an existing slug when one fits.",
+			"Before coining a mechanism, list existing ones in any book that it may duplicate, and whether its slug already exists. Bind an existing slug when one fits. Pass semantic: true to rank by meaning, which finds the same idea in different words.",
 		safety: "read_only",
-		expectedRuntime: "<5s",
+		expectedRuntime:
+			"<5s by wording; ~10s by meaning (first run downloads a ~520 MB model)",
 		expectedRuntimeClass: "short",
 		sideEffectLevel: "read-only",
 		idempotent: true,
@@ -374,7 +375,12 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				definition: {
 					type: "string",
 					description:
-						"Optional one-sentence definition; its words join the comparison.",
+						"Optional one-sentence definition; it joins the comparison.",
+				},
+				semantic: {
+					type: "boolean",
+					description:
+						"Rank by meaning with the local embedding model (falls back to wording if it cannot load). Default false.",
 				},
 			},
 			required: ["title"],

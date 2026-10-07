@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { repoRoot } from "../_lib";
 import {
 	chapterSource,
+	findSimilarMechanisms,
 	groupFindingsByFile,
 	nextChapterFileName,
 } from "./authoring";
@@ -73,5 +74,22 @@ describe("groupFindingsByFile", () => {
 		).toEqual([
 			"apps/demo/src/content/book/mechanisms/b.mdx: Mechanism missing definition; Duplicate slug",
 		]);
+	});
+});
+
+describe("findSimilarMechanisms", () => {
+	it("ranks a mechanism above others when its own words are proposed", () => {
+		const [first] = findSimilarMechanisms({ title: "Delay as force" });
+		expect(first?.slug).toBe("delay-as-force");
+		expect(first?.books).toEqual(["bad-people", "running-hot"]);
+	});
+
+	it("does not stem 'less' to 'les'", () => {
+		const matches = findSimilarMechanisms(
+			{ title: "Less buffer", definition: "less buffer" },
+			undefined,
+			20,
+		);
+		expect(matches.flatMap((match) => match.sharedWords)).not.toContain("les");
 	});
 });

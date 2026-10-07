@@ -2,7 +2,9 @@ import { existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/pageFacts";
 import { isThinPage } from "../../packages/astro-bookkit/src/seo/page-meta";
+import { corpusEmbeddingText } from "../../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, repoRoot, slugify } from "../_lib";
+import { embedTexts } from "./embed-text";
 import { loadBookContent } from "./load-book";
 
 /**
@@ -127,13 +129,17 @@ const STOPWORDS = new Set(
 	),
 );
 
+/** Crude stemming: "waiting", "waited", "waits" → "wait"; "less" stays "less". */
+const stem = (word: string): string =>
+	word.replace(/(?:ing|ed)$/u, "").replace(/(?<!s)s$/u, "");
+
 const contentWords = (text: string): Set<string> =>
 	new Set(
 		text
 			.toLowerCase()
 			.split(/[^\p{L}\p{N}]+/u)
 			.filter((word) => word.length > 2 && !STOPWORDS.has(word))
-			.map((word) => word.replace(/(?:ing|ed|es|s)$/u, "")),
+			.map(stem),
 	);
 
 export type MechanismMatch = {
@@ -141,15 +147,54 @@ export type MechanismMatch = {
 	title: string;
 	/** Books that carry it; a shared mechanism is one entry. */
 	books: string[];
-	/** Share of the new mechanism's words that the existing one also uses. */
-	overlap: number;
+	/**
+	 * Lexical: the share of the proposal's word weight the mechanism also
+	 * uses, where words common across mechanisms weigh less. Semantic: cosine
+	 * similarity of the two texts' embeddings.
+	 */
+	score: number;
+	/** Words both use (lexical only). */
 	sharedWords: string[];
 };
 
+type CorpusEntry = {
+	slug: string;
+	title: string;
+	books: string[];
+	text: string;
+	words: Set<string>;
+};
+
+/** One entry per slug across the books, with the text a model or scorer reads. */
+const loadCorpusEntries = (books: string[]): CorpusEntry[] => {
+	const bySlug = new Map<string, CorpusEntry>();
+	for (const book of books) {
+		for (const mechanism of loadBookContent(book).mechanisms) {
+			const known = bySlug.get(mechanism.slug);
+			if (known) {
+				known.books.push(book);
+				continue;
+			}
+			const text = corpusEmbeddingText(mechanism);
+			bySlug.set(mechanism.slug, {
+				slug: mechanism.slug,
+				title: mechanism.title,
+				books: [book],
+				text,
+				words: contentWords(`${mechanism.slug.replace(/-/g, " ")} ${text}`),
+			});
+		}
+	}
+	return [...bySlug.values()];
+};
+
+const round = (value: number) => Math.round(value * 100) / 100;
+
 /**
- * Existing mechanisms, across every book, that share words with a proposed
- * one. Lexical and cheap: a hint to look before coining a name, not a ruling.
- * `bookkit check` runs the semantic comparison once a definition exists.
+ * Existing mechanisms, across every book, that a proposed one may duplicate.
+ * Lexical by default: cheap, and a hint to look before coining a name, not a
+ * ruling. Words that most mechanisms use ("people", "institution") count for
+ * little. For ideas worded differently, use `findSimilarMechanismsByMeaning`.
  */
 export const findSimilarMechanisms = (
 	proposal: { title: string; definition?: string },
@@ -160,36 +205,71 @@ export const findSimilarMechanisms = (
 		`${proposal.title} ${proposal.definition ?? ""}`,
 	);
 	if (proposed.size === 0) return [];
-	const bySlug = new Map<string, MechanismMatch>();
-	for (const book of books) {
-		for (const mechanism of loadBookContent(book).mechanisms) {
-			const known = bySlug.get(mechanism.slug);
-			if (known) {
-				known.books.push(book);
-				continue;
-			}
-			const existing = contentWords(
-				[
-					mechanism.slug.replace(/-/g, " "),
-					mechanism.title,
-					mechanism.definition,
-					...mechanism.is,
-				].join(" "),
-			);
-			const shared = [...proposed].filter((word) => existing.has(word));
-			if (shared.length === 0) continue;
-			bySlug.set(mechanism.slug, {
-				slug: mechanism.slug,
-				title: mechanism.title,
-				books: [book],
-				overlap: shared.length / proposed.size,
+	const entries = loadCorpusEntries(books);
+	const weight = (word: string) => {
+		const containing = entries.filter((entry) => entry.words.has(word)).length;
+		return Math.log((entries.length + 1) / (containing + 1)) + 1;
+	};
+	const total = [...proposed].reduce((sum, word) => sum + weight(word), 0);
+	return entries
+		.map((entry) => {
+			const shared = [...proposed].filter((word) => entry.words.has(word));
+			const score = shared.reduce((sum, word) => sum + weight(word), 0) / total;
+			return {
+				slug: entry.slug,
+				title: entry.title,
+				books: entry.books,
+				score: round(score),
 				sharedWords: shared,
-			});
-		}
-	}
-	return [...bySlug.values()]
-		.sort((a, b) => b.overlap - a.overlap)
+			};
+		})
+		.filter((match) => match.sharedWords.length > 0)
+		.sort((a, b) => b.score - a.score)
 		.slice(0, limit);
+};
+
+/**
+ * The same question answered by meaning, with check:corpus's embedding model.
+ * Returns null when the model cannot load (offline, or not installed), so the
+ * caller can fall back to `findSimilarMechanisms`.
+ */
+export const findSimilarMechanismsByMeaning = async (
+	proposal: { title: string; definition?: string },
+	books: string[] = listBookDirs(),
+	limit = 3,
+): Promise<
+	{ model: string; matches: MechanismMatch[] } | { error: string }
+> => {
+	const entries = loadCorpusEntries(books);
+	const proposalText = corpusEmbeddingText({
+		title: proposal.title,
+		definition: proposal.definition ?? "",
+		is: [],
+	});
+	const embedded = await embedTexts([
+		proposalText,
+		...entries.map((entry) => entry.text),
+	]);
+	if (!embedded.ok) return { error: embedded.reason };
+	const [target, ...vectors] = embedded.vectors;
+	const cosine = (a: Float32Array, b: Float32Array) => {
+		let dot = 0;
+		for (let i = 0; i < a.length; i += 1) dot += a[i] * b[i];
+		return dot;
+	};
+	return {
+		model: embedded.model.id,
+		matches: entries
+			.map((entry, index) => ({
+				slug: entry.slug,
+				title: entry.title,
+				books: entry.books,
+				score: round(cosine(target, vectors[index])),
+				sharedWords: [],
+			}))
+			.sort((a, b) => b.score - a.score)
+			.slice(0, limit),
+	};
 };
 
 /** Books that already carry a mechanism under this slug. */

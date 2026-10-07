@@ -1,31 +1,47 @@
+import { buildLocalizedContentIndex } from "../localization/content";
+import { extractPageFacts } from "../markdown/pageFacts";
 import type { BookSeoConfig } from "./config";
 import { resolveSiteUrl } from "./config";
+import { isThinPage } from "./page-meta";
 import { buildAbsoluteUrl } from "./urls";
 import { createRobotsTxt } from "./robots";
 import type { SitemapEntry } from "./sitemap";
 
 export type BookSitemapFrontmatter = {
   slug?: string;
+  locale?: string;
   lastmod?: string;
   updatedAt?: string;
   updated?: string;
   date?: string;
 };
 
+type BookSitemapModule = { frontmatter?: BookSitemapFrontmatter };
+
 export type BookSitemapContentModules = {
-  chapters?: Record<string, { frontmatter?: BookSitemapFrontmatter }>;
-  mechanisms?: Record<string, { frontmatter?: BookSitemapFrontmatter }>;
-  toolkit?: Record<string, { frontmatter?: BookSitemapFrontmatter }>;
-  glossary?: Record<string, { frontmatter?: BookSitemapFrontmatter }>;
-  examples?: Record<string, { frontmatter?: BookSitemapFrontmatter } | unknown>;
+  chapters?: Record<string, BookSitemapModule>;
+  mechanisms?: Record<string, BookSitemapModule>;
+  toolkit?: Record<string, BookSitemapModule>;
+  glossary?: Record<string, BookSitemapModule>;
+  examples?: Record<string, BookSitemapModule>;
 };
 
 export type BookSitemapOptions = {
   site?: BookSeoConfig;
   basePaths?: string[];
   content?: BookSitemapContentModules;
+  /** Raw MDX source under the same keys as `content`, used to leave stub chapters out. */
+  contentRaw?: Partial<Record<keyof BookSitemapContentModules, Record<string, string>>>;
   defaultLastmod?: string;
+  /** Locale whose pages live at unprefixed paths. */
+  defaultLocale?: string;
 };
+
+/**
+ * Pages for authors, not readers. They stay reachable but out of search:
+ * robots.txt disallows them and the pages carry noindex.
+ */
+export const AUTHOR_ONLY_PATHS = ["/read/analytics", "/read/tools", "/new-book"];
 
 export type BookRobotsOptions = {
   site?: BookSeoConfig;
@@ -47,20 +63,13 @@ export const DEFAULT_BOOK_SITEMAP_PATHS = [
   "/release-notes",
 ];
 
-const resolveSlug = (module: { frontmatter?: BookSitemapFrontmatter } | undefined): string | undefined =>
-  module?.frontmatter?.slug;
-
 const resolveLastmod = (module: { frontmatter?: BookSitemapFrontmatter } | undefined): string | undefined =>
   module?.frontmatter?.lastmod ??
   module?.frontmatter?.updatedAt ??
   module?.frontmatter?.updated ??
   module?.frontmatter?.date;
 
-const resolveExampleSlug = (path: string): string | null => {
-  const match = path.split("/examples/")[1];
-  if (!match) return null;
-  return match.replace(/\.mdx?$/, "");
-};
+const SECTIONS = ["chapters", "mechanisms", "toolkit", "glossary", "examples"] as const;
 
 const buildEntry = (
   siteUrl: string | undefined,
@@ -75,51 +84,40 @@ export const createBookSitemapEntries = ({
   site,
   basePaths = DEFAULT_BOOK_SITEMAP_PATHS,
   content = {},
+  contentRaw = {},
   defaultLastmod,
+  defaultLocale = "en",
 }: BookSitemapOptions): SitemapEntry[] => {
   const siteUrl = resolveSiteUrl(site);
   const entries: SitemapEntry[] = basePaths.map((path) =>
     buildEntry(siteUrl, path, { lastmod: defaultLastmod })
   );
 
-  content.chapters &&
-    Object.values(content.chapters).forEach((module) => {
-      const slug = resolveSlug(module);
-      if (slug) entries.push(buildEntry(siteUrl, `/read/chapters/${slug}`, { lastmod: resolveLastmod(module) ?? defaultLastmod }));
-    });
-
-  content.mechanisms &&
-    Object.values(content.mechanisms).forEach((module) => {
-      const slug = resolveSlug(module);
-      if (slug) entries.push(buildEntry(siteUrl, `/read/mechanisms/${slug}`, { lastmod: resolveLastmod(module) ?? defaultLastmod }));
-    });
-
-  content.toolkit &&
-    Object.values(content.toolkit).forEach((module) => {
-      const slug = resolveSlug(module);
-      if (slug) entries.push(buildEntry(siteUrl, `/read/toolkit/${slug}`, { lastmod: resolveLastmod(module) ?? defaultLastmod }));
-    });
-
-  content.glossary &&
-    Object.values(content.glossary).forEach((module) => {
-      const slug = resolveSlug(module);
-      if (slug) entries.push(buildEntry(siteUrl, `/read/glossary/${slug}`, { lastmod: resolveLastmod(module) ?? defaultLastmod }));
-    });
-
-  content.examples &&
-    Object.keys(content.examples).forEach((path) => {
-      const slug = resolveExampleSlug(path);
-      if (slug) {
-        const module = content.examples?.[path];
-        const frontmatter =
-          module && typeof module === "object" && "frontmatter" in module
-            ? (module as { frontmatter?: BookSitemapFrontmatter })
-            : undefined;
-        entries.push(buildEntry(siteUrl, `/read/examples/${slug}`, {
-          lastmod: resolveLastmod(frontmatter) ?? defaultLastmod,
-        }));
+  // Slugs come from the same index the read routes are built from, so every
+  // entry is a page that exists. Only the default locale's pages are listed.
+  for (const section of SECTIONS) {
+    const modules = content[section];
+    if (!modules) continue;
+    const index = buildLocalizedContentIndex(modules, { defaultLocale });
+    const pathOf = new Map(Object.entries(modules).map(([path, module]) => [module, path]));
+    for (const slug of index.slugs) {
+      const module = index.bySlug[slug]?.[index.defaultLocale];
+      if (!module) continue;
+      const source = contentRaw[section]?.[pathOf.get(module) ?? ""];
+      if (
+        section === "chapters" &&
+        typeof source === "string" &&
+        isThinPage(extractPageFacts(source).wordCount, site)
+      ) {
+        continue;
       }
-    });
+      entries.push(
+        buildEntry(siteUrl, `/read/${section}/${slug}`, {
+          lastmod: resolveLastmod(module) ?? defaultLastmod,
+        })
+      );
+    }
+  }
 
   return entries;
 };
@@ -133,7 +131,7 @@ export const createBookRobotsTxt = ({
 }: BookRobotsOptions): string => {
   const siteUrl = resolveSiteUrl(site);
   const resolvedAllowAll = allowAll ?? (site?.indexable !== false);
-  const defaultDisallowPaths = resolvedAllowAll ? ["/read/analytics"] : ["/"];
+  const defaultDisallowPaths = resolvedAllowAll ? AUTHOR_ONLY_PATHS : ["/"];
   const mergedDisallowPaths = Array.from(
     new Set([...defaultDisallowPaths, ...disallowPaths])
   );

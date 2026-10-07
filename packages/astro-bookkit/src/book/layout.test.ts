@@ -9,8 +9,9 @@ import type { BookVersionEntry } from "../releases/versions";
 
 describe("book layout state", () => {
   it("normalizes wrapper state for preview, archived versions, canonical paths, and translation notices", () => {
+    // Locale and version paths are rewritten per request, so they need a server.
     const bookConfig: BookLayoutConfig = {
-      site: { url: "https://docs.example.com" },
+      site: { url: "https://docs.example.com", runtime: "server" },
       title: "Bad People",
       slug: "bad-people",
       localization: {
@@ -94,6 +95,41 @@ describe("book layout state", () => {
     expect(state.renderState.head.resolvedCanonical).toBe(
       "https://docs.example.com/fr/read/chapters/compliance-traps"
     );
+  });
+
+  it("keeps a static build to pages that exist and drops the trailing slash", () => {
+    const state = createBookLayoutState({
+      astro: {
+        props: { title: "Compliance traps" },
+        url: new URL("https://docs.example.com/read/chapters/compliance-traps/"),
+      },
+      bookConfig: {
+        site: { url: "https://docs.example.com" },
+        title: "Bad People: How Harm Is Normalized",
+        features: { aiQa: true },
+        localization: {
+          defaultLocale: "en",
+          locales: [
+            { code: "en", label: "English", isDefault: true },
+            { code: "es", label: "Español" },
+          ],
+        },
+      },
+      versionEntries: [{ version: "1.0.0" }, { version: "2.0.0", isLatest: true }],
+      localizedContentModules: [],
+    });
+
+    expect(state.hasServerRuntime).toBe(false);
+    expect(state.aiQaEnabled).toBe(false);
+    expect(state.seoProps.canonicalUrl).toBe(
+      "https://docs.example.com/read/chapters/compliance-traps"
+    );
+    expect(state.renderState.locale.entries.map((entry) => entry.code)).toEqual(["en"]);
+    expect(state.renderState.head.hreflangEntries).toEqual([]);
+    expect(state.renderState.head.hreflangDefault).toBeNull();
+    expect(state.renderState.version.hasVersions).toBe(false);
+    expect(state.renderState.ogType).toBe("article");
+    expect(state.renderState.head.resolvedOgSiteName).toBe("Bad People");
   });
 
   it("extracts locale, route, and archive metadata decisions into render state", () => {

@@ -12,7 +12,7 @@ import type { BookSeoConfig } from "../seo/config";
 import type { BookVersionEntry } from "../releases/versions";
 import { buildSeoProps } from "../seo/config";
 import { createBookSitemapEntries } from "../seo/book";
-import type { BookSitemapContentModules } from "../seo/book";
+import type { BookSitemapContentModules, BookSitemapOptions } from "../seo/book";
 import { createSitemapXml } from "../seo/sitemap";
 import { createBookSearchIndexEndpoint, createLocalizedSearchIndexEndpoint } from "../search/endpoint";
 import { createQaApiHandlers as createQaEndpoint } from "../qa";
@@ -66,14 +66,18 @@ export const createSearchIndexGetHandler = (options: {
 };
 
 export const createSitemapGetHandler = (options: {
-  site: { url?: string; enforceHttps?: boolean; indexable?: boolean };
+  site: BookSeoConfig;
   content: BookSitemapContentModules;
+  contentRaw?: BookSitemapOptions["contentRaw"];
   defaultLastmod?: string;
+  defaultLocale?: string;
 }): APIRoute => () => {
   const entries = createBookSitemapEntries({
     site: options.site,
     content: options.content,
+    contentRaw: options.contentRaw,
     defaultLastmod: options.defaultLastmod,
+    defaultLocale: options.defaultLocale,
   });
 
   return new Response(createSitemapXml(entries), {

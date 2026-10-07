@@ -1,3 +1,5 @@
+import { canonicalPageUrl } from "./urls";
+
 export type StructuredData = Record<string, unknown>;
 
 export type BreadcrumbItem = {
@@ -27,13 +29,13 @@ export const createBreadcrumbListStructuredDataFromTrail = (
   items: BreadcrumbTrailItem[],
   currentUrl: URL | string
 ): StructuredData => {
-  const resolvedCurrentUrl = new URL(currentUrl.toString());
+  const resolvedCurrentUrl = new URL(canonicalPageUrl(currentUrl));
 
   return createBreadcrumbListStructuredData(
     items.map((entry) => ({
       name: entry.name,
       item: entry.href
-        ? new URL(entry.href, resolvedCurrentUrl).toString()
+        ? canonicalPageUrl(new URL(entry.href, resolvedCurrentUrl))
         : resolvedCurrentUrl.toString(),
     }))
   );
@@ -59,6 +61,6 @@ export const createDefinedTermStructuredData = ({
   name,
   description,
   termCode,
-  url,
-  inDefinedTermSet,
+  url: canonicalPageUrl(url),
+  inDefinedTermSet: inDefinedTermSet ? canonicalPageUrl(inDefinedTermSet) : undefined,
 });

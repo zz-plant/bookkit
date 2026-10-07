@@ -10,9 +10,11 @@ import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+  bookPageTitle,
   buildLocalizedReadRoutePath,
   createBreadcrumbListStructuredDataFromTrail,
   createDefinedTermStructuredData,
+  firstMetaDescription,
   readItemPath,
   readRoutes,
   toolkitDisplayName,
@@ -45,7 +47,7 @@ if (!module) {
 }
 
 const { frontmatter, default: Content } = module;
-const metaDescription = frontmatter.definition;
+const metaDescription = firstMetaDescription(frontmatter.definition);
 const isFallback = missingSlugs.includes(frontmatter.slug);
 const hasPredictions =
   Array.isArray(frontmatter.predictions) && frontmatter.predictions.length > 0;
@@ -117,7 +119,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
 });
 ---
 <BaseLayout
-  title={`${frontmatter.title} • ${bookConfig.title}`}
+  title={bookPageTitle(frontmatter.title, bookConfig.title)}
   description={metaDescription}
   structuredData={[breadcrumbStructuredData, mechanismStructuredData]}
 >

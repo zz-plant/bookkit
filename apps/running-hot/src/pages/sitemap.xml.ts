@@ -8,5 +8,7 @@ import { getReleaseNotes } from "../lib/release-notes";
 export const GET = createSitemapGetHandler({
 	site: bookConfig.site,
 	content: bookEntryPoints.contentModules as BookSitemapContentModules,
+	contentRaw: bookEntryPoints.contentRawModules,
 	defaultLastmod: getReleaseNotes()[0]?.date,
+	defaultLocale: bookConfig.localization?.defaultLocale,
 });

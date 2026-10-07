@@ -11,6 +11,18 @@ export type BookSeoConfig = {
   enforceHttps?: boolean;
   indexable?: boolean;
   defaultMeta?: BookSeoDefaults;
+  /**
+   * Chapters with fewer body words are kept out of search (noindex and left
+   * out of the sitemap) while still readable. Default 60; 0 turns it off.
+   */
+  minIndexableWords?: number;
+  /**
+   * Where the book is served. "static" (the default, and what `bookkit deploy`
+   * publishes) has no request handlers, so reader features that need one
+   * (feedback, Ask, analytics, per-locale and per-version routes) are left out
+   * instead of shown broken. Set "server" when an adapter serves the API routes.
+   */
+  runtime?: "static" | "server";
 };
 
 export type SeoInput = {
@@ -37,6 +49,10 @@ export type SeoProps = SeoInput & {
   siteUrl?: string;
   metaDescription?: string;
 };
+
+/** Whether request handlers serve this book; see `BookSeoConfig.runtime`. */
+export const hasServerRuntime = (site?: BookSeoConfig): boolean =>
+  site?.runtime === "server";
 
 const isAbsoluteUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 

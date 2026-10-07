@@ -1,4 +1,5 @@
-import { buildSeoProps, type SeoProps } from "../seo/config";
+import { buildSeoProps, hasServerRuntime as siteHasServerRuntime, type SeoProps } from "../seo/config";
+import { canonicalPathname } from "../seo/urls";
 import {
   extractVersionFromPath,
   stripVersionFromPath,
@@ -141,6 +142,12 @@ export type BookLayoutRenderState = {
 
 export type BookLayoutState = {
   seoProps: SeoProps;
+  /**
+   * Whether request handlers exist (`site.runtime: "server"`). On a static
+   * deploy the analytics, feedback, and Q&A endpoints do not, so pages leave
+   * out the features that call them.
+   */
+  hasServerRuntime: boolean;
   previewContext: PreviewAccessState | null;
   versionEntries: BookVersionEntry[];
   resolvedVersion?: string;
@@ -319,7 +326,8 @@ export const createBookLayoutRenderState = (
     hasMermaid,
     metaDescription: seoProps.metaDescription,
     ogImage: seoProps.ogImage,
-    ogType: seoProps.ogType ?? "website",
+    // Read detail pages are articles in a book; hubs and indexes are the site.
+    ogType: seoProps.ogType ?? (isReadDetailRoute ? "article" : "website"),
     analyticsEndpoint,
     version: {
       entries: versionEntries,
@@ -379,7 +387,9 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
   const { props, locals, url } = astro;
   const originalUrl = typeof locals?.originalUrl === "string" ? new URL(locals.originalUrl) : null;
   const requestUrl = typeof locals?.originalUrl === "string" ? locals.originalUrl : url.toString();
-  const requestPathname = originalUrl?.pathname ?? url.pathname;
+  // Astro reports directory-format pages with a trailing slash; the host and
+  // the sitemap serve them without one, so every derived URL drops it.
+  const requestPathname = canonicalPathname(originalUrl?.pathname ?? url.pathname);
   const previewContext = getPreviewContext(locals ?? {});
   const pathVersion = extractVersionFromPath(requestPathname, {
     prefixSegment: versionPrefix,
@@ -433,7 +443,15 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
   const currentLocale = locals?.locale as string | undefined;
   const bookTitle = bookConfig.title;
   const bookKey = bookConfig.slug ?? "book";
-  const aiQaEnabled = bookConfig.features?.aiQa ?? true;
+  const hasServerRuntime = siteHasServerRuntime(bookConfig.site);
+  // Without a server, Ask has no endpoint to call, and only the default
+  // locale and latest version exist as built pages; locale and version paths
+  // are rewritten per request.
+  const aiQaEnabled = hasServerRuntime && (bookConfig.features?.aiQa ?? true);
+  const reachableLocales = hasServerRuntime
+    ? resolvedLocales
+    : resolvedLocales.filter((entry) => entry.code === defaultLocale);
+  const reachableVersions = hasServerRuntime ? versionEntries : [];
   const aiQaProvider = bookConfig.features?.aiQaProvider;
   const aiQaProviders = bookConfig.features?.aiQaProviders;
   const includeDefaultLocalePrefix = bookConfig.localization?.includeDefaultPrefix ?? false;
@@ -441,6 +459,7 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
 
   return {
     seoProps,
+    hasServerRuntime,
     previewContext,
     versionEntries,
     resolvedVersion,
@@ -461,9 +480,9 @@ export const createBookLayoutState = (options: BookLayoutOptions): BookLayoutSta
       bookVersion: resolvedVersion,
       seoProps,
       requestPathname,
-      versionEntries,
+      versionEntries: reachableVersions,
       versionPrefix,
-      locales: resolvedLocales,
+      locales: reachableLocales,
       currentLocale,
       defaultLocale,
       includeDefaultLocalePrefix,

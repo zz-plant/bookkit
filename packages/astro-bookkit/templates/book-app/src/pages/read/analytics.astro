@@ -22,7 +22,7 @@ const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
 // in local development. A built site never contains them.
 const revealPreviewLinks = import.meta.env.DEV;
 ---
-<BaseLayout title={`Analytics • ${bookConfig.title}`}>
+<BaseLayout title={`Analytics • ${bookConfig.title}`} robots="noindex, nofollow">
   <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
     <h1>Analytics</h1>

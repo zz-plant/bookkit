@@ -36,7 +36,8 @@ const renderState = createBookLayoutRenderState({
   title,
   bookTitle,
   bookVersion,
-  seoProps: {},
+  // Author tools, not reading: reachable, but kept out of search.
+  seoProps: { robots: "noindex, nofollow" },
   requestPathname: Astro.url.pathname,
   versionEntries: [],
   locales: [],

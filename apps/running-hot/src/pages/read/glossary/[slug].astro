@@ -11,8 +11,11 @@ import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+  bookPageTitle,
   buildLocalizedReadRoutePath,
   createBreadcrumbListStructuredDataFromTrail,
+  firstMetaDescription,
+  pageFactsForModule,
   readItemPath,
   readRoutes,
 } from "@bookkit/astro-bookkit";
@@ -66,7 +69,14 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   Astro.url
 );
 ---
-<BaseLayout title={`${frontmatter.term} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+<BaseLayout
+  title={bookPageTitle(frontmatter.term, bookConfig.title)}
+  description={firstMetaDescription(
+    frontmatter.definition,
+    pageFactsForModule(modules, bookEntryPoints.contentRawModules.glossary, module)?.excerpt,
+  )}
+  structuredData={[breadcrumbStructuredData]}
+>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="eyebrow">Glossary{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>

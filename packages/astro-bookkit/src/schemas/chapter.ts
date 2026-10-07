@@ -10,6 +10,8 @@ export const chapterSchema = z.object({
 		.enum(["draft", "in-review", "published", "stable"])
 		.default("draft"),
 	order: z.number().optional(),
+	/** One or two sentences for search results and link previews; the first paragraph is used when absent. */
+	summary: z.string().optional(),
 	prerequisites: z.array(z.string()).default([]),
 	mechanisms: z.array(z.string()).default([]),
 });

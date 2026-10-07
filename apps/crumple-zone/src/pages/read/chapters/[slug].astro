@@ -14,11 +14,17 @@ import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+  bookPageTitle,
   buildLocalizedReadRoutePath,
   createBreadcrumbListStructuredDataFromTrail,
   defaultChapterPageCopy,
+  firstMetaDescription,
+  hasServerRuntime,
+  isThinPage,
+  pageFactsForModule,
   readItemPath,
   readRoutes,
+  THIN_PAGE_ROBOTS,
 } from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
@@ -89,6 +95,12 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   breadcrumbItems,
   Astro.url
 );
+const pageFacts = pageFactsForModule(modules, bookEntryPoints.contentRawModules.chapters, module);
+const metaDescription = firstMetaDescription(frontmatter.summary, pageFacts?.excerpt);
+// Outlines and stub chapters stay readable but out of search until they are written.
+const robots = isThinPage(pageFacts?.wordCount, bookConfig.site)
+  ? THIN_PAGE_ROBOTS
+  : undefined;
 const chapterEyebrow = [
   frontmatter.status === "published" ? null : (frontmatter.status ?? "draft"),
   isFallback ? "not yet translated" : null,
@@ -96,7 +108,12 @@ const chapterEyebrow = [
   .filter(Boolean)
   .join(" · ");
 ---
-<BaseLayout title={`${frontmatter.title} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+<BaseLayout
+  title={bookPageTitle(frontmatter.title, bookConfig.title)}
+  description={metaDescription}
+  robots={robots}
+  structuredData={[breadcrumbStructuredData]}
+>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="chapter-shell">
     <article>
@@ -156,10 +173,12 @@ const chapterEyebrow = [
       <a class="next-steps__link" href={readRoutes.toolkit}>{defaultChapterPageCopy.toolkitLinkLabel}</a>
     </div>
   </section>
-  <FeedbackWidget
-    slug={frontmatter.slug}
-    title={frontmatter.title}
-    contentType="chapter"
-    endpoint="/api/feedback.json"
-  />
+  {hasServerRuntime(bookConfig.site) && (
+    <FeedbackWidget
+      slug={frontmatter.slug}
+      title={frontmatter.title}
+      contentType="chapter"
+      endpoint="/api/feedback.json"
+    />
+  )}
 </BaseLayout>

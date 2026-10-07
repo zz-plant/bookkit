@@ -1,5 +1,4 @@
 ---
-import readHubClient from "./read-hub/client.ts?url";
 import "./read-hub/read-hub.css";
 import { formatTranslationCompleteness } from "../book/read-routes";
 import type {
@@ -260,4 +259,6 @@ const showChangeMarkers = changedSectionCount > 0 && changedSectionCount < secti
     )
   )}
 </div>
-<script type="module" src={readHubClient}></script>
+<script>
+  import "./read-hub/client";
+</script>

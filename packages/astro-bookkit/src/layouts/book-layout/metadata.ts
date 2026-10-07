@@ -1,4 +1,5 @@
 import { buildLocalePath } from "../../localization/routes";
+import { shortBookTitle } from "../../seo/page-meta";
 
 type LocaleEntry = { code: string };
 
@@ -93,7 +94,7 @@ export const computeLayoutMetadata = ({
   const resolvedTwitterTitle = twitterTitle ?? resolvedOgTitle;
   const resolvedTwitterDescription = twitterDescription ?? resolvedOgDescription;
   const resolvedTwitterImage = twitterImage ?? ogImage;
-  const resolvedOgSiteName = ogSiteName ?? bookTitle;
+  const resolvedOgSiteName = ogSiteName ?? shortBookTitle(bookTitle);
   const resolvedOgLocale = ogLocale ?? activeLocale;
   const resolvedOgImageAlt = ogImageAlt;
   const resolvedTwitterImageAlt = twitterImageAlt ?? ogImageAlt;
@@ -116,8 +117,10 @@ export const computeLayoutMetadata = ({
   const customStructuredData = Array.isArray(structuredData) ? structuredData : structuredData ? [structuredData] : [];
   const structuredDataScripts = [...defaultStructuredData, ...customStructuredData];
 
+  // Alternates only mean something when another language exists.
+  const hasAlternates = Boolean(siteUrl) && localeEntries.length > 1;
   const hreflangEntries =
-    siteUrl && localeEntries.length
+    siteUrl && hasAlternates
       ? localeEntries.map((entry) => ({
           locale: entry.code,
           href: new URL(
@@ -131,7 +134,7 @@ export const computeLayoutMetadata = ({
       : [];
 
   const hreflangDefault =
-    siteUrl && resolvedDefaultLocale
+    siteUrl && hasAlternates && resolvedDefaultLocale
       ? new URL(
           buildLocalePath(pathWithoutLocale ?? pathWithoutVersion, resolvedDefaultLocale, {
             defaultLocale: resolvedDefaultLocale,

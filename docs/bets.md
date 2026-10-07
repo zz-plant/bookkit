@@ -78,12 +78,15 @@ Status on 2026-10-07: the author picked **B1, now active**. **B2 is parked**: no
 | `isNot` | Reader UI, new books, new frames, MCP work. |
 | `prediction` | The merge pass removes a third or more of the mechanisms, and new chapters bind existing slugs instead of coining names. |
 | `test` | The next three chapters drafted introduce at most one new mechanism between them; the cross-book check reports no unresolved duplicates; five people outside the project read one book end to end. |
-| `killBy` | Four weeks after the merge pass (the date is set when the pass is done). If it has not changed how the author writes, drop the registry and stay per-book. |
+| `killBy` | 2026-11-04, four weeks after the merge pass. If it has not changed how the author writes, drop the registry and stay per-book. |
 
 #### B1 log
 
 - **2026-10-07, picked.** First build step shipped: `bun run check:corpus` runs the overlap check across books, adding a semantic pass (all-MiniLM-L6-v2, local, threshold 0.45) to the lexical one.
 - **2026-10-07, first run.** Over the three nonfiction books it finds 6 clusters covering 19 of 33 mechanisms; folding every cluster would leave 20. The lexical pass alone flags one of the 14 pairs. Strongest pair: `bad-people/coercive-waiting` ~ `running-hot/delay-as-force` (0.70). The runbook book clusters with nothing. Next: the author's merge pass, cluster by cluster.
+- **2026-10-07, merge pass.** The author's rule: combine mechanisms that are the same idea. Judged by whether two mechanisms share both the lever and the evidence, only one pair qualified. `bad-people/coercive-waiting` and `running-hot/delay-as-force` became one mechanism, `delay-as-force`, with an identical contract in both books. The other 13 flagged pairs were ruled distinct, each with a reason in `corpus.json` (mostly cause versus effect, or before-harm versus after-harm). `check:corpus --mode error` now passes: 32 mechanisms, 1 shared, 0 unresolved.
+- **Prediction failed:** the merge pass removed 1 of 33 mechanisms (3%), not a third. The books overlap in *families* of related mechanisms (time, reversibility, gatekeeping, moral cover), not in duplicates. Open question for the author: the three books' central mechanisms (`transfer-success`, `human-heat-sink`, `crumple-zone`) read as one idea in three metaphors but score 0.35–0.40, below the 0.45 threshold. Combining them decides whether these are three books or one, so they were left alone.
+- **Still to test:** the next three chapters introduce at most one new mechanism between them; five outside readers finish one book.
 
 ### B2: Runbooks that fail the PR (parked)
 

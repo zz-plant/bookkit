@@ -56,15 +56,15 @@ describe("corpus overlap", () => {
 		expect(report.books).toEqual(["book-a", "book-b"]);
 		expect(report.pairs).toHaveLength(1);
 		expect(report.pairs[0]).toMatchObject({
-			a: "book-a/coercive-waiting",
-			b: "book-b/delay-as-force",
+			a: "coercive-waiting",
+			b: "delay-as-force",
 			crossBook: true,
 			flaggedBy: ["semantic"],
 		});
 		expect(report.clusters).toHaveLength(1);
 		expect(report.clusters[0].members).toEqual([
-			"book-a/coercive-waiting",
-			"book-b/delay-as-force",
+			"coercive-waiting",
+			"delay-as-force",
 		]);
 		expect(report.countIfMerged).toBe(2);
 		expect(report.suggestions[0].category).toBe("corpus-overlap");
@@ -84,11 +84,7 @@ describe("corpus overlap", () => {
 		});
 
 		expect(report.clusters).toHaveLength(1);
-		expect(report.clusters[0].members.sort()).toEqual([
-			"a/one",
-			"b/two",
-			"c/three",
-		]);
+		expect(report.clusters[0].members.sort()).toEqual(["one", "three", "two"]);
 		expect(report.clusters[0].books.sort()).toEqual(["a", "b", "c"]);
 		expect(report.countIfMerged).toBe(2);
 	});
@@ -130,6 +126,19 @@ describe("corpus overlap", () => {
 		).toThrow("one vector per mechanism");
 	});
 
+	it("rejects vectors of different or zero dimension", () => {
+		const pair = [
+			mechanism("a", "one", "First."),
+			mechanism("b", "two", "Second."),
+		];
+		expect(() =>
+			analyzeCorpusOverlap(pair, { vectors: [[1], [1, 100]] }),
+		).toThrow("vector 1 has 2");
+		expect(() => analyzeCorpusOverlap(pair, { vectors: [[], []] })).toThrow(
+			"one nonzero dimension",
+		);
+	});
+
 	it("embeds the title, definition, and is list but not isNot", () => {
 		const text = corpusEmbeddingText(
 			mechanism("a", "delay-as-force", "Elapsed time is weaponized.", {
@@ -142,5 +151,67 @@ describe("corpus overlap", () => {
 		expect(text).toBe(
 			"Delay as force. Elapsed time is weaponized. Review loops that add burden",
 		);
+	});
+
+	it("treats a slug shared by several books as one mechanism", () => {
+		const shared = mechanism(
+			"a",
+			"delay-as-force",
+			"Elapsed time is weaponized.",
+		);
+		const report = analyzeCorpusOverlap(
+			[shared, { ...shared, book: "b" }, mechanism("b", "other", "Unrelated.")],
+			{ vectors: [unit(1, 0), unit(1, 0), unit(0, 1)] },
+		);
+
+		expect(report.mechanismCount).toBe(2);
+		expect(report.pairs).toHaveLength(0);
+		expect(report.shared).toEqual([
+			{ slug: "delay-as-force", books: ["a", "b"], driftedFields: [] },
+		]);
+		expect(report.suggestions).toHaveLength(0);
+	});
+
+	it("reports a shared slug whose copies drift apart", () => {
+		const report = analyzeCorpusOverlap([
+			mechanism("a", "delay-as-force", "Elapsed time is weaponized.", {
+				is: ["Review loops"],
+			}),
+			mechanism("b", "delay-as-force", "Time used as pressure.", {
+				is: ["Review loops"],
+			}),
+		]);
+
+		expect(report.shared[0].driftedFields).toEqual(["definition"]);
+		expect(report.suggestions[0]).toMatchObject({
+			category: "corpus-overlap",
+			severity: "warning",
+		});
+		expect(report.suggestions[0].message).toContain(
+			"copies differ in: definition",
+		);
+	});
+
+	it("drops pairs the author ruled distinct and reports stale rulings", () => {
+		const mechanisms = [
+			mechanism("a", "one", "First."),
+			mechanism("b", "two", "Second."),
+		];
+		const report = analyzeCorpusOverlap(mechanisms, {
+			vectors: [unit(1, 0.1), unit(1, 0.2)],
+			distinct: [
+				{ pair: ["two", "one"], reason: "Different levers." },
+				{ pair: ["one", "gone"], reason: "Merged away." },
+			],
+		});
+
+		expect(report.pairs).toHaveLength(0);
+		expect(report.clusters).toHaveLength(0);
+		expect(report.reviewedDistinct).toEqual([
+			{ pair: ["two", "one"], reason: "Different levers." },
+		]);
+		expect(report.staleDecisions).toEqual([
+			{ pair: ["one", "gone"], reason: "Merged away." },
+		]);
 	});
 });

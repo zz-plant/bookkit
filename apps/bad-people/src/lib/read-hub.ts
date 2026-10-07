@@ -16,9 +16,9 @@ export const readHubConfig: ReadHubConfig = {
 			funnelStep: "new_reader_overview",
 		},
 		{
-			title: "Spot coercive waiting",
+			title: "Spot delay used as force",
 			description: "How delay gets used as pressure, and how to recognize it.",
-			href: `${readRoutes.mechanisms}/coercive-waiting`,
+			href: `${readRoutes.mechanisms}/delay-as-force`,
 			funnelStep: "new_reader_mechanism",
 		},
 		{

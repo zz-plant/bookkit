@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Content: `human-heat-sink` combined into `crumple-zone` (bet B1)
+
+- `running-hot/human-heat-sink` and `crumple-zone/crumple-zone` are one mechanism, `crumple-zone`, with an identical contract in both books. The definition and lists are merged, and the measurable predictions and tests come from Running Hot. Each book keeps its own body prose.
+- `bad-people/transfer-success` stays distinct; the ruling and its reason are in `corpus.json`.
+- `check:corpus --mode error` passes: 31 mechanisms, 2 shared, 0 unresolved.
+
+**Migration (running-hot, draft):** the mechanism slug `human-heat-sink` is gone. `/read/mechanisms/human-heat-sink`, `/read/glossary/human-heat-sink`, and the example's `starter-mechanism` path no longer exist; use `crumple-zone`. The glossary entry keeps "human heat sink" as an alias. The tool keeps its slug `human-heat-sink--handle-check` (and URL) and now binds to `crumple-zone`. The scaffold-named mechanism file `starter-mechanism.mdx` is replaced by `crumple-zone.mdx`. Chapter `mechanisms:` lists and `book.config.ts` are updated.
+
 ## 2026-10-07 — Corpus overlap: `check:corpus` (bet B1)
 
 **Highlights**

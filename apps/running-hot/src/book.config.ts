@@ -58,7 +58,7 @@ export const bookConfig = {
   },
   mechanisms: [
     {
-      slug: "human-heat-sink",
+      slug: "crumple-zone",
       focus:
         "Institutions preserve throughput by externalizing thermal load into waiting, paperwork, and emotional labor.",
       actionPrimitiveCountTarget: 1,
@@ -102,7 +102,7 @@ export const bookConfig = {
   ],
   glossaryFocus: [
     "running hot",
-    "human heat sink",
+    "crumple zone",
     "obligation without custody",
     "delay as force",
     "documentation tollbooth",

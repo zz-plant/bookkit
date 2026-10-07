@@ -55,6 +55,45 @@ switch (command) {
 		break;
 	}
 
+	case "similar": {
+		// Read-only twin of `new mechanism`'s first step, for agents and the MCP tool.
+		const positional = args.slice(1).filter((arg) => !arg.startsWith("--"));
+		const definitionIndex = args.indexOf("--definition");
+		const definition =
+			definitionIndex >= 0 ? args[definitionIndex + 1] : undefined;
+		const title = positional.find((arg) => arg !== definition);
+		if (!title) {
+			console.error(
+				'Usage: bun run bookkit similar "<title>" [--definition "<one sentence>"] [--json]',
+			);
+			process.exit(1);
+		}
+		const slug = slugify(title);
+		const result = {
+			title,
+			slug,
+			existingSlug: booksWithMechanism(slug).map((holder) => holder.book),
+			similar: findSimilarMechanisms({ title, definition }, books, 5),
+		};
+		if (args.includes("--json")) {
+			console.log(JSON.stringify(result, null, 2));
+		} else if (result.existingSlug.length > 0) {
+			console.log(
+				`"${slug}" already exists in ${result.existingSlug.join(", ")}.`,
+			);
+		} else if (result.similar.length === 0) {
+			console.log(`No existing mechanism shares wording with "${title}".`);
+		} else {
+			for (const match of result.similar) {
+				console.log(
+					`${match.slug}  "${match.title}"  in ${match.books.join(", ")}  (shares: ${match.sharedWords.join(", ")})`,
+				);
+			}
+		}
+		process.exit(0);
+		break;
+	}
+
 	case "verify": {
 		process.exit(runScript("verify.ts", args.slice(1)));
 		break;
@@ -556,6 +595,7 @@ Check
   status [--json]                           chapters, stubs, mechanisms, and tools per book
   check [book] [--quick]                    structure, plus mechanisms that overlap across books
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
+  similar "<title>" [--definition "…"]      existing mechanisms, in any book, that a new one might duplicate
   validate [book]                           structure only
 
 Preview and publish

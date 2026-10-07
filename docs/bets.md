@@ -113,7 +113,7 @@ B2's test needs conversations only the author can have; the public-corpus dry ru
 - Reader UI and UX passes, including the open UX items in `apps/*/TODOS.md`. The 2026-10-07 typography pass was done at the author's request; follow-ups wait for B1's outside-reader test and go through `.codex/skills/reader-typography/SKILL.md`.
 - Also at the author's request on 2026-10-07: a pass on what a visitor from search finds (see `CHANGELOG.md`). It found that no reader JavaScript ran on built sites. What is still missing for that visitor needs the author: a real domain (all four `site.url` values are placeholder `.book` names), an author byline, link-preview images (the `og:image` files are SVG placeholders, which social sites do not render), and written chapters in place of the stubs.
 - New PRDs, audits, and UI critiques
-- MCP discovery and governance-API hardening (commercial roadmap Tracks 2 and 3)
+- MCP discovery and governance-API hardening (commercial roadmap Tracks 2 and 3). On 2026-10-07, at the author's request, the existing MCP tools were made usable by agents in this repo (a stdio server, spec-valid results, and two B1 tools for checking mechanisms across books). That is local tooling, not the hosted API these tracks describe.
 - Reader forking (Track 4)
 - New proof books and new frames
 

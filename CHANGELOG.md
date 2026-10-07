@@ -3,6 +3,17 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Bookkit's MCP tools over stdio
+
+- **New: `bun run mcp`**, a stdio MCP server built on the engine's existing JSON-RPC router. It needs no dev server, and `.mcp.json` registers it as `bookkit` for Claude Code. The content tools read one book (`-- --book <slug>`, default the first). The workspace tools (`list_books`, `validate_book`, `compile_book`, `export_book`, `check_separation`, `create_book`) take a book argument as before. It answers malformed lines with JSON-RPC errors instead of exiting.
+- **Two new tools for bet B1:**
+  - `bookkit.find_similar_mechanisms`: existing mechanisms in any book that share a proposed mechanism's wording, and whether its slug already exists. It runs the new `bookkit similar "<title>" [--definition …] [--json]`.
+  - `bookkit.check_corpus`: overlap clusters, drift, and stale rulings across the corpus books; wording only unless `semantic: true`.
+- **Fixed: tool results were not valid MCP.** `tools/call` returned `content: [{ type: "json", json }]`, a content type MCP clients reject. It now returns a `text` item holding the JSON, the same object as `structuredContent`, and `isError` when the tool reports `ok: false`.
+- **The router answers `ping`.**
+
+**Migration:** HTTP clients of `/api/mcp.json` that read `result.content[0].json` should read `result.structuredContent` instead (same object).
+
 ## 2026-10-07 — One set of agent skills; search links that land
 
 - **Every agent tool reads the same skills.** `.opencode/skills` is now a symlink to `.codex/skills`, as `.claude/skills` already was. A new `verify` skill (run `bun run verify` and read its summary) replaces the old `qa` checklist. That checklist was tracked inside `.agent/`, which `.gitignore` excludes. The `verify` skill is also listed as an MCP governance resource, and the `content-edit` and `engine-change` skills now lead with `bun run verify`.

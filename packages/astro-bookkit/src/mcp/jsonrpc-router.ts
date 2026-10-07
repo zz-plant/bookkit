@@ -130,6 +130,8 @@ export const handleRequest = (
 					},
 				};
 			}
+			case "ping":
+				return { jsonrpc: "2.0" as const, id, result: {} };
 			case "tools/list":
 				return {
 					jsonrpc: "2.0" as const,
@@ -149,10 +151,16 @@ export const handleRequest = (
 						`Unknown tool: ${params.name}.`,
 					);
 				const result = runTool(options, params.name, params.arguments);
+				// MCP content items are text; `structuredContent` carries the same
+				// result for clients that read JSON directly.
 				return {
 					jsonrpc: "2.0" as const,
 					id,
-					result: { content: [{ type: "json", json: result }] },
+					result: {
+						content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+						structuredContent: result,
+						isError: !result.ok,
+					},
 				};
 			}
 			default:

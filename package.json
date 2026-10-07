@@ -17,6 +17,7 @@
 		"check:build": "bun run scripts/check-build.ts",
 		"qa": "bun run lint && bun run check:types && bun run test && bun run validate && bun run build:all && bun run check:build",
 		"verify": "bun run scripts/verify.ts",
+		"mcp": "bun run scripts/mcp-server.ts",
 		"deploy": "bun run bookkit deploy",
 		"lint": "biome lint .",
 		"check:types": "bun run scripts/typecheck.ts",

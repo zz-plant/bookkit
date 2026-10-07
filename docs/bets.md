@@ -100,7 +100,7 @@ B1 can start immediately because its user is already here. B2's test needs conve
 
 ## Parked until a bet's test calls for it
 
-- Reader UI and UX passes, including the open UX items in `apps/*/TODOS.md`
+- Reader UI and UX passes, including the open UX items in `apps/*/TODOS.md`. The 2026-10-07 typography pass was done at the author's request; follow-ups wait for B1's outside-reader test and go through `.codex/skills/reader-typography/SKILL.md`.
 - New PRDs, audits, and UI critiques
 - MCP discovery and governance-API hardening (commercial roadmap Tracks 2 and 3)
 - Reader forking (Track 4)

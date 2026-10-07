@@ -62,6 +62,12 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
     description: "Checklist for release and versioning updates.",
     relativePath: ".codex/skills/release/SKILL.md",
   },
+  {
+    uri: "bookkit://governance/.codex/skills/reader-typography/SKILL.md",
+    name: "Bookkit skill: reader-typography",
+    description: "Typographic system and review checklist for reader-facing UI changes.",
+    relativePath: ".codex/skills/reader-typography/SKILL.md",
+  },
 ];
 
 export const CORE_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [

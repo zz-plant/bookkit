@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { optionalArg, requireArg } from "./_lib";
+import { groupFindingsByFile } from "./lib/authoring";
 import {
 	arrayValue,
 	listContentFiles,
@@ -404,5 +405,6 @@ process.exit(shouldFail ? 1 : 0);
 function report(label: "warning" | "error", items: string[]) {
 	if (items.length === 0) return;
 	console.log(`\n${label.toUpperCase()}S (${items.length})`);
-	for (const item of items) console.log(`- ${item}`);
+	// One line per file, so a tool missing five fields reads as one gap.
+	for (const item of groupFindingsByFile(items)) console.log(`- ${item}`);
 }

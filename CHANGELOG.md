@@ -3,6 +3,16 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — `bookkit` is the author's front door
+
+- **`bun run bookkit` with no command shows where each book stands**: title, status, chapters (and how many are stubs), mechanisms, tools, and the commands to run next. Before, it printed a task-runner help screen and exited 1.
+- **`bookkit new chapter <book> "<title>"`** creates the next chapter, numbered in the book's own scheme (tens or ones, padded), as a draft. It lists the book's mechanism slugs to bind. There was no chapter scaffold before.
+- **`bookkit new mechanism <book> "<title>"`** checks every book first (bet B1: new chapters should bind existing mechanisms, not coin names). It refuses a slug another book already has and says how to share that file. It lists up to three mechanisms with overlapping wording and stops; `--force` creates it anyway. `--definition` adds the definition's words to the comparison.
+- **`bookkit new tool|example|book`** take positional arguments (`new tool <book> <mechanism> "<name>"`) and call the existing scaffolds. `bun run new:mechanism -- --book … --slug …` and the other scripts still work.
+- **`bookkit check [book] [--quick]`** runs the structure validator and then `check:corpus` in error mode, and ends with one pass/fail line for each.
+- **`bookkit help`** groups commands by job: write, check, preview and publish.
+- **Validator output is grouped by file.** A tool missing five fields is one line instead of five, with a repo-relative path: Crumple Zone's 51 warnings print as 11 lines.
+
 ## 2026-10-07 — What a visitor from search finds
 
 Done at the author's request; it serves B1's outside-reader test (five people outside the project read one book end to end), which starts with a stranger landing on one page.

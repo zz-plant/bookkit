@@ -133,6 +133,23 @@ bash scripts/codex-setup.sh --skip-install --skip-checks
 
 ## Daily commands
 
+### Writing a book
+
+`bun run bookkit` with no command shows where each book stands — chapters (and how many are still stubs), mechanisms, tools — and what to run next. Everything an author does day to day goes through it:
+
+```bash
+bun run bookkit                                         # where each book stands
+bun run bookkit new chapter running-hot "Repair has a clock"
+bun run bookkit new mechanism bad-people "Waiting as leverage"
+bun run bookkit dev running-hot                         # preview with live reload
+bun run bookkit check running-hot                       # structure + overlap across books
+bun run bookkit help                                    # every command
+```
+
+- `new chapter` numbers the file after the book's last chapter, starts it as a draft, and lists the book's mechanisms so the chapter binds existing slugs instead of naming new ones.
+- `new mechanism` looks across every book first. It refuses a slug another book already has (share that file instead) and lists mechanisms with overlapping wording; pass `--force` once you've checked none fits.
+- `check` runs the structure validator, then `check:corpus` across books. `--quick` skips the embedding model.
+
 ### Run a book app
 
 ```bash

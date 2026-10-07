@@ -1,5 +1,7 @@
 # Commercial Roadmap (High-Priority Implementation)
 
+> Sequencing and track status below are superseded by [`docs/bets.md`](./bets.md), which decides what gets worked on next. This document keeps the productization scope for reference.
+
 ## Goal
 
 Turn Bookkit's existing compiler + governance architecture into a venture-scale product surface without violating layer boundaries.

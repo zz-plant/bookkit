@@ -73,7 +73,8 @@ For how the whole system fits together, see [`docs/architecture.md`](./docs/arch
 | [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md) | Engine-local orientation | Engine contributors |
 | [`apps/bad-people/README.md`](./apps/bad-people/README.md) | Book-app-local orientation | Book contributors |
 | [`docs/mcp-agent-skills-research.md`](./docs/mcp-agent-skills-research.md) | MCP + agent-skill adoption options | Maintainers + AI workflow designers |
-| [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md) | Productization scope + sequencing | Maintainers + operators |
+| [`docs/bets.md`](./docs/bets.md) | What gets worked on next and why: anchor, active bets, parked work | Maintainers + agents |
+| [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md) | Productization scope (sequencing now lives in `docs/bets.md`) | Maintainers + operators |
 | [`docs/sop-wedge-gap-analysis.md`](./docs/sop-wedge-gap-analysis.md) | Runbook/SOP wedge + build sequencing | Maintainers + operators |
 
 Prefer linking to canonical docs over duplicating policy text.
@@ -90,7 +91,7 @@ Bookkit's highest-priority commercialization path is a hosted product direction 
 
 This positions Bookkit as a compiler + governance + AI-interface platform for high-trust knowledge products — where "verifiable operating procedures" (the runbook wedge) is the concrete first product.
 
-For phased scope and implementation sequencing, see [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md).
+For phased scope, see [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md). What gets built next is decided in [`docs/bets.md`](./docs/bets.md).
 
 ---
 

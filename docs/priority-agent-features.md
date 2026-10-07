@@ -1,5 +1,7 @@
 # Priority roadmap — Agent resources, new features, and enhancements
 
+> Superseded by [`docs/bets.md`](./bets.md). Kept as history; do not pick work from this list.
+
 Date: 2026-02-12
 
 ## Scope traversed

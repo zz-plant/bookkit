@@ -96,7 +96,10 @@ export const embedTexts = async (
 		};
 	};
 	try {
-		transformers = await import("@xenova/transformers");
+		// The package's own types are looser than the subset used here.
+		transformers = (await import(
+			"@xenova/transformers"
+		)) as unknown as typeof transformers;
 	} catch (error) {
 		return {
 			ok: false,

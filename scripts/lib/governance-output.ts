@@ -1,4 +1,4 @@
-import type { NormalizedErrorPayload } from "@bookkit/astro-bookkit/validators/normalized-error";
+import type { NormalizedErrorPayload } from "../../packages/astro-bookkit/src/validators/normalized-error";
 
 /** Shared output format consumed by both CLI --json flag and MCP tool handlers. */
 export type GovernanceResult = {

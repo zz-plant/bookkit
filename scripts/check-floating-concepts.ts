@@ -14,7 +14,8 @@ const { values } = parseArgs({
 	allowPositionals: true,
 });
 
-const mode = values.mode ?? "warn";
+// With strict: false, a flag given without a value parses as `true`.
+const mode = typeof values.mode === "string" ? values.mode : "warn";
 
 // Match multi-word Title Case phrases (2-4 capitalized words) representing potential named concepts.
 // Hyphens are treated as word separators so "On-Call Runbook" is one phrase, not "Call Runbook".
@@ -135,7 +136,7 @@ function loadRegisteredVocabulary(bookRoot: string): Set<string> {
 }
 
 async function discoverBooks(): Promise<string[]> {
-	if (values.book) {
+	if (typeof values.book === "string") {
 		return [values.book];
 	}
 

@@ -203,6 +203,25 @@ export const booksWithMechanism = (
 			.map((mechanism) => ({ book, file: mechanism.file })),
 	);
 
+export type Finding = {
+	level: "error" | "warning";
+	message: string;
+	/** Repo-relative path, when the message names a file. */
+	file?: string;
+};
+
+/** Splits validator messages of the form "<problem>: <absolute path>" into problem and file. */
+export const toFindings = (
+	level: Finding["level"],
+	items: string[],
+): Finding[] =>
+	items.map((item) => {
+		const match = item.match(/^(.*?):\s+(\/\S+\.mdx?)$/);
+		return match
+			? { level, message: match[1], file: relative(repoRoot(), match[2]) }
+			: { level, message: item };
+	});
+
 /**
  * Groups validator messages of the form "<problem>: <absolute path>" by file,
  * so five gaps in one tool read as one line. Other messages pass through.

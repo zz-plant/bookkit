@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
 
 /**
- * check:types — typechecks every app and package, `.ts` and `.astro` alike.
+ * check:types — typechecks every app and package, `.ts` and `.astro` alike,
+ * plus `scripts/`.
  *
  *   bun run check:types                 # TypeScript 7, then astro check
  *   bun run check:types -- --tsc        # TypeScript 5 for the .ts pass (fallback)
@@ -54,6 +55,8 @@ const targets = [
 		label: `packages/${pkg}`,
 		dir: join(root, "packages", pkg),
 	})),
+	// The CLI and governance gates, with their tests (Bun types).
+	{ label: "scripts", dir: join(root, "scripts") },
 ].filter((target) => existsSync(join(target.dir, "tsconfig.json")));
 
 if (targets.length === 0) {

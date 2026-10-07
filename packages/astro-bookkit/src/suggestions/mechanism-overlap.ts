@@ -19,43 +19,64 @@ export type MechanismOverlapOptions = {
 	threshold?: number;
 };
 
-const DEFAULT_THRESHOLD = 0.55;
+export const DEFAULT_LEXICAL_OVERLAP_THRESHOLD = 0.55;
 
 const round = (value: number): number => Math.round(value * 100) / 100;
+
+export type LexicalMechanismSimilarity = {
+	definitionSimilarity: number;
+	boundarySimilarity: number;
+	/** Definition similarity weighted 0.6, is/isNot boundary similarity 0.4. */
+	combined: number;
+	sharedBoundaryPhrases: string[];
+};
+
+/** Lexical similarity between two mechanism contracts; shared by the per-book and corpus analyzers. */
+export const lexicalMechanismSimilarity = (
+	a: MechanismRecord,
+	b: MechanismRecord,
+): LexicalMechanismSimilarity => {
+	const definitionSimilarity = jaccard(
+		tokenize(a.definition),
+		tokenize(b.definition),
+	);
+	const boundarySimilarity = jaccard(
+		tokenize([...a.is, ...a.isNot].join(" ")),
+		tokenize([...b.is, ...b.isNot].join(" ")),
+	);
+	const sharedIs = sharedPhrases(
+		normalizePhrases(a.is),
+		normalizePhrases(b.is),
+	);
+	const sharedIsNot = sharedPhrases(
+		normalizePhrases(a.isNot),
+		normalizePhrases(b.isNot),
+	);
+	return {
+		definitionSimilarity,
+		boundarySimilarity,
+		combined: definitionSimilarity * 0.6 + boundarySimilarity * 0.4,
+		sharedBoundaryPhrases: [...sharedIs, ...sharedIsNot],
+	};
+};
 
 export const analyzeMechanismOverlap = (
 	mechanisms: MechanismRecord[],
 	options: MechanismOverlapOptions,
 ): ContentSuggestion[] => {
-	const threshold = options.threshold ?? DEFAULT_THRESHOLD;
+	const threshold = options.threshold ?? DEFAULT_LEXICAL_OVERLAP_THRESHOLD;
 	const suggestions: ContentSuggestion[] = [];
 
 	for (let i = 0; i < mechanisms.length; i += 1) {
 		for (let j = i + 1; j < mechanisms.length; j += 1) {
 			const a = mechanisms[i];
 			const b = mechanisms[j];
-
-			const definitionSimilarity = jaccard(
-				tokenize(a.definition),
-				tokenize(b.definition),
-			);
-
-			const boundarySimilarity = jaccard(
-				tokenize([...a.is, ...a.isNot].join(" ")),
-				tokenize([...b.is, ...b.isNot].join(" ")),
-			);
-
-			const sharedIs = sharedPhrases(
-				normalizePhrases(a.is),
-				normalizePhrases(b.is),
-			);
-			const sharedIsNot = sharedPhrases(
-				normalizePhrases(a.isNot),
-				normalizePhrases(b.isNot),
-			);
-			const sharedBoundary = [...sharedIs, ...sharedIsNot];
-
-			const combined = definitionSimilarity * 0.6 + boundarySimilarity * 0.4;
+			const {
+				definitionSimilarity,
+				boundarySimilarity,
+				combined,
+				sharedBoundaryPhrases: sharedBoundary,
+			} = lexicalMechanismSimilarity(a, b);
 			if (combined < threshold && sharedBoundary.length === 0) continue;
 
 			const overlapDetail =

@@ -3,6 +3,17 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Corpus overlap: `check:corpus` (bet B1)
+
+**Highlights**
+
+- **New CLI: `bun run check:corpus`** (`scripts/check-corpus.ts`). It runs the mechanism-overlap check across books instead of within one, reports overlapping pairs grouped into clusters, and says how many mechanisms would remain if every cluster were folded into one. Flags: `--books`, `--no-semantic`, `--threshold`, `--json`, `--export`, `--mode error`.
+- **Semantic pass.** `scripts/lib/embed-text.ts` embeds each mechanism's title, definition, and `is` list with `Xenova/all-MiniLM-L6-v2` through the engine's optional `@xenova/transformers` dependency, one text per call so a mechanism's vector does not depend on what else is loaded. If the model can't load, the check says why and runs lexical-only.
+- **New engine analyzer: `analyzeCorpusOverlap`** (`suggestions/corpus-overlap.ts`). Pure and deterministic: callers inject one vector per mechanism; pairs are flagged by lexical or semantic similarity, then union-found into clusters. Emits `corpus-overlap` suggestions. The lexical scorer moved into a shared `lexicalMechanismSimilarity` helper that `analyzeMechanismOverlap` now uses too (behaviour unchanged).
+- **First result** over `bad-people`, `running-hot`, and `crumple-zone`: 6 clusters covering 19 of 33 mechanisms. The lexical pass alone catches 1 of the 14 overlapping pairs.
+
+**Scope**: new analyzer in `suggestions/`, new script, README and architecture-doc lines. No schema, frame, or validator changes, and nothing runs in CI or at build time.
+
 ## 2026-10-07 — Reader typography: two voices, one ink, book order
 
 **Highlights**

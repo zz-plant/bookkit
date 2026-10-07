@@ -25,13 +25,31 @@ export {
 	MULTI_WORD_CONCEPT_PATTERN,
 	triageConcepts,
 } from "./concept-triage";
+export type {
+	CorpusCluster,
+	CorpusMechanism,
+	CorpusOverlapOptions,
+	CorpusOverlapReport,
+	CorpusPair,
+} from "./corpus-overlap";
+export {
+	analyzeCorpusOverlap,
+	corpusEmbeddingText,
+	corpusMechanismId,
+	DEFAULT_SEMANTIC_OVERLAP_THRESHOLD,
+} from "./corpus-overlap";
 export type { ExampleAuditOptions, ExampleRecord } from "./example-audit";
 export { auditExampleSwappability } from "./example-audit";
 export type {
+	LexicalMechanismSimilarity,
 	MechanismOverlapOptions,
 	MechanismRecord,
 } from "./mechanism-overlap";
-export { analyzeMechanismOverlap } from "./mechanism-overlap";
+export {
+	analyzeMechanismOverlap,
+	DEFAULT_LEXICAL_OVERLAP_THRESHOLD,
+	lexicalMechanismSimilarity,
+} from "./mechanism-overlap";
 export type {
 	MechanismDraft,
 	MechanismProposalOptions,

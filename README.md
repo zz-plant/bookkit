@@ -227,6 +227,7 @@ bun run check:separation
 bun run check:architecture
 bun run check:concepts
 bun run check:suggestions
+bun run check:corpus
 bun run check:runbooks
 bun run check:runbooks -- --mode error
 bun run check:todos
@@ -235,6 +236,8 @@ bun run stack:capabilities
 ```
 
 `bun run check:suggestions [--book <slug>]` is the AI assistance layer: it analyzes a book and reports actionable, deterministic suggestions — overlapping mechanisms, unregistered recurring concepts (with candidate mechanism drafts), examples that restate a mechanism instead of illustrating it, and missing prerequisite edges for the reading graph. It never writes files; it proposes and you approve.
+
+`bun run check:corpus [--books a,b,c]` runs the overlap check across books, so one author's books can't name the same idea twice without anyone noticing. A lexical pass compares wording; a semantic pass compares meaning with a small local embedding model (`Xenova/all-MiniLM-L6-v2` via the optional `@xenova/transformers` dependency; the first run downloads about 25 MB, cached in `BOOKKIT_MODEL_CACHE` when set). Overlapping pairs are grouped into clusters, each one a candidate for "one mechanism" or "distinct, sharpen the boundaries". Pass `--no-semantic` to skip the model, `--threshold <n>` to change the semantic cutoff (default 0.45), `--json` or `--export <file>` for machine output, and `--mode error` to exit 1 while clusters remain. Like `check:suggestions`, it never writes content.
 
 `bun run bookkit propose <book>` is the materialization layer: it turns the suggestion set into a reviewable **proposal bundle** — an end-to-end trace from raw source to compiled structure. Give it a book that is imported-but-unstructured (or any book mid-edit) and it returns: a frame proposal (runbook vs intervention, from keyword signals), drafts for every unregistered recurring mechanism, prerequisite edges the reading graph is missing, toolkit bindings for uncovered mechanisms, and a `book.config.ts` draft for a book that has none.
 
@@ -282,6 +285,7 @@ GitHub Actions runs on every push and PR to `main`:
 | iterate on one book UI quickly | `bun run bookkit dev bad-people` | Fast local feedback loop for content + layout work |
 | verify architecture invariants before review | `bun run validate && bun run check:separation && bun run check:architecture` | Catches frame/content boundary regressions and architecture-doc drift |
 | sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
+| find mechanisms that name the same idea in different books | `bun run check:corpus -- --books <a>,<b>` | Semantic and lexical overlap across a body of work |
 | get AI-style editing suggestions | `bun run check:suggestions -- --book bad-people` | Flags overlaps, example restatement, and missing graph edges |
 | turn raw markdown into structured content | `bun run bookkit import --book <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |

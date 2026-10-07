@@ -37,6 +37,7 @@
 		"check:concepts:book": "bun run scripts/check-floating-concepts.ts --book",
 		"check:suggestions": "bun run scripts/check-suggestions.ts --book",
 		"check:suggestions:all": "bun run scripts/check-suggestions.ts --book",
+		"check:corpus": "bun run scripts/check-corpus.ts",
 		"check:runbooks": "bun run scripts/check-runbooks.ts",
 		"check:runbooks:error": "bun run scripts/check-runbooks.ts --mode error",
 		"propose": "bun run scripts/propose-book.ts",

@@ -6,7 +6,8 @@ export type SuggestionCategory =
 	| "example-swap"
 	| "prerequisite-edge"
 	| "mechanism-proposal"
-	| "runbook-coverage";
+	| "runbook-coverage"
+	| "corpus-overlap";
 
 export type ContentSuggestion = {
 	category: SuggestionCategory;

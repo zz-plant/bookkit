@@ -37,17 +37,8 @@ Escalate to `engine-change` if you need new validation, frame, or compiler behav
 
 ## Required checks
 
-Map checks to `CONTRIBUTING.md` verification matrix:
-
-1. Lane A minimum:
-   - `bun run validate`
-   - `bun run lint`
-2. Lane B minimum:
-   - `bun run validate`
-   - `bun run lint`
-   - `bun run check:types`
-3. Lane B escalation (definition/boundary shifts):
-   - `bun run validate:release`
+1. `bun run verify` (see the `verify` skill). For a content edit it validates and builds the book you touched, checks separation, and, when a mechanism changed, compares mechanisms across books.
+2. Lane B escalation (definition/boundary shifts): `bun run validate:release`.
 
 ## PR note template
 

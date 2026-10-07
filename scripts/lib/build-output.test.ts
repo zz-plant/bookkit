@@ -203,4 +203,29 @@ describe("inspectBuildOutput", () => {
 			true,
 		);
 	});
+
+	it("flags search results that lead to a missing page or heading", () => {
+		write(
+			dist,
+			"search-index.json",
+			JSON.stringify({
+				entries: [
+					{ url: "/#intro" },
+					{ url: "/read/examples/a/b#start" },
+					{ url: "/#missing-heading" },
+				],
+			}),
+		);
+		write(
+			dist,
+			"index.html",
+			HEALTHY_INDEX.replace("<body>", '<body><h2 id="intro">Intro</h2>'),
+		);
+		const result = inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(false);
+		const message = result.findings[0]?.message ?? "";
+		expect(message).toContain("2 search result link(s)");
+		expect(message).toContain("/read/examples/a/b#start (no page)");
+		expect(message).toContain("/#missing-heading (no heading with that id)");
+	});
 });

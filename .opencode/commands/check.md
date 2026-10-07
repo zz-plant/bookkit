@@ -1,5 +1,5 @@
 ---
-description: "Run typecheck + lint"
+description: "Run the checks this change needs (bun run verify)"
 agent: build
 ---
-bun run assets:check||vitest run
+bun run verify

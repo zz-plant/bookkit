@@ -18,6 +18,12 @@ const extractText = (node: HeadingNode): string => {
 	return node.children.map(extractText).join("");
 };
 
+/**
+ * @deprecated Astro 7's default Markdown processor never runs rehype plugins
+ * passed to `mdx()`, so this has had no effect; pages use Astro's GitHub-style
+ * heading ids, and the search index now matches those. Kept so existing
+ * configs still import; remove it from `astro.config.mjs`.
+ */
 export const rehypeBookkitHeadingIds = () => {
 	return (tree: HeadingNode) => {
 		const slugger = createSlugger();

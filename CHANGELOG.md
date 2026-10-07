@@ -3,6 +3,19 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — One set of agent skills; search links that land
+
+- **Every agent tool reads the same skills.** `.opencode/skills` is now a symlink to `.codex/skills`, as `.claude/skills` already was. A new `verify` skill (run `bun run verify` and read its summary) replaces the old `qa` checklist. That checklist was tracked inside `.agent/`, which `.gitignore` excludes. The `verify` skill is also listed as an MCP governance resource, and the `content-edit` and `engine-change` skills now lead with `bun run verify`.
+- **Fixed: `.opencode` commands and modes ran the wrong things.** `check` and `build` both ran `bun run assets:check||vitest run`, and three modes called a nonexistent `bun run typecheck`. They now run `verify`, `build:all` with `check:build`, and `verify -- --all` before a deploy. The README pointed agents at a nonexistent `.opencode/skills/**`; it now says `.codex/skills/**`.
+- **Fixed: search results linked to headings that don't exist.**
+  - Search anchors were slugged differently from the ids Astro gives headings. Four Bad People headings with curly quotes or `≠` linked nowhere.
+  - Example results used nested paths that 404ed: six in Bad People, and every example in the other books.
+  - The search index now uses `github-slugger`, which matches all 184 heading ids in the four books, and builds example URLs from the route slug. Pages without headings link to the page top.
+- **`check:build` fails when a search result's page or heading id doesn't exist.**
+- **TD-012 closed.** `rehypeBookkitHeadingIds` never ran under Astro 7's default Markdown processor. It is removed from the `astro.config.mjs` shim (which also removes the MDX deprecation warning from every build) and marked deprecated.
+
+**Migration:** books outside this repo run `bun run sync:shims` to drop the plugin from `astro.config.mjs`. Search URLs for examples change from `/read/examples/<mechanism>/<file>` to `/read/examples/<file>`, the page's real URL.
+
 ## 2026-10-07 — `bun run verify`: the checks a change needs
 
 - **New: `bun run verify`** (also `bookkit verify`). It reads what changed since `origin/main` (committed, staged, unstaged, and untracked files) and runs only the checks those paths need. The mapping is CONTRIBUTING's verification matrix as code, in `scripts/lib/verify-plan.ts`. For example:

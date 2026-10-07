@@ -3,8 +3,8 @@ import { describe, expect, it } from "bun:test";
 import { toCheckSeparationFailure } from "./check_separation";
 
 describe("check_separation handler normalized failures", () => {
-  it("matches snapshot for command failure payload", () => {
-    expect(toCheckSeparationFailure(1)).toMatchInlineSnapshot(`
+	it("matches snapshot for command failure payload", () => {
+		expect(toCheckSeparationFailure(1)).toMatchInlineSnapshot(`
       {
         "cause": "Separation checks failed: check:separation exited with code 1.",
         "failingRule": "content bindings must remain data-only and pass separation checks",
@@ -18,5 +18,5 @@ describe("check_separation handler normalized failures", () => {
         "severity": "error",
       }
     `);
-  });
+	});
 });

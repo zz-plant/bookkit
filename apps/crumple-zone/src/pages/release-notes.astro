@@ -8,11 +8,11 @@ import { getReleaseNotes } from "../lib/release-notes";
 import { getVersionEntries } from "../lib/versions";
 
 const viewModel = buildReleaseNotesPageProps({
-  book: bookConfig,
-  releases: getReleaseNotes(),
-  versionEntries: getVersionEntries(),
-  requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
-  ogImage: getOgImageForPath("/release-notes"),
+	book: bookConfig,
+	releases: getReleaseNotes(),
+	versionEntries: getVersionEntries(),
+	requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+	ogImage: getOgImageForPath("/release-notes"),
 });
 ---
 <ReleaseNotesPage {...viewModel} />

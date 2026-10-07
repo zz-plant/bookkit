@@ -1,35 +1,37 @@
 ---
 import "./read-hub/read-hub.css";
 import { formatTranslationCompleteness } from "../book/read-routes";
-import type {
-  ReadHubConfig,
-  ReadHubSection,
-} from "../book/read-hub";
+import type { ReadHubConfig, ReadHubSection } from "../book/read-hub";
 
 export type Props = ReadHubConfig & {
-  sections: ReadHubSection[];
-  releaseFilterPlacement?: "intro" | "utilities";
+	sections: ReadHubSection[];
+	releaseFilterPlacement?: "intro" | "utilities";
 };
 
 const {
-  hero,
-  intro,
-  buckets,
-  sections,
-  quickStartCards = [],
-  utilities,
-  bucketNavigation = "stacked",
-  releaseFilterPlacement = "utilities",
-  releaseFilter = {
-    initialLabel: "Show recently updated",
-    activeLabel: "Show all sections",
-  },
+	hero,
+	intro,
+	buckets,
+	sections,
+	quickStartCards = [],
+	utilities,
+	bucketNavigation = "stacked",
+	releaseFilterPlacement = "utilities",
+	releaseFilter = {
+		initialLabel: "Show recently updated",
+		activeLabel: "Show all sections",
+	},
 } = Astro.props;
 
-const sectionsByKey = new Map(sections.map((section) => [section.sectionKey, section]));
+const sectionsByKey = new Map(
+	sections.map((section) => [section.sectionKey, section]),
+);
 // "Updated" only means something when some sections changed and others didn't.
-const changedSectionCount = sections.filter((section) => section.latestChange).length;
-const showChangeMarkers = changedSectionCount > 0 && changedSectionCount < sections.length;
+const changedSectionCount = sections.filter(
+	(section) => section.latestChange,
+).length;
+const showChangeMarkers =
+	changedSectionCount > 0 && changedSectionCount < sections.length;
 ---
 <div class="read-hub">
   <section class="content-block content-block--flush read-hero">

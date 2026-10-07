@@ -1,12 +1,12 @@
 ---
 export type BreadcrumbTrailItem = {
-  name: string;
-  href?: string;
+	name: string;
+	href?: string;
 };
 
 type Props = {
-  items: BreadcrumbTrailItem[];
-  ariaLabel?: string;
+	items: BreadcrumbTrailItem[];
+	ariaLabel?: string;
 };
 
 const { items, ariaLabel = "Breadcrumb" } = Astro.props;

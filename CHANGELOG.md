@@ -3,6 +3,15 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — One formatting baseline, enforced
+
+- **Every file now matches `biome.json`.** 250 files had drifted (247 of 511 didn't match before), mostly 2-space indentation from before the formatter was configured. Running the formatter or the pre-commit hook on any file used to rewrite hundreds of unrelated lines. That commit is formatting and Biome's safe fixes only, and is listed in `.git-blame-ignore-revs`.
+- **Built output is unchanged** except one client chunk: Biome's import sorting reordered modules inside `qa-controller.ts`. Every page's HTML and CSS is byte-identical apart from that chunk's file hash.
+- **Import sorting is off for `.astro` files.** In a page or component, import order decides the order of stylesheets, so sorting there changed the reading hub's CSS cascade.
+- **Three `@ts-ignore` comments are kept on purpose,** each with a `biome-ignore` saying why. Biome's safe fix turns them into `@ts-expect-error`, which fails the type check whenever the optional dependency they guard is installed.
+- **CI runs `bun run check:format` (`biome ci .`)** in place of `biome lint`. It fails on formatting, import order, or lint errors.
+- **`bun install` installs the pre-commit hook** (`"prepare": "husky"`). Before, fresh clones had no hook, so lint-staged never ran and drift accumulated.
+
 ## 2026-10-07 — `bookkit` is the author's front door
 
 - **`bun run bookkit` with no command shows where each book stands**: title, status, chapters (and how many are stubs), mechanisms, tools, and the commands to run next. Before, it printed a task-runner help screen and exited 1.

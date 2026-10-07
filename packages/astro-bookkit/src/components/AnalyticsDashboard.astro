@@ -1,15 +1,15 @@
 ---
 
 const {
-  lastUpdated = new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }),
-  endpoint,
+	lastUpdated = new Date().toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	}),
+	endpoint,
 } = Astro.props as {
-  lastUpdated?: string;
-  endpoint?: string;
+	lastUpdated?: string;
+	endpoint?: string;
 };
 ---
 <section

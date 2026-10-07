@@ -1,118 +1,127 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import {
-  buildLocalizedContentIndex,
-  resolveLocalizedContent,
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../lib/book-entrypoints";
-import { formatTranslationCompleteness, readRoutes } from "@bookkit/astro-bookkit";
+import {
+	formatTranslationCompleteness,
+	readRoutes,
+} from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
 const chapterIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.chapters,
-  {
-    defaultLocale: "en",
-  }
+	bookEntryPoints.contentModules.chapters,
+	{
+		defaultLocale: "en",
+	},
 );
 const mechanismIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.mechanisms,
-  {
-    defaultLocale: "en",
-  }
+	bookEntryPoints.contentModules.mechanisms,
+	{
+		defaultLocale: "en",
+	},
 );
 const toolkitIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.toolkit,
-  {
-    defaultLocale: "en",
-  }
+	bookEntryPoints.contentModules.toolkit,
+	{
+		defaultLocale: "en",
+	},
 );
 const glossaryIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.glossary,
-  {
-    defaultLocale: "en",
-  }
+	bookEntryPoints.contentModules.glossary,
+	{
+		defaultLocale: "en",
+	},
 );
 const exampleIndex = buildLocalizedContentIndex(
-  bookEntryPoints.contentModules.examples,
-  {
-    defaultLocale: "en",
-  }
+	bookEntryPoints.contentModules.examples,
+	{
+		defaultLocale: "en",
+	},
 );
 const localeKey = Astro.locals?.locale;
 const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
-const mechanisms = resolveLocalizedContent(mechanismIndex, { locale: localeKey });
+const mechanisms = resolveLocalizedContent(mechanismIndex, {
+	locale: localeKey,
+});
 const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
 const metaDescription = bookConfig.site?.defaultMeta?.description;
 const stats = [
-  {
-    label: "Chapters",
-    href: readRoutes.chapters,
-    count: chapters.entries.length,
-    completeness: chapters.completeness,
-  },
-  {
-    label: "Mechanisms",
-    href: readRoutes.mechanisms,
-    count: mechanisms.entries.length,
-    completeness: mechanisms.completeness,
-  },
-  {
-    label: "Toolkit actions",
-    href: readRoutes.toolkit,
-    count: toolkit.entries.length,
-    completeness: toolkit.completeness,
-  },
-  {
-    label: "Glossary terms",
-    href: readRoutes.glossary,
-    count: glossary.entries.length,
-    completeness: glossary.completeness,
-  },
-  {
-    label: "Examples",
-    href: readRoutes.examples,
-    count: examples.entries.length,
-    completeness: examples.completeness,
-  },
+	{
+		label: "Chapters",
+		href: readRoutes.chapters,
+		count: chapters.entries.length,
+		completeness: chapters.completeness,
+	},
+	{
+		label: "Mechanisms",
+		href: readRoutes.mechanisms,
+		count: mechanisms.entries.length,
+		completeness: mechanisms.completeness,
+	},
+	{
+		label: "Toolkit actions",
+		href: readRoutes.toolkit,
+		count: toolkit.entries.length,
+		completeness: toolkit.completeness,
+	},
+	{
+		label: "Glossary terms",
+		href: readRoutes.glossary,
+		count: glossary.entries.length,
+		completeness: glossary.completeness,
+	},
+	{
+		label: "Examples",
+		href: readRoutes.examples,
+		count: examples.entries.length,
+		completeness: examples.completeness,
+	},
 ];
 const startLinks = [
-  {
-    title: "Read the overview",
-    description: "What the book covers and how it’s organized.",
-    href: readRoutes.overview,
-  },
-  {
-    title: "Find the pattern",
-    description: "Match what you’re seeing to a named pattern and what to do about it.",
-    href: readRoutes.mechanisms,
-  },
-  {
-    title: "Browse everything",
-    description: "Chapters, toolkit, glossary, and examples.",
-    href: readRoutes.root,
-  },
+	{
+		title: "Read the overview",
+		description: "What the book covers and how it’s organized.",
+		href: readRoutes.overview,
+	},
+	{
+		title: "Find the pattern",
+		description:
+			"Match what you’re seeing to a named pattern and what to do about it.",
+		href: readRoutes.mechanisms,
+	},
+	{
+		title: "Browse everything",
+		description: "Chapters, toolkit, glossary, and examples.",
+		href: readRoutes.root,
+	},
 ];
 const otherBooks = [
-  {
-    slug: "on-call",
-    title: "On-Call Runbook",
-    description: "Classify alerts, pick a safe first action, escalate with a named target, and verify recovery.",
-    href: "https://on-call.book",
-  },
-  {
-    slug: "bad-people",
-    title: "Bad People",
-    description: "How systems normalize harm and how to respond with small, reversible actions.",
-    href: "https://bad-people.book",
-  },
-  {
-    slug: "running-hot",
-    title: "Don't Turn People Into Infrastructure",
-    description: "Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
-    href: "https://running-hot.book",
-  },
+	{
+		slug: "on-call",
+		title: "On-Call Runbook",
+		description:
+			"Classify alerts, pick a safe first action, escalate with a named target, and verify recovery.",
+		href: "https://on-call.book",
+	},
+	{
+		slug: "bad-people",
+		title: "Bad People",
+		description:
+			"How systems normalize harm and how to respond with small, reversible actions.",
+		href: "https://bad-people.book",
+	},
+	{
+		slug: "running-hot",
+		title: "Don't Turn People Into Infrastructure",
+		description:
+			"Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
+		href: "https://running-hot.book",
+	},
 ].filter((book) => book.slug !== bookConfig.slug);
 ---
 <BaseLayout title={bookConfig.title}>

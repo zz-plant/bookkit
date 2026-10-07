@@ -1,31 +1,45 @@
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
-export const readStoredValue = (storage: StorageLike, key: string): string | null => {
-  try {
-    return storage.getItem(key);
-  } catch {
-    return null;
-  }
+export const readStoredValue = (
+	storage: StorageLike,
+	key: string,
+): string | null => {
+	try {
+		return storage.getItem(key);
+	} catch {
+		return null;
+	}
 };
 
-export const writeStoredValue = (storage: StorageLike, key: string, value: string): void => {
-  try {
-    storage.setItem(key, value);
-  } catch {
-    // Ignore storage write failures so UI initialization keeps running.
-  }
+export const writeStoredValue = (
+	storage: StorageLike,
+	key: string,
+	value: string,
+): void => {
+	try {
+		storage.setItem(key, value);
+	} catch {
+		// Ignore storage write failures so UI initialization keeps running.
+	}
 };
 
-export const readStoredJson = <T>(storage: StorageLike, key: string): T | null => {
-  const value = readStoredValue(storage, key);
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
+export const readStoredJson = <T>(
+	storage: StorageLike,
+	key: string,
+): T | null => {
+	const value = readStoredValue(storage, key);
+	if (!value) return null;
+	try {
+		return JSON.parse(value) as T;
+	} catch {
+		return null;
+	}
 };
 
-export const writeStoredJson = (storage: StorageLike, key: string, value: unknown): void => {
-  writeStoredValue(storage, key, JSON.stringify(value));
+export const writeStoredJson = (
+	storage: StorageLike,
+	key: string,
+	value: unknown,
+): void => {
+	writeStoredValue(storage, key, JSON.stringify(value));
 };

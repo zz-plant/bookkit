@@ -1,13 +1,13 @@
 ---
 export type TocHeading = {
-  depth: number;
-  slug: string;
-  text: string;
+	depth: number;
+	slug: string;
+	text: string;
 };
 
 export type Props = {
-  headings?: TocHeading[];
-  label?: string;
+	headings?: TocHeading[];
+	label?: string;
 };
 
 const { headings = [], label = "On this page" } = Astro.props;

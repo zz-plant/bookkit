@@ -1,14 +1,14 @@
 ---
 const {
-  slug,
-  title,
-  contentType = "chapter",
-  prompt = "Was this helpful?",
-  endpoint,
+	slug,
+	title,
+	contentType = "chapter",
+	prompt = "Was this helpful?",
+	endpoint,
 } = Astro.props;
 
 if (!slug) {
-  throw new Error("FeedbackWidget requires a slug prop.");
+	throw new Error("FeedbackWidget requires a slug prop.");
 }
 
 const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;

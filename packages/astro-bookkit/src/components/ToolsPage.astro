@@ -3,48 +3,48 @@ import BookLayout from "../layouts/BookLayout.astro";
 import { createBookLayoutRenderState } from "../book/layout";
 
 export type ToolsPageLink = {
-  title: string;
-  description: string;
-  href: string;
+	title: string;
+	description: string;
+	href: string;
 };
 
 export type Props = {
-  title: string;
-  bookTitle: string;
-  bookVersion: string;
-  bookKey?: string;
-  backHref: string;
-  links: ToolsPageLink[];
-  heading?: string;
-  lede?: string;
-  eyebrow?: string;
+	title: string;
+	bookTitle: string;
+	bookVersion: string;
+	bookKey?: string;
+	backHref: string;
+	links: ToolsPageLink[];
+	heading?: string;
+	lede?: string;
+	eyebrow?: string;
 };
 
 const {
-  title,
-  bookTitle,
-  bookVersion,
-  bookKey = "book",
-  backHref,
-  links,
-  heading = "Author tools",
-  lede = "Analytics, release notes, and downloads for this book.",
-  eyebrow,
+	title,
+	bookTitle,
+	bookVersion,
+	bookKey = "book",
+	backHref,
+	links,
+	heading = "Author tools",
+	lede = "Analytics, release notes, and downloads for this book.",
+	eyebrow,
 } = Astro.props;
 
 const renderState = createBookLayoutRenderState({
-  title,
-  bookTitle,
-  bookVersion,
-  // Author tools, not reading: reachable, but kept out of search.
-  seoProps: { robots: "noindex, nofollow" },
-  requestPathname: Astro.url.pathname,
-  versionEntries: [],
-  locales: [],
-  defaultLocale: "en",
-  includeDefaultLocalePrefix: false,
-  localeLabel: "Language",
-  isPreview: false,
+	title,
+	bookTitle,
+	bookVersion,
+	// Author tools, not reading: reachable, but kept out of search.
+	seoProps: { robots: "noindex, nofollow" },
+	requestPathname: Astro.url.pathname,
+	versionEntries: [],
+	locales: [],
+	defaultLocale: "en",
+	includeDefaultLocalePrefix: false,
+	localeLabel: "Language",
+	isPreview: false,
 });
 ---
 <BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey} renderState={renderState}>

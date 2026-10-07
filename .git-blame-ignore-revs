@@ -1,0 +1,5 @@
+# Formatting-only commits. GitHub skips these in blame automatically;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: format the repo to biome.json and enforce it in CI
+df8d04c0cf9faf003a32a3b1fc75fe80f600a606

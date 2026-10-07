@@ -14,21 +14,36 @@ export const bookRuntime = createBookRuntime({
 	bookConfig,
 	modules: {
 		contentModules: {
-			chapters: import.meta.glob<ChapterModule>("../content/book/chapters/*.mdx", {
-				eager: true,
-			}),
-			mechanisms: import.meta.glob<MechanismModule>("../content/book/mechanisms/*.mdx", {
-				eager: true,
-			}),
-			toolkit: import.meta.glob<ToolkitModule>("../content/book/toolkit/*.mdx", {
-				eager: true,
-			}),
-			glossary: import.meta.glob<GlossaryModule>("../content/book/glossary/*.mdx", {
-				eager: true,
-			}),
-			examples: import.meta.glob<ExampleModule>("../content/book/examples/**/*.mdx", {
-				eager: true,
-			}),
+			chapters: import.meta.glob<ChapterModule>(
+				"../content/book/chapters/*.mdx",
+				{
+					eager: true,
+				},
+			),
+			mechanisms: import.meta.glob<MechanismModule>(
+				"../content/book/mechanisms/*.mdx",
+				{
+					eager: true,
+				},
+			),
+			toolkit: import.meta.glob<ToolkitModule>(
+				"../content/book/toolkit/*.mdx",
+				{
+					eager: true,
+				},
+			),
+			glossary: import.meta.glob<GlossaryModule>(
+				"../content/book/glossary/*.mdx",
+				{
+					eager: true,
+				},
+			),
+			examples: import.meta.glob<ExampleModule>(
+				"../content/book/examples/**/*.mdx",
+				{
+					eager: true,
+				},
+			),
 		},
 		contentRawModules: {
 			chapters: import.meta.glob<string>("../content/book/chapters/*.mdx", {

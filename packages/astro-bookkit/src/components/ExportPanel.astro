@@ -1,10 +1,14 @@
 ---
 import type { ExportLink } from "../exports";
 
-const { title = "Downloads", description, links = [] } = Astro.props as {
-  title?: string;
-  description?: string;
-  links?: ExportLink[];
+const {
+	title = "Downloads",
+	description,
+	links = [],
+} = Astro.props as {
+	title?: string;
+	description?: string;
+	links?: ExportLink[];
 };
 ---
 <section class="export-panel">

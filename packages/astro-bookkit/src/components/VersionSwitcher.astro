@@ -2,30 +2,32 @@
 import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
 
 export type Props = {
-  versions: BookVersionEntry[];
-  currentPath: string;
-  currentVersion?: string;
-  prefixSegment?: string;
-  label?: string;
-  archivePath?: string;
-  archiveLabel?: string;
+	versions: BookVersionEntry[];
+	currentPath: string;
+	currentVersion?: string;
+	prefixSegment?: string;
+	label?: string;
+	archivePath?: string;
+	archiveLabel?: string;
 };
 
 const {
-  versions = [],
-  currentPath,
-  currentVersion,
-  prefixSegment = "v",
-  label = "Version",
-  archivePath = "/versions",
-  archiveLabel = "Version archive",
+	versions = [],
+	currentPath,
+	currentVersion,
+	prefixSegment = "v",
+	label = "Version",
+	archivePath = "/versions",
+	archiveLabel = "Version archive",
 } = Astro.props;
 
 const resolvedCurrent =
-  currentVersion ?? versions.find((entry) => entry.isLatest)?.version ?? versions[0]?.version;
+	currentVersion ??
+	versions.find((entry) => entry.isLatest)?.version ??
+	versions[0]?.version;
 const versionEntries = versions.map((entry) => ({
-  ...entry,
-  href: buildVersionPath(currentPath, entry, { prefixSegment }),
+	...entry,
+	href: buildVersionPath(currentPath, entry, { prefixSegment }),
 }));
 ---
 <div

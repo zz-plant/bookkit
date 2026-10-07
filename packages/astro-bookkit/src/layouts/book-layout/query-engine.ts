@@ -1,66 +1,70 @@
-import { buildRankedResults, type RankedSearchResult } from "./search-ranking";
 import type { SearchIndexStore } from "./search-index-store";
+import { buildRankedResults, type RankedSearchResult } from "./search-ranking";
 
 export type QueryRunResult =
-  | { status: "stale" }
-  | {
-      status: "ready";
-      normalizedQuery: string;
-      tokens: string[];
-      results: RankedSearchResult[];
-    };
+	| { status: "stale" }
+	| {
+			status: "ready";
+			normalizedQuery: string;
+			tokens: string[];
+			results: RankedSearchResult[];
+	  };
 
 type QueryEngineOptions = {
-  indexStore: SearchIndexStore;
-  onStatus?: (message: string) => void;
+	indexStore: SearchIndexStore;
+	onStatus?: (message: string) => void;
 };
 
-export const normalizeQuery = (value: string): string => value.trim().toLowerCase();
+export const normalizeQuery = (value: string): string =>
+	value.trim().toLowerCase();
 
-export const createQueryEngine = ({ indexStore, onStatus }: QueryEngineOptions) => {
-  let runToken = 0;
+export const createQueryEngine = ({
+	indexStore,
+	onStatus,
+}: QueryEngineOptions) => {
+	let runToken = 0;
 
-  const loadIndex = async () => indexStore.load({ onStatus });
+	const loadIndex = async () => indexStore.load({ onStatus });
 
-  const run = async (
-    value: string,
-    options?: {
-      signals?: Record<string, number>;
-      semanticScores?: Record<string, number>;
-    }
-  ): Promise<QueryRunResult> => {
-    const token = ++runToken;
-    const index = await loadIndex();
-    if (token !== runToken) {
-      return { status: "stale" };
-    }
+	const run = async (
+		value: string,
+		options?: {
+			signals?: Record<string, number>;
+			semanticScores?: Record<string, number>;
+		},
+	): Promise<QueryRunResult> => {
+		const token = ++runToken;
+		const index = await loadIndex();
+		if (token !== runToken) {
+			return { status: "stale" };
+		}
 
-    const normalizedQuery = normalizeQuery(value);
-    if (!normalizedQuery) {
-      return {
-        status: "ready",
-        normalizedQuery,
-        tokens: [],
-        results: [],
-      };
-    }
+		const normalizedQuery = normalizeQuery(value);
+		if (!normalizedQuery) {
+			return {
+				status: "ready",
+				normalizedQuery,
+				tokens: [],
+				results: [],
+			};
+		}
 
-    const rankedResults = buildRankedResults(index, normalizedQuery, {
-      signals: options?.signals,
-      semanticScores: options?.semanticScores,
-    });
+		const rankedResults = buildRankedResults(index, normalizedQuery, {
+			signals: options?.signals,
+			semanticScores: options?.semanticScores,
+		});
 
-    if (token !== runToken) {
-      return { status: "stale" };
-    }
+		if (token !== runToken) {
+			return { status: "stale" };
+		}
 
-    return {
-      status: "ready",
-      normalizedQuery,
-      tokens: rankedResults.tokens,
-      results: rankedResults.results,
-    };
-  };
+		return {
+			status: "ready",
+			normalizedQuery,
+			tokens: rankedResults.tokens,
+			results: rankedResults.results,
+		};
+	};
 
-  return { loadIndex, run };
+	return { loadIndex, run };
 };

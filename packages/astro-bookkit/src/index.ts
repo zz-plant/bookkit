@@ -181,14 +181,14 @@ export {
 } from "./localization";
 export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
 export {
+	extractHeadingsFromMarkdown,
+	type HeadingEntry,
+} from "./markdown/headings";
+export {
 	extractPageFacts,
 	type PageFacts,
 	pageFactsForModule,
 } from "./markdown/pageFacts";
-export {
-	extractHeadingsFromMarkdown,
-	type HeadingEntry,
-} from "./markdown/headings";
 export type {
 	CreateBookMcpEndpointFromWorkspaceOptions,
 	GovernanceFileResource,
@@ -411,9 +411,9 @@ export {
 	analyzeCorpusOverlap,
 	analyzeMechanismOverlap,
 	auditExampleSwappability,
+	classifyConcept,
 	corpusEmbeddingText,
 	DEFAULT_SEMANTIC_OVERLAP_THRESHOLD,
-	classifyConcept,
 	extractConceptFlags,
 	proposeMechanismCandidates,
 	runBookSuggestions,

@@ -1,20 +1,22 @@
 ---
 export type NextActionLink = {
-  href: string;
-  label: string;
-  meta?: string | null;
+	href: string;
+	label: string;
+	meta?: string | null;
 };
 
 const {
-  title = "Next",
-  eyebrow,
-  description,
-  links = [],
-  variant = "default",
+	title = "Next",
+	eyebrow,
+	description,
+	links = [],
+	variant = "default",
 } = Astro.props;
 
 const isCompact = variant === "compact";
-const resolvedLinks = Array.isArray(links) ? links.filter((link) => link?.href && link?.label) : [];
+const resolvedLinks = Array.isArray(links)
+	? links.filter((link) => link?.href && link?.label)
+	: [];
 ---
 {resolvedLinks.length > 0 && (
   <section class:list={["next-action-panel", {"next-action-panel--compact": isCompact}]} aria-label={title}>

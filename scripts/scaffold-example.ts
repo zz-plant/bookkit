@@ -1,5 +1,11 @@
 import { join } from "node:path";
-import { ensureDir, optionalArg, requireArg, slugify, writeFileSafe } from "./_lib";
+import {
+	ensureDir,
+	optionalArg,
+	requireArg,
+	slugify,
+	writeFileSafe,
+} from "./_lib";
 
 const book = requireArg("--book");
 const mechanism = requireArg("--mechanism");
@@ -9,14 +15,14 @@ const titleRaw = optionalArg("--title") ?? "Example";
 const slug = slugify(`${domain}-${titleRaw}`);
 
 const outDir = join(
-  process.cwd(),
-  "apps",
-  book,
-  "src",
-  "content",
-  "book",
-  "examples",
-  mechanism
+	process.cwd(),
+	"apps",
+	book,
+	"src",
+	"content",
+	"book",
+	"examples",
+	mechanism,
 );
 ensureDir(outDir);
 

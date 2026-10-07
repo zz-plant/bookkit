@@ -2,16 +2,16 @@
 import type { PreviewLinkStatus } from "../preview";
 
 const {
-  title = "Preview links",
-  description = "Share these private links with reviewers. Access can be revoked or set to expire.",
-  links = [],
-  revealLinks = true,
+	title = "Preview links",
+	description = "Share these private links with reviewers. Access can be revoked or set to expire.",
+	links = [],
+	revealLinks = true,
 } = Astro.props as {
-  title?: string;
-  description?: string;
-  links?: Array<PreviewLinkStatus & { href: string }>;
-  /** Render the full tokenized links. Pass false for public builds, where the page is not access-controlled. */
-  revealLinks?: boolean;
+	title?: string;
+	description?: string;
+	links?: Array<PreviewLinkStatus & { href: string }>;
+	/** Render the full tokenized links. Pass false for public builds, where the page is not access-controlled. */
+	revealLinks?: boolean;
 };
 
 const hasLinks = links.length > 0;

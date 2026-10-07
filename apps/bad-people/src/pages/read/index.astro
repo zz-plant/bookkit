@@ -2,9 +2,9 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ReadHub from "@bookkit/astro-bookkit/components/ReadHub.astro";
 import {
-  createDefaultReadHubSections,
-  createLocalizedReadHubSectionSummaries,
-  createLatestSectionChangeMap,
+	createDefaultReadHubSections,
+	createLocalizedReadHubSectionSummaries,
+	createLatestSectionChangeMap,
 } from "@bookkit/astro-bookkit";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
 import { getReleaseNotes } from "../../lib/release-notes";
@@ -12,14 +12,17 @@ import { readHubConfig } from "../../lib/read-hub";
 import bookConfig from "../../book.config";
 
 const localeKey = Astro.locals?.locale;
-const sectionSummaries = createLocalizedReadHubSectionSummaries(bookEntryPoints.contentModules, {
-  locale: localeKey,
-  defaultLocale: "en",
-});
+const sectionSummaries = createLocalizedReadHubSectionSummaries(
+	bookEntryPoints.contentModules,
+	{
+		locale: localeKey,
+		defaultLocale: "en",
+	},
+);
 
 const sections = createDefaultReadHubSections(
-  sectionSummaries,
-  createLatestSectionChangeMap(getReleaseNotes()),
+	sectionSummaries,
+	createLatestSectionChangeMap(getReleaseNotes()),
 );
 ---
 <BaseLayout title={`Read • ${bookConfig.title}`}>

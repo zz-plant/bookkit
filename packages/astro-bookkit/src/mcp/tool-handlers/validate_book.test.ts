@@ -3,8 +3,8 @@ import { describe, expect, it } from "bun:test";
 import { toValidateBookFailure } from "./validate_book";
 
 describe("validate_book handler normalized failures", () => {
-  it("matches snapshot for command failure payload", () => {
-    expect(toValidateBookFailure(1)).toMatchInlineSnapshot(`
+	it("matches snapshot for command failure payload", () => {
+		expect(toValidateBookFailure(1)).toMatchInlineSnapshot(`
       {
         "cause": "Validation failed: validate:book exited with code 1.",
         "failingRule": "validate:book must complete with zero errors",
@@ -18,5 +18,5 @@ describe("validate_book handler normalized failures", () => {
         "severity": "error",
       }
     `);
-  });
+	});
 });

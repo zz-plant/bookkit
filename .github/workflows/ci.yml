@@ -25,8 +25,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Biome Lint
-        run: bun run lint
+      - name: Biome (format, import order, lint)
+        run: bun run check:format
 
       - name: Typecheck
         run: bun run check:types

@@ -21,6 +21,8 @@
 		"check:types": "bun run scripts/typecheck.ts",
 		"check:upgrade": "bun run scripts/upgrade-check.ts",
 		"format": "biome format --write .",
+		"check:format": "biome ci .",
+		"prepare": "husky",
 		"list:books": "bun run scripts/list-books.ts",
 		"bookkit": "bun run scripts/bookkit.ts",
 		"compile:book": "bun run scripts/compile-book.ts",

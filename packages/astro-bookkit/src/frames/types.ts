@@ -1,11 +1,11 @@
 export type FrameStep = {
-  id: string;
-  label: string;
-  required: boolean;
+	id: string;
+	label: string;
+	required: boolean;
 };
 
 export type FrameDefinition = {
-  slug: string;
-  name: string;
-  steps: FrameStep[];
+	slug: string;
+	name: string;
+	steps: FrameStep[];
 };

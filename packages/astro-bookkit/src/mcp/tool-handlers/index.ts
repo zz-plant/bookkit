@@ -13,18 +13,22 @@ import type { ToolHandlerMap } from "./types";
 import { handleValidateBook } from "./validate_book";
 
 const TOOL_HANDLERS: ToolHandlerMap = {
-  "bookkit.compile_book": handleCompileBook,
-  "bookkit.create_book": handleCreateBook,
-  "bookkit.export_book": handleExportBook,
-  "bookkit.read_book": handleReadBook,
-  "bookkit.list_books": handleListBooks,
-  "bookkit.list_content": handleListContent,
-  "bookkit.list_skills": handleListSkills,
-  "bookkit.list_mechanisms": handleListMechanisms,
-  "bookkit.validate_book": handleValidateBook,
-  "bookkit.check_separation": handleCheckSeparation,
+	"bookkit.compile_book": handleCompileBook,
+	"bookkit.create_book": handleCreateBook,
+	"bookkit.export_book": handleExportBook,
+	"bookkit.read_book": handleReadBook,
+	"bookkit.list_books": handleListBooks,
+	"bookkit.list_content": handleListContent,
+	"bookkit.list_skills": handleListSkills,
+	"bookkit.list_mechanisms": handleListMechanisms,
+	"bookkit.validate_book": handleValidateBook,
+	"bookkit.check_separation": handleCheckSeparation,
 };
 
-export const runTool = (options: McpEndpointOptions, name: ToolName, args?: Record<string, unknown>) => {
-  return TOOL_HANDLERS[name]({ options, args });
+export const runTool = (
+	options: McpEndpointOptions,
+	name: ToolName,
+	args?: Record<string, unknown>,
+) => {
+	return TOOL_HANDLERS[name]({ options, args });
 };

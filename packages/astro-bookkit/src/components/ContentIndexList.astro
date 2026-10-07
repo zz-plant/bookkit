@@ -1,74 +1,75 @@
 ---
 export type ContentIndexItem = {
-  href: string;
-  title: string;
-  eyebrow?: string | null;
-  meta?: string | null;
-  badges?: string[] | null;
+	href: string;
+	title: string;
+	eyebrow?: string | null;
+	meta?: string | null;
+	badges?: string[] | null;
 };
 
 type ListToolMode = "auto" | "always" | boolean;
 
 type Props = {
-  title: string;
-  lede?: string;
-  items?: ContentIndexItem[];
-  backHref?: string;
-  backLabel?: string;
-  filterLabel?: string;
-  filterPlaceholder?: string;
-  filterMode?: ListToolMode;
-  filterHint?: string;
-  alphaMode?: ListToolMode;
-  itemActionLabel?: string;
-  quickFilters?: Array<{ value: string; label: string }>;
-  quickFiltersLabel?: string;
-  quickFiltersClearLabel?: string;
+	title: string;
+	lede?: string;
+	items?: ContentIndexItem[];
+	backHref?: string;
+	backLabel?: string;
+	filterLabel?: string;
+	filterPlaceholder?: string;
+	filterMode?: ListToolMode;
+	filterHint?: string;
+	alphaMode?: ListToolMode;
+	itemActionLabel?: string;
+	quickFilters?: Array<{ value: string; label: string }>;
+	quickFiltersLabel?: string;
+	quickFiltersClearLabel?: string;
 };
 
 const {
-  title,
-  lede,
-  items = [],
-  backHref = "/read",
-  backLabel = "Reading hub",
-  filterLabel = "Filter",
-  filterPlaceholder = "Filter by title, mechanism, or domain",
-  filterMode = "auto",
-  filterHint,
-  alphaMode = "auto",
-  itemActionLabel,
-  quickFilters = [],
-  quickFiltersLabel = "Show",
-  quickFiltersClearLabel = "All",
+	title,
+	lede,
+	items = [],
+	backHref = "/read",
+	backLabel = "Reading hub",
+	filterLabel = "Filter",
+	filterPlaceholder = "Filter by title, mechanism, or domain",
+	filterMode = "auto",
+	filterHint,
+	alphaMode = "auto",
+	itemActionLabel,
+	quickFilters = [],
+	quickFiltersLabel = "Show",
+	quickFiltersClearLabel = "All",
 } = Astro.props;
 
 const resolvedItems = Array.isArray(items) ? items : [];
 const resolvedQuickFilters = Array.isArray(quickFilters) ? quickFilters : [];
 const shouldAutoFilter = resolvedItems.length > 6;
 const showFilter =
-  filterMode === true ||
-  filterMode === "always" ||
-  (filterMode === "auto" && (shouldAutoFilter || resolvedQuickFilters.length > 0));
+	filterMode === true ||
+	filterMode === "always" ||
+	(filterMode === "auto" &&
+		(shouldAutoFilter || resolvedQuickFilters.length > 0));
 const shouldAutoAlpha = resolvedItems.length > 10;
 const showAlphaNav =
-  alphaMode === true ||
-  alphaMode === "always" ||
-  (alphaMode === "auto" && shouldAutoAlpha);
+	alphaMode === true ||
+	alphaMode === "always" ||
+	(alphaMode === "auto" && shouldAutoAlpha);
 const alphaGroups = resolvedItems.reduce((groups, item) => {
-  const raw = item.title?.trim()?.charAt(0)?.toUpperCase() ?? "#";
-  const key = /[A-Z]/.test(raw) ? raw : "#";
-  if (!groups.has(key)) groups.set(key, []);
-  groups.get(key)?.push(item);
-  return groups;
+	const raw = item.title?.trim()?.charAt(0)?.toUpperCase() ?? "#";
+	const key = /[A-Z]/.test(raw) ? raw : "#";
+	if (!groups.has(key)) groups.set(key, []);
+	groups.get(key)?.push(item);
+	return groups;
 }, new Map<string, ContentIndexItem[]>());
 const alphaKeys = Array.from(alphaGroups.keys());
 const listSummary = `${resolvedItems.length} ${resolvedItems.length === 1 ? "item" : "items"}`;
 const showDensityToggle = resolvedItems.length > 9;
 const filterId = `list-filter-${String(title ?? "items")
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, "-")
-  .replace(/^-+|-+$/g, "")}`;
+	.toLowerCase()
+	.replace(/[^a-z0-9]+/g, "-")
+	.replace(/^-+|-+$/g, "")}`;
 ---
 <a class="back-link" href={backHref}>← {backLabel}</a>
 <div class="section-header">

@@ -10,18 +10,18 @@ import bookConfig from "../book.config";
 
 const modules = bookEntryPoints.contentModules.chapters;
 const { items: chapterItems } = createLocalizedContentList(modules, {
-  defaultLocale: "en",
-  locale: Astro.locals?.locale,
-  mapEntry: ({ slug, module }) => ({
-    slug,
-    href: readItemPath("chapters", slug),
-    title: module.frontmatter?.title ?? "Untitled chapter",
-  }),
+	defaultLocale: "en",
+	locale: Astro.locals?.locale,
+	mapEntry: ({ slug, module }) => ({
+		slug,
+		href: readItemPath("chapters", slug),
+		title: module.frontmatter?.title ?? "Untitled chapter",
+	}),
 });
 
 const bookExportLinks = getBookExportLinks();
 const allChapterExportLinks = chapterItems.flatMap((chapter) =>
-  getChapterExportLinks(chapter.slug, chapter.title)
+	getChapterExportLinks(chapter.slug, chapter.title),
 );
 ---
 <BaseLayout title={`Downloads • ${bookConfig.title}`}>

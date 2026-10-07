@@ -7,28 +7,33 @@ import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
-const coreMechanismSlugs = new Set<string>(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
-const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
-  defaultLocale: "en",
-  locale: Astro.locals?.locale,
-  mapEntry: ({ slug, module, isFallback }) => {
-    const frontmatter = module.frontmatter ?? {};
-    const tags = [
-      coreMechanismSlugs.has(slug) ? "core" : null,
-      isFallback ? "fallback" : null,
-    ].filter((tag): tag is string => tag !== null);
-    return {
-      href: readItemPath("mechanisms", slug),
-      title: frontmatter.title ?? "Untitled mechanism",
-      badges: tags,
-      meta: frontmatter.definition ?? "",
-    };
-  },
-  sort: (a, b) => a.title.localeCompare(b.title),
-});
+const coreMechanismSlugs = new Set<string>(
+	bookConfig.mechanisms.map((mechanism) => mechanism.slug),
+);
+const { items: mechanismItems, completeness } = createLocalizedContentList(
+	modules,
+	{
+		defaultLocale: "en",
+		locale: Astro.locals?.locale,
+		mapEntry: ({ slug, module, isFallback }) => {
+			const frontmatter = module.frontmatter ?? {};
+			const tags = [
+				coreMechanismSlugs.has(slug) ? "core" : null,
+				isFallback ? "fallback" : null,
+			].filter((tag): tag is string => tag !== null);
+			return {
+				href: readItemPath("mechanisms", slug),
+				title: frontmatter.title ?? "Untitled mechanism",
+				badges: tags,
+				meta: frontmatter.definition ?? "",
+			};
+		},
+		sort: (a, b) => a.title.localeCompare(b.title),
+	},
+);
 const localizedLede = buildTranslationLede(
-  "Patterns that push institutional heat onto people, and how to recognize each one.",
-  completeness
+	"Patterns that push institutional heat onto people, and how to recognize each one.",
+	completeness,
 );
 ---
 <BaseLayout title={`Mechanisms • ${bookConfig.title}`}>

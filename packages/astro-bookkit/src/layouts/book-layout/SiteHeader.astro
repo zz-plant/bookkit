@@ -3,26 +3,26 @@ import VersionSwitcher from "../../components/VersionSwitcher.astro";
 import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
 
 const {
-  bookTitle,
-  isPreview,
-  previewLabel,
-  versionBadgeLabel,
-  isReadRoute,
-  isDownloadsRoute,
-  isReadDetailRoute,
-  hasVersions,
-  localeEntries,
-  versionEntries,
-  currentPath,
-  resolvedVersion,
-  versionPrefix,
-  versionArchivePath,
-  activeLocale,
-  resolvedDefaultLocale,
-  includeDefaultLocalePrefix,
-  localeLabel,
-  aiQaEnabled,
-  enableAuthorTools = isPreview ?? false,
+	bookTitle,
+	isPreview,
+	previewLabel,
+	versionBadgeLabel,
+	isReadRoute,
+	isDownloadsRoute,
+	isReadDetailRoute,
+	hasVersions,
+	localeEntries,
+	versionEntries,
+	currentPath,
+	resolvedVersion,
+	versionPrefix,
+	versionArchivePath,
+	activeLocale,
+	resolvedDefaultLocale,
+	includeDefaultLocalePrefix,
+	localeLabel,
+	aiQaEnabled,
+	enableAuthorTools = isPreview ?? false,
 } = Astro.props;
 
 // The running head is the short title, as at the top of a printed page; subtitles stay on the cover.
@@ -31,18 +31,20 @@ const emphasizeReadCta = !isReadRoute;
 const emphasizeDownloadsCta = !isDownloadsRoute;
 const readSectionFromPath = currentPath?.match(/\/read\/([^/]+)/)?.[1] ?? null;
 const readSectionLabels = {
-  overview: "Overview",
-  chapters: "Chapters",
-  mechanisms: "Mechanisms",
-  toolkit: "Toolkit",
-  examples: "Examples",
-  glossary: "Glossary",
-  tools: "Author tools",
+	overview: "Overview",
+	chapters: "Chapters",
+	mechanisms: "Mechanisms",
+	toolkit: "Toolkit",
+	examples: "Examples",
+	glossary: "Glossary",
+	tools: "Author tools",
 };
 const activeReadSectionLabel =
-  isReadRoute && readSectionFromPath
-    ? readSectionLabels[readSectionFromPath as keyof typeof readSectionLabels] ?? null
-    : null;
+	isReadRoute && readSectionFromPath
+		? (readSectionLabels[
+				readSectionFromPath as keyof typeof readSectionLabels
+			] ?? null)
+		: null;
 ---
       <header class="site-header">
         <div class="site-brand">

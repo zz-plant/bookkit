@@ -1,12 +1,26 @@
 import { join } from "node:path";
-import { ensureDir, optionalArg, requireArg, slugify, writeFileSafe } from "./_lib";
+import {
+	ensureDir,
+	optionalArg,
+	requireArg,
+	slugify,
+	writeFileSafe,
+} from "./_lib";
 
 const book = requireArg("--book");
 const mechanism = requireArg("--mechanism");
 const nameRaw = optionalArg("--name") ?? "New tool";
 const toolSlug = slugify(`${mechanism}--${nameRaw}`);
 
-const outDir = join(process.cwd(), "apps", book, "src", "content", "book", "toolkit");
+const outDir = join(
+	process.cwd(),
+	"apps",
+	book,
+	"src",
+	"content",
+	"book",
+	"toolkit",
+);
 ensureDir(outDir);
 
 const outPath = join(outDir, `${toolSlug}.mdx`);
@@ -30,4 +44,6 @@ legitimateDemand:
 
 writeFileSafe(outPath, mdx);
 console.log(`Created tool: ${outPath}`);
-console.log(`Next: fill trigger/steps/failure/legitimateDemand, then run: bun run validate`);
+console.log(
+	`Next: fill trigger/steps/failure/legitimateDemand, then run: bun run validate`,
+);

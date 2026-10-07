@@ -6,9 +6,12 @@ import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
 
 const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
 const mechanismTitles = new Map(
-  Object.values(bookEntryPoints.contentModules.mechanisms)
-    .filter((module) => !module.frontmatter?.locale || module.frontmatter.locale === "en")
-    .map((module) => [module.frontmatter?.slug, module.frontmatter?.title]),
+	Object.values(bookEntryPoints.contentModules.mechanisms)
+		.filter(
+			(module) =>
+				!module.frontmatter?.locale || module.frontmatter.locale === "en",
+		)
+		.map((module) => [module.frontmatter?.slug, module.frontmatter?.title]),
 );
 ---
 <BaseLayout title={`Overview • ${bookConfig.title}`}>

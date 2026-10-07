@@ -1,12 +1,26 @@
 import { join } from "node:path";
-import { ensureDir, optionalArg, requireArg, slugify, writeFileSafe } from "./_lib";
+import {
+	ensureDir,
+	optionalArg,
+	requireArg,
+	slugify,
+	writeFileSafe,
+} from "./_lib";
 
 const book = requireArg("--book");
 const slugRaw = requireArg("--slug");
 const title = optionalArg("--title") ?? slugRaw;
 const slug = slugify(slugRaw);
 
-const outDir = join(process.cwd(), "apps", book, "src", "content", "book", "mechanisms");
+const outDir = join(
+	process.cwd(),
+	"apps",
+	book,
+	"src",
+	"content",
+	"book",
+	"mechanisms",
+);
 ensureDir(outDir);
 
 const outPath = join(outDir, `${slug}.mdx`);
@@ -30,4 +44,6 @@ tests:
 
 writeFileSafe(outPath, mdx);
 console.log(`Created mechanism: ${outPath}`);
-console.log(`Next: add 1–3 real predictions + at least one test, then run: bun run validate`);
+console.log(
+	`Next: add 1–3 real predictions + at least one test, then run: bun run validate`,
+);

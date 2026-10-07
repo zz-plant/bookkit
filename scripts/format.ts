@@ -1,41 +1,49 @@
-import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
 
 if (hasBiomeConfig(root)) {
-  const res = spawnSync("bunx", ["biome", "format", "."], { stdio: "inherit" });
-  process.exit(res.status ?? 1);
+	const res = spawnSync("bunx", ["biome", "format", "."], { stdio: "inherit" });
+	process.exit(res.status ?? 1);
 }
 
 if (hasPrettierConfig(root)) {
-  const res = spawnSync("bunx", ["prettier", "--write", "."], { stdio: "inherit" });
-  process.exit(res.status ?? 1);
+	const res = spawnSync("bunx", ["prettier", "--write", "."], {
+		stdio: "inherit",
+	});
+	process.exit(res.status ?? 1);
 }
 
-console.log("No format config found. Add Biome or Prettier to enable formatting.");
+console.log(
+	"No format config found. Add Biome or Prettier to enable formatting.",
+);
 process.exit(0);
 
 function hasBiomeConfig(dir: string): boolean {
-  return ["biome.json", "biome.jsonc"].some((file) => existsSync(join(dir, file)));
+	return ["biome.json", "biome.jsonc"].some((file) =>
+		existsSync(join(dir, file)),
+	);
 }
 
 function hasPrettierConfig(dir: string): boolean {
-  const configFiles = [
-    ".prettierrc",
-    ".prettierrc.json",
-    ".prettierrc.js",
-    "prettier.config.js",
-  ];
+	const configFiles = [
+		".prettierrc",
+		".prettierrc.json",
+		".prettierrc.js",
+		"prettier.config.js",
+	];
 
-  if (configFiles.some((file) => existsSync(join(dir, file)))) return true;
-  const pkgPath = join(dir, "package.json");
-  if (!existsSync(pkgPath)) return false;
-  try {
-    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { prettier?: unknown };
-    return Boolean(pkg.prettier);
-  } catch {
-    return false;
-  }
+	if (configFiles.some((file) => existsSync(join(dir, file)))) return true;
+	const pkgPath = join(dir, "package.json");
+	if (!existsSync(pkgPath)) return false;
+	try {
+		const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
+			prettier?: unknown;
+		};
+		return Boolean(pkg.prettier);
+	} catch {
+		return false;
+	}
 }

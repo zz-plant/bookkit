@@ -1,56 +1,63 @@
-import type { McpEndpointOptions, ToolResponse } from "../types";
 import type { ToolName } from "../tool-definitions";
+import type { McpEndpointOptions, ToolResponse } from "../types";
 
-export type ToolExpectedRuntimeClass = "instant" | "short" | "moderate" | "long";
+export type ToolExpectedRuntimeClass =
+	| "instant"
+	| "short"
+	| "moderate"
+	| "long";
 
-export type ToolSideEffectLevel = "read-only" | "local-read/compute" | "local-write";
+export type ToolSideEffectLevel =
+	| "read-only"
+	| "local-read/compute"
+	| "local-write";
 
 export type ToolIdempotencyGuarantee =
-  | "idempotent-safe-retry"
-  | "idempotent-retry-after-remediation"
-  | "non-idempotent";
+	| "idempotent-safe-retry"
+	| "idempotent-retry-after-remediation"
+	| "non-idempotent";
 
 export type ToolFailureClass =
-  | "validation"
-  | "not-found"
-  | "conflict"
-  | "timeout"
-  | "transient-command"
-  | "filesystem"
-  | "configuration"
-  | "unknown";
+	| "validation"
+	| "not-found"
+	| "conflict"
+	| "timeout"
+	| "transient-command"
+	| "filesystem"
+	| "configuration"
+	| "unknown";
 
 export type ToolSafetyLevel = "read_only" | "mutating" | "requires_guard";
 
 export type ToolRateLimit = {
-  maxPerMinute: number;
-  guidance: string;
+	maxPerMinute: number;
+	guidance: string;
 };
 
 export type ToolDefinitionMetadata = {
-  name: ToolName;
-  description: string;
-  safety: ToolSafetyLevel;
-  rateLimit?: ToolRateLimit;
-  expectedRuntime: string;
-  expectedRuntimeClass: ToolExpectedRuntimeClass;
-  sideEffectLevel: ToolSideEffectLevel;
-  idempotent: boolean;
-  idempotencyGuarantee: ToolIdempotencyGuarantee;
-  retryGuidance: string;
-  retryPolicyGuidance: string;
-  failureClassTaxonomy: readonly ToolFailureClass[];
-  inputSchema: {
-    type: "object";
-    properties: Record<string, unknown>;
-    required?: readonly string[];
-    additionalProperties: boolean;
-  };
+	name: ToolName;
+	description: string;
+	safety: ToolSafetyLevel;
+	rateLimit?: ToolRateLimit;
+	expectedRuntime: string;
+	expectedRuntimeClass: ToolExpectedRuntimeClass;
+	sideEffectLevel: ToolSideEffectLevel;
+	idempotent: boolean;
+	idempotencyGuarantee: ToolIdempotencyGuarantee;
+	retryGuidance: string;
+	retryPolicyGuidance: string;
+	failureClassTaxonomy: readonly ToolFailureClass[];
+	inputSchema: {
+		type: "object";
+		properties: Record<string, unknown>;
+		required?: readonly string[];
+		additionalProperties: boolean;
+	};
 };
 
 export type ToolHandlerContext = {
-  options: McpEndpointOptions;
-  args?: Record<string, unknown>;
+	options: McpEndpointOptions;
+	args?: Record<string, unknown>;
 };
 
 export type ToolHandler = (context: ToolHandlerContext) => ToolResponse;

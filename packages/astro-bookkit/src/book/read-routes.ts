@@ -1,35 +1,46 @@
 export const readRoutes = {
-  root: "/read",
-  overview: "/read/overview",
-  tools: "/read/tools",
-  analytics: "/read/analytics",
-  chapters: "/read/chapters",
-  mechanisms: "/read/mechanisms",
-  toolkit: "/read/toolkit",
-  glossary: "/read/glossary",
-  examples: "/read/examples",
+	root: "/read",
+	overview: "/read/overview",
+	tools: "/read/tools",
+	analytics: "/read/analytics",
+	chapters: "/read/chapters",
+	mechanisms: "/read/mechanisms",
+	toolkit: "/read/toolkit",
+	glossary: "/read/glossary",
+	examples: "/read/examples",
 } as const;
 
-export type ReadIndexKey = "chapters" | "mechanisms" | "toolkit" | "glossary" | "examples";
+export type ReadIndexKey =
+	| "chapters"
+	| "mechanisms"
+	| "toolkit"
+	| "glossary"
+	| "examples";
 
-export const readSectionPath = (section: ReadIndexKey): string => readRoutes[section];
+export const readSectionPath = (section: ReadIndexKey): string =>
+	readRoutes[section];
 
 export const readItemPath = (section: ReadIndexKey, slug: string): string =>
-  `${readRoutes[section]}/${slug}`;
+	`${readRoutes[section]}/${slug}`;
 
-export const buildTranslationLede = (base: string, completeness: number | null): string => {
-  if (typeof completeness !== "number" || completeness >= 1) {
-    return base;
-  }
+export const buildTranslationLede = (
+	base: string,
+	completeness: number | null,
+): string => {
+	if (typeof completeness !== "number" || completeness >= 1) {
+		return base;
+	}
 
-  const percent = Math.round(completeness * 100);
-  return `${base} ${percent}% translated so far.`;
+	const percent = Math.round(completeness * 100);
+	return `${base} ${percent}% translated so far.`;
 };
 
-export const formatTranslationCompleteness = (completeness: number | null): string | null => {
-  if (typeof completeness !== "number" || completeness >= 1) {
-    return null;
-  }
+export const formatTranslationCompleteness = (
+	completeness: number | null,
+): string | null => {
+	if (typeof completeness !== "number" || completeness >= 1) {
+		return null;
+	}
 
-  return `${Math.round(completeness * 100)}% translated`;
+	return `${Math.round(completeness * 100)}% translated`;
 };

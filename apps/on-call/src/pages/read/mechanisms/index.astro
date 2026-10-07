@@ -3,72 +3,87 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
-import { buildTranslationLede, readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import {
+	buildTranslationLede,
+	readItemPath,
+	readRoutes,
+} from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
-const coreMechanismSlugs = new Set<string>(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
+const coreMechanismSlugs = new Set<string>(
+	bookConfig.mechanisms.map((mechanism) => mechanism.slug),
+);
 const urgencyBySlug: Record<string, string> = {};
 const urgencyOrder: Record<string, number> = {
-  urgent: 0,
-  "high-leverage": 1,
-  stabilize: 2,
+	urgent: 0,
+	"high-leverage": 1,
+	stabilize: 2,
 };
 const summarizeMeta = (value: string) => {
-  const firstSentence = value.split(/(?<=[.!?])\s+/)[0] ?? value;
-  if (firstSentence.length <= 110) return firstSentence;
-  return `${firstSentence.slice(0, 107).replace(/\s+\S*$/, "")}…`;
+	const firstSentence = value.split(/(?<=[.!?])\s+/)[0] ?? value;
+	if (firstSentence.length <= 110) return firstSentence;
+	return `${firstSentence.slice(0, 107).replace(/\s+\S*$/, "")}…`;
 };
-const { items: mechanismItems, completeness } = createLocalizedContentList(modules, {
-  defaultLocale: "en",
-  locale: Astro.locals?.locale,
-  mapEntry: ({ slug, module, isFallback }) => {
-    const frontmatter = module.frontmatter ?? {};
-    const urgency = urgencyBySlug[slug] ?? null;
-    const tags = [
-      urgency,
-      coreMechanismSlugs.has(slug) ? "core" : null,
-      isFallback ? "fallback" : null,
-    ].filter(Boolean);
-    const definition = typeof frontmatter.definition === "string" ? frontmatter.definition : "";
-    return {
-      href: readItemPath("mechanisms", slug),
-      title: frontmatter.title ?? "Untitled mechanism",
-      eyebrow: tags.join(" • "),
-      meta: summarizeMeta(definition),
-    };
-  },
-  sort: (a, b) => {
-    const urgencyA = urgencyOrder[a.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
-    const urgencyB = urgencyOrder[b.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
-    if (urgencyA !== urgencyB) return urgencyA - urgencyB;
-    return a.title.localeCompare(b.title);
-  },
-});
+const { items: mechanismItems, completeness } = createLocalizedContentList(
+	modules,
+	{
+		defaultLocale: "en",
+		locale: Astro.locals?.locale,
+		mapEntry: ({ slug, module, isFallback }) => {
+			const frontmatter = module.frontmatter ?? {};
+			const urgency = urgencyBySlug[slug] ?? null;
+			const tags = [
+				urgency,
+				coreMechanismSlugs.has(slug) ? "core" : null,
+				isFallback ? "fallback" : null,
+			].filter(Boolean);
+			const definition =
+				typeof frontmatter.definition === "string"
+					? frontmatter.definition
+					: "";
+			return {
+				href: readItemPath("mechanisms", slug),
+				title: frontmatter.title ?? "Untitled mechanism",
+				eyebrow: tags.join(" • "),
+				meta: summarizeMeta(definition),
+			};
+		},
+		sort: (a, b) => {
+			const urgencyA =
+				urgencyOrder[a.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
+			const urgencyB =
+				urgencyOrder[b.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
+			if (urgencyA !== urgencyB) return urgencyA - urgencyB;
+			return a.title.localeCompare(b.title);
+		},
+	},
+);
 // A tag that every mechanism carries doesn't help anyone choose between them,
 // so it is neither shown on the list nor offered as a filter.
 const tagCounts = new Map<string, number>();
 for (const item of mechanismItems) {
-  for (const tag of item.eyebrow?.split(" • ") ?? []) {
-    if (tag) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-  }
+	for (const tag of item.eyebrow?.split(" • ") ?? []) {
+		if (tag) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+	}
 }
 const isDistinguishingTag = (tag: string) => {
-  const count = tagCounts.get(tag) ?? 0;
-  return count > 0 && count < mechanismItems.length;
+	const count = tagCounts.get(tag) ?? 0;
+	return count > 0 && count < mechanismItems.length;
 };
 const listedMechanisms = mechanismItems.map((item) => ({
-  ...item,
-  eyebrow: item.eyebrow?.split(" • ").filter(isDistinguishingTag).join(" • ") || null,
+	...item,
+	eyebrow:
+		item.eyebrow?.split(" • ").filter(isDistinguishingTag).join(" • ") || null,
 }));
 const quickFilters = [
-  { value: "urgent", label: "Urgent" },
-  { value: "high-leverage", label: "High leverage" },
-  { value: "core", label: "Core" },
+	{ value: "urgent", label: "Urgent" },
+	{ value: "high-leverage", label: "High leverage" },
+	{ value: "core", label: "Core" },
 ].filter((filter) => isDistinguishingTag(filter.value));
 const localizedLede = buildTranslationLede(
-  "Recurring incident patterns, how to recognize each one, and what to do first.",
-  completeness
+	"Recurring incident patterns, how to recognize each one, and what to do first.",
+	completeness,
 );
 ---
 <BaseLayout title={`Mechanisms • ${bookConfig.title}`}>

@@ -60,4 +60,7 @@ export const toolkitDisplayName = (frontmatter: {
 	title?: string;
 	slug?: string;
 }): string =>
-	frontmatter.name || frontmatter.title || frontmatter.slug || "Untitled action";
+	frontmatter.name ||
+	frontmatter.title ||
+	frontmatter.slug ||
+	"Untitled action";

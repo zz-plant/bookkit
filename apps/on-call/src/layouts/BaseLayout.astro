@@ -10,34 +10,38 @@ const versionEntries = getVersionEntries();
 const pathname = Astro.url.pathname;
 const resolvedOgImage = Astro.props.ogImage ?? getOgImageForPath(pathname);
 const layoutState = createBookLayoutState({
-  astro: {
-    props: {
-      ...Astro.props,
-      ogImage: resolvedOgImage,
-    },
-    locals: Astro.locals,
-    url: Astro.url,
-  },
-  bookConfig,
-  versionEntries,
-  localizedContentModules: bookEntryPoints.localizedContentModules,
-  versionPrefix: "v",
+	astro: {
+		props: {
+			...Astro.props,
+			ogImage: resolvedOgImage,
+		},
+		locals: Astro.locals,
+		url: Astro.url,
+	},
+	bookConfig,
+	versionEntries,
+	localizedContentModules: bookEntryPoints.localizedContentModules,
+	versionPrefix: "v",
 });
 const {
-  seoProps,
-  hasServerRuntime,
-  resolvedVersion,
-  bookTitle,
-  bookKey,
-  aiQaEnabled,
-  aiQaProvider,
-  aiQaProviders,
-  renderState,
+	seoProps,
+	hasServerRuntime,
+	resolvedVersion,
+	bookTitle,
+	bookKey,
+	aiQaEnabled,
+	aiQaProvider,
+	aiQaProviders,
+	renderState,
 } = layoutState;
 // A static deploy has no endpoints to receive analytics; send no beacons.
 const runtimeEndpoints = hasServerRuntime
-  ? {}
-  : { analyticsEndpoint: "", exportAnalyticsEndpoint: "", previewAnalyticsEndpoint: "" };
+	? {}
+	: {
+			analyticsEndpoint: "",
+			exportAnalyticsEndpoint: "",
+			previewAnalyticsEndpoint: "",
+		};
 ---
 <BookLayout
   bookTitle={bookTitle}

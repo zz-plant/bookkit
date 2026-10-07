@@ -1,44 +1,49 @@
 ---
 import {
-  buildLocalePath,
-  formatLocaleLabel,
-  resolveLocaleConfig,
-  stripLocaleFromPath,
-  type LocaleEntry,
+	buildLocalePath,
+	formatLocaleLabel,
+	resolveLocaleConfig,
+	stripLocaleFromPath,
+	type LocaleEntry,
 } from "../localization/routes";
 
 const {
-  locales = [],
-  currentPath = Astro.url.pathname,
-  currentLocale,
-  defaultLocale,
-  includeDefaultPrefix = false,
-  label = "Language",
+	locales = [],
+	currentPath = Astro.url.pathname,
+	currentLocale,
+	defaultLocale,
+	includeDefaultPrefix = false,
+	label = "Language",
 } = Astro.props as {
-  locales?: LocaleEntry[];
-  currentPath?: string;
-  currentLocale?: string;
-  defaultLocale?: string;
-  includeDefaultPrefix?: boolean;
-  label?: string;
+	locales?: LocaleEntry[];
+	currentPath?: string;
+	currentLocale?: string;
+	defaultLocale?: string;
+	includeDefaultPrefix?: boolean;
+	label?: string;
 };
 
 const localeEntries = Array.isArray(locales) ? locales : [];
 const localeCodes = localeEntries.map((entry) => entry.code).filter(Boolean);
 const { defaultLocale: resolvedDefault } = resolveLocaleConfig(localeEntries, {
-  defaultLocale,
+	defaultLocale,
 });
-const { locale: detectedLocale, pathWithoutLocale } = stripLocaleFromPath(currentPath, localeCodes, {
-  defaultLocale: resolvedDefault,
-  includeDefaultPrefix,
-});
-const activeLocale = currentLocale ?? detectedLocale ?? resolvedDefault ?? localeCodes[0];
+const { locale: detectedLocale, pathWithoutLocale } = stripLocaleFromPath(
+	currentPath,
+	localeCodes,
+	{
+		defaultLocale: resolvedDefault,
+		includeDefaultPrefix,
+	},
+);
+const activeLocale =
+	currentLocale ?? detectedLocale ?? resolvedDefault ?? localeCodes[0];
 const basePath = pathWithoutLocale ?? currentPath;
 const options = { defaultLocale: resolvedDefault, includeDefaultPrefix };
 const links = localeEntries.map((entry) => ({
-  code: entry.code,
-  label: formatLocaleLabel(entry),
-  href: buildLocalePath(basePath, entry.code, options),
+	code: entry.code,
+	label: formatLocaleLabel(entry),
+	href: buildLocalePath(basePath, entry.code, options),
 }));
 const shouldRender = links.length > 1;
 ---

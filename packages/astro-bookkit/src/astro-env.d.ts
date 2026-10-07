@@ -6,19 +6,17 @@
 import type { PreviewAccessState } from "./preview/access";
 
 declare global {
-  namespace App {
-    interface Locals {
-      originalUrl?: string;
-      bookVersion?: string;
-      locale?: string;
-      localePath?: string;
-      preview?: PreviewAccessState;
-    }
-  }
+	namespace App {
+		interface Locals {
+			originalUrl?: string;
+			bookVersion?: string;
+			locale?: string;
+			localePath?: string;
+			preview?: PreviewAccessState;
+		}
+	}
 
-  interface ImportMetaEnv {
-    readonly SITE_URL?: string;
-  }
+	interface ImportMetaEnv {
+		readonly SITE_URL?: string;
+	}
 }
-
-export {};

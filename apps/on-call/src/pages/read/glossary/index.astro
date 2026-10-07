@@ -7,22 +7,25 @@ import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.glossary;
-const { items: entryItems, completeness } = createLocalizedContentList(modules, {
-  defaultLocale: "en",
-  locale: Astro.locals?.locale,
-  mapEntry: ({ slug, module, isFallback }) => {
-    const frontmatter = module.frontmatter ?? {};
-    const term = frontmatter.term ?? "Untitled term";
-    return {
-      href: readItemPath("glossary", slug),
-      title: isFallback ? `${term} (not yet translated)` : term,
-    };
-  },
-  sort: (a, b) => a.title.localeCompare(b.title),
-});
+const { items: entryItems, completeness } = createLocalizedContentList(
+	modules,
+	{
+		defaultLocale: "en",
+		locale: Astro.locals?.locale,
+		mapEntry: ({ slug, module, isFallback }) => {
+			const frontmatter = module.frontmatter ?? {};
+			const term = frontmatter.term ?? "Untitled term";
+			return {
+				href: readItemPath("glossary", slug),
+				title: isFallback ? `${term} (not yet translated)` : term,
+			};
+		},
+		sort: (a, b) => a.title.localeCompare(b.title),
+	},
+);
 const localizedLede = buildTranslationLede(
-  "The terms this book uses, defined.",
-  completeness
+	"The terms this book uses, defined.",
+	completeness,
 );
 ---
 <BaseLayout title={`Glossary • ${bookConfig.title}`}>

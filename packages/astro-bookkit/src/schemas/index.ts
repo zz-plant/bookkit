@@ -15,6 +15,7 @@ export {
  * schema's input type, so fields with defaults are optional, plus the
  * `locale` a translated entry carries (see localization/).
  */
-export type AuthoredFrontmatter<TSchema extends z.ZodType> = z.input<TSchema> & {
-	locale?: string;
-};
+export type AuthoredFrontmatter<TSchema extends z.ZodType> =
+	z.input<TSchema> & {
+		locale?: string;
+	};

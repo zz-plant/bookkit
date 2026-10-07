@@ -126,6 +126,19 @@ describe("corpus overlap", () => {
 		).toThrow("one vector per mechanism");
 	});
 
+	it("rejects vectors of different or zero dimension", () => {
+		const pair = [
+			mechanism("a", "one", "First."),
+			mechanism("b", "two", "Second."),
+		];
+		expect(() =>
+			analyzeCorpusOverlap(pair, { vectors: [[1], [1, 100]] }),
+		).toThrow("vector 1 has 2");
+		expect(() => analyzeCorpusOverlap(pair, { vectors: [[], []] })).toThrow(
+			"one nonzero dimension",
+		);
+	});
+
 	it("embeds the title, definition, and is list but not isNot", () => {
 		const text = corpusEmbeddingText(
 			mechanism("a", "delay-as-force", "Elapsed time is weaponized.", {

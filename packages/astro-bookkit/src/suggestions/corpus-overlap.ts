@@ -107,7 +107,7 @@ const cosine = (a: ArrayLike<number>, b: ArrayLike<number>): number => {
 	let dot = 0;
 	let normA = 0;
 	let normB = 0;
-	for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
+	for (let i = 0; i < a.length; i += 1) {
 		dot += a[i] * b[i];
 		normA += a[i] * a[i];
 		normB += b[i] * b[i];
@@ -136,6 +136,16 @@ export const analyzeCorpusOverlap = (
 		throw new Error(
 			`analyzeCorpusOverlap: got ${vectors.length} vectors for ${mechanisms.length} mechanisms; pass one vector per mechanism in the same order.`,
 		);
+	}
+	if (vectors && vectors.length > 0) {
+		// Mixed lengths would silently compare only a shared prefix and report false overlap.
+		const dimension = vectors[0].length;
+		const mismatch = vectors.findIndex((vector) => vector.length !== dimension);
+		if (dimension === 0 || mismatch !== -1) {
+			throw new Error(
+				`analyzeCorpusOverlap: vectors must share one nonzero dimension; vector 0 has ${dimension}${mismatch === -1 ? "" : `, vector ${mismatch} has ${vectors[mismatch].length}`}. Embed every mechanism with the same model.`,
+			);
+		}
 	}
 	const semanticThreshold =
 		options.semanticThreshold ?? DEFAULT_SEMANTIC_OVERLAP_THRESHOLD;

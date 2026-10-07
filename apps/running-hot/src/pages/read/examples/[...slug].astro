@@ -46,8 +46,9 @@ if (!module) {
 }
 
 const { frontmatter, default: Content } = module;
-const metaDescription = frontmatter.summary ?? frontmatter.description;
-const isFallback = missingSlugs.includes(frontmatter.slug);
+const metaDescription = frontmatter.summary;
+// Examples are keyed by file name; their frontmatter has no slug.
+const isFallback = missingSlugs.includes(slugParam);
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
 const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.examples);

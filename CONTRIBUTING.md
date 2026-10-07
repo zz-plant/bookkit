@@ -182,7 +182,7 @@ The canonical documents and their roles are listed once, in `AGENTS.md` → "Can
 GitHub Actions runs on every push and PR to `main` with the full quality gate:
 
 1. `bun run lint` — Biome style check
-2. `bun run check:types` — TypeScript 7 (native compiler) across all apps + package
+2. `bun run check:types` — `.ts` (TypeScript 7) and `.astro` (`astro check`) across all apps + package
 3. `bun run check:separation` — content boundary enforcement
 4. `bun run check:architecture` — architecture doc matches the tree
 5. `bun run check:todos` — TODO policy

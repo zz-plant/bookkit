@@ -7,6 +7,25 @@ export type ContentIndexItem = {
   badges?: string[] | null;
 };
 
+type ListToolMode = "auto" | "always" | boolean;
+
+type Props = {
+  title: string;
+  lede?: string;
+  items?: ContentIndexItem[];
+  backHref?: string;
+  backLabel?: string;
+  filterLabel?: string;
+  filterPlaceholder?: string;
+  filterMode?: ListToolMode;
+  filterHint?: string;
+  alphaMode?: ListToolMode;
+  itemActionLabel?: string;
+  quickFilters?: Array<{ value: string; label: string }>;
+  quickFiltersLabel?: string;
+  quickFiltersClearLabel?: string;
+};
+
 const {
   title,
   lede,
@@ -42,7 +61,7 @@ const alphaGroups = resolvedItems.reduce((groups, item) => {
   if (!groups.has(key)) groups.set(key, []);
   groups.get(key)?.push(item);
   return groups;
-}, new Map());
+}, new Map<string, ContentIndexItem[]>());
 const alphaKeys = Array.from(alphaGroups.keys());
 const listSummary = `${resolvedItems.length} ${resolvedItems.length === 1 ? "item" : "items"}`;
 const showDensityToggle = resolvedItems.length > 9;

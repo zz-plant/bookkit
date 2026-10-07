@@ -76,7 +76,14 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 
   const RATE_LIMIT_MS = 1000 * 60 * 60 * 24;
 
-  const sanitizeComment = (value) => {
+  type FeedbackEvent = {
+    eventType: string;
+    timestamp: number;
+    slug?: string;
+    [key: string]: unknown;
+  };
+
+  const sanitizeComment = (value: string) => {
     if (!value) return "";
     return value
       .replace(/https?:\/\/\S+/gi, "")
@@ -87,7 +94,7 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
       .slice(0, 240);
   };
 
-  const loadEvents = (storageKey) => {
+  const loadEvents = (storageKey: string): FeedbackEvent[] => {
     try {
       const stored = localStorage.getItem(storageKey);
       const parsed = stored ? JSON.parse(stored) : [];
@@ -97,7 +104,7 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     }
   };
 
-  const resolveEndpoint = (value) => {
+  const resolveEndpoint = (value: string | undefined) => {
     if (!value || typeof value !== "string") return null;
     try {
       const url = new URL(value, window.location.origin);
@@ -110,7 +117,7 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     return null;
   };
 
-  const sendToEndpoint = async (endpoint, event) => {
+  const sendToEndpoint = async (endpoint: string | null, event: FeedbackEvent) => {
     if (!endpoint) return;
     const payload = JSON.stringify(event);
     if (navigator.sendBeacon) {
@@ -139,37 +146,39 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     haptics.trigger(preset);
   };
 
-  const saveEvent = (storageKey, event) => {
+  const saveEvent = (storageKey: string, event: FeedbackEvent) => {
     const events = loadEvents(storageKey);
     events.push(event);
     localStorage.setItem(storageKey, JSON.stringify(events.slice(-400)));
   };
 
-  const getRecentSubmission = (events, slug) => {
+  const getRecentSubmission = (events: FeedbackEvent[], slug: string | undefined) => {
     const recent = [...events]
       .filter((event) => event.eventType === "feedback" && event.slug === slug)
       .sort((a, b) => b.timestamp - a.timestamp)[0];
     return recent && Date.now() - recent.timestamp < RATE_LIMIT_MS ? recent : null;
   };
 
-  const renderWidget = (widget) => {
+  const renderWidget = (widget: HTMLElement) => {
     const slug = widget.dataset.feedbackSlug;
     const title = widget.dataset.feedbackTitle || slug;
     const contentType = widget.dataset.feedbackType || "chapter";
     const endpoint = resolveEndpoint(widget.dataset.feedbackEndpoint);
-    const status = widget.querySelector("[data-feedback-status]");
-    const notePanel = widget.querySelector("[data-feedback-note]");
-    const commentField = widget.querySelector("[data-feedback-comment]");
-    const submitButton = widget.querySelector("[data-feedback-submit]");
-    const skipButton = widget.querySelector("[data-feedback-skip]");
-    const choiceButtons = Array.from(widget.querySelectorAll("[data-feedback-choice]"));
+    const status = widget.querySelector<HTMLElement>("[data-feedback-status]");
+    const notePanel = widget.querySelector<HTMLElement>("[data-feedback-note]");
+    const commentField = widget.querySelector<HTMLTextAreaElement>("[data-feedback-comment]");
+    const submitButton = widget.querySelector<HTMLButtonElement>("[data-feedback-submit]");
+    const skipButton = widget.querySelector<HTMLButtonElement>("[data-feedback-skip]");
+    const choiceButtons = Array.from(
+      widget.querySelectorAll<HTMLButtonElement>("[data-feedback-choice]")
+    );
 
     const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
     const storageKey = `${analyticsKeyPrefix}.feedback.events`;
     const version = document.body?.dataset?.bookVersion || "draft";
     const impressionKey = `${analyticsKeyPrefix}.feedback.impression.${slug}`;
 
-    const announce = (message) => {
+    const announce = (message: string) => {
       if (status) status.textContent = message;
     };
 
@@ -206,9 +215,9 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
       return;
     }
 
-    let selectedChoice = null;
+    let selectedChoice: string | null = null;
 
-    const submitFeedback = (choice, comment) => {
+    const submitFeedback = (choice: string | null, comment: string) => {
       if (!choice) {
         announce("Select a reaction before sending your note.");
         return;
@@ -262,6 +271,6 @@ const noteId = `feedback-note-${String(slug).replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
     });
   };
 
-  document.querySelectorAll("[data-feedback-widget]").forEach(renderWidget);
+  document.querySelectorAll<HTMLElement>("[data-feedback-widget]").forEach(renderWidget);
   window.addEventListener("pagehide", () => haptics?.destroy(), { once: true });
 </script>

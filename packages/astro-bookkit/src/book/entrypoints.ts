@@ -1,11 +1,30 @@
+import type { MDXInstance } from "astro";
 import type { ReleaseModule } from "../releases/notes";
+import type {
+  AuthoredFrontmatter,
+  chapterSchema,
+  exampleSchema,
+  glossarySchema,
+  mechanismSchema,
+  toolkitSchema,
+} from "../schemas";
+
+/**
+ * One eagerly globbed MDX file per content section. Book apps pass these as
+ * the type argument to `import.meta.glob` so pages see typed frontmatter.
+ */
+export type ChapterModule = MDXInstance<AuthoredFrontmatter<typeof chapterSchema>>;
+export type MechanismModule = MDXInstance<AuthoredFrontmatter<typeof mechanismSchema>>;
+export type ToolkitModule = MDXInstance<AuthoredFrontmatter<typeof toolkitSchema>>;
+export type GlossaryModule = MDXInstance<AuthoredFrontmatter<typeof glossarySchema>>;
+export type ExampleModule = MDXInstance<AuthoredFrontmatter<typeof exampleSchema>>;
 
 export type BookContentModules = {
-  chapters: Record<string, unknown>;
-  mechanisms: Record<string, unknown>;
-  toolkit: Record<string, unknown>;
-  glossary: Record<string, unknown>;
-  examples: Record<string, unknown>;
+  chapters: Record<string, ChapterModule>;
+  mechanisms: Record<string, MechanismModule>;
+  toolkit: Record<string, ToolkitModule>;
+  glossary: Record<string, GlossaryModule>;
+  examples: Record<string, ExampleModule>;
 };
 
 export type BookContentRawModules = {
@@ -19,7 +38,7 @@ export type BookContentRawModules = {
 export type BookEntryPoints = {
   contentModules: BookContentModules;
   contentRawModules: BookContentRawModules;
-  localizedContentModules: Array<Record<string, unknown>>;
+  localizedContentModules: Array<BookContentModules[keyof BookContentModules]>;
   releaseModules: Record<string, ReleaseModule>;
 };
 

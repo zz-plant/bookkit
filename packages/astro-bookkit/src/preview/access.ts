@@ -168,9 +168,9 @@ export const createPreviewLinks = (
 	}));
 };
 
-export const getPreviewContext = (
-	locals: Record<string, unknown>,
-): PreviewAccessState | null => {
+export const getPreviewContext = (locals: {
+	preview?: unknown;
+}): PreviewAccessState | null => {
 	const value = locals?.preview;
 	if (!value || typeof value !== "object") return null;
 	return value as PreviewAccessState;

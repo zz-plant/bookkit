@@ -245,7 +245,7 @@ Use this as the default machine interface instead of ad-hoc repository scraping.
 GitHub Actions runs on every push and PR to `main`:
 
 - `bun run lint` — Biome style check
-- `bun run check:types` — TypeScript 7 (native compiler) across all apps + package; `-- --tsc` falls back to TypeScript 5
+- `bun run check:types` — every app and package end to end: `.ts` with TypeScript 7, `.astro` with `astro check` (`-- --no-astro` skips the second pass; `-- --tsc` uses TypeScript 5 for the first)
 - `bun run check:separation` — content boundary enforcement
 - `bun run check:architecture` — architecture doc matches the tree (module map, tiers, cycles)
 - `bun run check:todos` — TODO policy check

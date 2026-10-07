@@ -3,12 +3,25 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — `.astro` files are type-checked
+
+- **`bun run check:types` now checks `.astro` files.** After the TypeScript 7 pass, it runs `astro check` on every book and on the engine, in parallel. The 116 `.astro` files (24 engine components and layouts, 92 book pages) had never been type-checked: each book had about 265 errors and the engine 109. All are fixed, and the gate fails on new ones. `-- --no-astro` skips this pass for a quick loop. About 27s locally.
+- **Content modules are typed.** `BookContentModules` was `Record<string, unknown>` for every section, so pages saw untyped, possibly-undefined frontmatter. Each section is now `MDXInstance<AuthoredFrontmatter<schema>>`: the schema's input type (fields with defaults are optional, since pages read raw frontmatter) plus `locale`. The engine exports `ChapterModule`, `MechanismModule`, `ToolkitModule`, `GlossaryModule`, `ExampleModule`, and `AuthoredFrontmatter`. The `book-runtime.ts` shim passes them to `import.meta.glob`.
+- **`Astro.locals` is typed.** The engine's `astro-env.d.ts` augmented a `Locals` interface Astro does not read. It now declares the global `App.Locals` (`locale`, `localePath`, `originalUrl`, `bookVersion`, `preview`). Books load it with `"types": ["astro/client", "@bookkit/astro-bookkit/env"]` in their tsconfig.
+- **Bugs the check found, now fixed:**
+  - A tool with a `title` and no `name` (which the schema allows) rendered as "undefined" in its page title, an empty `<h1>`, and "Untitled action" in lists. All 10 Crumple Zone tools were affected. New `toolkitDisplayName()` applies the schema's rule (`name`, else `title`) everywhere a tool is named.
+  - Example pages never showed the "not yet translated" notice: they looked up `frontmatter.slug`, which examples do not have. They now use the route's slug. Glossary pages, whose `slug` is optional, do the same.
+- `exampleSchema` gains an optional `summary` (the page already read it for the meta description); the unused `description` fallback is dropped.
+- Engine types accept readonly locale lists (`as const` book configs), and `createBookLayoutState` takes `App.Locals`.
+
+**Migration (books outside this repo):** add `"@bookkit/astro-bookkit/env"` to `compilerOptions.types` in the book's tsconfig, and re-sync shims (`bun run sync:shims`) so `book-runtime.ts` types its globs. Pages that read `module.frontmatter ?? {}` keep working; the fallback is no longer needed.
+
 ## 2026-10-07 — Typecheck on TypeScript 7
 
 - **`bun run check:types` uses TypeScript 7.0.2, the native compiler.** The same five projects typecheck in about 4s instead of about 18s locally; in CI, typecheck was 26s of a 53s run. It reports the same errors as TypeScript 5 on the current tree and on planted errors.
 - TypeScript 7 is the devDependency `typescript-native` (an npm alias, pinned). The `typescript` package stays on 5.x because `scripts/validate-book.ts` parses `book.config.ts` with the 5.x compiler API, which 7.x replaced. Editors keep using 5.x.
 - `bun run check:types -- --tsc` runs the old TypeScript 5 check, as a fallback.
-- Neither compiler reads `.astro` files; `astro check` is not part of the gate.
+- Neither compiler reads `.astro` files (see the entry above for `astro check`).
 
 ## 2026-10-07 — Docs streamlined
 

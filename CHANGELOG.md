@@ -3,6 +3,20 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Reader typography: two voices, one ink, book order
+
+**Highlights**
+
+- **Fonts are now chosen and shipped.** The stylesheet named Inter and Merriweather but never loaded either, so every book rendered in whatever the reader's OS had (usually Times or Georgia). The engine now depends on `@fontsource-variable/newsreader` (Production Type, OFL, optical sizes 6–72) for the book and `@fontsource/fragment-mono` (Wei Huang, OFL) for the apparatus: navigation, breadcrumbs, mechanism contract labels, status, file sizes. `BookLayout` imports both. A typical first page view downloads about 300 KB of fonts (Newsreader roman and italic plus Fragment Mono, Latin subset), cached immutably under `/_astro/`.
+- **New colour system: paper, ink, rubric.** `--color-paper`, `--color-ink`, and `--color-rubric` replace the teal accent; muted text, borders, and rules are ink mixed toward paper. `--color-accent*` now resolve to ink, so existing tinted components turn neutral. Shadows and the background gradient are gone (`--shadow-*` resolve to `none`), and hard-coded radii are tokenised as `--radius-control` / `--radius-pill` (2px).
+- **Reading surfaces are unboxed.** Chapter, mechanism, hub, and index pages use hairline rules and space instead of cards, pills, and chips. Body text is 19px (18px on phones) at 1.5 leading with a ~68-character measure, old-style figures, `text-wrap: pretty`, hanging punctuation, hung en-dash list markers, and hyphenation on phones.
+- **Header becomes a running head.** It shows the short title (text before the first colon) in italic, with the full title in `title`. The version badge is hidden when the reader is on the latest version. `⌘K` is hidden on touch devices. On phones the header is one line and navigation lives only in the bottom bar, which is now a flat full-width strip.
+- **Fixed: the Menu was unreachable on desktop.** Release notes, Version and language, Appearance, Ask, and Shortcuts sat in an overflow panel that stayed `hidden` at ≥721px while its toggle was `display: none`. The Menu toggle now shows at every width and opens a dropdown on desktop and a sheet on phones.
+- **Fixed: chapters were in alphabetical order.** Chapter prev/next links sorted by slug, and `ContentIndexList` auto-grouped any list over 10 items by first letter, so `running-hot` and `crumple-zone` listed chapters A–Z. Chapter pages now follow `order` when set, else the numbered file order; chapter indexes pass `alphaMode={false}`.
+- **New skill: `.codex/skills/reader-typography/SKILL.md`**, exposed as an MCP governance resource. `.claude/skills` is a symlink to `.codex/skills` so Claude Code sessions load the repo's lane skills too.
+
+**Scope**: engine (`styles/`, `components/read-hub/`, `layouts/`, `mcp/governance.ts`), identical edits to `read/chapters/[slug].astro` and `read/chapters/index.astro` in all four books, typographic punctuation in four content titles. No schema, frame, or validator changes.
+
 ## 2026-10-05 — Reader UX pass: mobile menu, dark-mode tokens, list filters
 
 **Highlights**

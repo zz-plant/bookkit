@@ -1,6 +1,6 @@
 export const bookConfig = {
   slug: "running-hot",
-  title: "Don't Turn People Into Infrastructure: Why Institutions Run Hot - and Who They Burn",
+  title: "Don’t Turn People Into Infrastructure: Why Institutions Run Hot — and Who They Burn",
   status: "draft",
   site: {
     url: "https://running-hot.book",

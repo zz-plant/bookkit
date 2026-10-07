@@ -1,4 +1,7 @@
 ---
+import "@fontsource-variable/newsreader/opsz.css";
+import "@fontsource-variable/newsreader/opsz-italic.css";
+import "@fontsource/fragment-mono/400.css";
 import "../styles/bookkit.css";
 import bookLayoutUiClient from "./book-layout/ui.ts?url";
 import bookLayoutAnalyticsClient from "./book-layout/analytics.ts?url";
@@ -164,7 +167,7 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
         bookTitle={bookTitle}
         isPreview={renderState.preview.isPreview}
         previewLabel={renderState.preview.label}
-        versionBadgeLabel={renderState.version.badgeLabel}
+        versionBadgeLabel={renderState.version.currentVersionIsLatest ? null : renderState.version.badgeLabel}
         isReadRoute={renderState.routes.isReadRoute}
         isDownloadsRoute={renderState.routes.isDownloadsRoute}
         isReadDetailRoute={renderState.routes.isReadDetailRoute}

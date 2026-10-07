@@ -45,48 +45,45 @@
 }
 
 .quick-start-card h2 {
-  font-size: 1.1rem;
+  font-size: var(--text-md);
+  font-weight: 500;
   margin: 0;
 }
 
 .quick-start-card--recommended {
-  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  border-top-color: var(--color-ink);
 }
 
 .quick-start-card--recommended .eyebrow {
-  color: var(--color-accent-strong);
-  font-weight: 700;
+  color: var(--color-rubric);
 }
 
 .read-pill {
   display: inline-flex;
-  align-items: center;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 12%, transparent);
-  background: var(--color-surface);
-  color: var(--color-accent-strong);
-  padding: 0.35rem 0.72rem;
-  font-size: 0.84rem;
-  font-weight: 500;
+  align-items: baseline;
+  font-family: var(--font-apparatus);
+  font-size: var(--text-apparatus);
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--color-faint);
+  text-underline-offset: 0.2em;
 }
 
 .read-pill--primary {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent);
-  border-color: transparent;
-  padding: 0.5rem 1.05rem;
-  font-size: 0.93rem;
-  font-weight: 700;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border-radius: var(--radius-control);
+  padding: 0.5rem 1rem;
+  text-decoration: none;
 }
 
 .read-pill:hover {
-  border-color: color-mix(in srgb, var(--color-accent) 28%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-rubric);
 }
 
 .read-pill--primary:hover {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-rubric);
+  color: var(--color-paper);
 }
 
 .read-pill:focus-visible,
@@ -126,23 +123,26 @@
 .bucket-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.5rem 1.25rem;
   margin-bottom: 0.75rem;
 }
 
 .bucket-tab {
-  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-accent-strong);
-  padding: 0.35rem 0.75rem;
-  font-size: var(--text-sm);
-  font-weight: 600;
+  border: 0;
+  background: none;
+  color: var(--color-muted);
+  padding: 0.25rem 0;
+  font-family: var(--font-apparatus);
+  font-size: var(--text-apparatus);
+  cursor: pointer;
 }
 
 .bucket-tab[aria-selected="true"] {
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--color-rubric);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
 }
 
 .bucket-grid {
@@ -155,14 +155,14 @@
   box-shadow: none;
 }
 
-.read-card:hover,
-.read-surface-card:hover {
-  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+.read-card:hover h3,
+.read-card:hover h4,
+.read-surface-card:hover h4 {
+  color: var(--color-rubric);
 }
 
 .read-surface-card {
   position: relative;
-  min-height: 9rem;
 }
 
 .read-surface-card h4 {
@@ -176,28 +176,17 @@
 }
 
 .read-meta-chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  font-family: var(--font-apparatus);
+  font-size: var(--text-apparatus);
   color: var(--color-muted);
-  font-size: 0.72rem;
-  line-height: 1.2;
-  font-weight: 600;
-  padding: 0.28rem 0.55rem;
-  letter-spacing: 0.01em;
 }
 
 .read-meta-chip--status {
-  border-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-muted);
 }
 
 .read-meta-chip--update {
-  border-color: color-mix(in srgb, var(--color-accent) 26%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-  color: var(--color-accent-strong);
+  color: var(--color-rubric);
 }
 
 .read-meta-actions {

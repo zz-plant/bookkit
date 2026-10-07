@@ -64,7 +64,7 @@ Candidate clusters, for the author to judge:
 
 ## Candidate bets
 
-Status: **proposed**. The author picks the anchor; agents do not start either build until then.
+Status: **proposed**. The author picks the anchor; agents do not start either build until then. The one exception is B2's public-corpus dry run: it is a read-only probe that writes nothing to the repo, so agents may run it before the pick.
 
 ### B1: One argument, three drafts
 
@@ -87,14 +87,14 @@ Status: **proposed**. The author picks the anchor; agents do not start either bu
 | `user` | An on-call or ops lead who owns runbooks in a wiki or repo today. None identified yet; find three. |
 | `claim` | "Your runbooks rot silently. Bookkit fails the PR when a procedure loses its owner, drill, or escalation, and tells you which controls lost coverage." |
 | `surface` | CI output and the PR check, not the reader site. |
-| `build` | Nothing new before the test. Run `bookkit import`, `propose`, and `check:runbooks` on real runbooks, starting with a public corpus as a dry run. |
+| `build` | Nothing new before the test. Run `bookkit import`, `propose`, and `check:runbooks:error` (warn mode exits 0, so only error mode fails a PR) on real runbooks, starting with a public corpus as a dry run. |
 | `is` | Import fidelity on messy real runbooks; clarity of CI output. |
 | `isNot` | Reader UI, compliance certification, MCP hardening, a hosted platform. |
 | `prediction` | A real runbook folder becomes a passing runbook-frame book in under an hour of author time, and at least one of three owners wants the check in their CI. |
 | `test` | Three conversations and three real corpora through the pipeline, recording where it breaks. |
 | `killBy` | If none of the three would add it to CI, park the runbook wedge. The frame stays; it costs nothing to keep. |
 
-B1 can start immediately because its user is already here. B2's test needs conversations only the author can have; agents can run the public-corpus dry run in the meantime.
+B1 can start immediately because its user is already here. B2's test needs conversations only the author can have; the public-corpus dry run (the exception above) can happen in the meantime.
 
 ---
 

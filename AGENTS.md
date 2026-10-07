@@ -11,6 +11,7 @@ This file defines non-negotiable rules for human and AI contributors. If guidanc
 - `CONTRIBUTING.md` → contribution workflow + lanes
 - `AGENTS.md` → hard invariants + risk boundaries
 - `docs/bets.md` → what gets worked on next and why (anchor, active bets, parked work)
+- `CHANGELOG.md` → dated behavior changes and migration notes
 - app/package READMEs → local orientation only
 
 Prefer linking over policy duplication.
@@ -97,7 +98,7 @@ When modifying schemas, validators, frames, or compiler behavior:
 Breaking schema/validator changes must include:
 
 - explicit error messaging
-- migration notes in README, commit message, or PR body
+- migration notes in `CHANGELOG.md`, the commit message, or the PR body
 
 ---
 

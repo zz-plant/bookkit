@@ -3,6 +3,24 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Docs streamlined
+
+- **Removed 65 files (~33k words)**, all recoverable from git at `2ca1b3e`:
+  - 42 spec/PRD files: `bad-people`'s 14 copied verbatim into `running-hot` and `crumple-zone`, plus the engine's feature-spec snapshot.
+  - Three identical `USER_JOURNEY_CRITIQUE.md` files.
+  - Eight UI critiques and reviews from February and March.
+  - Superseded planning docs: `priority-agent-features`, `prd-completion-user-stories-and-specs`, `audit-findings-consolidated`, `refactoring-targets-2026-03`, `mcp-agent-skills-research`, and the shipped and parked gap analyses for the runbook wedge and reader forking.
+  - Root `UX_AUDIT.md`, `FRONTEND_INEFFICIENCIES.md`, `SCRATCHPAD.md`, and `STACK_CAPABILITIES_RESEARCH.md`.
+- **README:**
+  - "Headline numbers" claimed 140 tests and "two teaching books"; it is now "What's here".
+  - "Commercial direction" called the runbook wedge the first product while that bet is parked; it is now "Direction", pointing to `docs/bets.md`.
+  - Five sections that repeated `AGENTS.md`, `CONTRIBUTING.md`, or `CHANGELOG.md` are removed: the decision guide, the risk rule of thumb, the second compile diagram, the migration notes, and the contribution model.
+  - The doc map lists the canonical set: the README, `AGENTS.md`, `CONTRIBUTING.md`, architecture, design notes, authorship model, bets, roadmap, debt register, CHANGELOG, skills, and package and book READMEs.
+- **One list of canonical documents.** It now lives in `AGENTS.md`, which also lists the CHANGELOG as where migration notes go. CONTRIBUTING links to that list instead of keeping its own copy.
+- **MCP governance resources:** the stale stack scan and MCP research note are replaced with `docs/architecture.md`, `docs/bets.md`, and `docs/design-notes.md`.
+- **`bun run stack:capabilities`** prints its report instead of rewriting a root file.
+- **Book TODO trackers:** the stale audit items are dropped (the mobile header item was done by the typography pass), Crumple Zone's file no longer says "Bad People", and `on-call` loses its item to re-review a retired doc.
+
 ## 2026-10-07 — Content: `human-heat-sink` combined into `crumple-zone` (bet B1)
 
 - `running-hot/human-heat-sink` and `crumple-zone/crumple-zone` are one mechanism, `crumple-zone`, with an identical contract in both books. The definition and lists are merged, and the measurable predictions and tests come from Running Hot. Each book keeps its own body prose.

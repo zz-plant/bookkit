@@ -48,7 +48,7 @@
 		"export:smoke": "bun run scripts/export-smoke.ts",
 		"check:separation": "bun run scripts/check-separation.ts",
 		"check:architecture": "bun run scripts/check-architecture.ts",
-		"stack:capabilities": "bun run scripts/stack-capabilities.ts --write STACK_CAPABILITIES_RESEARCH.md",
+		"stack:capabilities": "bun run scripts/stack-capabilities.ts",
 		"validate:release:seo": "BOOKKIT_REQUIRE_INDEXABLE_PROD=true bun run scripts/validate-all.ts --mode error --no-drafts",
 		"setup:codex": "bash scripts/codex-setup.sh",
 		"check:todos": "bun run scripts/check-todos.ts",

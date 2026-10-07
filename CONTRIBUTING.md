@@ -173,12 +173,7 @@ Use a concise structure to improve review speed:
 
 ## Documentation governance
 
-- `README.md` = orientation and operations
-- `docs/architecture.md` = system structure, module map, import tiers
-- `CONTRIBUTING.md` = workflow and lane selection
-- `AGENTS.md` = invariants and guardrails
-
-Link to canonical sections instead of duplicating long policy text.
+The canonical documents and their roles are listed once, in `AGENTS.md` → "Canonical document roles". Link to them instead of duplicating policy text, and don't add audit, PRD, or critique documents for work that serves no bet in `docs/bets.md`; record findings as rows in `docs/tech-debt-register.md` instead.
 
 ---
 

@@ -31,7 +31,7 @@ This maps to the [three-pillar authorship model](./authorship-model.md):
 - [ ] **Track 2: MCP discovery and metadata hardening** — in progress.
 - [ ] **Track 3: Governance APIs** — next.
 - [ ] **Track 4: Reader Forking** — future. Blocked on Track 3 infrastructure (validation + schema reuse).
-- [x] **Track 5: Runbook/SOP wedge** — shipped 2026-09-04 (see `docs/sop-wedge-gap-analysis.md` for phase evidence).
+- [x] **Track 5: Runbook/SOP wedge** — shipped 2026-09-04 (phase evidence in `CHANGELOG.md`, 2026-09-04 and 2026-09-14 entries).
 
 Use `docs/tech-debt-register.md` as the canonical queue for open remediation tasks tied to these tracks.
 
@@ -117,7 +117,7 @@ Success criteria:
 - reader annotations survive source book updates via stable slug binding
 - reader can use an agent to suggest next mechanisms based on their progress
 
-For gap analysis and implementation sequencing, see [`docs/reader-forking-gap-analysis.md`](./reader-forking-gap-analysis.md).
+Reader forking is parked (`docs/bets.md`). Its gap analysis was retired on 2026-10-07; recover it with `git show 2ca1b3e:docs/reader-forking-gap-analysis.md`.
 
 ### Track 5: Runbook/SOP wedge (shipped 2026-09-04)
 
@@ -129,7 +129,7 @@ Deliverables:
 - runbook schema extensions (branching steps, ownership, drills, escalation, control mapping)
 - derived compliance/audit matrix + drill-coverage verification surface
 
-Sequencing and gap details: [`docs/sop-wedge-gap-analysis.md`](./sop-wedge-gap-analysis.md).
+Shipped; what landed is in `CHANGELOG.md`. The gap analysis was retired on 2026-10-07; recover it with `git show 2ca1b3e:docs/sop-wedge-gap-analysis.md`.
 
 ## Sequencing
 

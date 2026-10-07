@@ -115,7 +115,7 @@ B2's test needs conversations only the author can have; the public-corpus dry ru
 - Reader forking (Track 4)
 - New proof books and new frames
 
-Candidates to archive once a bet is chosen: the `docs/ui-*` critiques, `docs/new-user-route-ux-critique.md`, `docs/priority-agent-features.md`, `docs/prd-completion-user-stories-and-specs.md`, `apps/bad-people/specs/prd-*.md`, and the root `UX_AUDIT.md`, `FRONTEND_INEFFICIENCIES.md`, `STACK_CAPABILITIES_RESEARCH.md`, `SCRATCHPAD.md`.
+The audits, critiques, PRDs, and research notes listed here as archive candidates were removed on 2026-10-07 (65 files; see `CHANGELOG.md`). They remain in git history at `2ca1b3e`.
 
 ## Updating this document
 

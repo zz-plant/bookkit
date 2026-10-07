@@ -3,6 +3,13 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Find similar mechanisms by meaning
+
+- **`bookkit similar "<title>" --semantic`**, and `semantic: true` on the `bookkit.find_similar_mechanisms` MCP tool, rank existing mechanisms by meaning with `check:corpus`'s embedding model. If the model can't load, it falls back to wording and says so. A warm lookup takes about 10s.
+  - Example: "Waiting as leverage" with a one-sentence definition ranks `delay-as-force` first by meaning (0.83, next 0.76). By wording, the same query put it fourth behind mechanisms that merely share common words.
+- **Wording-based ranking weighs rare words more.** Words that most mechanisms use, such as "people" and "institution", count for little. Stemming no longer turns "less" into "les".
+- The result field `overlap` is renamed `score`. It is a weighted word share for wording and cosine similarity for meaning.
+
 ## 2026-10-07 — Bookkit's MCP tools over stdio
 
 - **New: `bun run mcp`**, a stdio MCP server built on the engine's existing JSON-RPC router. It needs no dev server, and `.mcp.json` registers it as `bookkit` for Claude Code. The content tools read one book (`-- --book <slug>`, default the first). The workspace tools (`list_books`, `validate_book`, `compile_book`, `export_book`, `check_separation`, `create_book`) take a book argument as before. It answers malformed lines with JSON-RPC errors instead of exiting.

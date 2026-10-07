@@ -266,7 +266,7 @@ Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp
 
 Use this as the default machine interface instead of ad-hoc repository scraping. On a static deployment only the `GET` manifest is served; tool calls need an on-demand runtime (run `bun run bookkit dev <book>` locally).
 
-For agents working in this repository, the same tools run over stdio with no dev server: `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the first book otherwise). `.mcp.json` registers it as `bookkit`, so Claude Code offers it on first use. Two tools serve bet B1: `bookkit.find_similar_mechanisms` (does a mechanism for this idea already exist, in any book?) and `bookkit.check_corpus` (overlap, drift, and stale rulings across books). Tool results follow MCP: a `text` content item with the JSON, plus the same object as `structuredContent`.
+For agents working in this repository, the same tools run over stdio with no dev server: `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the first book otherwise). `.mcp.json` registers it as `bookkit`, so Claude Code offers it on first use. Two tools serve bet B1: `bookkit.find_similar_mechanisms` (does a mechanism for this idea already exist, in any book? pass `semantic: true` to compare meaning, not just wording) and `bookkit.check_corpus` (overlap, drift, and stale rulings across books). Tool results follow MCP: a `text` content item with the JSON, plus the same object as `structuredContent`.
 
 ### CI
 

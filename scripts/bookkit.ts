@@ -7,6 +7,7 @@ import {
 	booksWithMechanism,
 	chapterSource,
 	findSimilarMechanisms,
+	findSimilarMechanismsByMeaning,
 	listChapterFiles,
 	nextChapterFileName,
 	summarizeBook,
@@ -64,16 +65,30 @@ switch (command) {
 		const title = positional.find((arg) => arg !== definition);
 		if (!title) {
 			console.error(
-				'Usage: bun run bookkit similar "<title>" [--definition "<one sentence>"] [--json]',
+				'Usage: bun run bookkit similar "<title>" [--definition "<one sentence>"] [--semantic] [--json]',
 			);
 			process.exit(1);
 		}
 		const slug = slugify(title);
+		// --semantic ranks by meaning with check:corpus's model; it falls back
+		// to wording when the model cannot load.
+		const byMeaning = args.includes("--semantic")
+			? await findSimilarMechanismsByMeaning({ title, definition }, books, 5)
+			: null;
+		const semantic = byMeaning && "matches" in byMeaning ? byMeaning : null;
 		const result = {
 			title,
 			slug,
 			existingSlug: booksWithMechanism(slug).map((holder) => holder.book),
-			similar: findSimilarMechanisms({ title, definition }, books, 5),
+			method: semantic ? "meaning" : "wording",
+			model: semantic?.model,
+			note:
+				byMeaning && "error" in byMeaning
+					? `Ranked by wording; the model did not load: ${byMeaning.error}`
+					: undefined,
+			similar:
+				semantic?.matches ??
+				findSimilarMechanisms({ title, definition }, books, 5),
 		};
 		if (args.includes("--json")) {
 			console.log(JSON.stringify(result, null, 2));
@@ -84,9 +99,14 @@ switch (command) {
 		} else if (result.similar.length === 0) {
 			console.log(`No existing mechanism shares wording with "${title}".`);
 		} else {
+			if (result.note) console.log(result.note);
+			console.log(`Closest by ${result.method}:`);
 			for (const match of result.similar) {
+				const detail = semantic
+					? `similarity ${match.score.toFixed(2)}`
+					: `shares: ${match.sharedWords.join(", ")}`;
 				console.log(
-					`${match.slug}  "${match.title}"  in ${match.books.join(", ")}  (shares: ${match.sharedWords.join(", ")})`,
+					`  ${match.slug}  "${match.title}"  in ${match.books.join(", ")}  (${detail})`,
 				);
 			}
 		}
@@ -595,7 +615,8 @@ Check
   status [--json]                           chapters, stubs, mechanisms, and tools per book
   check [book] [--quick]                    structure, plus mechanisms that overlap across books
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
-  similar "<title>" [--definition "…"]      existing mechanisms, in any book, that a new one might duplicate
+  similar "<title>" [--definition "…"] [--semantic]
+                                            existing mechanisms, in any book, that a new one might duplicate
   validate [book]                           structure only
 
 Preview and publish

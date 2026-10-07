@@ -98,7 +98,7 @@ export const bookConfig = {
 			actionPrimitiveCountTarget: 1,
 		},
 		{
-			slug: "coercive-waiting",
+			slug: "delay-as-force",
 			focus: "Waiting used to exhaust options and coerce agreement.",
 			actionPrimitiveCountTarget: 1,
 		},
@@ -119,7 +119,7 @@ export const bookConfig = {
 		"transfer success",
 		"moral technology",
 		"compliance trap",
-		"coercive waiting",
+		"delay as force",
 		"reputation membrane",
 		"reversal capacity",
 		"repair clock",

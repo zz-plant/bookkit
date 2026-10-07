@@ -27,15 +27,16 @@ export {
 } from "./concept-triage";
 export type {
 	CorpusCluster,
+	CorpusDistinctDecision,
 	CorpusMechanism,
 	CorpusOverlapOptions,
 	CorpusOverlapReport,
 	CorpusPair,
+	CorpusSharedMechanism,
 } from "./corpus-overlap";
 export {
 	analyzeCorpusOverlap,
 	corpusEmbeddingText,
-	corpusMechanismId,
 	DEFAULT_SEMANTIC_OVERLAP_THRESHOLD,
 } from "./corpus-overlap";
 export type { ExampleAuditOptions, ExampleRecord } from "./example-audit";

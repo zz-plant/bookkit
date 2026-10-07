@@ -62,11 +62,11 @@ Candidate clusters, for the author to judge:
 
 ---
 
-## Candidate bets
+## Bets
 
-Status: **proposed**. The author picks the anchor; agents do not start either build until then. The one exception is B2's public-corpus dry run: it is a read-only probe that writes nothing to the repo, so agents may run it before the pick.
+Status on 2026-10-07: the author picked **B1, now active**. **B2 is parked**: no build starts on it until B1's test produces a result or the author reopens it. B2's public-corpus dry run stays allowed as a read-only probe that writes nothing to the repo.
 
-### B1: One argument, three drafts
+### B1: One argument, three drafts (active since 2026-10-07)
 
 | Field | Value |
 | --- | --- |
@@ -78,9 +78,14 @@ Status: **proposed**. The author picks the anchor; agents do not start either bu
 | `isNot` | Reader UI, new books, new frames, MCP work. |
 | `prediction` | The merge pass removes a third or more of the mechanisms, and new chapters bind existing slugs instead of coining names. |
 | `test` | The next three chapters drafted introduce at most one new mechanism between them; the cross-book check reports no unresolved duplicates; five people outside the project read one book end to end. |
-| `killBy` | Four weeks after the merge pass. If it has not changed how the author writes, drop the registry and stay per-book. |
+| `killBy` | Four weeks after the merge pass (the date is set when the pass is done). If it has not changed how the author writes, drop the registry and stay per-book. |
 
-### B2: Runbooks that fail the PR
+#### B1 log
+
+- **2026-10-07, picked.** First build step shipped: `bun run check:corpus` runs the overlap check across books, adding a semantic pass (all-MiniLM-L6-v2, local, threshold 0.45) to the lexical one.
+- **2026-10-07, first run.** Over the three nonfiction books it finds 6 clusters covering 19 of 33 mechanisms; folding every cluster would leave 20. The lexical pass alone flags one of the 14 pairs. Strongest pair: `bad-people/coercive-waiting` ~ `running-hot/delay-as-force` (0.70). The runbook book clusters with nothing. Next: the author's merge pass, cluster by cluster.
+
+### B2: Runbooks that fail the PR (parked)
 
 | Field | Value |
 | --- | --- |
@@ -94,7 +99,7 @@ Status: **proposed**. The author picks the anchor; agents do not start either bu
 | `test` | Three conversations and three real corpora through the pipeline, recording where it breaks. |
 | `killBy` | If none of the three would add it to CI, park the runbook wedge. The frame stays; it costs nothing to keep. |
 
-B1 can start immediately because its user is already here. B2's test needs conversations only the author can have; the public-corpus dry run (the exception above) can happen in the meantime.
+B2's test needs conversations only the author can have; the public-corpus dry run (the exception above) can happen in the meantime.
 
 ---
 

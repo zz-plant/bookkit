@@ -24,7 +24,11 @@ export const embedTexts = async (
 ): Promise<EmbedResult> => {
 	let transformers: {
 		pipeline: (task: string, model: string) => Promise<FeatureExtractor>;
-		env: { cacheDir: string; allowLocalModels: boolean };
+		env: {
+			cacheDir: string;
+			allowLocalModels: boolean;
+			backends: { onnx: { wasm: { numThreads: number } } };
+		};
 	};
 	try {
 		transformers = await import("@xenova/transformers");
@@ -41,6 +45,9 @@ export const embedTexts = async (
 			transformers.env.cacheDir = process.env.BOOKKIT_MODEL_CACHE;
 		}
 		transformers.env.allowLocalModels = false;
+		// Single-threaded WASM: the multi-threaded backend spawns workers from blob
+		// URLs, which Bun rejects (ERR_WORKER_PATH) and which can leave the process hung.
+		transformers.env.backends.onnx.wasm.numThreads = 1;
 		const extract = await transformers.pipeline("feature-extraction", model);
 		// One text per call: batched calls pad to the longest text, which shifts
 		// every vector in the batch, so a mechanism's score would depend on which

@@ -41,9 +41,13 @@ export type {
 	BookRuntime,
 	BookRuntimeConfig,
 	BookVersionEntryOptions,
+	ChapterModule,
 	ChapterPageCopy,
 	CreateBookLayoutRenderStateOptions,
 	CreateBookRuntimeOptions,
+	ExampleModule,
+	GlossaryModule,
+	MechanismModule,
 	ReadHubBucket,
 	ReadHubConfig,
 	ReadHubContentModule,
@@ -68,6 +72,7 @@ export type {
 	ReadHubUtilityCard,
 	ReadHubUtilityLink,
 	ReadIndexKey,
+	ToolkitModule,
 } from "./book";
 export {
 	buildLocalizedReadRoutePath,
@@ -292,6 +297,7 @@ export {
 export type { RerankEngine, RerankResult } from "./rerank";
 export { createRerankEngine } from "./rerank";
 export {
+	type AuthoredFrontmatter,
 	type ChapterFrontmatter,
 	chapterSchema,
 	type ExampleFrontmatter,
@@ -301,6 +307,7 @@ export {
 	type MechanismFrontmatter,
 	mechanismSchema,
 	type ToolkitFrontmatter,
+	toolkitDisplayName,
 	toolkitSchema,
 } from "./schemas";
 export type { SearchContentSource, SearchEntry } from "./search";

@@ -15,6 +15,7 @@ import {
   createBreadcrumbListStructuredDataFromTrail,
   readItemPath,
   readRoutes,
+  toolkitDisplayName,
 } from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
@@ -44,10 +45,11 @@ if (!module) {
 }
 
 const { frontmatter, default: Content } = module;
+const toolName = toolkitDisplayName(frontmatter);
 const isFallback = missingSlugs.includes(frontmatter.slug);
-const hasSteps = Array.isArray(frontmatter.steps) && frontmatter.steps.length > 0;
-const hasFailureLooks = Array.isArray(frontmatter.failureLooksLike) && frontmatter.failureLooksLike.length > 0;
-const hasLegitDemand = Array.isArray(frontmatter.legitimateDemand) && frontmatter.legitimateDemand.length > 0;
+const steps = frontmatter.steps ?? [];
+const failureLooksLike = frontmatter.failureLooksLike ?? [];
+const legitimateDemand = frontmatter.legitimateDemand ?? [];
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
 const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.toolkit);
@@ -55,17 +57,17 @@ const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
 const breadcrumbItems = [
   { name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
   { name: breadcrumbCopy.toolkit, href: localizedSectionPath },
-  { name: frontmatter.name },
+  { name: toolName },
 ];
 const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   breadcrumbItems,
   Astro.url
 );
 ---
-<BaseLayout title={`${frontmatter.name} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+<BaseLayout title={`${toolName} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="eyebrow">Toolkit action{isFallback ? " · not yet translated" : ""}</div>
-  <h1 id={frontmatter.slug}>{frontmatter.name}</h1>
+  <h1 id={frontmatter.slug}>{toolName}</h1>
   <p class="lede">
     {frontmatter.timeboxMinutes ?? 10} minutes · for{" "}
     <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{frontmatter.mechanism}</a>
@@ -76,11 +78,11 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
       <p>{frontmatter.trigger}</p>
     </section>
   )}
-  {hasSteps && (
+  {steps.length > 0 && (
     <section class="content-block">
       <h2>Steps</h2>
       <ol class="step-list">
-        {frontmatter.steps.map((step, index) => (
+        {steps.map((step, index) => (
           <li class="step-card">
             <span class="step-card__number">{index + 1}</span>
             <span>{step}</span>
@@ -89,21 +91,21 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
       </ol>
     </section>
   )}
-  {hasFailureLooks && (
+  {failureLooksLike.length > 0 && (
     <section class="content-block">
       <h2>Failure looks like</h2>
       <ul>
-        {frontmatter.failureLooksLike.map((item) => (
+        {failureLooksLike.map((item) => (
           <li>{item}</li>
         ))}
       </ul>
     </section>
   )}
-  {hasLegitDemand && (
+  {legitimateDemand.length > 0 && (
     <section class="content-block">
       <h2>Legitimate demand</h2>
       <ul>
-        {frontmatter.legitimateDemand.map((item) => (
+        {legitimateDemand.map((item) => (
           <li>{item}</li>
         ))}
       </ul>

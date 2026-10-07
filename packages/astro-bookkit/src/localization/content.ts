@@ -134,7 +134,7 @@ export const createLocalizedContentList = <
 };
 
 export const mergeLocaleCompleteness = (
-	locales: LocaleEntry[],
+	locales: readonly LocaleEntry[],
 	completeness: Record<string, number>,
 ): LocaleEntry[] => {
 	return locales.map((entry) => {

@@ -16,6 +16,11 @@ export type {
   BookContentRawModules,
   BookEntryPoints,
   BookEntryPointsOptions,
+  ChapterModule,
+  ExampleModule,
+  GlossaryModule,
+  MechanismModule,
+  ToolkitModule,
 } from "./entrypoints";
 export {
   buildTranslationLede,

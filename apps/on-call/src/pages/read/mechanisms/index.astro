@@ -7,7 +7,7 @@ import { buildTranslationLede, readItemPath, readRoutes } from "@bookkit/astro-b
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.mechanisms;
-const coreMechanismSlugs = new Set(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
+const coreMechanismSlugs = new Set<string>(bookConfig.mechanisms.map((mechanism) => mechanism.slug));
 const urgencyBySlug: Record<string, string> = {};
 const urgencyOrder: Record<string, number> = {
   urgent: 0,

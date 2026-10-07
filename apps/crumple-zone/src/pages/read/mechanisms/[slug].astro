@@ -15,6 +15,7 @@ import {
   createDefinedTermStructuredData,
   readItemPath,
   readRoutes,
+  toolkitDisplayName,
 } from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
@@ -72,7 +73,7 @@ const { entries: exampleEntries } = resolveLocalizedContent(exampleIndex, {
 const relatedToolkit = toolkitEntries
   .map(({ slug, module: toolkitModule }) => ({
     slug,
-    frontmatter: toolkitModule.frontmatter ?? {},
+    frontmatter: toolkitModule.frontmatter,
   }))
   .filter((entry) => entry.frontmatter.mechanism === frontmatter.slug)
   .sort(
@@ -191,7 +192,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
           <div class="stack">
             {relatedToolkit.map((entry) => (
               <a class="list-link" href={readItemPath("toolkit", entry.slug)}>
-                <strong>{entry.frontmatter.name ?? "Untitled action"}</strong>
+                <strong>{toolkitDisplayName(entry.frontmatter)}</strong>
                 <span class="meta">
                   {entry.frontmatter.timeboxMinutes ?? 10} min
                 </span>

@@ -16,7 +16,7 @@ const normalizePath = (pathname: string): string => {
 };
 
 export const resolveLocaleConfig = (
-  locales: LocaleEntry[],
+  locales: readonly LocaleEntry[],
   options: LocaleRoutingOptions = {}
 ): { defaultLocale?: string } => {
   const fallback = locales.find((entry) => entry.isDefault)?.code ?? locales[0]?.code;

@@ -38,6 +38,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./integration": "./src/integration.ts",
+		"./env": "./src/astro-env.d.ts",
 		"./schemas": "./src/schemas/index.ts",
 		"./preview": "./src/preview/index.ts",
 		"./components/PreviewLinksPanel.astro": "./src/components/PreviewLinksPanel.astro",

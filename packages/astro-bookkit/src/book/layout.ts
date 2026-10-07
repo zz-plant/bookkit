@@ -39,13 +39,13 @@ type BookLayoutAstroProps = {
 
 type BookLayoutAstroContext = {
   props: BookLayoutAstroProps;
-  locals?: Record<string, unknown>;
+  locals?: App.Locals;
   url: URL;
 };
 
 type BookLayoutLocalization = {
   defaultLocale?: string;
-  locales?: LocaleEntry[];
+  locales?: readonly LocaleEntry[];
   includeDefaultPrefix?: boolean;
   label?: string;
 };

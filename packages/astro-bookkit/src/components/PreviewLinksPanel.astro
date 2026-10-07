@@ -104,8 +104,14 @@ const hasLinks = links.length > 0;
       }
     };
 
-    const statsFromEvents = (events) =>
-      events.reduce(
+    type PreviewEvent = { tokenHint?: string; at?: string };
+    type PreviewStats = {
+      counts: Record<string, number>;
+      latest: Record<string, string>;
+    };
+
+    const statsFromEvents = (events: PreviewEvent[]) =>
+      events.reduce<PreviewStats>(
         (acc, event) => {
           const hint = event?.tokenHint || "unknown";
           acc.counts[hint] = (acc.counts[hint] || 0) + 1;
@@ -123,8 +129,11 @@ const hasLinks = links.length > 0;
         { counts: {}, latest: {} }
       );
 
-    const updateUsage = (counts, latest) => {
-      document.querySelectorAll("[data-preview-row]").forEach((row) => {
+    const updateUsage = (
+      counts: PreviewStats["counts"],
+      latest: PreviewStats["latest"],
+    ) => {
+      document.querySelectorAll<HTMLElement>("[data-preview-row]").forEach((row) => {
         const hint = row.dataset.previewHint || "unknown";
         const usage = row.querySelector("[data-preview-usage]");
         const last = row.querySelector("[data-preview-last]");
@@ -165,7 +174,7 @@ const hasLinks = links.length > 0;
       }
     });
 
-    const copyButtons = document.querySelectorAll("[data-preview-copy]");
+    const copyButtons = document.querySelectorAll<HTMLElement>("[data-preview-copy]");
     copyButtons.forEach((button) => {
       button.addEventListener("click", async () => {
         const value = button.dataset.previewCopy;

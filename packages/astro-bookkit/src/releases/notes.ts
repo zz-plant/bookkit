@@ -1,3 +1,8 @@
+import type { MDXInstance } from "astro";
+
+/** The component an MDX module renders as `<Content />`. */
+type MdxContent = MDXInstance<Record<string, unknown>>["default"];
+
 export const RELEASE_SECTION_SLUGS = [
   "overview",
   "chapters",
@@ -19,7 +24,7 @@ export type ReleaseNote = {
   changedSections: ReleaseSectionSlug[];
   sectionSnapshots: Partial<Record<ReleaseSectionSlug, string>>;
   sectionChangeSource: "manual" | "snapshot-diff";
-  Content?: unknown;
+  Content?: MdxContent;
 };
 
 export type ReleaseModule = {
@@ -27,7 +32,7 @@ export type ReleaseModule = {
     changedSections?: unknown;
     sectionSnapshots?: unknown;
   };
-  default?: unknown;
+  default?: MdxContent;
 };
 
 const normalizeSectionSnapshots = (value: unknown): Partial<Record<ReleaseSectionSlug, string>> => {

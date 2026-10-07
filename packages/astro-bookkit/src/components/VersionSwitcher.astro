@@ -60,13 +60,13 @@ const versionEntries = versions.map((entry) => ({
 </div>
 
 <script>
-  const switcher = document.querySelector("[data-version-switcher]");
-  const select = switcher?.querySelector("[data-version-select]");
-  const archive = switcher?.querySelector("[data-version-archive]");
+  const switcher = document.querySelector<HTMLElement>("[data-version-switcher]");
+  const select = switcher?.querySelector<HTMLSelectElement>("[data-version-select]");
+  const archive = switcher?.querySelector<HTMLAnchorElement>("[data-version-archive]");
   const currentVersion = switcher?.dataset?.currentVersion ?? null;
-  const memoryEvents = [];
+  const memoryEvents: unknown[] = [];
 
-  const recordVersionEvent = (payload) => {
+  const recordVersionEvent = (payload: Record<string, unknown>) => {
     const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
     const storageKey = `${analyticsKeyPrefix}.version.analytics`;
     const event = { ...payload, ts: Date.now() };

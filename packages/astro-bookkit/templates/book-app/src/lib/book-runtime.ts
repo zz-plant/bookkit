@@ -1,4 +1,12 @@
-import { createBookAppShims, createBookRuntime } from "@bookkit/astro-bookkit";
+import {
+	type ChapterModule,
+	createBookAppShims,
+	createBookRuntime,
+	type ExampleModule,
+	type GlossaryModule,
+	type MechanismModule,
+	type ToolkitModule,
+} from "@bookkit/astro-bookkit";
 
 import bookConfig from "../book.config";
 
@@ -6,19 +14,19 @@ export const bookRuntime = createBookRuntime({
 	bookConfig,
 	modules: {
 		contentModules: {
-			chapters: import.meta.glob("../content/book/chapters/*.mdx", {
+			chapters: import.meta.glob<ChapterModule>("../content/book/chapters/*.mdx", {
 				eager: true,
 			}),
-			mechanisms: import.meta.glob("../content/book/mechanisms/*.mdx", {
+			mechanisms: import.meta.glob<MechanismModule>("../content/book/mechanisms/*.mdx", {
 				eager: true,
 			}),
-			toolkit: import.meta.glob("../content/book/toolkit/*.mdx", {
+			toolkit: import.meta.glob<ToolkitModule>("../content/book/toolkit/*.mdx", {
 				eager: true,
 			}),
-			glossary: import.meta.glob("../content/book/glossary/*.mdx", {
+			glossary: import.meta.glob<GlossaryModule>("../content/book/glossary/*.mdx", {
 				eager: true,
 			}),
-			examples: import.meta.glob("../content/book/examples/**/*.mdx", {
+			examples: import.meta.glob<ExampleModule>("../content/book/examples/**/*.mdx", {
 				eager: true,
 			}),
 		},

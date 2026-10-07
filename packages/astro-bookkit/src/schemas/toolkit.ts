@@ -53,3 +53,11 @@ export const toolkitSchema = z
 	});
 
 export type ToolkitFrontmatter = z.infer<typeof toolkitSchema>;
+
+/** The name to show for a tool. The schema requires `name` or `title`; `name` wins. */
+export const toolkitDisplayName = (frontmatter: {
+	name?: string;
+	title?: string;
+	slug?: string;
+}): string =>
+	frontmatter.name || frontmatter.title || frontmatter.slug || "Untitled action";

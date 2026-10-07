@@ -72,7 +72,32 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
 </section>
 
 <script>
-  const resolveEndpoint = (value) => {
+  type FeedbackEvent = {
+    eventType: string;
+    timestamp: number;
+    slug?: string;
+    title?: string;
+    responseType?: string;
+    emoji?: string | null;
+    comment?: string;
+  };
+
+  type FeedbackRow = {
+    slug: string;
+    views: number;
+    feedback: FeedbackEvent[];
+    helpful: number;
+    notHelpful: number;
+  };
+
+  // Every element below is rendered unconditionally by this component.
+  const requireElement = <T extends Element = HTMLElement>(selector: string): T => {
+    const element = document.querySelector<T>(selector);
+    if (!element) throw new Error(`Feedback dashboard is missing ${selector}`);
+    return element;
+  };
+
+  const resolveEndpoint = (value: string | undefined) => {
     if (!value || typeof value !== "string") return null;
     try {
       const url = new URL(value, window.location.origin);
@@ -89,11 +114,10 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
   const storageKey = `${analyticsKeyPrefix}.feedback.events`;
   const retentionDays = 120;
 
-  const toDateInput = (date) => date.toISOString().slice(0, 10);
-  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-  const formatPercent = (value) => `${Math.round(value * 100)}%`;
+  const toDateInput = (date: Date) => date.toISOString().slice(0, 10);
+  const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
-  const loadEvents = async (endpoint) => {
+  const loadEvents = async (endpoint: string | null): Promise<FeedbackEvent[]> => {
     const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
     if (endpoint) {
       try {
@@ -119,27 +143,28 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     }
   };
 
-  const buildEmojiSummary = (events) => {
-    const counts = new Map();
+  const buildEmojiSummary = (events: FeedbackEvent[]) => {
+    const counts = new Map<string, number>();
     events
-      .filter((event) => event.responseType === "emoji" && event.emoji)
       .forEach((event) => {
+        if (event.responseType !== "emoji" || !event.emoji) return;
         counts.set(event.emoji, (counts.get(event.emoji) ?? 0) + 1);
       });
     const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
     return top ? `${top[0]} ${top[1]}` : "—";
   };
 
-  const dashboard = document.querySelector("[data-feedback-dashboard]");
+  const dashboard = document.querySelector<HTMLElement>("[data-feedback-dashboard]");
   const endpoint = resolveEndpoint(dashboard?.dataset?.feedbackEndpoint);
-  const startInput = document.querySelector("[data-feedback-start]");
-  const endInput = document.querySelector("[data-feedback-end]");
-  const typeSelect = document.querySelector("[data-feedback-type]");
-  const emptyState = document.querySelector("[data-feedback-empty]");
-  const tableWrap = document.querySelector("[data-feedback-table]");
-  const rowsTarget = document.querySelector("[data-feedback-rows]");
-  const commentList = document.querySelector("[data-feedback-comment-list]");
-  let events = [];
+  const startInput = requireElement<HTMLInputElement>("[data-feedback-start]");
+  const endInput = requireElement<HTMLInputElement>("[data-feedback-end]");
+  const typeSelect = requireElement<HTMLSelectElement>("[data-feedback-type]");
+  const emptyState = requireElement("[data-feedback-empty]");
+  const tableWrap = requireElement("[data-feedback-table]");
+  const rowsTarget = requireElement("[data-feedback-rows]");
+  const commentList = requireElement("[data-feedback-comment-list]");
+  const commentsSection = requireElement("[data-feedback-comments]");
+  let events: FeedbackEvent[] = [];
 
   const getRangeDefaults = () => {
     const end = new Date();
@@ -166,7 +191,7 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     });
   };
 
-  const renderSummary = (filtered) => {
+  const renderSummary = (filtered: FeedbackEvent[]) => {
     const impressions = filtered.filter((event) => event.eventType === "impression");
     const feedback = filtered.filter((event) => event.eventType === "feedback");
     const helpfulVotes = feedback.filter((event) => event.responseType === "helpful").length;
@@ -175,26 +200,26 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     const helpfulRate = ratedTotal ? helpfulVotes / ratedTotal : 0;
     const conversion = impressions.length ? feedback.length / impressions.length : 0;
 
-    document.querySelector("[data-feedback-metric='total']").textContent = feedback.length.toString();
-    document.querySelector("[data-feedback-metric='helpful-rate']").textContent =
+    requireElement("[data-feedback-metric='total']").textContent = feedback.length.toString();
+    requireElement("[data-feedback-metric='helpful-rate']").textContent =
       formatPercent(helpfulRate);
-    document.querySelector("[data-feedback-metric='conversion']").textContent =
+    requireElement("[data-feedback-metric='conversion']").textContent =
       formatPercent(conversion);
 
-    document.querySelector("[data-feedback-metric-detail='total']").textContent =
+    requireElement("[data-feedback-metric-detail='total']").textContent =
       feedback.length ? `${feedback.length} feedback responses` : "No feedback yet";
-    document.querySelector("[data-feedback-metric-detail='helpful-rate']").textContent = ratedTotal
+    requireElement("[data-feedback-metric-detail='helpful-rate']").textContent = ratedTotal
       ? `${helpfulVotes} helpful / ${notHelpfulVotes} not helpful`
       : "No helpful votes yet";
-    document.querySelector("[data-feedback-metric-detail='conversion']").textContent = impressions.length
+    requireElement("[data-feedback-metric-detail='conversion']").textContent = impressions.length
       ? `${feedback.length} feedback from ${impressions.length} views`
       : "No impressions tracked";
   };
 
-  const renderTable = (filtered) => {
+  const renderTable = (filtered: FeedbackEvent[]) => {
     const impressions = filtered.filter((event) => event.eventType === "impression");
     const feedback = filtered.filter((event) => event.eventType === "feedback");
-    const map = new Map();
+    const map = new Map<string, FeedbackRow>();
 
     impressions.forEach((event) => {
       const key = event.slug ?? "unknown";
@@ -234,7 +259,7 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     });
   };
 
-  const renderComments = (filtered) => {
+  const renderComments = (filtered: FeedbackEvent[]) => {
     const comments = filtered
       .filter((event) => event.eventType === "feedback" && event.comment)
       .sort((a, b) => b.timestamp - a.timestamp)
@@ -259,7 +284,7 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
       const comment = document.createElement("p");
       title.textContent = event.title ?? event.slug ?? "Untitled";
       dateSpan.textContent = date;
-      comment.textContent = event.comment;
+      comment.textContent = event.comment ?? "";
       li.append(title, dateSpan, comment);
       commentList.appendChild(li);
     });
@@ -270,11 +295,11 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     if (!filtered.length) {
       emptyState.hidden = false;
       tableWrap.hidden = true;
-      document.querySelector("[data-feedback-comments]").hidden = true;
+      commentsSection.hidden = true;
     } else {
       emptyState.hidden = true;
       tableWrap.hidden = false;
-      document.querySelector("[data-feedback-comments]").hidden = false;
+      commentsSection.hidden = false;
     }
     renderSummary(filtered);
     renderTable(filtered);
@@ -286,7 +311,7 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     if (!events.length) {
       emptyState.hidden = false;
       tableWrap.hidden = true;
-      document.querySelector("[data-feedback-comments]").hidden = true;
+      commentsSection.hidden = true;
       return;
     }
     render();

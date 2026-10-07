@@ -42,7 +42,7 @@ if (!module) {
 }
 
 const { frontmatter, default: Content } = module;
-const isFallback = missingSlugs.includes(frontmatter.slug);
+const isFallback = missingSlugs.includes(Astro.params.slug ?? "");
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
 const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.glossary);

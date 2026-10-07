@@ -25,6 +25,8 @@ const {
   enableAuthorTools = isPreview ?? false,
 } = Astro.props;
 
+// The running head is the short title, as at the top of a printed page; subtitles stay on the cover.
+const runningHead = String(bookTitle ?? "").split(/:\s+/)[0];
 const emphasizeReadCta = !isReadRoute;
 const emphasizeDownloadsCta = !isDownloadsRoute;
 const readSectionFromPath = currentPath?.match(/\/read\/([^/]+)/)?.[1] ?? null;
@@ -44,7 +46,7 @@ const activeReadSectionLabel =
 ---
       <header class="site-header">
         <div class="site-brand">
-          <a href="/">{bookTitle}</a>
+          <a href="/" title={runningHead !== bookTitle ? bookTitle : undefined}>{runningHead}</a>
           {isPreview && <span class="preview-badge">{previewLabel}</span>}
           {versionBadgeLabel && <span class="version-badge">{versionBadgeLabel}</span>}
           {activeReadSectionLabel && <span class="site-brand__context">{activeReadSectionLabel}</span>}

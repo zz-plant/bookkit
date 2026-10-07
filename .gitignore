@@ -24,6 +24,8 @@ opencode.json
 # Tooling
 .cmux/
 .sisyphus/
-.codex/
+# Local Codex state stays out; the repo's lane skills are tracked.
+.codex/*
+!.codex/skills/
 .agent/
 .wrangler/

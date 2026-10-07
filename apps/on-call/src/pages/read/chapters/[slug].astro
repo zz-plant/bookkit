@@ -64,12 +64,15 @@ const mechanismTitleBySlug = new Map(
     mechanismModule.frontmatter?.title ?? slug,
   ])
 );
+// Reading order is the author's: an explicit `order`, else the numbered file order the index preserves.
+const orderOf = (value: unknown) => (typeof value === "number" ? value : Number.POSITIVE_INFINITY);
 const chapterOrder = entries
   .map(({ slug, module: chapterModule }) => ({
     slug,
     title: chapterModule.frontmatter?.title ?? "Untitled chapter",
+    order: orderOf(chapterModule.frontmatter?.order),
   }))
-  .sort((a, b) => a.slug.localeCompare(b.slug));
+  .sort((a, b) => (a.order === b.order ? 0 : a.order - b.order));
 const currentIndex = chapterOrder.findIndex((entry) => entry.slug === frontmatter.slug);
 const previousChapter = currentIndex > 0 ? chapterOrder[currentIndex - 1] : null;
 const nextChapter = currentIndex >= 0 ? chapterOrder[currentIndex + 1] : null;

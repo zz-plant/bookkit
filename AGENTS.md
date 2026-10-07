@@ -10,6 +10,7 @@ This file defines non-negotiable rules for human and AI contributors. If guidanc
 - `docs/architecture.md` → system structure: layers, pipelines, engine module map, import tiers
 - `CONTRIBUTING.md` → contribution workflow + lanes
 - `AGENTS.md` → hard invariants + risk boundaries
+- `docs/bets.md` → what gets worked on next and why (anchor, active bets, parked work)
 - app/package READMEs → local orientation only
 
 Prefer linking over policy duplication.
@@ -133,6 +134,8 @@ For risky changes, include:
 ---
 
 ## Agent execution checklist
+
+Before starting work, name the bet in `docs/bets.md` it serves. If it serves none, it is maintenance: keep it small and do not open new audit, PRD, or critique docs for it.
 
 Before finalizing work:
 

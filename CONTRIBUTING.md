@@ -23,10 +23,11 @@ For commands see [`README.md`](./README.md). For how the system is structured â€
 
 Use this sequence to reduce rework:
 
-1. **Pick risk level** (low / medium / high).
-2. **Choose lane** (A/B/C below).
-3. **Decide test depth** using the matrix in [Verification matrix](#verification-matrix).
-4. **Write one-line intent note** (helps reviewers validate scope quickly).
+1. **Name the bet** from [`docs/bets.md`](./docs/bets.md) this serves, or label the change maintenance.
+2. **Pick risk level** (low / medium / high).
+3. **Choose lane** (A/B/C below).
+4. **Decide test depth** using the matrix in [Verification matrix](#verification-matrix).
+5. **Write one-line intent note** (helps reviewers validate scope quickly).
 
 ---
 

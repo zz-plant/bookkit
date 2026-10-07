@@ -34,6 +34,22 @@ const createFixtureEndpoint = () => {
 };
 
 describe("createBookMcpEndpoint", () => {
+	it("answers ping", async () => {
+		const endpoint = createFixtureEndpoint();
+		const response = await endpoint.POST({
+			request: new Request("http://localhost/api/mcp.json", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ jsonrpc: "2.0", id: 7, method: "ping" }),
+			}),
+		});
+		expect(await response.json()).toEqual({
+			jsonrpc: "2.0",
+			id: 7,
+			result: {},
+		});
+	});
+
 	it("returns no content for a single notification request", async () => {
 		const endpoint = createFixtureEndpoint();
 		const response = await endpoint.POST({
@@ -127,17 +143,22 @@ describe("createBookMcpEndpoint", () => {
 
 		const body = (await response.json()) as {
 			result: {
-				content: Array<{
-					json: {
-						ok: boolean;
-						payload: { mechanisms: Array<{ slug: string }> };
-					};
-				}>;
+				structuredContent: {
+					ok: boolean;
+					payload: { mechanisms: Array<{ slug: string }> };
+				};
 			};
 		};
 
-		expect(body.result.content[0].json.payload.mechanisms[0].slug).toBe(
+		expect(body.result.structuredContent.payload.mechanisms[0].slug).toBe(
 			"sample",
+		);
+		const raw = body as unknown as {
+			result: { content: Array<{ type: string; text: string }> };
+		};
+		expect(raw.result.content[0].type).toBe("text");
+		expect(JSON.parse(raw.result.content[0].text)).toEqual(
+			body.result.structuredContent,
 		);
 	});
 
@@ -161,24 +182,22 @@ describe("createBookMcpEndpoint", () => {
 
 		const body = (await response.json()) as {
 			result: {
-				content: Array<{
-					json: {
-						ok: boolean;
-						payload: {
-							count: number;
-							records: Array<{ slug: string; section: string }>;
-						};
+				structuredContent: {
+					ok: boolean;
+					payload: {
+						count: number;
+						records: Array<{ slug: string; section: string }>;
 					};
-				}>;
+				};
 			};
 		};
 
-		expect(body.result.content[0].json.ok).toBe(true);
-		expect(body.result.content[0].json.payload.count).toBe(1);
-		expect(body.result.content[0].json.payload.records[0].slug).toBe(
+		expect(body.result.structuredContent.ok).toBe(true);
+		expect(body.result.structuredContent.payload.count).toBe(1);
+		expect(body.result.structuredContent.payload.records[0].slug).toBe(
 			"00-overview",
 		);
-		expect(body.result.content[0].json.payload.records[0].section).toBe(
+		expect(body.result.structuredContent.payload.records[0].section).toBe(
 			"chapters",
 		);
 	});
@@ -200,15 +219,18 @@ describe("createBookMcpEndpoint", () => {
 
 		const body = (await response.json()) as {
 			result: {
-				content: Array<{
-					json: { ok: boolean; error: { cause: string; nextAction: string } };
-				}>;
+				structuredContent: {
+					ok: boolean;
+					error: { cause: string; nextAction: string };
+				};
 			};
 		};
 
-		expect(body.result.content[0].json.ok).toBe(false);
-		expect(body.result.content[0].json.error.cause).toContain("arguments.book");
-		expect(body.result.content[0].json.error.nextAction).toContain(
+		expect(body.result.structuredContent.ok).toBe(false);
+		expect(body.result.structuredContent.error.cause).toContain(
+			"arguments.book",
+		);
+		expect(body.result.structuredContent.error.nextAction).toContain(
 			"bookkit.create_book",
 		);
 	});
@@ -315,22 +337,20 @@ describe("createBookMcpEndpoint", () => {
 
 		const body = (await response.json()) as {
 			result: {
-				content: Array<{
-					json: {
-						ok: boolean;
-						error: { machineCode: string; cause: string; nextAction: string };
-					};
-				}>;
+				structuredContent: {
+					ok: boolean;
+					error: { machineCode: string; cause: string; nextAction: string };
+				};
 			};
 		};
-		expect(body.result.content[0].json.ok).toBe(false);
-		expect(body.result.content[0].json.error.machineCode).toBe(
+		expect(body.result.structuredContent.ok).toBe(false);
+		expect(body.result.structuredContent.error.machineCode).toBe(
 			"VALIDATE_BOOK_MISSING_SLUG",
 		);
-		expect(body.result.content[0].json.error.cause).toContain(
+		expect(body.result.structuredContent.error.cause).toContain(
 			"requires a slug",
 		);
-		expect(body.result.content[0].json.error.nextAction).toContain(
+		expect(body.result.structuredContent.error.nextAction).toContain(
 			"Provide a book slug",
 		);
 	});
@@ -400,13 +420,14 @@ describe("createBookMcpEndpoint", () => {
 
 		const body = (await response.json()) as {
 			result: {
-				content: Array<{
-					json: { ok: boolean; payload: { skills: Array<{ slug: string }> } };
-				}>;
+				structuredContent: {
+					ok: boolean;
+					payload: { skills: Array<{ slug: string }> };
+				};
 			};
 		};
 
-		expect(body.result.content[0].json.payload.skills[0].slug).toBe(
+		expect(body.result.structuredContent.payload.skills[0].slug).toBe(
 			"content-edit",
 		);
 	});

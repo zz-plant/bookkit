@@ -53,8 +53,16 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 						"bookkit.list_content",
 						"bookkit.list_skills",
 					],
-					content: ["bookkit.read_book", "bookkit.list_mechanisms"],
-					governance: ["bookkit.validate_book", "bookkit.check_separation"],
+					content: [
+						"bookkit.read_book",
+						"bookkit.list_mechanisms",
+						"bookkit.find_similar_mechanisms",
+					],
+					governance: [
+						"bookkit.validate_book",
+						"bookkit.check_separation",
+						"bookkit.check_corpus",
+					],
 					pipeline: ["bookkit.compile_book", "bookkit.export_book"],
 				},
 				toolMetadata: TOOL_DEFINITIONS,

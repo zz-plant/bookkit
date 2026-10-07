@@ -141,7 +141,7 @@ Before starting work, name the bet in `docs/bets.md` it serves. If it serves non
 Before finalizing work:
 
 1. confirm files changed in the correct layer
-2. run relevant checks (`validate`, lint, typecheck)
+2. run `bun run verify` (checks chosen from the files you changed; `--json` for machine-readable results)
 3. summarize risks and migration impact for risky changes
 4. avoid introducing duplicate policy docs
 5. if your work changes the authorship model, update `docs/authorship-model.md`

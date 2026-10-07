@@ -12,6 +12,8 @@ export const TOOL_NAMES = [
 	"bookkit.compile_book",
 	"bookkit.export_book",
 	"bookkit.check_separation",
+	"bookkit.check_corpus",
+	"bookkit.find_similar_mechanisms",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -312,6 +314,70 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {},
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.check_corpus",
+		description:
+			"Compare mechanisms across the corpus books (corpus.json): clusters of overlapping mechanisms, shared slugs whose contracts drifted, and stale rulings. Use before naming or editing a mechanism.",
+		safety: "read_only",
+		expectedRuntime: "<30s (semantic: first run downloads a ~520 MB model)",
+		expectedRuntimeClass: "moderate",
+		sideEffectLevel: "local-read/compute",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-safe-retry",
+		retryGuidance:
+			"Safe to retry; pass semantic: false if the model cannot load.",
+		retryPolicyGuidance:
+			"Retry once on transient command failure; repeat with semantic: false when the embedding model is unavailable.",
+		failureClassTaxonomy: [
+			"validation",
+			"configuration",
+			"timeout",
+			"transient-command",
+			"unknown",
+		],
+		inputSchema: {
+			type: "object",
+			properties: {
+				semantic: {
+					type: "boolean",
+					description:
+						"Compare meaning with the local embedding model as well as wording. Default false (wording only, fast).",
+				},
+			},
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.find_similar_mechanisms",
+		description:
+			"Before coining a mechanism, list existing ones in any book that share its wording, and whether its slug already exists. Bind an existing slug when one fits.",
+		safety: "read_only",
+		expectedRuntime: "<5s",
+		expectedRuntimeClass: "short",
+		sideEffectLevel: "read-only",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-safe-retry",
+		retryGuidance: "Safe to retry.",
+		retryPolicyGuidance:
+			"Retry immediately for transient command failures; repeated retries are safe.",
+		failureClassTaxonomy: ["validation", "transient-command", "unknown"],
+		inputSchema: {
+			type: "object",
+			properties: {
+				title: {
+					type: "string",
+					description: "Proposed mechanism title.",
+				},
+				definition: {
+					type: "string",
+					description:
+						"Optional one-sentence definition; its words join the comparison.",
+				},
+			},
+			required: ["title"],
 			additionalProperties: false,
 		},
 	},

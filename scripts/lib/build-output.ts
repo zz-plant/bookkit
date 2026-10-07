@@ -269,6 +269,43 @@ export const inspectBuildOutput = ({
 		}
 	}
 
+	// Search results must land on a built page, at the heading they name.
+	const searchIndexFile = join(distDir, "search-index.json");
+	if (existsSync(searchIndexFile)) {
+		let entries: Array<{ url?: unknown }> = [];
+		try {
+			const parsed: unknown = JSON.parse(readFileSync(searchIndexFile, "utf8"));
+			const list = Array.isArray(parsed)
+				? parsed
+				: (parsed as { entries?: unknown } | null)?.entries;
+			entries = Array.isArray(list) ? list : [];
+		} catch {
+			error("Is not valid JSON.", "search-index.json");
+		}
+		const pages = new Map<string, string | null>();
+		const broken: string[] = [];
+		for (const entry of entries) {
+			if (typeof entry.url !== "string" || !entry.url.startsWith("/")) continue;
+			const [path, fragment] = entry.url.split("#");
+			if (!pages.has(path)) {
+				const page = pageFileFor(distDir, path);
+				pages.set(path, page ? readFileSync(page, "utf8") : null);
+			}
+			const html = pages.get(path);
+			if (html === null || html === undefined) {
+				broken.push(`${entry.url} (no page)`);
+			} else if (fragment && !html.includes(`id="${fragment}"`)) {
+				broken.push(`${entry.url} (no heading with that id)`);
+			}
+		}
+		if (broken.length > 0) {
+			error(
+				`${broken.length} search result link(s) lead nowhere: ${broken.slice(0, 5).join(", ")}${broken.length > 5 ? ", …" : ""}. Search URLs must use the read routes' slugs and the page's heading ids.`,
+				"search-index.json",
+			);
+		}
+	}
+
 	// Author tools are reachable but must stay out of search.
 	for (const path of AUTHOR_ONLY_PATHS) {
 		const page = pageFileFor(distDir, path);

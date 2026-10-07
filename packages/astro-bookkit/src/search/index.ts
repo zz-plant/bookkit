@@ -1,4 +1,5 @@
-import { createSlugger, stripMarkdown } from "../utils/markdown";
+import GithubSlugger from "github-slugger";
+import { stripMarkdown } from "../utils/markdown";
 
 export type SearchContentSource = {
 	type: string;
@@ -78,10 +79,9 @@ const extractSnippet = (lines: string[]) => {
 	return summarize(text || "No summary available.");
 };
 
-const defaultSlugFromPath = (path: string, type: string) => {
-	if (type === "examples") {
-		return path.split("/examples/")[1]?.replace(/\.mdx?$/, "") ?? null;
-	}
+// Routes key every section, examples included, by file name; nested example
+// folders only group files by mechanism.
+const defaultSlugFromPath = (path: string, _type: string) => {
 	return (
 		path
 			.split("/")
@@ -105,20 +105,21 @@ export const buildSearchEntries = async (
 					: defaultSlugFromPath(path, source.type));
 			if (!slug) continue;
 			const title = data[source.titleKey] || data.title || slug;
-			const slugger = createSlugger();
+			// Astro's Markdown processor gives headings GitHub-style ids; the
+			// anchors must match them or deep links land at the top of the page.
+			const slugger = new GithubSlugger();
 			const sections = buildSections(body);
 			const sectionEntries = sections.map((section) => {
 				const heading = section.heading || title;
-				const anchor = slugger(heading);
+				const anchor = slugger.slug(heading);
 				const snippet = extractSnippet(section.body);
 				return { heading, anchor, snippet };
 			});
 
 			const baseSnippet = extractSnippet(body.split("\n").slice(0, 6));
-			const slugAnchor = slug.replaceAll("/", "-");
 			const defaultAnchor = sectionEntries.length
 				? sectionEntries[0].anchor
-				: slugAnchor;
+				: null;
 			entries.push({
 				id: `${source.type}-${slug}-intro`,
 				type: source.type,

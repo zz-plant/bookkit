@@ -1,5 +1,4 @@
 import mdx from "@astrojs/mdx";
-import { rehypeBookkitHeadingIds } from "@bookkit/astro-bookkit";
 import { defineConfig } from "astro/config";
 import { bookConfig } from "./src/book.config";
 
@@ -7,7 +6,8 @@ import { bookConfig } from "./src/book.config";
 // and the RSS feed share one declaration. Change the URL there, not here.
 export default defineConfig({
 	site: bookConfig.site.url,
-	integrations: [mdx({ rehypePlugins: [rehypeBookkitHeadingIds] })],
+	// Headings get Astro's GitHub-style ids; the search index matches them.
+	integrations: [mdx()],
 	devToolbar: { enabled: false },
 	vite: {
 		ssr: {

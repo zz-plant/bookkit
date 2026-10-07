@@ -16,6 +16,8 @@
 		"build:all": "bun run --workspaces build",
 		"check:build": "bun run scripts/check-build.ts",
 		"qa": "bun run lint && bun run check:types && bun run test && bun run validate && bun run build:all && bun run check:build",
+		"verify": "bun run scripts/verify.ts",
+		"mcp": "bun run scripts/mcp-server.ts",
 		"deploy": "bun run bookkit deploy",
 		"lint": "biome lint .",
 		"check:types": "bun run scripts/typecheck.ts",
@@ -66,6 +68,7 @@
 	"devDependencies": {
 		"@astrojs/check": "^0.9.10",
 		"@biomejs/biome": "^2.5.8",
+		"@types/bun": "^1.4.2",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^25.2.3",
 		"husky": "^9.1.7",

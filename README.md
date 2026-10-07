@@ -157,6 +157,13 @@ bun run bookkit dev bad-people
 bun run bookkit dev running-hot
 ```
 
+### Check a change
+
+```bash
+bun run verify             # the checks your change needs, judged by the files it touches
+bun run verify -- --all    # everything CI runs
+```
+
 ### Lint / format / types
 
 ```bash
@@ -253,11 +260,13 @@ bun run bookkit propose <book> --apply mechanisms --apply tools --apply config
 Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp.json.ts`) so agentic LLM clients can:
 
 - list/read content and governance resources
-- discover lane skills under `.opencode/skills/**`
+- discover lane skills under `.codex/skills/**`
 - call deterministic workspace tools (`bookkit.list_books`, `bookkit.read_book`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
 - scaffold a new book via guarded mutation tooling (`bookkit.create_book`) when explicit creation is required
 
 Use this as the default machine interface instead of ad-hoc repository scraping. On a static deployment only the `GET` manifest is served; tool calls need an on-demand runtime (run `bun run bookkit dev <book>` locally).
+
+For agents working in this repository, the same tools run over stdio with no dev server: `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the first book otherwise). `.mcp.json` registers it as `bookkit`, so Claude Code offers it on first use. Two tools serve bet B1: `bookkit.find_similar_mechanisms` (does a mechanism for this idea already exist, in any book?) and `bookkit.check_corpus` (overlap, drift, and stale rulings across books). Tool results follow MCP: a `text` content item with the JSON, plus the same object as `structuredContent`.
 
 ### CI
 

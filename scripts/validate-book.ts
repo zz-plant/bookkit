@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { optionalArg, requireArg } from "./_lib";
-import { groupFindingsByFile } from "./lib/authoring";
+import { groupFindingsByFile, toFindings } from "./lib/authoring";
 import {
 	arrayValue,
 	listContentFiles,
@@ -394,8 +394,26 @@ function readBooleanLiteral(node: ts.Expression): boolean | null {
 	return null;
 }
 
-report("warning", warnings);
-report("error", errors);
+if (process.argv.includes("--json")) {
+	// One object per finding; `file` is repo-relative when the finding names one.
+	console.log(
+		JSON.stringify(
+			{
+				book,
+				ok: errors.length === 0,
+				findings: [
+					...toFindings("error", errors),
+					...toFindings("warning", warnings),
+				],
+			},
+			null,
+			2,
+		),
+	);
+} else {
+	report("warning", warnings);
+	report("error", errors);
+}
 
 const hasErrors = errors.length > 0;
 const shouldFail = mode === "error" && hasErrors;

@@ -43,10 +43,8 @@ Extra-care areas:
 
 Lane C baseline from `CONTRIBUTING.md`:
 
-- `bun run validate`
+- `bun run verify` (see the `verify` skill): types, tests, shims, the architecture doc, and one book's build
 - `bun run validate:release`
-- `bun run lint`
-- `bun run check:types`
 
 Escalation for behavior-affecting changes:
 

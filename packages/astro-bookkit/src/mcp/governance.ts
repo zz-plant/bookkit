@@ -77,6 +77,13 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
 			"Typographic system and review checklist for reader-facing UI changes.",
 		relativePath: ".codex/skills/reader-typography/SKILL.md",
 	},
+	{
+		uri: "bookkit://governance/.codex/skills/verify/SKILL.md",
+		name: "Bookkit skill: verify",
+		description:
+			"Before any commit: run the checks the change needs and read the summary.",
+		relativePath: ".codex/skills/verify/SKILL.md",
+	},
 ];
 
 export const CORE_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [

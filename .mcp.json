@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"bookkit": {
+			"command": "bun",
+			"args": ["run", "scripts/mcp-server.ts"]
+		}
+	}
+}

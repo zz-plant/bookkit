@@ -8,13 +8,9 @@ For commands see [`README.md`](./README.md). For how the system is structured â€
 
 ## Fast-start workflow
 
-1. Install dependencies: `bun install`
+1. Install dependencies: `bun install` (this also installs the pre-commit hook).
 2. Make a focused change.
-3. Run checks:
-   - `bun run validate`
-   - `bun run lint`
-   - `bun run check:types`
-   - `bun run test`
+3. Run `bun run verify`. It reads what changed since `origin/main` and runs the checks those paths need (table below), reporting content findings only for the files you touched. `--all` runs everything CI runs; `--list` shows the plan; `--json` is for agents.
 4. For release-critical work, also run:
    - `bun run validate:release`
    - `bun run check:upgrade -- --release`
@@ -113,7 +109,21 @@ Requirements:
 
 ## Verification matrix
 
-Run the smallest complete check set for your lane.
+`bun run verify` runs the right set for you; the mapping lives in `scripts/lib/verify-plan.ts`:
+
+| Changed path | Checks |
+| --- | --- |
+| any formattable file | Biome format, import order, lint (changed files only) |
+| `packages/astro-bookkit/**` | types, tests, shims, architecture doc, build `on-call` |
+| `packages/create-bookkit/**`, `scripts/**` | types (`.ts` only), tests |
+| `apps/<book>/src/content/**` | validate that book, separation, build that book |
+| a mechanism file, `corpus.json` | mechanisms across books (wording) |
+| `apps/<book>/**` (config, pages, lib) | types, shims, validate, build that book |
+| `docs/architecture.md` | architecture doc |
+| `TODOS.md` | todos |
+| `package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**` | as for engine code |
+
+By lane, beyond `verify`:
 
 | Lane | Minimum checks | Escalate to |
 | --- | --- | --- |

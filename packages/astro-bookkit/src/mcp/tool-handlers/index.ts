@@ -1,9 +1,11 @@
 import type { ToolName } from "../tool-definitions";
 import type { McpEndpointOptions } from "../types";
+import { handleCheckCorpus } from "./check_corpus";
 import { handleCheckSeparation } from "./check_separation";
 import { handleCompileBook } from "./compile_book";
 import { handleCreateBook } from "./create_book";
 import { handleExportBook } from "./export_book";
+import { handleFindSimilarMechanisms } from "./find_similar_mechanisms";
 import { handleListBooks } from "./list_books";
 import { handleListContent } from "./list_content";
 import { handleListMechanisms } from "./list_mechanisms";
@@ -23,6 +25,8 @@ const TOOL_HANDLERS: ToolHandlerMap = {
 	"bookkit.list_mechanisms": handleListMechanisms,
 	"bookkit.validate_book": handleValidateBook,
 	"bookkit.check_separation": handleCheckSeparation,
+	"bookkit.check_corpus": handleCheckCorpus,
+	"bookkit.find_similar_mechanisms": handleFindSimilarMechanisms,
 };
 
 export const runTool = (

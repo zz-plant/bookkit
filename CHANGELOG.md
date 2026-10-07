@@ -3,6 +3,43 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Bookkit's MCP tools over stdio
+
+- **New: `bun run mcp`**, a stdio MCP server built on the engine's existing JSON-RPC router. It needs no dev server, and `.mcp.json` registers it as `bookkit` for Claude Code. The content tools read one book (`-- --book <slug>`, default the first). The workspace tools (`list_books`, `validate_book`, `compile_book`, `export_book`, `check_separation`, `create_book`) take a book argument as before. It answers malformed lines with JSON-RPC errors instead of exiting.
+- **Two new tools for bet B1:**
+  - `bookkit.find_similar_mechanisms`: existing mechanisms in any book that share a proposed mechanism's wording, and whether its slug already exists. It runs the new `bookkit similar "<title>" [--definition …] [--json]`.
+  - `bookkit.check_corpus`: overlap clusters, drift, and stale rulings across the corpus books; wording only unless `semantic: true`.
+- **Fixed: tool results were not valid MCP.** `tools/call` returned `content: [{ type: "json", json }]`, a content type MCP clients reject. It now returns a `text` item holding the JSON, the same object as `structuredContent`, and `isError` when the tool reports `ok: false`.
+- **The router answers `ping`.**
+
+**Migration:** HTTP clients of `/api/mcp.json` that read `result.content[0].json` should read `result.structuredContent` instead (same object).
+
+## 2026-10-07 — One set of agent skills; search links that land
+
+- **Every agent tool reads the same skills.** `.opencode/skills` is now a symlink to `.codex/skills`, as `.claude/skills` already was. A new `verify` skill (run `bun run verify` and read its summary) replaces the old `qa` checklist. That checklist was tracked inside `.agent/`, which `.gitignore` excludes. The `verify` skill is also listed as an MCP governance resource, and the `content-edit` and `engine-change` skills now lead with `bun run verify`.
+- **Fixed: `.opencode` commands and modes ran the wrong things.** `check` and `build` both ran `bun run assets:check||vitest run`, and three modes called a nonexistent `bun run typecheck`. They now run `verify`, `build:all` with `check:build`, and `verify -- --all` before a deploy. The README pointed agents at a nonexistent `.opencode/skills/**`; it now says `.codex/skills/**`.
+- **Fixed: search results linked to headings that don't exist.**
+  - Search anchors were slugged differently from the ids Astro gives headings. Four Bad People headings with curly quotes or `≠` linked nowhere.
+  - Example results used nested paths that 404ed: six in Bad People, and every example in the other books.
+  - The search index now uses `github-slugger`, which matches all 184 heading ids in the four books, and builds example URLs from the route slug. Pages without headings link to the page top.
+- **`check:build` fails when a search result's page or heading id doesn't exist.**
+- **TD-012 closed.** `rehypeBookkitHeadingIds` never ran under Astro 7's default Markdown processor. It is removed from the `astro.config.mjs` shim (which also removes the MDX deprecation warning from every build) and marked deprecated.
+
+**Migration:** books outside this repo run `bun run sync:shims` to drop the plugin from `astro.config.mjs`. Search URLs for examples change from `/read/examples/<mechanism>/<file>` to `/read/examples/<file>`, the page's real URL.
+
+## 2026-10-07 — `bun run verify`: the checks a change needs
+
+- **New: `bun run verify`** (also `bookkit verify`). It reads what changed since `origin/main` (committed, staged, unstaged, and untracked files) and runs only the checks those paths need. The mapping is CONTRIBUTING's verification matrix as code, in `scripts/lib/verify-plan.ts`. For example:
+  - a chapter edit validates and builds that book (about 6s);
+  - an engine edit runs types, tests, shims, the architecture check, and one book's build.
+- **Output is one line per check.** A failed check prints the tail of its output. `--all` runs every gate CI runs, `--list` shows the plan, `--json` prints one summary object, and `--base <ref>` changes the comparison.
+- **Content checks report only findings in the files you changed,** so Crumple Zone's existing warnings don't hide a new one. An error-level finding in a changed file fails the check.
+- **`check:types` covers `scripts/`**, tests included (`scripts/tsconfig.json`, `@types/bun`). It found:
+  - `check:concepts` read a bare `--book` or `--mode` flag as the value `true`;
+  - the governance output type import didn't resolve, so its payload was typed `any`.
+- **`validate-book --json`** prints one object per finding, with a repo-relative `file` when the finding names one.
+- **`bookkit status --json`** prints the per-book summary.
+
 ## 2026-10-07 — One formatting baseline, enforced
 
 - **Every file now matches `biome.json`.** 250 files had drifted (247 of 511 didn't match before), mostly 2-space indentation from before the formatter was configured. Running the formatter or the pre-commit hook on any file used to rewrite hundreds of unrelated lines. That commit is formatting and Biome's safe fixes only, and is listed in `.git-blame-ignore-revs`.

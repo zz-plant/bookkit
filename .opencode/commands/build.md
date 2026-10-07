@@ -1,5 +1,5 @@
 ---
-description: "Run the full build"
+description: "Build every book and verify its output"
 agent: build
 ---
-bun run assets:check||vitest run
+bun run build:all && bun run check:build

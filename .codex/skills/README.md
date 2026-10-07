@@ -6,6 +6,9 @@ Repository-native lane skills for contributor workflows:
 - `engine-change` — Lane C engine/schema/validator/compiler changes in `packages/astro-bookkit/**`
 - `release` — release-note/versioning lane and release-readiness checks
 - `reader-typography` — typographic taste, the two-voice system, and the review checklist for anything readers see
+- `verify` — before any commit: run `bun run verify` and read its summary
+
+`.claude/skills` and `.opencode/skills` are symlinks to this folder, so every agent tool reads the same skills.
 
 Use these as execution checklists, then defer to canonical policy docs:
 

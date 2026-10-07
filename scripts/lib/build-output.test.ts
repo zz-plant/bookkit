@@ -147,4 +147,60 @@ describe("inspectBuildOutput", () => {
 		expect(published.ok).toBe(false);
 		expect(published.findings[0]?.message).toContain('"published"');
 	});
+
+	it("flags client code shipped as raw TypeScript", () => {
+		write(dist, "_astro/ui.BWQLcm1E.ts", "type AnalyticsEvent = {};");
+		write(
+			dist,
+			"read/index.html",
+			'<html><head><link rel="canonical" href="https://on-call.book/read"></head><body><script type="module" src="/_astro/ui.BWQLcm1E.ts"></script></body></html>',
+		);
+		const result = inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(false);
+		expect(result.findings.map((f) => f.file)).toEqual(
+			expect.arrayContaining(["_astro/ui.BWQLcm1E.ts", "read/index.html"]),
+		);
+	});
+
+	it("flags sitemap URLs with no built page", () => {
+		write(
+			dist,
+			"sitemap.xml",
+			"<urlset><url><loc>https://on-call.book/</loc></url><url><loc>https://on-call.book/read/examples/a/b</loc></url></urlset>",
+		);
+		const result = inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(false);
+		expect(result.findings[0]?.message).toContain("/read/examples/a/b");
+	});
+
+	it("flags a canonical that differs from its sitemap URL", () => {
+		write(
+			dist,
+			"sitemap.xml",
+			"<urlset><url><loc>https://on-call.book/</loc></url><url><loc>https://on-call.book/read/chapters/drills</loc></url></urlset>",
+		);
+		write(
+			dist,
+			"read/chapters/drills/index.html",
+			'<html><head><link rel="canonical" href="https://on-call.book/read/chapters/drills/"></head></html>',
+		);
+		const result = inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(false);
+		expect(result.findings[0]?.file).toBe("read/chapters/drills/index.html");
+	});
+
+	it("requires author-only pages to be noindex", () => {
+		write(dist, "new-book/index.html", "<html><head></head></html>");
+		expect(inspectBuildOutput({ book: "on-call", distDir: dist }).ok).toBe(
+			false,
+		);
+		write(
+			dist,
+			"new-book/index.html",
+			'<html><head><meta name="robots" content="noindex, nofollow"></head></html>',
+		);
+		expect(inspectBuildOutput({ book: "on-call", distDir: dist }).ok).toBe(
+			true,
+		);
+	});
 });

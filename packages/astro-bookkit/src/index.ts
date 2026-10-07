@@ -181,6 +181,11 @@ export {
 } from "./localization";
 export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
 export {
+	extractPageFacts,
+	type PageFacts,
+	pageFactsForModule,
+} from "./markdown/pageFacts";
+export {
 	extractHeadingsFromMarkdown,
 	type HeadingEntry,
 } from "./markdown/headings";
@@ -330,6 +335,7 @@ export type {
 	BookSitemapOptions,
 } from "./seo/book";
 export {
+	AUTHOR_ONLY_PATHS,
 	createBookRobotsTxt,
 	createBookSitemapEntries,
 	DEFAULT_BOOK_SITEMAP_PATHS,
@@ -340,7 +346,21 @@ export type {
 	SeoInput,
 	SeoProps,
 } from "./seo/config";
-export { buildSeoProps, resolveSiteUrl } from "./seo/config";
+export {
+	buildSeoProps,
+	hasServerRuntime,
+	resolveSiteUrl,
+} from "./seo/config";
+export {
+	bookPageTitle,
+	DEFAULT_MIN_INDEXABLE_WORDS,
+	firstMetaDescription,
+	isThinPage,
+	META_DESCRIPTION_MAX_CHARACTERS,
+	shortBookTitle,
+	THIN_PAGE_ROBOTS,
+	toMetaDescription,
+} from "./seo/page-meta";
 export type { RobotsTxtOptions } from "./seo/robots";
 export { createRobotsTxt } from "./seo/robots";
 export type { SitemapEntry } from "./seo/sitemap";
@@ -357,7 +377,12 @@ export {
 	createDefinedTermStructuredData,
 } from "./seo/structured-data";
 export type { SiteUrlOptions } from "./seo/urls";
-export { buildAbsoluteUrl, normalizeSiteUrl } from "./seo/urls";
+export {
+	buildAbsoluteUrl,
+	canonicalPageUrl,
+	canonicalPathname,
+	normalizeSiteUrl,
+} from "./seo/urls";
 export type {
 	BookContentInput,
 	ChapterRecord,

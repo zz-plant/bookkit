@@ -8,10 +8,15 @@ import {
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
+import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+  bookPageTitle,
   buildLocalizedReadRoutePath,
   createBreadcrumbListStructuredDataFromTrail,
+  firstMetaDescription,
+  pageFactsForModule,
+  readItemPath,
   readRoutes,
 } from "@bookkit/astro-bookkit";
 
@@ -27,6 +32,9 @@ export async function getStaticPaths() {
 }
 
 const modules = bookEntryPoints.contentModules.glossary;
+const mechanismIndex = buildLocalizedContentIndex(bookEntryPoints.contentModules.mechanisms, {
+  defaultLocale: "en",
+});
 const localizedIndex = buildLocalizedContentIndex(modules, {
   defaultLocale: "en",
 });
@@ -46,6 +54,10 @@ const isFallback = missingSlugs.includes(Astro.params.slug ?? "");
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(requestPath, readRoutes.root);
 const localizedSectionPath = buildLocalizedReadRoutePath(requestPath, readRoutes.glossary);
+const { entries: mechanismEntries } = resolveLocalizedContent(mechanismIndex, {
+  locale: Astro.locals?.locale,
+});
+const matchingMechanism = mechanismEntries.find((entry) => entry.slug === frontmatter.slug);
 const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
 const breadcrumbItems = [
   { name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
@@ -57,19 +69,29 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   Astro.url
 );
 ---
-<BaseLayout title={`${frontmatter.term} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+<BaseLayout
+  title={bookPageTitle(frontmatter.term, bookConfig.title)}
+  description={firstMetaDescription(
+    frontmatter.definition,
+    pageFactsForModule(modules, bookEntryPoints.contentRawModules.glossary, module)?.excerpt,
+  )}
+  structuredData={[breadcrumbStructuredData]}
+>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="eyebrow">Glossary{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>
+  <NextActionPanel
+    variant="compact"
+    title="Keep going"
+    links={[
+      {
+        href: matchingMechanism ? readItemPath("mechanisms", matchingMechanism.slug) : readRoutes.mechanisms,
+        label: matchingMechanism ? `The ${frontmatter.term} mechanism` : "Mechanisms",
+      },
+      { href: readRoutes.examples, label: "Examples" },
+    ]}
+  />
   <section class="content-block">
     <Content />
-  </section>
-  <section class="next-steps">
-    <h2>Keep going</h2>
-    <div class="next-steps__links">
-      <a class="next-steps__link" href={readRoutes.mechanisms}>Mechanisms</a>
-      <a class="next-steps__link" href={readRoutes.examples}>Examples</a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit</a>
-    </div>
   </section>
 </BaseLayout>

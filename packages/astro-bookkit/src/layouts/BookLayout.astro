@@ -3,9 +3,6 @@ import "@fontsource-variable/newsreader/opsz.css";
 import "@fontsource-variable/newsreader/opsz-italic.css";
 import "@fontsource/fragment-mono/400.css";
 import "../styles/bookkit.css";
-import bookLayoutUiClient from "./book-layout/ui.ts?url";
-import bookLayoutAnalyticsClient from "./book-layout/analytics.ts?url";
-import bookLayoutMermaidClient from "./book-layout/mermaid.ts?url";
 import SiteHeader from "./book-layout/SiteHeader.astro";
 import MobileCta from "./book-layout/MobileCta.astro";
 import SearchPanel from "./book-layout/SearchPanel.astro";
@@ -24,6 +21,7 @@ const {
   exportAnalyticsEndpoint = "/api/export-analytics.json",
   previewAnalyticsEndpoint = "/api/preview-analytics.json",
   footerText,
+  bookDescription,
   metaDescription,
   siteUrl,
   canonicalPath,
@@ -113,7 +111,6 @@ const renderState: BookLayoutRenderState =
   });
 
 const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
-const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
 ---
 <!doctype html>
 <html lang={renderState.lang}>
@@ -159,6 +156,7 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
     data-preview-hint={renderState.preview.tokenHint}
     data-preview-expires={renderState.preview.expiresAt}
     data-preview-label={renderState.preview.label}
+    data-has-mermaid={shouldLoadMermaidRuntime ? "true" : undefined}
   >
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="page">
@@ -221,15 +219,33 @@ const shouldLoadAnalyticsRuntime = Boolean(analyticsEndpoint);
         <slot />
       </main>
       <footer class="site-footer">
-        <span>{footerText ?? bookTitle}</span>
+        {footerText ? (
+          <span>{footerText}</span>
+        ) : (
+          <p class="site-footer__colophon">
+            <cite class="site-footer__title">{bookTitle}</cite>
+            {bookDescription && <span class="site-footer__pitch">{bookDescription}</span>}
+            {renderState.routes.normalizedLocalePath !== "/read" && (
+              <a class="site-footer__start" href="/read">Start reading →</a>
+            )}
+          </p>
+        )}
       </footer>
       <MobileCta isReadRoute={renderState.routes.isReadRoute} />
       <SearchPanel />
       {aiQaEnabled && <QaPanel aiQaSamples={aiQaSamples} />}
       <KeyboardHelp />
     </div>
-    <script type="module" src={bookLayoutUiClient}></script>
-    {shouldLoadAnalyticsRuntime && <script type="module" src={bookLayoutAnalyticsClient}></script>}
-    {shouldLoadMermaidRuntime && <script type="module" src={bookLayoutMermaidClient}></script>}
+    <script>
+      // Processed by Astro so Vite compiles and bundles it. A `?url` import of a
+      // .ts file ships the raw TypeScript, which browsers cannot run.
+      import "./book-layout/ui";
+      if (document.body.dataset.analyticsEndpoint) {
+        void import("./book-layout/analytics");
+      }
+      if (document.body.dataset.hasMermaid === "true") {
+        void import("./book-layout/mermaid");
+      }
+    </script>
   </body>
 </html>

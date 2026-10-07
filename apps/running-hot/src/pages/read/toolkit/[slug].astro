@@ -11,8 +11,11 @@ import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import NextActionPanel from "@bookkit/astro-bookkit/components/NextActionPanel.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+  bookPageTitle,
   buildLocalizedReadRoutePath,
   createBreadcrumbListStructuredDataFromTrail,
+  firstMetaDescription,
+  pageFactsForModule,
   readItemPath,
   readRoutes,
   toolkitDisplayName,
@@ -46,6 +49,15 @@ if (!module) {
 
 const { frontmatter, default: Content } = module;
 const toolName = toolkitDisplayName(frontmatter);
+const metaDescription = firstMetaDescription(
+  frontmatter.trigger,
+  pageFactsForModule(modules, bookEntryPoints.contentRawModules.toolkit, module)?.excerpt,
+);
+// Readers see the mechanism's name; the slug is only its address.
+const mechanismTitle =
+  Object.values(bookEntryPoints.contentModules.mechanisms).find(
+    (entry) => entry.frontmatter?.slug === frontmatter.mechanism,
+  )?.frontmatter?.title ?? frontmatter.mechanism;
 const isFallback = missingSlugs.includes(frontmatter.slug);
 const steps = frontmatter.steps ?? [];
 const failureLooksLike = frontmatter.failureLooksLike ?? [];
@@ -64,13 +76,17 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   Astro.url
 );
 ---
-<BaseLayout title={`${toolName} • ${bookConfig.title}`} structuredData={[breadcrumbStructuredData]}>
+<BaseLayout
+  title={bookPageTitle(toolName, bookConfig.title)}
+  description={metaDescription}
+  structuredData={[breadcrumbStructuredData]}
+>
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="eyebrow">Toolkit action{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{toolName}</h1>
   <p class="lede">
     {frontmatter.timeboxMinutes ?? 10} minutes · for{" "}
-    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{frontmatter.mechanism}</a>
+    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{mechanismTitle}</a>
   </p>
   {frontmatter.trigger && (
     <section class="content-block">
@@ -121,7 +137,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
       {
         href: readItemPath("mechanisms", frontmatter.mechanism),
         label: "The mechanism behind this action",
-        meta: frontmatter.mechanism,
+        meta: mechanismTitle,
       },
       { href: readRoutes.examples, label: "Examples" },
       { href: readRoutes.toolkit, label: "Other actions" },

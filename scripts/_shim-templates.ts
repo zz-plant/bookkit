@@ -41,6 +41,12 @@ export const shimPaths = [
 	"src/pages/versions.astro",
 	"src/pages/read/analytics.astro",
 	"src/pages/read/tools.astro",
+	"src/layouts/BaseLayout.astro",
+	"src/pages/read/chapters/[slug].astro",
+	"src/pages/read/mechanisms/[slug].astro",
+	"src/pages/read/glossary/[slug].astro",
+	"src/pages/read/toolkit/[slug].astro",
+	"src/pages/read/examples/[...slug].astro",
 ] as const;
 
 export const listShimBooks = () => listBookDirs();

@@ -23,7 +23,21 @@ const layoutState = createBookLayoutState({
   localizedContentModules: bookEntryPoints.localizedContentModules,
   versionPrefix: "v",
 });
-const { seoProps, resolvedVersion, bookTitle, bookKey, aiQaEnabled, aiQaProvider, aiQaProviders, renderState } = layoutState;
+const {
+  seoProps,
+  hasServerRuntime,
+  resolvedVersion,
+  bookTitle,
+  bookKey,
+  aiQaEnabled,
+  aiQaProvider,
+  aiQaProviders,
+  renderState,
+} = layoutState;
+// A static deploy has no endpoints to receive analytics; send no beacons.
+const runtimeEndpoints = hasServerRuntime
+  ? {}
+  : { analyticsEndpoint: "", exportAnalyticsEndpoint: "", previewAnalyticsEndpoint: "" };
 ---
 <BookLayout
   bookTitle={bookTitle}
@@ -33,6 +47,8 @@ const { seoProps, resolvedVersion, bookTitle, bookKey, aiQaEnabled, aiQaProvider
   aiQaProvider={aiQaProvider}
   aiQaProviders={aiQaProviders}
   renderState={renderState}
+  bookDescription={bookConfig.site?.defaultMeta?.description}
+  {...runtimeEndpoints}
   {...seoProps}
 >
   <slot />

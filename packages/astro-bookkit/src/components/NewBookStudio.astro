@@ -1,5 +1,4 @@
 ---
-import newBookStudioClient from "./new-book-studio/client.ts?url";
 
 const {
   title = "Start a new book",
@@ -204,7 +203,9 @@ const {
   </dialog>
 </section>
 
-<script type="module" src={newBookStudioClient}></script>
+<script>
+  import "./new-book-studio/client";
+</script>
 
 
 <style>

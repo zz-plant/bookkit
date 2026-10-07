@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
+import { AUTHOR_ONLY_PATHS } from "../../packages/astro-bookkit/src/seo/book";
 
 /**
  * Verifies that a book's `dist/` is something a public host can serve.
@@ -85,6 +86,24 @@ const hostOf = (url: string | undefined): string | null => {
 
 const readHead = (file: string, bytes: number): string =>
 	readFileSync(file).subarray(0, bytes).toString("utf8");
+
+const RAW_TYPESCRIPT = /\.(ts|tsx|mts|cts)$/;
+
+/** The built page a URL path is served from, if one exists. */
+const pageFileFor = (distDir: string, pathname: string): string | null => {
+	const clean = decodeURIComponent(pathname).replace(/^\/+|\/+$/g, "");
+	const candidates = clean
+		? [join(clean, "index.html"), `${clean}.html`]
+		: ["index.html"];
+	for (const candidate of candidates) {
+		const path = join(distDir, candidate);
+		if (existsSync(path)) return path;
+	}
+	return null;
+};
+
+const canonicalOf = (html: string): string | undefined =>
+	html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
 
 export const inspectBuildOutput = ({
 	book,
@@ -185,6 +204,83 @@ export const inspectBuildOutput = ({
 				`Site URL disagrees across artifacts: ${hosts
 					.map(([label, host]) => `${label} -> ${host ?? "(none)"}`)
 					.join(", ")}. All of them derive from site.url in book.config.ts.`,
+			);
+		}
+	}
+
+	// Client code must be compiled. A `?url` import of a .ts module copies the
+	// source as an asset, and browsers then fail to run it on every page.
+	const assetsDir = join(distDir, "_astro");
+	if (existsSync(assetsDir)) {
+		for (const entry of readdirSync(assetsDir, { recursive: true })) {
+			const rel = String(entry);
+			if (RAW_TYPESCRIPT.test(rel) && !rel.endsWith(".d.ts")) {
+				error(
+					"Shipped as raw TypeScript, which browsers cannot run. Load client code from a processed <script> in the component (import the module inside it) instead of a `?url` import.",
+					join("_astro", rel),
+				);
+			}
+		}
+	}
+	for (const file of files) {
+		if (!file.endsWith(".html")) continue;
+		const html = readFileSync(file, "utf8");
+		const script = html.match(
+			/<script[^>]*\ssrc="([^"]+\.(?:ts|tsx|mts|cts))"/,
+		)?.[1];
+		if (script) {
+			error(
+				`Loads ${script}, a TypeScript file browsers cannot run. Bundle it through a processed <script> instead.`,
+				relative(distDir, file),
+			);
+		}
+	}
+
+	// Every sitemap URL must be a built page whose canonical is that same URL;
+	// otherwise search engines index a 404 or treat the two as different pages.
+	const sitemapFile = join(distDir, "sitemap.xml");
+	if (existsSync(sitemapFile)) {
+		const locs = [
+			...readFileSync(sitemapFile, "utf8").matchAll(/<loc>([^<]+)<\/loc>/g),
+		].map((match) => match[1]);
+		for (const loc of locs) {
+			let pathname: string;
+			try {
+				pathname = new URL(loc).pathname;
+			} catch {
+				error(`Lists ${loc}, which is not an absolute URL.`, "sitemap.xml");
+				continue;
+			}
+			const page = pageFileFor(distDir, pathname);
+			if (!page) {
+				error(
+					`Lists ${pathname}, but no page was built for it, so search engines would find a 404. Build the page or drop the entry.`,
+					"sitemap.xml",
+				);
+				continue;
+			}
+			const canonical = canonicalOf(readFileSync(page, "utf8"));
+			if (canonical && canonical !== loc) {
+				error(
+					`Canonical ${canonical} differs from its sitemap URL ${loc}; search engines treat them as two pages. Derive both from the same path (no trailing slash).`,
+					relative(distDir, page),
+				);
+			}
+		}
+	}
+
+	// Author tools are reachable but must stay out of search.
+	for (const path of AUTHOR_ONLY_PATHS) {
+		const page = pageFileFor(distDir, path);
+		if (!page) continue;
+		if (
+			!/<meta name="robots" content="[^"]*noindex/.test(
+				readFileSync(page, "utf8"),
+			)
+		) {
+			error(
+				`Author-only page ${path} is indexable. Pass robots="noindex, nofollow" to its layout.`,
+				relative(distDir, page),
 			);
 		}
 	}

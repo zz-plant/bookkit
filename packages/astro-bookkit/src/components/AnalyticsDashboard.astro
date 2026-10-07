@@ -1,5 +1,4 @@
 ---
-import analyticsDashboardClient from "./analytics-dashboard/client.ts?url";
 
 const {
   lastUpdated = new Date().toLocaleDateString("en-US", {
@@ -154,4 +153,6 @@ const {
   </div>
 </section>
 
-<script type="module" src={analyticsDashboardClient}></script>
+<script>
+  import "./analytics-dashboard/client";
+</script>

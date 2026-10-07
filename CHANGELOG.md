@@ -3,6 +3,34 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — What a visitor from search finds
+
+Done at the author's request; it serves B1's outside-reader test (five people outside the project read one book end to end), which starts with a stranger landing on one page.
+
+**Fixed**
+
+- **Reader JavaScript did not run in production builds.** `BookLayout`, `ReadHub`, `AnalyticsDashboard`, and `NewBookStudio` loaded their client code with `?url` imports of `.ts` files, so Vite copied the raw TypeScript into `dist/_astro/` and every page threw on load. On a deployed book, Search, Menu, Ask, Shortcuts, Appearance, and heading anchors did nothing; dev mode compiled the files on request, so it looked fine there. The scripts are now processed `<script>` tags that Vite bundles.
+- **Canonical URLs had a trailing slash**, as did `og:url`, `WebPage.url`, breadcrumbs, and `DefinedTerm` URLs. The host answers that form with a redirect, and the sitemap listed the other form. `canonicalPathname` / `canonicalPageUrl` (`seo/urls.ts`) now drop it everywhere.
+- **The sitemap listed 17 example URLs that 404** (it used the nested file path; routes use the file name). It now builds every section from the same index the read routes use.
+- **Language and version links pointed at pages a static build does not have** (`hreflang="es"`, `/es/…`, `/v/0.1.0/…`).
+
+**New**
+
+- **`site.runtime: "static" | "server"`** in `book.config.ts`, default `"static"`. Static pages leave out what needs a request handler: the feedback widget, the Ask panel, analytics beacons, and the language and version switchers and `hreflang` alternates. `"server"` keeps them.
+- **Search titles and descriptions per page.** Titles are the page name, then the book's short title (`bookPageTitle`); 53 Running Hot and 84 Crumple Zone titles were over 60 characters with the full subtitle. Descriptions come from the chapter's new optional `summary`, a mechanism's or term's definition, a tool's `trigger`, or an example's `summary`, then the page's first paragraph (`extractPageFacts`, read from the raw MDX source), then `site.defaultMeta.description`. Before, about 80% of pages repeated the book's description. `og:site_name` is the short title, and read detail pages are `og:type` `article`.
+- **Stub chapters stay out of search.** A chapter with fewer than `site.minIndexableWords` words of prose (default 60; 0 turns it off) gets `noindex, follow` and is left out of the sitemap. Today that is 5 Running Hot chapters and all 11 Crumple Zone chapters (16–40 words each); the shortest real chapters run 65 or more.
+- **Author tools stay out of search.** `/read/analytics`, `/read/tools`, and `/new-book` carry `noindex, nofollow`, and robots.txt disallows them (`AUTHOR_ONLY_PATHS`).
+- **Colophon on every page**: the book's title, `site.defaultMeta.description` as its pitch, and "Start reading →". It replaces the footer that repeated the title, so a reader who lands mid-book can see what the book is.
+- **Toolkit pages name their mechanism** instead of showing its slug.
+- **`check:build` fails on** client code shipped as raw TypeScript, sitemap URLs with no built page, canonicals that differ from their sitemap URL, and indexable author tools.
+- **Read pages and `BaseLayout` are shims.** `src/layouts/BaseLayout.astro` and the chapter, mechanism, glossary, toolkit, and example detail pages were identical copies in every app that `check:shims` did not cover. They now live in `templates/book-app/` and are synced. Glossary pages in Bad People, Crumple Zone, and On-Call take Running Hot's newer version, which links to the term's mechanism.
+
+**Migration**
+
+- A book served with an adapter: set `site.runtime: "server"` to keep feedback, Ask, analytics, and the locale and version switchers.
+- Books outside this repo: run `bun run sync:shims` to pick up the new shims. Local edits to those pages are overwritten; put book-specific copy in `src/lib/read-copy.ts` or config.
+- No schema change is required. `chapterSchema` gains an optional `summary`.
+
 ## 2026-10-07 — `check:corpus` runs a stronger model, measured against the author's merges (bet B1)
 
 - **Default model is now `nomic-ai/nomic-embed-text-v1.5`** (full precision, cutoff 0.80), replacing `Xenova/all-MiniLM-L6-v2` (cutoff 0.45). The old model missed the `human-heat-sink` / `crumple-zone` merge: it scored the pair 0.36, and 56 pairs in today's corpus scored higher. nomic ranks both recorded merges in the top two and, at 0.80, flags only one pair today, which is already ruled distinct, so `check:corpus --mode error` still passes. It runs through the same `@xenova/transformers` dependency; no new package. The first run downloads about 520 MB instead of 25 MB, and a full run takes about 10s on CPU.

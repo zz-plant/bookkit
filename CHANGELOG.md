@@ -3,6 +3,16 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — `check:corpus` runs a stronger model, measured against the author's merges (bet B1)
+
+- **Default model is now `nomic-ai/nomic-embed-text-v1.5`** (full precision, cutoff 0.80), replacing `Xenova/all-MiniLM-L6-v2` (cutoff 0.45). The old model missed the `human-heat-sink` / `crumple-zone` merge: it scored the pair 0.36, and 56 pairs in today's corpus scored higher. nomic ranks both recorded merges in the top two and, at 0.80, flags only one pair today, which is already ruled distinct, so `check:corpus --mode error` still passes. It runs through the same `@xenova/transformers` dependency; no new package. The first run downloads about 520 MB instead of 25 MB, and a full run takes about 10s on CPU.
+- **New flag: `--model <key>`** picks a model from `EMBEDDING_MODELS` in `scripts/lib/embed-text.ts` (`nomic`, `minilm`, `bge-base`). Each model carries its own task prefix, pooling, precision, and cutoff, because similarity scales differ by model. `--threshold` still overrides the cutoff.
+- **New mode: `--eval`** scores each model (or the ones named in `--model a,b`) against the author's rulings: each merge's score and how many pairs in today's corpus score higher, the top pair ruled distinct, and how many pairs it flags at its own cutoff and at the cutoff that catches every merge, split into ruled and unreviewed. The scoring is `evaluateCorpusModel` in `scripts/lib/corpus-eval.ts`.
+- **`corpus.json` gains `merged`:** each merge the author made, with the date, the reason, and both mechanisms (`book`, `slug`, `title`, `definition`, `is`) as they were before it. The two merges of 2026-10-07 (`delay-as-force`, `crumple-zone`) are recorded from commit `3aa6bb3`. Normal runs ignore it.
+- `corpusEmbeddingText` accepts any object with `title`, `definition`, and `is` (it took a full `MechanismRecord`); existing callers are unaffected.
+
+**Migration:** none for books. To keep the earlier behaviour, pass `--model minilm`. A cutoff passed with `--threshold` is now read on the chosen model's scale: 0.45 means something different for nomic than for MiniLM.
+
 ## 2026-10-07 — `.astro` files are type-checked
 
 - **`bun run check:types` now checks `.astro` files.** After the TypeScript 7 pass, it runs `astro check` on every book and on the engine, in parallel. The 116 `.astro` files (24 engine components and layouts, 92 book pages) had never been type-checked: each book had about 265 errors and the engine 109. All are fixed, and the gate fails on new ones. `-- --no-astro` skips this pass for a quick loop. About 27s locally.

@@ -82,7 +82,11 @@ export type CorpusOverlapReport = {
 	suggestions: ContentSuggestion[];
 };
 
-/** Calibrated on all-MiniLM-L6-v2 over the corpusEmbeddingText of 33 real mechanisms. */
+/**
+ * Calibrated on all-MiniLM-L6-v2 over the corpusEmbeddingText of 33 real
+ * mechanisms. Other models score on other scales; check:corpus carries a
+ * cutoff per model.
+ */
 export const DEFAULT_SEMANTIC_OVERLAP_THRESHOLD = 0.45;
 
 const CONTRACT_FIELDS = [
@@ -96,7 +100,9 @@ const CONTRACT_FIELDS = [
 ] as const;
 
 /** What a semantic model should read for one mechanism: its name, definition, and what it covers. */
-export const corpusEmbeddingText = (mechanism: MechanismRecord): string =>
+export const corpusEmbeddingText = (
+	mechanism: Pick<MechanismRecord, "title" | "definition" | "is">,
+): string =>
 	[`${mechanism.title}.`, mechanism.definition, ...mechanism.is]
 		.join(" ")
 		.trim();

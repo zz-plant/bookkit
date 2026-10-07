@@ -88,10 +88,20 @@ if (semanticRequested && mechanisms.length > 1) {
 	}
 }
 
+// An explicit --books subset leaves other books' mechanisms out; rulings that
+// name them are out of scope for this run, not stale.
+const loadedSlugs = new Set(mechanisms.map((m) => m.slug));
+const rulings = corpusFile.distinct ?? [];
+const distinct = booksArg
+	? rulings.filter((ruling) =>
+			ruling.pair.every((slug) => loadedSlugs.has(slug)),
+		)
+	: rulings;
+
 const report = analyzeCorpusOverlap(mechanisms, {
 	vectors,
 	semanticThreshold,
-	distinct: corpusFile.distinct ?? [],
+	distinct,
 });
 
 const bySlug = new Map(mechanisms.map((m) => [m.slug, m]));

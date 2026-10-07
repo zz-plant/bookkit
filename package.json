@@ -68,6 +68,7 @@
 		"husky": "^9.1.7",
 		"lint-staged": "^17.0.5",
 		"typescript": "^5.9.3",
+		"typescript-native": "npm:typescript@7.0.2",
 		"vitest": "^4.1.10",
 		"wrangler": "^4.131.2"
 	}

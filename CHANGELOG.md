@@ -3,6 +3,13 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-07 — Typecheck on TypeScript 7
+
+- **`bun run check:types` uses TypeScript 7.0.2, the native compiler.** The same five projects typecheck in about 4s instead of about 18s locally; in CI, typecheck was 26s of a 53s run. It reports the same errors as TypeScript 5 on the current tree and on planted errors.
+- TypeScript 7 is the devDependency `typescript-native` (an npm alias, pinned). The `typescript` package stays on 5.x because `scripts/validate-book.ts` parses `book.config.ts` with the 5.x compiler API, which 7.x replaced. Editors keep using 5.x.
+- `bun run check:types -- --tsc` runs the old TypeScript 5 check, as a fallback.
+- Neither compiler reads `.astro` files; `astro check` is not part of the gate.
+
 ## 2026-10-07 — Docs streamlined
 
 - **Removed 65 files (~33k words)**, all recoverable from git at `2ca1b3e`:

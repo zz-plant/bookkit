@@ -8,7 +8,7 @@ const steps = [
     command: ["bun", "run", "lint"],
   },
   {
-    label: "Typecheck (tsc across apps/* and packages/*)",
+    label: "Typecheck (TypeScript 7 across apps/* and packages/*)",
     command: ["bun", "run", "check:types"],
   },
   {

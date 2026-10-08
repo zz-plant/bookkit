@@ -14,6 +14,27 @@ export const toValidateBookFailure = (exitCode: number) => {
 	};
 };
 
+type ValidateReport = {
+	ok: boolean;
+	findings: Array<{
+		level: "error" | "warning";
+		code?: string;
+		field?: string;
+		message: string;
+		file?: string;
+		fix?: string;
+	}>;
+};
+
+const parseValidateReport = (stdout: string): ValidateReport | null => {
+	try {
+		const parsed = JSON.parse(stdout) as ValidateReport;
+		return Array.isArray(parsed.findings) ? parsed : null;
+	} catch {
+		return null;
+	}
+};
+
 export const handleValidateBook: ToolHandler = ({ options, args }) => {
 	const rawBook = args?.book;
 	const book =
@@ -43,23 +64,39 @@ export const handleValidateBook: ToolHandler = ({ options, args }) => {
 		"--",
 		"--book",
 		book,
+		"--json",
 	]);
+	// Judge by the findings: validate-book exits 0 in warn mode even with errors.
+	const report = parseValidateReport(command.stdout);
+	const errorCount =
+		report?.findings.filter((finding) => finding.level === "error").length ?? 0;
+	const ok = command.ok && report !== null && errorCount === 0;
 	return {
-		ok: command.ok,
-		summary: command.ok
-			? `Validation passed for ${book}.`
-			: `Validation failed for ${book}.`,
+		ok,
+		summary: ok
+			? `Validation passed for ${book}${report?.findings.length ? ` (${report.findings.length} warning(s))` : ""}.`
+			: report
+				? `Validation failed for ${book}: ${errorCount} error(s). Each finding names its file, field, and fix; check a corrected file with bookkit.check_content before writing it.`
+				: `Validation failed for ${book}.`,
 		payload: {
 			book,
 			command: command.command,
 			exitCode: command.exitCode,
-			stdout: command.stdout.trim(),
-			stderr: command.stderr.trim(),
+			findings: report?.findings ?? [],
+			stderr: command.stderr.trim() || undefined,
+			stdout: report ? undefined : command.stdout.trim(),
 			diagnostics: {
 				errors: inMemoryDiagnostics.errors,
 				warnings: inMemoryDiagnostics.warnings,
 			},
 		},
-		error: command.ok ? undefined : toValidateBookFailure(command.exitCode),
+		error: ok
+			? undefined
+			: {
+					...toValidateBookFailure(command.exitCode),
+					...(report
+						? { cause: `${errorCount} validation error(s) in ${book}.` }
+						: {}),
+				},
 	};
 };

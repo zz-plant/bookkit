@@ -71,4 +71,53 @@ describe("mcp-server (stdio)", () => {
 		const invalid = await exchange(['"just a string"']);
 		expect(invalid.get(null).error.code).toBe(-32600);
 	});
+
+	it("compiles a candidate file without writing it, against the served book", async () => {
+		const draft = (mechanism: string) =>
+			`---\nslug: probe\nmechanism: ${mechanism}\nname: "Probe"\ntrigger: "t"\ntimeboxMinutes: 5\nsteps:\n  - "s"\nfailureLooksLike:\n  - "f"\nlegitimateDemand:\n  - "d"\n---\n`;
+		const responses = await exchange([
+			{
+				jsonrpc: "2.0",
+				id: 1,
+				method: "tools/call",
+				params: {
+					name: "bookkit.get_content_contract",
+					arguments: { section: "tool" },
+				},
+			},
+			{
+				jsonrpc: "2.0",
+				id: 2,
+				method: "tools/call",
+				params: {
+					name: "bookkit.check_content",
+					arguments: { section: "tool", source: draft("no-such-mechanism") },
+				},
+			},
+		]);
+		const contract =
+			responses.get(1).result.structuredContent.payload.contracts[0];
+		expect(contract.directory).toBe("toolkit");
+		const mechanismSlug = responses.get(2).result.structuredContent.payload
+			.mechanismSlugs[0] as string;
+		const failed = responses.get(2).result;
+		expect(failed.isError).toBe(true);
+		expect(failed.structuredContent.payload.findings[0]).toMatchObject({
+			code: "UNKNOWN_MECHANISM",
+			field: "mechanism",
+		});
+
+		const fixed = await exchange([
+			{
+				jsonrpc: "2.0",
+				id: 3,
+				method: "tools/call",
+				params: {
+					name: "bookkit.check_content",
+					arguments: { section: "tool", source: draft(mechanismSlug) },
+				},
+			},
+		]);
+		expect(fixed.get(3).result.structuredContent.payload.findings).toEqual([]);
+	});
 });

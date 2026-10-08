@@ -419,6 +419,25 @@ export {
 	suggestPrerequisiteEdges,
 	triageConcepts,
 } from "./suggestions";
+export type {
+	ContentCheckContext,
+	ContentCheckResult,
+	ContentContract,
+	ContentFinding,
+	ContentFindingCode,
+	ContentSection,
+	ContractField,
+	RetiredSlug,
+} from "./validators/content-check";
+export {
+	CONTENT_SECTIONS,
+	checkContentItem,
+	contentContract,
+	isContentSection,
+	mechanismSlugsFrom,
+	retiredSlugsFromCorpus,
+	SECTION_DIRECTORIES,
+} from "./validators/content-check";
 export {
 	validateFrameDefinition,
 	validateFrameSteps,

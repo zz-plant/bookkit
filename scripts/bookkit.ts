@@ -2,10 +2,17 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
+import {
+	CONTENT_SECTIONS,
+	type ContentSection,
+	contentContract,
+	isContentSection,
+} from "../packages/astro-bookkit/src/validators/content-check";
 import { listBookDirs, repoRoot, slugify } from "./_lib";
 import {
 	booksWithMechanism,
 	chapterSource,
+	checkContentFile,
 	findSimilarMechanisms,
 	findSimilarMechanismsByMeaning,
 	listChapterFiles,
@@ -122,6 +129,10 @@ switch (command) {
 	}
 
 	case "check": {
+		if (args[1] && /\.mdx?$/.test(args[1])) {
+			checkOneFile(args[1], args.includes("--json"));
+			break;
+		}
 		const book = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
 		if (book) requireBook(book, "bun run bookkit check [book]");
 		const quick = args.includes("--quick");
@@ -151,6 +162,39 @@ switch (command) {
 
 	case "new": {
 		createNew(args[1], args.slice(2));
+		break;
+	}
+
+	case "contract": {
+		const requested =
+			args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+		if (requested !== undefined && !isContentSection(requested)) {
+			console.error(
+				`Unknown section "${requested}". Use one of: ${CONTENT_SECTIONS.join(", ")}.`,
+			);
+			process.exit(1);
+		}
+		const sections: ContentSection[] = requested
+			? [requested]
+			: [...CONTENT_SECTIONS];
+		const contracts = sections.map((section) => contentContract(section));
+		if (args.includes("--json")) {
+			console.log(JSON.stringify(contracts, null, 2));
+			break;
+		}
+		for (const contract of contracts) {
+			console.log(
+				`\n${contract.section}  (src/content/book/${contract.directory}/)`,
+			);
+			for (const field of contract.fields) {
+				console.log(
+					`  ${field.name.padEnd(18)} ${field.whenMissing.padEnd(9)} ${field.meaning}`,
+				);
+			}
+			console.log(
+				`\n  A file that compiles:\n${contract.template.replace(/^/gm, "    ")}`,
+			);
+		}
 		break;
 	}
 
@@ -609,6 +653,34 @@ function createNew(kind: string | undefined, rest: string[]) {
 	}
 }
 
+function checkOneFile(path: string, asJson: boolean) {
+	const checked = checkContentFile(path);
+	if ("error" in checked) {
+		console.error(checked.error);
+		process.exit(1);
+	}
+	const { book, section, result } = checked;
+	if (asJson) {
+		console.log(
+			JSON.stringify(
+				{ book, section, ...result, frontmatter: undefined, body: undefined },
+				null,
+				2,
+			),
+		);
+		process.exit(result.ok ? 0 : 1);
+	}
+	console.log(
+		`\n${result.ok ? "✓" : "✗"} ${path} (${section} in ${book}): ${result.findings.length === 0 ? "compiles with no findings" : `${result.findings.length} finding(s)`}`,
+	);
+	for (const finding of result.findings) {
+		console.log(`  ${finding.level}: ${finding.message}`);
+		if (finding.fix)
+			console.log(`    fix: ${finding.fix.replace(/\n/g, "\n    ")}`);
+	}
+	process.exit(result.ok ? 0 : 1);
+}
+
 function printHelp() {
 	console.log(`Bookkit — write, check, preview, and publish books
 
@@ -626,6 +698,8 @@ Write
 Check
   status [--json]                           chapters, stubs, mechanisms, and tools per book
   check [book] [--quick]                    structure, plus mechanisms that overlap across books
+  check <file.mdx> [--json]                 one content file: each finding with its field and fix
+  contract [section] [--json]               the fields a mechanism, tool, example, chapter, or glossary entry needs
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
   similar "<title>" [--definition "…"] [--semantic]
                                             existing mechanisms, in any book, that a new one might duplicate

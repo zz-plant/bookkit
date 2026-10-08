@@ -3,6 +3,29 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-08 — Content an agent can make compile
+
+The compiler stays the judge; agents get what they need to satisfy it. No model is added to the build or the validator.
+
+- **New: content contracts** (`validators/content-check.ts`). Each section (mechanism, tool, example, chapter, glossary) has one definition:
+  - every field, whether its absence is an error or a warning, and what to write in it;
+  - the frontmatter's JSON Schema, generated from the Zod schema the build uses;
+  - a template that compiles with no findings.
+  The validator, the MCP tools, and the CLI all read this definition, so what an agent is told is what the compiler enforces.
+- **`validate-book --json` findings carry `code`, `field`, and `fix`.** For example: `FIELD_MISSING` / `trigger` / "Add `trigger:` (The situation that tells the reader to use it, in one sentence.) For example: …". Text output is unchanged; `bun run verify` reads the same findings.
+- **New MCP tools:**
+  - `bookkit.get_content_contract` returns the contract.
+  - `bookkit.check_content` compiles one candidate file without writing it, checking mechanism references against the book. Draft, check until ok, then write.
+- **New CLI commands:** `bun run bookkit contract [section]`, and `bun run bookkit check <file.mdx> [--json]` for one file.
+- **Better fixes for unknown mechanisms.** A reference to a slug merged away in `corpus.json` names its replacement ("coercion-by-design was merged into refusability-gap on 2026-10-08; use refusability-gap"). Any other unknown slug gets the closest existing ones, matched on words longer than three letters.
+- **Fixed: `bookkit.validate_book` said "Validation passed" for books with errors.** `validate-book` exits 0 in warn mode, and the tool judged by exit code. It now runs `--json` and judges by the findings.
+- **Fixed: invalid YAML frontmatter was reported as "missing frontmatter".** It is now `FRONTMATTER_INVALID`, with the parser's reason and line.
+- **Stricter: a chapter's `mechanisms:` entries must exist in the book** (an error, as for tools and examples). No current chapter breaks this.
+- An empty list item (`- ""`) counts as missing, and a missing field is reported once, not again as a schema issue.
+- `toFindings` is removed from `scripts/lib/authoring.ts`; the validator builds findings directly.
+
+**Migration:** none for content that validated before. Scripts that matched schema-issue text should read `code` and `field` instead. That text is now "<Section> schema issue at <path>: <reason>", and glossary entries without a term say "Glossary missing term".
+
 ## 2026-10-08 — Link previews, bylines, and the last open mechanism pair
 
 - **Every page gets its own PNG link preview.** The `bookkit()` integration renders a 1200×630 image for each built page after `astro build`, set in the reader's two voices on the book's paper: the page title in Newsreader, the section label and host in Fragment Mono, the short title and byline as a running foot. Images live at `/og/<page path>.png` (`/og/index.png` for the home page) and carry `og:image:width`, `og:image:height`, and alt text. Renders are cached by content in `node_modules/.cache/bookkit-og`, so an unchanged page costs nothing on rebuild; a cold build of one book adds about 6s.

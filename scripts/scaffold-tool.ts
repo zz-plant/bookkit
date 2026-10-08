@@ -45,5 +45,5 @@ legitimateDemand:
 writeFileSafe(outPath, mdx);
 console.log(`Created tool: ${outPath}`);
 console.log(
-	`Next: fill trigger/steps/failure/legitimateDemand, then run: bun run validate`,
+	`Next: fill trigger, steps, failureLooksLike, and legitimateDemand. bun run bookkit check ${outPath} says what each needs.`,
 );

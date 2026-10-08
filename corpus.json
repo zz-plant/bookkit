@@ -1,7 +1,11 @@
 {
-	"$comment": "Corpus for bet B1 (docs/bets.md) and the author's rulings on pairs check:corpus flags. Each distinct entry says why two similar mechanisms are different ideas; delete an entry to reopen it. Rulings of 2026-10-07 were made under the author's instruction to combine mechanisms that are the same idea and keep the rest; coercive-waiting was combined into delay-as-force that day. On 2026-10-07 the author asked for a decision on the three books' central mechanisms: running-hot/human-heat-sink was combined into crumple-zone (same lever and evidence), and transfer-success was kept distinct. Each merge is kept under \"merged\" with both mechanisms as they were before it, so check:corpus --eval can score embedding models against the author's rulings.",
+	"$comment": "Corpus for bet B1 (docs/bets.md) and the author's rulings on pairs check:corpus flags. Each distinct entry says why two similar mechanisms are different ideas; delete an entry to reopen it. Rulings of 2026-10-07 were made under the author's instruction to combine mechanisms that are the same idea and keep the rest; coercive-waiting was combined into delay-as-force that day. On 2026-10-07 the author asked for a decision on the three books' central mechanisms: running-hot/human-heat-sink was combined into crumple-zone (same lever and evidence), and transfer-success was kept distinct. On 2026-10-08 the author asked for the remaining open pair to be decided: crumple-zone/coercion-by-design was combined into refusability-gap (same lever and evidence). Each merge is kept under \"merged\" with both mechanisms as they were before it, so check:corpus --eval can score embedding models against the author's rulings.",
 	"books": ["bad-people", "running-hot", "crumple-zone"],
 	"distinct": [
+		{
+			"pair": ["bureaucracy-moral-technology", "clearance-culture"],
+			"reason": "Both are procedure doing moral work, aimed in opposite directions. Bureaucracy as moral technology is the institution's cover: harm counts as acceptable because the process was followed. Clearance culture is a gate on the person: after any deviation, they must win permission to re-enter. Cover for the institution versus a re-entry burden on the individual."
+		},
 		{
 			"pair": ["reversal-capacity", "reversibility-gap"],
 			"reason": "Reversibility gap is the system's asymmetry: it harms fast and restores slowly. Reversal capacity is who can afford to contest at all. Undo speed versus the resources to use recourse."
@@ -111,6 +115,35 @@
 						"Systems transfer risk to individuals rather than containing it",
 						"Institutional stability is purchased by externalizing pressure onto people",
 						"The human body is treated as the cheapest available infrastructure"
+					]
+				}
+			]
+		},
+		{
+			"into": "refusability-gap",
+			"date": "2026-10-08",
+			"reason": "Same lever and same evidence: refusal left out of a system's design makes participation involuntary, checked by asking where you cannot say no and what an optional version would look like. Refusability gap names the lever; coercion by design was the claim that the lever is a design choice.",
+			"before": [
+				{
+					"book": "crumple-zone",
+					"slug": "refusability-gap",
+					"title": "Refusability Gap",
+					"definition": "The ability to say no is treated as optional when it should be a structural design requirement.",
+					"is": [
+						"Refusal is not currently designed into most systems",
+						"The absence of refusal points is a political choice",
+						"Systems that make refusal impossible are coercive by design"
+					]
+				},
+				{
+					"book": "crumple-zone",
+					"slug": "coercion-by-design",
+					"title": "Coercion by Design",
+					"definition": "Coercion is not accidental. It is designed into systems, and therefore can be designed out.",
+					"is": [
+						"Coercive outcomes result from design choices",
+						"Systems can be built where coercion is structurally impossible",
+						"Designers should bear the burden of proving non-coercion"
 					]
 				}
 			]

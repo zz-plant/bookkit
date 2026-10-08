@@ -5,6 +5,7 @@ export const bookConfig = {
 	slug: "bad-people",
 	title: "Bad People",
 	status: "draft",
+	author: { name: "Kanav Jain" },
 	site: {
 		url: "https://bad-people.book",
 		enforceHttps: true,
@@ -12,7 +13,6 @@ export const bookConfig = {
 		defaultMeta: {
 			description:
 				"How systems normalize harm, and how to respond with small, reversible actions.",
-			ogImage: "/og/default.svg",
 		},
 	},
 	localization: {

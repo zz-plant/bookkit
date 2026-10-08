@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
 import { listBookDirs, repoRoot, slugify } from "./_lib";
@@ -9,9 +9,11 @@ import {
 	findSimilarMechanisms,
 	findSimilarMechanismsByMeaning,
 	listChapterFiles,
+	loadBookConfigSummary,
 	nextChapterFileName,
 	summarizeBook,
 } from "./lib/authoring";
+import { domainNotice } from "./lib/deploy-domain";
 import { loadBookContent } from "./lib/load-book";
 
 const args = process.argv.slice(2);
@@ -358,6 +360,16 @@ switch (command) {
 				);
 				process.exit(check.status ?? 1);
 			}
+
+			const wranglerConfig = join(appDir, "wrangler.jsonc");
+			const notice = existsSync(wranglerConfig)
+				? domainNotice({
+						book,
+						siteUrl: (await loadBookConfigSummary(book)).site?.url,
+						wranglerJsonc: readFileSync(wranglerConfig, "utf8"),
+					})
+				: null;
+			if (notice) console.log(`\nNote for ${book}: ${notice}`);
 
 			console.log(
 				`\n🚀 Deploying @books/${book} to Cloudflare${dryRun ? " (dry run)" : ""}...\n`,

@@ -61,7 +61,7 @@ slug: chapter-one
 		expect(runtime.getReleaseNotes()[0].version).toBe("0.2.0");
 		expect(runtime.getVersionEntries()[0].label).toBe("Current");
 		expect(runtime.getOgImageForPath("/release-notes")).toBe(
-			"/og/release-notes.svg",
+			"/og/release-notes.png",
 		);
 
 		const pdfResponse = await runtime.exportRoutes.book.pdf.GET();

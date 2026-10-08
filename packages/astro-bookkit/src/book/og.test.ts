@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-	DEFAULT_OG_SURFACE_IMAGE_MAP,
-	getOgImageForPath,
-	normalizeOgPathname,
-} from "./og";
+import { getOgImageForPath, normalizeOgPathname } from "./og";
 
 describe("og helpers", () => {
 	it("normalizes locale prefixes and trailing slashes", () => {
@@ -15,16 +11,11 @@ describe("og helpers", () => {
 		expect(normalizeOgPathname("")).toBe("/");
 	});
 
-	it("maps normalized routes to expected og assets", () => {
-		expect(getOgImageForPath("/")).toBe(DEFAULT_OG_SURFACE_IMAGE_MAP.home);
-		expect(getOgImageForPath("/read/chapters")).toBe(
-			DEFAULT_OG_SURFACE_IMAGE_MAP.chapters,
-		);
+	it("gives every page its own generated image", () => {
+		expect(getOgImageForPath("/")).toBe("/og/index.png");
+		expect(getOgImageForPath("/read/chapters/")).toBe("/og/read/chapters.png");
 		expect(getOgImageForPath("/fr/read/chapters/chapter-1")).toBe(
-			DEFAULT_OG_SURFACE_IMAGE_MAP.chapterDetail,
-		);
-		expect(getOgImageForPath("/unknown")).toBe(
-			DEFAULT_OG_SURFACE_IMAGE_MAP.fallback,
+			"/og/read/chapters/chapter-1.png",
 		);
 	});
 });

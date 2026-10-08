@@ -200,4 +200,36 @@ describe("book layout state", () => {
 			"https://docs.example.com/en/versions",
 		);
 	});
+
+	it("carries the byline and the generated preview's size into page metadata", () => {
+		const state = createBookLayoutState({
+			astro: {
+				props: {
+					title: "Refusability Gap",
+					ogImage: "/og/read/mechanisms/refusability-gap.png",
+				},
+				url: new URL(
+					"https://crumple-zone.book/read/mechanisms/refusability-gap",
+				),
+			},
+			bookConfig: {
+				site: { url: "https://crumple-zone.book" },
+				title: "The Crumple Zone",
+				author: { name: "Kanav Jain" },
+			},
+			versionEntries: [],
+			localizedContentModules: [],
+		});
+		const { head } = state.renderState;
+
+		expect(head.author).toBe("Kanav Jain");
+		expect(head.ogImageSize).toEqual({ width: 1200, height: 630 });
+		expect(head.resolvedOgImageAlt).toBe(head.resolvedOgTitle);
+		const page = head.structuredDataScripts[0] as {
+			author?: { name: string };
+			isPartOf?: { author?: { name: string } };
+		};
+		expect(page.author?.name).toBe("Kanav Jain");
+		expect(page.isPartOf?.author?.name).toBe("Kanav Jain");
+	});
 });

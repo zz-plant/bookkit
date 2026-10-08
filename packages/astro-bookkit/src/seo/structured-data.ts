@@ -2,6 +2,17 @@ import { canonicalPageUrl } from "./urls";
 
 export type StructuredData = Record<string, unknown>;
 
+/** Who wrote the book, from `bookConfig.author`. */
+export type BookAuthor = { name: string; url?: string };
+
+/** The schema.org Person for a byline, or undefined without one. */
+export const createAuthorStructuredData = (
+	author: BookAuthor | undefined,
+): StructuredData | undefined =>
+	author?.name
+		? { "@type": "Person", name: author.name, url: author.url }
+		: undefined;
+
 export type BreadcrumbItem = {
 	name: string;
 	item: string;

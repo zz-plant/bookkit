@@ -3,6 +3,7 @@ export const bookConfig = {
 	title:
 		"The Crumple Zone: How Systems Externalize Harm and What to Build Instead",
 	status: "draft",
+	author: { name: "Kanav Jain" },
 	site: {
 		url: "https://crumple-zone.book",
 		enforceHttps: true,
@@ -10,7 +11,6 @@ export const bookConfig = {
 		defaultMeta: {
 			description:
 				"When systems fail, people absorb the impact. This book names the patterns that make that happen and what to build instead.",
-			ogImage: "/og/default.svg",
 		},
 	},
 	localization: {
@@ -73,12 +73,6 @@ export const bookConfig = {
 			slug: "refusability-gap",
 			focus:
 				"The ability to say no is treated as optional when it should be a structural design requirement.",
-			actionPrimitiveCountTarget: 1,
-		},
-		{
-			slug: "coercion-by-design",
-			focus:
-				"Coercion is designed into systems, and therefore can be designed out.",
 			actionPrimitiveCountTarget: 1,
 		},
 		{

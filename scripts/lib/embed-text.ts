@@ -28,10 +28,11 @@ export type EmbeddingModel = {
 };
 
 /**
- * Each cutoff is the highest that still flags both merges recorded in
- * corpus.json (2026-10-07), except minilm's 0.45, which predates them and
- * misses the crumple-zone merge (it scores 0.36). nomic scores sit close
- * together: today 0.80 flags 1 pair, 0.78 flags 8, 0.75 flags 37.
+ * Each cutoff is the highest that still flags every merge recorded in
+ * corpus.json (three as of 2026-10-08), except minilm's 0.45, which predates
+ * them and misses two (crumple-zone scores 0.36, refusability-gap 0.41).
+ * nomic scores sit close together: on 2026-10-08, 0.79 flags 2 pairs (both
+ * ruled distinct), 0.78 flags 8, 0.75 flags 37.
  */
 export const EMBEDDING_MODELS: Record<string, EmbeddingModel> = {
 	minilm: {
@@ -49,7 +50,7 @@ export const EMBEDDING_MODELS: Record<string, EmbeddingModel> = {
 		prefix: "clustering: ",
 		pooling: "mean",
 		quantized: false,
-		threshold: 0.8,
+		threshold: 0.79,
 		download: "520 MB",
 	},
 	"bge-base": {

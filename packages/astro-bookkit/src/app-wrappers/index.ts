@@ -25,6 +25,7 @@ import { createBookSitemapEntries } from "../seo/book";
 import type { BookSeoConfig } from "../seo/config";
 import { buildSeoProps } from "../seo/config";
 import { createSitemapXml } from "../seo/sitemap";
+import type { BookAuthor } from "../seo/structured-data";
 
 export const createAnalyticsApiHandlers = () => createReaderAnalyticsEndpoint();
 export const createFeedbackApiHandlers = () => createFeedbackEndpoint();
@@ -143,7 +144,13 @@ export const createChapterExportHandlers = (options: {
 });
 
 export const buildVersionArchivePageProps = (options: {
-	book: { title: string; status: string; slug?: string; site?: BookSeoConfig };
+	book: {
+		title: string;
+		status: string;
+		slug?: string;
+		site?: BookSeoConfig;
+		author?: BookAuthor;
+	};
 	versionEntries: BookVersionEntry[];
 	requestUrl: string;
 	ogImage: string;
@@ -164,6 +171,7 @@ export const buildVersionArchivePageProps = (options: {
 	return {
 		title: `Version archive • ${options.book.title}`,
 		bookTitle: options.book.title,
+		author: options.book.author,
 		bookVersion: latestVersion,
 		bookKey: options.book.slug ?? "book",
 		versions: options.versionEntries,
@@ -173,7 +181,13 @@ export const buildVersionArchivePageProps = (options: {
 };
 
 export const buildReleaseNotesPageProps = (options: {
-	book: { title: string; status: string; slug?: string; site?: BookSeoConfig };
+	book: {
+		title: string;
+		status: string;
+		slug?: string;
+		site?: BookSeoConfig;
+		author?: BookAuthor;
+	};
 	releases: ReleaseNote[];
 	versionEntries: BookVersionEntry[];
 	requestUrl: string;
@@ -197,6 +211,7 @@ export const buildReleaseNotesPageProps = (options: {
 	return {
 		title: `Release notes • ${options.book.title}`,
 		bookTitle: options.book.title,
+		author: options.book.author,
 		bookVersion: latestVersion,
 		bookKey: options.book.slug ?? "book",
 		rssUrl: options.rssUrl ?? "/release-notes.xml",

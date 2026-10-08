@@ -350,7 +350,6 @@ function writeConfig(
     indexable: false,
     defaultMeta: {
       description: "Draft book instance for ${opts.title}.",
-      ogImage: "/og/default.svg",
     },
   },
   localization: {

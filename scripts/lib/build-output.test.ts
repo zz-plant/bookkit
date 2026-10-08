@@ -228,4 +228,27 @@ describe("inspectBuildOutput", () => {
 		expect(message).toContain("/read/examples/a/b#start (no page)");
 		expect(message).toContain("/#missing-heading (no heading with that id)");
 	});
+
+	it("flags link-preview images the build did not write, and SVG previews", () => {
+		const withImage = (image: string) =>
+			HEALTHY_INDEX.replace(
+				"</head>",
+				`<meta property="og:image" content="${image}"></head>`,
+			);
+		write(dist, "index.html", withImage("https://on-call.book/og/index.png"));
+		let result = inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(false);
+		expect(result.findings[0]?.message).toContain("/og/index.png");
+
+		write(dist, "og/index.png", new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
+		expect(inspectBuildOutput({ book: "on-call", distDir: dist }).ok).toBe(
+			true,
+		);
+
+		write(dist, "index.html", withImage("/og/default.svg"));
+		result = inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(true);
+		expect(result.findings[0]?.level).toBe("warning");
+		expect(result.findings[0]?.message).toContain("SVG");
+	});
 });

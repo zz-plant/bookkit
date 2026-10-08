@@ -306,6 +306,41 @@ export const inspectBuildOutput = ({
 		}
 	}
 
+	// Link previews: each page's og:image must be a file this site serves, in a
+	// format social sites render (they ignore SVG).
+	const missingImages = new Set<string>();
+	const vectorImages = new Set<string>();
+	for (const file of files.filter((file) => file.endsWith(".html"))) {
+		const html = readFileSync(file, "utf8");
+		const image = html.match(
+			/<meta property="og:image" content="([^"]+)"/,
+		)?.[1];
+		if (!image) continue;
+		const canonical = canonicalOf(html);
+		let url: URL;
+		try {
+			url = new URL(image, canonical ?? "https://bookkit.invalid/");
+		} catch {
+			continue;
+		}
+		if (canonical && url.host !== hostOf(canonical)) continue;
+		if (/\.svg$/i.test(url.pathname)) vectorImages.add(url.pathname);
+		else if (!existsSync(join(distDir, decodeURIComponent(url.pathname)))) {
+			missingImages.add(url.pathname);
+		}
+	}
+	if (missingImages.size > 0) {
+		const list = [...missingImages];
+		error(
+			`${list.length} page(s) name a link-preview image the build did not write: ${list.slice(0, 5).join(", ")}${list.length > 5 ? ", …" : ""}. Add bookkit() to integrations in astro.config.mjs (it renders them after the build), or put the file in public/.`,
+		);
+	}
+	if (vectorImages.size > 0) {
+		warning(
+			`Link previews use SVG (${[...vectorImages].slice(0, 3).join(", ")}), which social sites do not render. Drop the page's ogImage to use the generated PNG.`,
+		);
+	}
+
 	// Author tools are reachable but must stay out of search.
 	for (const path of AUTHOR_ONLY_PATHS) {
 		const page = pageFileFor(distDir, path);

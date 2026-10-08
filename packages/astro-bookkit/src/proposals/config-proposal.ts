@@ -55,7 +55,6 @@ export const proposeConfigDraft = (
 		indexable: false,
 		defaultMeta: {
 			description: "Draft book instance for ${escapeQuoted(title)}.",
-			ogImage: "/og/default.svg",
 		},
 	},
 	localization: {

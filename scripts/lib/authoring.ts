@@ -1,8 +1,16 @@
-import { existsSync, readdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/pageFacts";
 import { isThinPage } from "../../packages/astro-bookkit/src/seo/page-meta";
 import { corpusEmbeddingText } from "../../packages/astro-bookkit/src/suggestions";
+import {
+	type ContentCheckResult,
+	type ContentSection,
+	checkContentItem,
+	mechanismSlugsFrom,
+	retiredSlugsFromCorpus,
+	SECTION_DIRECTORIES,
+} from "../../packages/astro-bookkit/src/validators/content-check";
 import { listBookDirs, repoRoot, slugify } from "../_lib";
 import { embedTexts } from "./embed-text";
 import { loadBookContent } from "./load-book";
@@ -288,19 +296,13 @@ export type Finding = {
 	message: string;
 	/** Repo-relative path, when the message names a file. */
 	file?: string;
+	/** Stable identifier for the kind of finding, e.g. FIELD_MISSING. */
+	code?: string;
+	/** The frontmatter field, for content findings. */
+	field?: string;
+	/** What to change so the finding goes away. */
+	fix?: string;
 };
-
-/** Splits validator messages of the form "<problem>: <absolute path>" into problem and file. */
-export const toFindings = (
-	level: Finding["level"],
-	items: string[],
-): Finding[] =>
-	items.map((item) => {
-		const match = item.match(/^(.*?):\s+(\/\S+\.mdx?)$/);
-		return match
-			? { level, message: match[1], file: relative(repoRoot(), match[2]) }
-			: { level, message: item };
-	});
 
 /**
  * Groups validator messages of the form "<problem>: <absolute path>" by file,
@@ -331,4 +333,64 @@ export const groupFindingsByFile = (items: string[]): string[] => {
 		return `${path}: ${problems.join("; ")}`;
 	});
 	return [...loose, ...grouped];
+};
+
+/**
+ * Checks one content file the way `bun run validate` does, inferring its
+ * section from its folder and its book from its path, so an agent can check
+ * the file it just wrote without validating the whole book.
+ */
+export const checkContentFile = (
+	path: string,
+):
+	| { book: string; section: ContentSection; result: ContentCheckResult }
+	| {
+			error: string;
+	  } => {
+	const absolute = resolve(path);
+	const root = repoRoot();
+	const book = relative(root, absolute).match(/^apps\/([^/]+)\//)?.[1];
+	const folder = basename(dirname(absolute));
+	const section = (
+		Object.entries(SECTION_DIRECTORIES) as Array<[ContentSection, string]>
+	).find(([, directory]) => directory === folder)?.[0];
+	if (!existsSync(absolute)) return { error: `No such file: ${path}` };
+	if (!book || !section) {
+		return {
+			error: `Expected apps/<book>/src/content/book/<${Object.values(SECTION_DIRECTORIES).join("|")}>/<file>.mdx, got ${path}`,
+		};
+	}
+	const mechanismsDir = join(
+		root,
+		"apps",
+		book,
+		"src",
+		"content",
+		"book",
+		"mechanisms",
+	);
+	const mechanismSlugs = mechanismSlugsFrom(
+		existsSync(mechanismsDir)
+			? readdirSync(mechanismsDir)
+					.filter((name) => /\.mdx?$/.test(name))
+					.map((name) => readFileSync(join(mechanismsDir, name), "utf8"))
+			: [],
+	);
+	const corpusPath = join(root, "corpus.json");
+	let retiredSlugs: ReturnType<typeof retiredSlugsFromCorpus> | undefined;
+	try {
+		retiredSlugs = existsSync(corpusPath)
+			? retiredSlugsFromCorpus(JSON.parse(readFileSync(corpusPath, "utf8")))
+			: undefined;
+	} catch {
+		retiredSlugs = undefined;
+	}
+	return {
+		book,
+		section,
+		result: checkContentItem(section, readFileSync(absolute, "utf8"), {
+			mechanismSlugs,
+			retiredSlugs,
+		}),
+	};
 };

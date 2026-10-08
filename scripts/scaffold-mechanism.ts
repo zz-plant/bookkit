@@ -45,5 +45,5 @@ tests:
 writeFileSafe(outPath, mdx);
 console.log(`Created mechanism: ${outPath}`);
 console.log(
-	`Next: add 1–3 real predictions + at least one test, then run: bun run validate`,
+	`Next: add 1–3 real predictions and at least one test. bun run bookkit check ${outPath} says what each field needs.`,
 );

@@ -14,6 +14,8 @@ export const TOOL_NAMES = [
 	"bookkit.check_separation",
 	"bookkit.check_corpus",
 	"bookkit.find_similar_mechanisms",
+	"bookkit.get_content_contract",
+	"bookkit.check_content",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -384,6 +386,72 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				},
 			},
 			required: ["title"],
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.get_content_contract",
+		description:
+			"What a content file must contain to compile, per section (mechanism, tool, example, chapter, glossary): each field, whether its absence is an error or a warning, what to write in it, the frontmatter's JSON Schema, and a template that compiles. Read it before drafting a file.",
+		safety: "read_only",
+		expectedRuntime: "<1s",
+		expectedRuntimeClass: "instant",
+		sideEffectLevel: "read-only",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-safe-retry",
+		retryGuidance: "Safe to retry.",
+		retryPolicyGuidance: "Deterministic; retries return the same contract.",
+		failureClassTaxonomy: ["validation", "unknown"],
+		inputSchema: {
+			type: "object",
+			properties: {
+				section: {
+					type: "string",
+					enum: ["mechanism", "tool", "example", "chapter", "glossary"],
+					description: "One section; omit for all five.",
+				},
+			},
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.check_content",
+		description:
+			"Compile one candidate content file without writing it: the checks bun run validate runs, including mechanism references against the book. Each finding has a code, the field, and a fix. Draft, check until ok, then write the file; the compiler decides, not the draft.",
+		safety: "read_only",
+		expectedRuntime: "<1s",
+		expectedRuntimeClass: "instant",
+		sideEffectLevel: "read-only",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-safe-retry",
+		retryGuidance: "Apply the fixes in the findings, then check again.",
+		retryPolicyGuidance:
+			"Deterministic; the same source always gives the same findings.",
+		failureClassTaxonomy: ["validation", "unknown"],
+		inputSchema: {
+			type: "object",
+			properties: {
+				section: {
+					type: "string",
+					enum: ["mechanism", "tool", "example", "chapter", "glossary"],
+					description: "Which kind of file the source is.",
+				},
+				source: {
+					type: "string",
+					description: "The full file text, frontmatter included.",
+				},
+				book: {
+					type: "string",
+					description:
+						"Book whose mechanisms references are checked against. Defaults to the served book.",
+				},
+				releaseMode: {
+					type: "boolean",
+					description:
+						"Apply release validation (draft examples are errors). Default false.",
+				},
+			},
+			required: ["section", "source"],
 			additionalProperties: false,
 		},
 	},

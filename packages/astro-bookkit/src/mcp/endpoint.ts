@@ -62,6 +62,8 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 						"bookkit.validate_book",
 						"bookkit.check_separation",
 						"bookkit.check_corpus",
+						"bookkit.get_content_contract",
+						"bookkit.check_content",
 					],
 					pipeline: ["bookkit.compile_book", "bookkit.export_book"],
 				},

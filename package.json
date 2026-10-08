@@ -15,7 +15,7 @@
 		"build": "bun run bookkit build",
 		"build:all": "bun run --workspaces build",
 		"check:build": "bun run scripts/check-build.ts",
-		"qa": "bun run lint && bun run check:types && bun run test && bun run validate && bun run build:all && bun run check:build",
+		"qa": "bun run verify -- --all",
 		"verify": "bun run scripts/verify.ts",
 		"mcp": "bun run scripts/mcp-server.ts",
 		"deploy": "bun run bookkit deploy",
@@ -62,7 +62,7 @@
 		"test:vitest": "vitest run",
 		"setup": "mise trust && bun install",
 		"assets:check": "bun run scripts/check-assets.ts",
-		"check": "bun run assets:check",
+		"check": "bun run bookkit check",
 		"assets:generate": "bun run scripts/generate-scenes.ts"
 	},
 	"devDependencies": {

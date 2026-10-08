@@ -1,0 +1,136 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { repoRoot } from "../_lib";
+
+/**
+ * Small conveniences behind the `bookkit` command, so a mistyped name gets a
+ * suggestion, the book being worked on is remembered, and a missing argument
+ * is asked for instead of failing. Everything here degrades to the plain
+ * behavior when stdin is not a terminal, so agents and scripts see the same
+ * usage errors as before.
+ */
+
+/** Edit distance with adjacent transpositions ("chek" → "check" is 1). */
+export const editDistance = (a: string, b: string): number => {
+	const rows = a.length + 1;
+	const cols = b.length + 1;
+	const d: number[][] = Array.from({ length: rows }, (_, i) =>
+		Array.from({ length: cols }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+	);
+	for (let i = 1; i < rows; i++) {
+		for (let j = 1; j < cols; j++) {
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			d[i][j] = Math.min(
+				d[i - 1][j] + 1,
+				d[i][j - 1] + 1,
+				d[i - 1][j - 1] + cost,
+			);
+			if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+				d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+			}
+		}
+	}
+	return d[a.length][b.length];
+};
+
+/**
+ * The candidate the input most plausibly meant, or undefined when nothing is
+ * close: a unique prefix, the same letters without hyphens, or a small edit.
+ */
+export const closest = (
+	input: string,
+	candidates: readonly string[],
+): string | undefined => {
+	const wanted = input.toLowerCase();
+	const squash = (value: string) => value.toLowerCase().replace(/[-_\s]/g, "");
+	const exactish = candidates.find(
+		(candidate) => squash(candidate) === squash(wanted),
+	);
+	if (exactish) return exactish;
+	const prefixed = candidates.filter((candidate) =>
+		candidate.toLowerCase().startsWith(wanted),
+	);
+	if (wanted.length >= 2 && prefixed.length === 1) return prefixed[0];
+	const scored = candidates
+		.map((candidate) => ({
+			candidate,
+			distance: editDistance(wanted, candidate.toLowerCase()),
+		}))
+		.sort((a, b) => a.distance - b.distance);
+	const best = scored[0];
+	const limit = Math.max(1, Math.floor(Math.max(wanted.length, 3) / 3));
+	return best && best.distance <= limit ? best.candidate : undefined;
+};
+
+/** "Did you mean x?" or nothing, for appending to an error. */
+export const didYouMean = (
+	input: string,
+	candidates: readonly string[],
+): string => {
+	const match = closest(input, candidates);
+	return match ? ` Did you mean ${match}?` : "";
+};
+
+const localStatePath = () => join(repoRoot(), ".bookkit", "local.json");
+
+type LocalState = { book?: string };
+
+const readLocalState = (): LocalState => {
+	try {
+		return existsSync(localStatePath())
+			? (JSON.parse(readFileSync(localStatePath(), "utf8")) as LocalState)
+			: {};
+	} catch {
+		return {};
+	}
+};
+
+/** The book set with `bookkit use`, if it still exists. Kept in .bookkit/ (gitignored). */
+export const readFocusBook = (books: readonly string[]): string | undefined => {
+	const book = readLocalState().book;
+	return book && books.includes(book) ? book : undefined;
+};
+
+export const writeFocusBook = (book: string | undefined): void => {
+	mkdirSync(join(repoRoot(), ".bookkit"), { recursive: true });
+	writeFileSync(
+		localStatePath(),
+		`${JSON.stringify({ ...readLocalState(), book }, null, 2)}\n`,
+	);
+};
+
+/** Whether a person is at the keyboard (prompts are only offered then). */
+export const isInteractive = (): boolean =>
+	Boolean(process.stdin.isTTY && process.stdout.isTTY);
+
+/** Asks for a line of text; undefined when not interactive or left empty. */
+export const ask = (question: string): string | undefined => {
+	if (!isInteractive()) return undefined;
+	const answer = prompt(`${question}`)?.trim();
+	return answer ? answer : undefined;
+};
+
+/**
+ * Asks the person to pick one of `choices` by number or name. Accepts a close
+ * misspelling. Undefined when not interactive or nothing matched.
+ */
+export const choose = (
+	question: string,
+	choices: ReadonlyArray<{ value: string; label?: string }>,
+): string | undefined => {
+	if (!isInteractive() || choices.length === 0) return undefined;
+	console.log(question);
+	choices.forEach((choice, index) => {
+		console.log(
+			`  ${String(index + 1).padStart(2)}. ${choice.value}${choice.label ? `  ${choice.label}` : ""}`,
+		);
+	});
+	const answer = prompt("Number or name:")?.trim();
+	if (!answer) return undefined;
+	const index = Number(answer);
+	if (Number.isInteger(index) && index >= 1 && index <= choices.length) {
+		return choices[index - 1].value;
+	}
+	const values = choices.map((choice) => choice.value);
+	return values.includes(answer) ? answer : closest(answer, values);
+};

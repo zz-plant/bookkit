@@ -70,7 +70,9 @@ export const summarizeBook = async (book: string): Promise<BookSummary> => {
 		.filter(({ body }) =>
 			isThinPage(extractPageFacts(body).wordCount, config.site),
 		)
-		.map(({ file }) => file.split("/").pop() ?? file);
+		.map(({ file }) => file.split("/").pop() ?? file)
+		// Reading order: the numbered file names sort as the book reads.
+		.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 	return {
 		book,
 		title: config.title,

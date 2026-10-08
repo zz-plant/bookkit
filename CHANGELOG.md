@@ -3,6 +3,17 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-08 — A gentler `bookkit`
+
+- **`bookkit use <book>`** remembers the book you're working on, in `.bookkit/local.json` (gitignored). `new chapter|mechanism|tool|example`, `dev`, and anything else that takes a book then default to it: `bun run bookkit new chapter "Repair has a clock"`. `use` with no argument shows the current book; `--clear` forgets it.
+- **`bookkit` (status) names the next thing to write**: the current book's first stub in reading order, with its word count and the `check` command for it.
+- **Prompts at a terminal.** `bookkit new` with no kind asks what to start. A missing book, title, mechanism, or domain is asked for, and mechanisms are offered as a numbered list from the book. Scripts and agents (no terminal) get the same usage errors as before.
+- **Suggestions for typos**: unknown commands ("chek" → check), books ("runninghot" → running-hot), `new` kinds, and mechanisms. An unknown command no longer prints the whole help.
+- **Fixed: `new tool` and `new example` accepted a mechanism the book doesn't have**, writing a file the validator then rejected. They now refuse it and name the closest real one.
+- **Fixed: the stubs `status` listed came in directory order**, not reading order.
+- **Script traps fixed.** `bun run check` ran the asset check; it now runs `bookkit check` (`assets:check` is unchanged). `bun run qa` is now `verify -- --all`, exactly what CI runs.
+- The README opens with the six commands a writer uses. The runbook demo is shorter, and the developer summary says to run `verify`, not `validate`, before a PR.
+
 ## 2026-10-08 — One gate, one validator, one parser
 
 **Connected**

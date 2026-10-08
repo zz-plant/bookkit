@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
 import {
 	CONTENT_SECTIONS,
@@ -22,6 +23,13 @@ import {
 	summarizeBook,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
+import {
+	ask,
+	choose,
+	didYouMean,
+	readFocusBook,
+	writeFocusBook,
+} from "./lib/cli";
 import { domainNotice } from "./lib/deploy-domain";
 import { loadBookContent } from "./lib/load-book";
 
@@ -36,15 +44,53 @@ if (command === "help" || command === "--help" || command === "-h") {
 
 const books = listBookDirs();
 
-/** Exits with a helpful message unless `book` is one of the workspace's books. */
+// The book set with `bookkit use`; commands that take a book default to it.
+const focusBook = readFocusBook(books);
+
+const bookChoices = () =>
+	books.map((book) => ({
+		value: book,
+		label: book === focusBook ? "(current)" : undefined,
+	}));
+
+/**
+ * The book a command acts on: the one named, else the current book (`bookkit
+ * use`), else one picked at a prompt. Exits with a suggestion for a misspelled
+ * name, or with the usage when nothing can be resolved.
+ */
 const requireBook = (book: string | undefined, usage: string): string => {
 	if (book && books.includes(book)) return book;
+	if (book) {
+		console.error(
+			`Book "${book}" not found.${didYouMean(book, books)} Available books: ${books.join(", ")}`,
+		);
+		process.exit(1);
+	}
+	const picked = focusBook ?? choose("Which book?", bookChoices());
+	if (picked) return picked;
 	console.error(
-		book
-			? `Book "${book}" not found. Available books: ${books.join(", ")}`
-			: `Usage: ${usage}\nAvailable books: ${books.join(", ")}`,
+		`Usage: ${usage}\nAvailable books: ${books.join(", ")}. Or set one with bun run bookkit use <book>, and leave it out.`,
 	);
 	process.exit(1);
+};
+
+/**
+ * Splits a command's positional arguments into the book and the rest. The book
+ * may be left out (the current book is used) when only the command's own
+ * arguments are given; with one argument too many, the first must be a book.
+ */
+const takeBook = (
+	positional: string[],
+	ownArguments: number,
+	usage: string,
+): [string, string[]] => {
+	if (positional[0] && books.includes(positional[0])) {
+		return [positional[0], positional.slice(1)];
+	}
+	if (positional.length > ownArguments) {
+		return [requireBook(positional[0], usage), positional.slice(1)];
+	}
+	return [requireBook(undefined, usage), positional];
 };
 
 const runScript = (script: string, scriptArgs: string[]): number =>
@@ -208,17 +254,13 @@ switch (command) {
 	}
 
 	case "dev": {
-		const targetBook = args[1] || books[0];
-		if (!targetBook) {
+		if (books.length === 0) {
 			console.error("No books found in apps/*");
 			process.exit(1);
 		}
-		if (!books.includes(targetBook)) {
-			console.error(
-				`Book "${targetBook}" not found. Available books: ${books.join(", ")}`,
-			);
-			process.exit(1);
-		}
+		const targetBook = args[1]
+			? requireBook(args[1], "bun run bookkit dev [book]")
+			: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
 		console.log(`\n🚀 Starting dev server for @books/${targetBook}...\n`);
 		const result = spawnSync(
 			"bun",
@@ -232,14 +274,10 @@ switch (command) {
 	}
 
 	case "build": {
-		const targetBook = args[1];
+		const targetBook = args[1]
+			? requireBook(args[1], "bun run bookkit build [book]")
+			: undefined;
 		if (targetBook) {
-			if (!books.includes(targetBook)) {
-				console.error(
-					`Book "${targetBook}" not found. Available books: ${books.join(", ")}`,
-				);
-				process.exit(1);
-			}
 			console.log(`\n📦 Building @books/${targetBook}...\n`);
 			const result = spawnSync(
 				"bun",
@@ -260,7 +298,10 @@ switch (command) {
 	}
 
 	case "validate": {
-		const targetBook = args[1];
+		const targetBook =
+			args[1] && !args[1].startsWith("--")
+				? requireBook(args[1], "bun run bookkit validate [book]")
+				: undefined;
 		if (targetBook) {
 			const scriptPath = join(process.cwd(), "scripts", "validate-book.ts");
 			const result = spawnSync(
@@ -438,10 +479,54 @@ switch (command) {
 		break;
 	}
 
-	default:
-		console.error(`Unknown command: ${command}`);
-		printHelp();
+	case "use": {
+		const requested =
+			args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+		if (args.includes("--clear")) {
+			writeFocusBook(undefined);
+			console.log("No current book. Commands will ask, or take a book name.");
+			process.exit(0);
+		}
+		if (!requested) {
+			console.log(
+				focusBook
+					? `Current book: ${focusBook}. Change it with bun run bookkit use <book>, or clear it with --clear.`
+					: `No current book. Set one with bun run bookkit use <book> (${books.join(", ")}).`,
+			);
+			process.exit(0);
+		}
+		const book = requireBook(requested, "bun run bookkit use <book>");
+		writeFocusBook(book);
+		console.log(
+			`Current book: ${book}. Commands that take a book now default to it, e.g. bun run bookkit new chapter "<title>".`,
+		);
+		process.exit(0);
+		break;
+	}
+
+	default: {
+		const commands = [
+			"status",
+			"use",
+			"new",
+			"check",
+			"contract",
+			"verify",
+			"similar",
+			"validate",
+			"dev",
+			"build",
+			"deploy",
+			"list",
+			"import",
+			"propose",
+			"help",
+		];
+		console.error(
+			`Unknown command "${command}".${didYouMean(command, commands)} Run bun run bookkit help for every command.`,
+		);
 		process.exit(1);
+	}
 }
 
 async function printStatus() {
@@ -483,17 +568,57 @@ async function printStatus() {
 			);
 		}
 	}
-	const first = books[0] ?? "<book>";
-	const next: Array<[string, string]> = [
-		[`bun run bookkit dev ${first}`, "preview a book in the browser"],
-		[`bun run bookkit new chapter ${first} "<title>"`, "start a chapter"],
-		["bun run bookkit check [book]", "find what to fix before sharing"],
-		["bun run bookkit help", "every command"],
-	];
-	const width = Math.max(...next.map(([cmd]) => cmd.length));
+	// Next steps name real files: the current book's first stub, if any.
+	const focus = summaries.find((summary) => summary.book === focusBook);
+	const stub = focus?.stubChapters[0];
+	const stubPath = stub
+		? join("apps", focus.book, "src", "content", "book", "chapters", stub)
+		: undefined;
+	const stubWords = stubPath
+		? extractPageFacts(readFileSync(join(repoRoot(), stubPath), "utf8"))
+				.wordCount
+		: 0;
+	const next: Array<[string, string]> = focus
+		? [
+				...(stubPath
+					? ([
+							[
+								`write ${stubPath}`,
+								`the next stub (${stubWords} words so far)`,
+							],
+							[`bun run bookkit check ${stubPath}`, "what it still needs"],
+						] as Array<[string, string]>)
+					: []),
+				[
+					'bun run bookkit new chapter "<title>"',
+					`start a chapter in ${focus.book}`,
+				],
+				["bun run bookkit dev", `preview ${focus.book} in the browser`],
+				["bun run verify", "the checks your change needs, before you commit"],
+			]
+		: [
+				[
+					"bun run bookkit use <book>",
+					"pick the book you're working on; commands default to it",
+				],
+				[
+					"bun run bookkit new",
+					"start a chapter, mechanism, tool, or example (asks what it needs)",
+				],
+				["bun run bookkit check [book]", "find what to fix before sharing"],
+				["bun run bookkit help", "every command"],
+			];
+	if (focus) console.log(`\nCurrent book: ${focus.book}`);
+	// Short commands share a column; a long one puts its note on the next line.
+	const width = Math.min(40, Math.max(...next.map(([cmd]) => cmd.length)));
 	console.log("\nNext");
-	for (const [cmd, what] of next)
-		console.log(`  ${cmd.padEnd(width)}   ${what}`);
+	for (const [cmd, what] of next) {
+		console.log(
+			cmd.length > width
+				? `  ${cmd}\n  ${" ".repeat(width)}   ${what}`
+				: `  ${cmd.padEnd(width)}   ${what}`,
+		);
+	}
 	console.log("");
 }
 
@@ -504,15 +629,66 @@ function createNew(kind: string | undefined, rest: string[]) {
 		return index >= 0 ? rest[index + 1] : undefined;
 	};
 
-	switch (kind) {
+	// Without a kind, ask which (only at a terminal; scripts get the usage).
+	const resolvedKind =
+		kind ??
+		choose("What do you want to start?", [
+			{ value: "chapter", label: "the next numbered chapter" },
+			{
+				value: "mechanism",
+				label: "a named pattern, checked against every book",
+			},
+			{ value: "tool", label: "a ≤10-minute action for a mechanism" },
+			{ value: "example", label: "a replaceable illustration of a mechanism" },
+			{ value: "book", label: "a new book app" },
+		]);
+
+	/** The value given on the command line, else asked for, else the usage. */
+	const required = (
+		value: string | undefined,
+		question: string,
+		usage: string,
+	): string => {
+		const answer = value ?? ask(question);
+		if (answer) return answer;
+		console.error(`Usage: ${usage}`);
+		process.exit(1);
+	};
+
+	/** A mechanism of `book`: the one named (checked), else picked from the book's list. */
+	const mechanismOf = (
+		book: string,
+		named: string | undefined,
+		usage: string,
+	): string => {
+		const mechanisms = loadBookContent(book).mechanisms;
+		const slugs = mechanisms.map((mechanism) => mechanism.slug);
+		if (named && slugs.includes(named)) return named;
+		if (named) {
+			console.error(
+				`${book} has no mechanism "${named}".${didYouMean(named, slugs)} Its mechanisms: ${slugs.join(", ") || "none yet"}. To add one: bun run bookkit new mechanism ${book} "<title>".`,
+			);
+			process.exit(1);
+		}
+		const picked = choose(
+			`Which mechanism in ${book}?`,
+			mechanisms.map((mechanism) => ({
+				value: mechanism.slug,
+				label: mechanism.title,
+			})),
+		);
+		if (picked) return picked;
+		console.error(
+			`Usage: ${usage}\n${book}'s mechanisms: ${slugs.join(", ") || "none yet"}`,
+		);
+		process.exit(1);
+	};
+
+	switch (resolvedKind) {
 		case "chapter": {
-			const usage = 'bun run bookkit new chapter <book> "<title>"';
-			const book = requireBook(positional[0], usage);
-			const title = positional[1];
-			if (!title) {
-				console.error(`Usage: ${usage}`);
-				process.exit(1);
-			}
+			const usage = 'bun run bookkit new chapter [book] "<title>"';
+			const [book, own] = takeBook(positional, 1, usage);
+			const title = required(own[0], "Chapter title:", usage);
 			const { fileName, slug } = nextChapterFileName(
 				listChapterFiles(book),
 				title,
@@ -552,13 +728,9 @@ function createNew(kind: string | undefined, rest: string[]) {
 
 		case "mechanism": {
 			const usage =
-				'bun run bookkit new mechanism <book> "<title>" [--definition "<one sentence>"] [--force]';
-			const book = requireBook(positional[0], usage);
-			const title = positional[1];
-			if (!title) {
-				console.error(`Usage: ${usage}`);
-				process.exit(1);
-			}
+				'bun run bookkit new mechanism [book] "<title>" [--definition "<one sentence>"] [--force]';
+			const [book, own] = takeBook(positional, 1, usage);
+			const title = required(own[0], "Mechanism title:", usage);
 			const slug = slugify(title);
 			const holders = booksWithMechanism(slug);
 			if (holders.some((holder) => holder.book === book)) {
@@ -608,13 +780,10 @@ function createNew(kind: string | undefined, rest: string[]) {
 		}
 
 		case "tool": {
-			const usage = 'bun run bookkit new tool <book> <mechanism-slug> "<name>"';
-			const book = requireBook(positional[0], usage);
-			const [, mechanism, name] = positional;
-			if (!mechanism || !name) {
-				console.error(`Usage: ${usage}`);
-				process.exit(1);
-			}
+			const usage = 'bun run bookkit new tool [book] <mechanism-slug> "<name>"';
+			const [book, own] = takeBook(positional, 2, usage);
+			const mechanism = mechanismOf(book, own[0], usage);
+			const name = required(own[1], "Tool name:", usage);
 			process.exit(
 				runScript("scaffold-tool.ts", [
 					"--book",
@@ -630,13 +799,15 @@ function createNew(kind: string | undefined, rest: string[]) {
 
 		case "example": {
 			const usage =
-				'bun run bookkit new example <book> <mechanism-slug> <domain> "<title>"';
-			const book = requireBook(positional[0], usage);
-			const [, mechanism, domain, title] = positional;
-			if (!mechanism || !domain || !title) {
-				console.error(`Usage: ${usage}`);
-				process.exit(1);
-			}
+				'bun run bookkit new example [book] <mechanism-slug> <domain> "<title>"';
+			const [book, own] = takeBook(positional, 3, usage);
+			const mechanism = mechanismOf(book, own[0], usage);
+			const domain = required(
+				own[1],
+				"Domain (the setting, e.g. Housing):",
+				usage,
+			);
+			const title = required(own[2], "Example title:", usage);
 			process.exit(
 				runScript("scaffold-example.ts", [
 					"--book",
@@ -653,13 +824,11 @@ function createNew(kind: string | undefined, rest: string[]) {
 		}
 
 		case "book": {
-			const slug = positional[0];
-			if (!slug) {
-				console.error(
-					'Usage: bun run bookkit new book <slug> [--title "<title>"] [scaffold options]',
-				);
-				process.exit(1);
-			}
+			const slug = required(
+				positional[0],
+				"Book slug (lowercase-with-hyphens):",
+				'bun run bookkit new book <slug> [--title "<title>"] [scaffold options]',
+			);
 			process.exit(
 				runScript("scaffold-book.ts", ["--book", slug, ...rest.slice(1)]),
 			);
@@ -667,13 +836,20 @@ function createNew(kind: string | undefined, rest: string[]) {
 		}
 
 		default: {
+			if (resolvedKind) {
+				console.error(
+					`Cannot start "${resolvedKind}".${didYouMean(resolvedKind, ["chapter", "mechanism", "tool", "example", "book"])}`,
+				);
+			}
 			console.error(`Usage: bun run bookkit new <chapter|mechanism|tool|example|book> ...
 
-  new chapter <book> "<title>"                          next numbered chapter, draft
-  new mechanism <book> "<title>" [--definition "…"]     checks every book for one that already fits
-  new tool <book> <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
-  new example <book> <mechanism-slug> <domain> "<title>"
-  new book <slug> [--title "<title>"]`);
+  new chapter [book] "<title>"                          next numbered chapter, draft
+  new mechanism [book] "<title>" [--definition "…"]     checks every book for one that already fits
+  new tool [book] <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
+  new example [book] <mechanism-slug> <domain> "<title>"
+  new book <slug> [--title "<title>"]
+
+[book] defaults to the current one (bun run bookkit use <book>). At a terminal, anything left out is asked for.`);
 			process.exit(1);
 		}
 	}
@@ -731,13 +907,17 @@ function checkOneFile(path: string, asJson: boolean) {
 function printHelp() {
 	console.log(`Bookkit — write, check, preview, and publish books
 
-Usage: bun run bookkit <command>       (no command: where each book stands)
+Usage: bun run bookkit <command>       (no command: where each book stands, and what to do next)
+
+Start
+  use [book]                                pick the book you're working on; [book] below defaults to it
+  new                                       asks what to start, then anything it needs
 
 Write
-  new chapter <book> "<title>"              start the next chapter as a draft
-  new mechanism <book> "<title>"            name a mechanism, after checking every book for one that fits
-  new tool <book> <mechanism> "<name>"      a ≤10-minute action for a mechanism
-  new example <book> <mechanism> <domain> "<title>"
+  new chapter [book] "<title>"              start the next chapter as a draft
+  new mechanism [book] "<title>"            name a mechanism, after checking every book for one that fits
+  new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
+  new example [book] <mechanism> <domain> "<title>"
   new book <slug>                           a new book app
   import --book <slug> --dir <path>         bring markdown chapters into a book
   propose --book <slug> [--apply …]         draft mechanisms, tools, and config from a book's text
@@ -761,9 +941,12 @@ Other
   list                                      list the books
   remove-book --book <slug>                 delete a book app
 
+Mistype a command, book, or mechanism and bookkit suggests the closest one.
+
 Examples
   bun run bookkit
-  bun run bookkit new chapter running-hot "Repair has a clock"
+  bun run bookkit use running-hot
+  bun run bookkit new chapter "Repair has a clock"
   bun run bookkit new mechanism bad-people "Waiting as leverage"
   bun run bookkit check running-hot
   bun run bookkit dev running-hot

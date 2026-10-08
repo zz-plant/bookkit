@@ -10,27 +10,33 @@ Bookkit is a **book compiler**, not a CMS and not an editor. A book is a specifi
 
 ## Start here
 
-A worked example is the **On-Call Runbook** (`apps/on-call/`): a recompilable operating procedure that compiles into a web book *and* an audit surface. Each control maps to a mechanism, each mechanism to a 10-minute tool, each tool to a drill and an escalation ramp — and `bun run check:runbooks` derives the compliance matrix from that.
+Writing goes through one command, `bun run bookkit`. After `bun install`:
+
+```sh
+bun run bookkit                          # where each book stands, and the next thing to write
+bun run bookkit use running-hot          # pick your book once; commands default to it
+bun run bookkit new chapter "Repair has a clock"
+bun run bookkit dev                      # preview in the browser, live reload
+bun run bookkit check <file.mdx>         # what a file still needs, field by field, with fixes
+bun run verify                           # the checks your change needs, before you commit
+```
+
+You don't have to memorize arguments. `bun run bookkit new` asks what to start (chapter, mechanism, tool, example) and anything else it needs, offering the book's mechanisms to pick from. A mistyped command, book, or mechanism gets the closest match suggested. `bun run bookkit help` lists every command.
+
+### Example: the On-Call Runbook
+
+`apps/on-call/` compiles one operating procedure into a web book *and* an audit surface. Each control maps to a mechanism, each mechanism to a 10-minute tool, and each tool to a drill and an escalation ramp. `bun run check:runbooks` derives the compliance matrix:
 
 ```txt
 $ bun run check:runbooks
-RUNBOOK CHECKS (5) [on-call]
-- [runbook-coverage/info] (book): All toolkit releases keep every declared control drilled at HEAD.
-    → No action needed; compliance evidence is current.
-- [runbook-coverage/warning] toolkit/incident-triage--classify-alert-severity.mdx: Tool "classify-alert-severity" declares a 30-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-03-12 (186 days overdue).
-    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
-- [runbook-coverage/warning] toolkit/bounded-escalation--ramp-escalation.mdx: Tool "ramp-escalation" declares a 30-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-03-12 (186 days overdue).
-    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
-- [runbook-coverage/warning] toolkit/minimal-repro-doc--capture-repro.mdx: Tool "capture-repro" declares a 30-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-03-12 (186 days overdue).
-    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
-- [runbook-coverage/warning] toolkit/rollback-first-change--identify-rollback-candidate.mdx: Tool "identify-rollback-candidate" declares a 14-day review cadence, but no release has been recorded since 2026-02-10; review was due 2026-02-24 (202 days overdue).
-    → Review the procedure, record the outcome in a release note or drill, or update reviewEveryDays to match the real cadence.
 COMPLIANCE on-call: 4/4 controls with tool coverage
   DIAG-REPRO-01 → minimal-repro-doc [capture-repro] ✓drilled ⚠review overdue (due 2026-03-12)
   ESC-RAMP-01 → bounded-escalation [ramp-escalation] ✓drilled ⚠review overdue (due 2026-03-12)
   INC-TRIAGE-01 → incident-triage [classify-alert-severity] ✓drilled ⚠review overdue (due 2026-03-12)
   REL-ROLLBACK-01 → rollback-first-change [identify-rollback-candidate] ✓drilled ⚠review overdue (due 2026-02-24)
 ```
+
+(The reviews read as overdue because the book's release dates are fixtures.)
 
 ## How a book compiles
 
@@ -53,7 +59,7 @@ COMPLIANCE on-call: 4/4 controls with tool coverage
 - **Book decisions** live in `apps/<book>/src/book.config.ts`.
 - **Book content bindings** live in `apps/<book>/src/content/book/**`.
 - Do not put book-specific behavior in content files.
-- Run `bun run validate` before opening a PR.
+- Run `bun run verify` before opening a PR: it runs the checks your change needs, and CI runs `verify --all`.
 
 For how the whole system fits together, see [`docs/architecture.md`](./docs/architecture.md). For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md). For non-negotiable architectural rules, see [`AGENTS.md`](./AGENTS.md). For the reasoning behind the invariants, see [`docs/design-notes.md`](./docs/design-notes.md).
 
@@ -146,6 +152,7 @@ bun run bookkit check running-hot                       # structure + overlap ac
 bun run bookkit help                                    # every command
 ```
 
+- `use <book>` remembers the book you're working on (in `.bookkit/`, not committed), so book arguments can be left out, and `bookkit` with no command names its next stub to write. At a terminal, any command missing an argument asks for it; a mistyped name gets the closest match suggested.
 - `new chapter` numbers the file after the book's last chapter, starts it as a draft, and lists the book's mechanisms so the chapter binds existing slugs instead of naming new ones.
 - `new mechanism` looks across every book first. It refuses a slug another book already has (share that file instead) and lists mechanisms with overlapping wording; pass `--force` once you've checked none fits.
 - `check` runs the structure validator, then `check:corpus` across books. `--quick` skips the embedding model.
@@ -205,7 +212,7 @@ bun run export:gitbook -- --book bad-people
 Every book builds to a static site and ships to [Cloudflare Workers static assets](https://developers.cloudflare.com/workers/static-assets/). Each app carries a `wrangler.jsonc` (Worker name `bookkit-<slug>`, `dist/` as the asset directory, `404.html` for misses, and URLs served without trailing slashes so they match the canonical links in the sitemap).
 
 ```bash
-bun run qa                                   # lint, types, tests, validate, build, verify dist/
+bun run qa                                   # every CI gate (same as bun run verify -- --all)
 bun run bookkit deploy on-call --dry-run     # build + verify + wrangler dry run
 bun run bookkit deploy on-call               # publish one book
 bun run deploy                               # publish every book
@@ -296,7 +303,7 @@ GitHub Actions runs on every push and PR to `main`:
 | turn raw markdown into structured content | `bun run bookkit import --book <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
 | rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
-| run all quality gates | `bun run qa` | Full CI-equivalent local check, including the build and `dist/` verification |
+| run all quality gates | `bun run verify -- --all` (or `bun run qa`) | Exactly what CI runs, including the builds and `dist/` verification |
 
 ---
 

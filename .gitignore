@@ -29,3 +29,6 @@ opencode.json
 !.codex/skills/
 .agent/
 .wrangler/
+
+# Per-author CLI state (bookkit use)
+.bookkit/

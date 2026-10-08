@@ -74,7 +74,7 @@ Don't:
 4. No new `box-shadow`, gradient, or radius above `--radius-control`.
 5. Body measure stays within 45–90 characters at every width.
 6. The first screen on a phone shows the title and the start of the text, not chrome.
-7. Run `bun run qa` (or at least `check:types`, `test`, `validate`, `check:shims`, and a build plus `check:build` for one book).
+7. Run `bun run verify` (it builds the books your change touches and runs `check:build`); `bun run verify -- --all` before a large UI change.
 
 ## Canonical docs
 

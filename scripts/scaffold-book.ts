@@ -100,7 +100,6 @@ const bookConfig = `export const bookConfig = {
     indexable: false,
     defaultMeta: {
       description: "Draft book instance for ${title}.",
-      ogImage: "/og/default.svg",
     },
   },
   localization: {

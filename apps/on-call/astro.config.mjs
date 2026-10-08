@@ -1,4 +1,5 @@
 import mdx from "@astrojs/mdx";
+import { bookkit } from "@bookkit/astro-bookkit/integration";
 import { defineConfig } from "astro/config";
 import { bookConfig } from "./src/book.config";
 
@@ -7,20 +8,8 @@ import { bookConfig } from "./src/book.config";
 export default defineConfig({
 	site: bookConfig.site.url,
 	// Headings get Astro's GitHub-style ids; the search index matches them.
-	integrations: [mdx()],
+	// bookkit() bundles the engine for SSR and, after a build, writes each
+	// page's link-preview image.
+	integrations: [mdx(), bookkit()],
 	devToolbar: { enabled: false },
-	vite: {
-		ssr: {
-			noExternal: ["@bookkit/astro-bookkit"],
-		},
-		build: {
-			rollupOptions: {
-				onwarn(warning, warn) {
-					const message = warning.message ?? "";
-					if (message.includes("Module level directives cause errors")) return;
-					warn(warning);
-				},
-			},
-		},
-	},
 });

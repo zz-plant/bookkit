@@ -1,4 +1,5 @@
 import {
+	type BookAuthor,
 	computeLayoutMetadata,
 	type LayoutMetadataState,
 } from "../layouts/book-layout/metadata";
@@ -61,6 +62,8 @@ type BookLayoutLocalization = {
 export type BookLayoutConfig = {
 	site: Parameters<typeof buildSeoProps>[0]["site"];
 	title: string;
+	/** The byline: shown in the colophon, previews, and metadata. */
+	author?: BookAuthor;
 	status?: string;
 	slug?: string;
 	features?: {
@@ -175,6 +178,7 @@ export type CreateBookLayoutRenderStateOptions = {
 	title?: string;
 	hasMermaid?: boolean;
 	bookTitle: string;
+	author?: BookAuthor;
 	bookVersion?: string;
 	seoProps: SeoProps;
 	requestPathname: string;
@@ -213,6 +217,7 @@ export const createBookLayoutRenderState = (
 		title,
 		hasMermaid = false,
 		bookTitle,
+		author,
 		bookVersion,
 		seoProps,
 		requestPathname,
@@ -338,6 +343,7 @@ export const createBookLayoutRenderState = (
 		resolvedCanonical: seoProps.canonicalUrl,
 		structuredData: seoProps.structuredData,
 		siteUrl: seoProps.siteUrl,
+		author,
 		localeEntries: locales,
 		pathWithoutLocale,
 		pathWithoutVersion,
@@ -522,6 +528,7 @@ export const createBookLayoutState = (
 			title: props.title,
 			hasMermaid: props.hasMermaid ?? false,
 			bookTitle,
+			author: bookConfig.author,
 			bookVersion: resolvedVersion,
 			seoProps,
 			requestPathname,

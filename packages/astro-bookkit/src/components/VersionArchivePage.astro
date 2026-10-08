@@ -6,6 +6,7 @@ import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
 export type Props = {
 	title: string;
 	bookTitle: string;
+	author?: import("../seo/structured-data").BookAuthor;
 	bookVersion: string;
 	bookKey?: string;
 	versions: BookVersionEntry[];
@@ -30,6 +31,7 @@ export type Props = {
 const {
 	title,
 	bookTitle,
+	author,
 	bookVersion,
 	bookKey = "book",
 	versions,
@@ -54,6 +56,7 @@ const {
 const renderState = createBookLayoutRenderState({
 	title,
 	bookTitle,
+	author,
 	bookVersion,
 	seoProps: {
 		siteUrl,

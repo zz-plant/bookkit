@@ -289,6 +289,12 @@ a,
 	text-wrap: balance;
 }
 
+.site-footer__byline {
+	font-family: var(--font-text);
+	font-size: var(--text-md);
+	color: var(--color-ink);
+}
+
 .site-footer__pitch {
 	font-family: var(--font-text);
 	font-size: var(--text-md);
@@ -1016,6 +1022,14 @@ a.card:hover h3 {
 
 .hero-shell__header h1 {
 	margin-top: 0;
+}
+
+.hero-byline {
+	margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+	font-family: var(--font-text);
+	font-size: var(--text-md);
+	font-style: italic;
+	color: var(--color-muted);
 }
 
 .hero-shell .lede {

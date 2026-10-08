@@ -1,12 +1,17 @@
+import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
+import { writeOgImages } from "./seo/og-render";
 
 export type BookkitIntegrationOptions = {
 	injectRoutes?: boolean;
+	/** Render a PNG link preview for every built page (default true). */
+	ogImages?: boolean;
 };
 
 /**
  * Astro integration for Bookkit book applications.
- * Automatically configures Vite SSR bundling and standardizes runtime environment.
+ * Configures Vite SSR bundling, and after a build writes each page's
+ * link-preview image (see `seo/og-image.ts`).
  */
 export function bookkit(
 	options: BookkitIntegrationOptions = {},
@@ -35,6 +40,14 @@ export function bookkit(
 						},
 					},
 				});
+			},
+			"astro:build:done": async ({ dir, logger }) => {
+				if (options.ogImages === false) return;
+				const started = performance.now();
+				const { written, rendered } = await writeOgImages(fileURLToPath(dir));
+				logger.info(
+					`${written} link-preview images (${rendered} rendered, ${written - rendered} cached) in ${((performance.now() - started) / 1000).toFixed(1)}s`,
+				);
 			},
 		},
 	};

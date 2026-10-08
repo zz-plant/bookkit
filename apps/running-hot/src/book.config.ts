@@ -3,6 +3,7 @@ export const bookConfig = {
 	title:
 		"Don’t Turn People Into Infrastructure: Why Institutions Run Hot — and Who They Burn",
 	status: "draft",
+	author: { name: "Kanav Jain" },
 	site: {
 		url: "https://running-hot.book",
 		enforceHttps: true,
@@ -10,7 +11,6 @@ export const bookConfig = {
 		defaultMeta: {
 			description:
 				"Institutions often buy their stability by pushing volatility onto people. Where that heat lands, who absorbs it, and how to cool it down.",
-			ogImage: "/og/default.svg",
 		},
 	},
 	localization: {

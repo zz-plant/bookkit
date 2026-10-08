@@ -156,7 +156,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `frames/` | 1 | frame registry and the built-in frames (intervention, field-guide, runbook) |
 | `validators/` | 1 | book, frame, and separation validation; the `NormalizedErrorPayload` shape |
 | `search/` | 2 | search index construction and querying |
-| `seo/` | 2 | sitemap, metadata, indexability rules |
+| `seo/` | 2 | sitemap, metadata, indexability rules, link-preview images |
 | `mcp/` | 2 | JSON-RPC router, workspace reader, and deterministic tool handlers |
 | `proposals/` | 2 | turns analyzer output into reviewable drafts; frame detection; guarded materialization |
 | `app-wrappers/` | 3 | route-handler factories the book apps re-export as API endpoints |

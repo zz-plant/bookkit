@@ -17,7 +17,7 @@ export type BookConfigSummary = {
 	title: string;
 	status: string;
 	frame?: string;
-	site?: { minIndexableWords?: number };
+	site?: { url?: string; minIndexableWords?: number };
 };
 
 export type BookSummary = {

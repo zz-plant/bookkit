@@ -1,5 +1,16 @@
 import { buildLocalePath } from "../../localization/routes";
+import {
+	isGeneratedOgImage,
+	OG_IMAGE_HEIGHT,
+	OG_IMAGE_WIDTH,
+} from "../../seo/og-image";
 import { shortBookTitle } from "../../seo/page-meta";
+import {
+	type BookAuthor,
+	createAuthorStructuredData,
+} from "../../seo/structured-data";
+
+export type { BookAuthor };
 
 type LocaleEntry = { code: string };
 
@@ -16,6 +27,9 @@ export type LayoutMetadataState = {
 	resolvedOgLocale?: string;
 	resolvedOgImageAlt?: string;
 	resolvedTwitterImageAlt?: string;
+	/** Set for Bookkit's generated previews, whose size is known. */
+	ogImageSize?: { width: number; height: number };
+	author?: string;
 	structuredDataScripts: unknown[];
 	hreflangEntries: Array<{
 		locale: string;
@@ -48,6 +62,7 @@ export const computeLayoutMetadata = ({
 	resolvedCanonical,
 	structuredData,
 	siteUrl,
+	author,
 	localeEntries,
 	pathWithoutLocale,
 	pathWithoutVersion,
@@ -77,6 +92,7 @@ export const computeLayoutMetadata = ({
 	resolvedCanonical?: string;
 	structuredData?: unknown;
 	siteUrl?: string;
+	author?: BookAuthor;
 	localeEntries: LocaleEntry[];
 	pathWithoutLocale?: string;
 	pathWithoutVersion: string;
@@ -100,8 +116,12 @@ export const computeLayoutMetadata = ({
 	const resolvedTwitterImage = twitterImage ?? ogImage;
 	const resolvedOgSiteName = ogSiteName ?? shortBookTitle(bookTitle);
 	const resolvedOgLocale = ogLocale ?? activeLocale;
-	const resolvedOgImageAlt = ogImageAlt;
-	const resolvedTwitterImageAlt = twitterImageAlt ?? ogImageAlt;
+	const generatedImage = isGeneratedOgImage(ogImage);
+	// A generated preview shows the page's title, so the title is its alt text.
+	const resolvedOgImageAlt =
+		ogImageAlt ?? (generatedImage ? resolvedOgTitle : undefined);
+	const resolvedTwitterImageAlt = twitterImageAlt ?? resolvedOgImageAlt;
+	const authorData = createAuthorStructuredData(author);
 
 	const defaultStructuredData = [
 		resolvedCanonical
@@ -112,8 +132,14 @@ export const computeLayoutMetadata = ({
 					description: metaDescription,
 					url: resolvedCanonical,
 					inLanguage: activeLocale,
+					author: authorData,
 					isPartOf: siteUrl
-						? { "@type": "WebSite", name: bookTitle, url: siteUrl }
+						? {
+								"@type": "WebSite",
+								name: bookTitle,
+								url: siteUrl,
+								author: authorData,
+							}
 						: undefined,
 				}
 			: null,
@@ -176,6 +202,10 @@ export const computeLayoutMetadata = ({
 		resolvedOgLocale,
 		resolvedOgImageAlt,
 		resolvedTwitterImageAlt,
+		ogImageSize: generatedImage
+			? { width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT }
+			: undefined,
+		author: author?.name,
 		structuredDataScripts,
 		hreflangEntries,
 		hreflangDefault,

@@ -124,6 +124,7 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
     {renderState.metaDescription && <meta name="description" content={renderState.metaDescription} />}
     {renderState.head.resolvedCanonical && <link rel="canonical" href={renderState.head.resolvedCanonical} />}
     {renderState.head.resolvedRobots && <meta name="robots" content={renderState.head.resolvedRobots} />}
+    {renderState.head.author && <meta name="author" content={renderState.head.author} />}
     {renderState.head.resolvedOgTitle && <meta property="og:title" content={renderState.head.resolvedOgTitle} />}
     {renderState.head.resolvedOgDescription && <meta property="og:description" content={renderState.head.resolvedOgDescription} />}
     {renderState.head.resolvedCanonical && <meta property="og:url" content={renderState.head.resolvedCanonical} />}
@@ -131,6 +132,8 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
     {renderState.head.resolvedOgSiteName && <meta property="og:site_name" content={renderState.head.resolvedOgSiteName} />}
     {renderState.head.resolvedOgLocale && <meta property="og:locale" content={renderState.head.resolvedOgLocale} />}
     {renderState.ogImage && <meta property="og:image" content={renderState.ogImage} />}
+    {renderState.head.ogImageSize && <meta property="og:image:width" content={String(renderState.head.ogImageSize.width)} />}
+    {renderState.head.ogImageSize && <meta property="og:image:height" content={String(renderState.head.ogImageSize.height)} />}
     {renderState.head.resolvedOgImageAlt && <meta property="og:image:alt" content={renderState.head.resolvedOgImageAlt} />}
     {renderState.head.resolvedTwitterCard && <meta name="twitter:card" content={renderState.head.resolvedTwitterCard} />}
     {renderState.head.resolvedTwitterTitle && <meta name="twitter:title" content={renderState.head.resolvedTwitterTitle} />}
@@ -227,6 +230,7 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
         ) : (
           <p class="site-footer__colophon">
             <cite class="site-footer__title">{bookTitle}</cite>
+            {renderState.head.author && <span class="site-footer__byline">by {renderState.head.author}</span>}
             {bookDescription && <span class="site-footer__pitch">{bookDescription}</span>}
             {renderState.routes.normalizedLocalePath !== "/read" && (
               <a class="site-footer__start" href="/read">Start reading →</a>

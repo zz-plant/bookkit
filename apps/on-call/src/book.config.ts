@@ -12,7 +12,6 @@ export const bookConfig = {
 		defaultMeta: {
 			description:
 				"A runbook for on-call engineers: classify the alert, pick a safe first action, escalate to the right owner, and verify recovery.",
-			ogImage: "/og/default.svg",
 		},
 	},
 	localization: {

@@ -3,6 +3,23 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-08 — Link previews, bylines, and the last open mechanism pair
+
+- **Every page gets its own PNG link preview.** The `bookkit()` integration renders a 1200×630 image for each built page after `astro build`, set in the reader's two voices on the book's paper: the page title in Newsreader, the section label and host in Fragment Mono, the short title and byline as a running foot. Images live at `/og/<page path>.png` (`/og/index.png` for the home page) and carry `og:image:width`, `og:image:height`, and alt text. Renders are cached by content in `node_modules/.cache/bookkit-og`, so an unchanged page costs nothing on rebuild; a cold build of one book adds about 6s.
+  - **Fixed: three books showed the wrong preview.** The SVG placeholders in `public/og/` said "Bad People" for crumple-zone and on-call, and social sites do not render SVG previews at all. The placeholders are removed.
+  - The template's `astro.config.mjs` now uses `bookkit()` instead of repeating its Vite settings inline.
+  - New engine dependencies, used at build time only: `satori`, `@resvg/resvg-js`, `@fontsource/newsreader` (static WOFF; satori reads no WOFF2).
+- **`check:build` fails when a page names a preview image the build did not write**, and warns when a preview is SVG.
+- **New: `author` in `book.config.ts`** (`{ name, url? }`). It adds a byline to the colophon on every page and to link previews, plus `<meta name="author">` and a schema.org `Person` as the page's and the site's `author`. The three nonfiction books set it; the home pages show it under the title.
+- **`bookkit deploy` says when the Worker does not serve `site.url`'s domain**, and how to attach one: a `custom_domain` route in the app's `wrangler.jsonc`.
+- **Corpus:** `crumple-zone/coercion-by-design` is combined into `refusability-gap` (same lever and evidence), and `bureaucracy-moral-technology` ~ `clearance-culture` is ruled distinct. nomic's cutoff moves from 0.80 to 0.79, the highest that still flags all three recorded merges. 30 mechanisms, 2 shared, 0 unresolved.
+
+**Migration:**
+- Books outside this repo: run `bun run sync:shims` to switch `astro.config.mjs` to `bookkit()`, and delete `public/og/*.svg` unless you made your own; a page that passes its own `ogImage` keeps it.
+- `DEFAULT_OG_SURFACE_IMAGE_MAP` is removed, and `getOgImageForPath(path)` takes no map: it returns the generated image's path.
+- `defaultMeta.ogImage: "/og/default.svg"` is dropped from the scaffolds; that file was never generated.
+- crumple-zone is a draft: `/read/mechanisms/coercion-by-design` and `/read/glossary/coercion-by-design` are gone. Use `refusability-gap`; its glossary entry keeps "coercion by design" as an alias.
+
 ## 2026-10-07 — Find similar mechanisms by meaning
 
 - **`bookkit similar "<title>" --semantic`**, and `semantic: true` on the `bookkit.find_similar_mechanisms` MCP tool, rank existing mechanisms by meaning with `check:corpus`'s embedding model. If the model can't load, it falls back to wording and says so. A warm lookup takes about 10s.

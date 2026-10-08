@@ -92,7 +92,6 @@ export {
 	createLocalizedReadHubSectionSummaries,
 	createReleaseNoteHelpers,
 	createReleaseNotesFromModules,
-	DEFAULT_OG_SURFACE_IMAGE_MAP,
 	defaultChapterPageCopy,
 	defaultReadHubCopy,
 	formatTranslationCompleteness,

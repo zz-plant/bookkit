@@ -41,7 +41,6 @@ export { createBookLayoutRenderState, createBookLayoutState } from "./layout";
 export type { BookMiddlewareOptions } from "./middleware";
 export { createBookMiddleware } from "./middleware";
 export {
-	DEFAULT_OG_SURFACE_IMAGE_MAP,
 	getOgImageForPath,
 	normalizeOgPathname,
 } from "./og";

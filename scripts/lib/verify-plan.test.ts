@@ -9,7 +9,12 @@ describe("planGates", () => {
 	it("checks a content edit against its own book only", () => {
 		expect(
 			ids(["apps/running-hot/src/content/book/chapters/12-put-a-clock.mdx"]),
-		).toEqual(["validate:running-hot", "separation", "build:running-hot"]);
+		).toEqual([
+			"validate:running-hot",
+			"separation",
+			"concepts",
+			"build:running-hot",
+		]);
 	});
 
 	it("adds the cross-book mechanism check when a mechanism changes", () => {
@@ -69,6 +74,8 @@ describe("planGates", () => {
 			"validate:bad-people",
 			"validate:on-call",
 			"validate:running-hot",
+			"corpus",
+			"concepts",
 			"build:all",
 		]);
 	});

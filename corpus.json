@@ -1,5 +1,6 @@
 {
 	"$comment": "Corpus for bet B1 (docs/bets.md) and the author's rulings on pairs check:corpus flags. Each distinct entry says why two similar mechanisms are different ideas; delete an entry to reopen it. Rulings of 2026-10-07 were made under the author's instruction to combine mechanisms that are the same idea and keep the rest; coercive-waiting was combined into delay-as-force that day. On 2026-10-07 the author asked for a decision on the three books' central mechanisms: running-hot/human-heat-sink was combined into crumple-zone (same lever and evidence), and transfer-success was kept distinct. On 2026-10-08 the author asked for the remaining open pair to be decided: crumple-zone/coercion-by-design was combined into refusability-gap (same lever and evidence). Each merge is kept under \"merged\" with both mechanisms as they were before it, so check:corpus --eval can score embedding models against the author's rulings.",
+	"bet": { "id": "B1", "since": "2026-10-07", "killBy": "2026-11-04" },
 	"books": ["bad-people", "running-hot", "crumple-zone"],
 	"distinct": [
 		{

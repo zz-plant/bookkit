@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { scaffoldSource } from "../packages/astro-bookkit/src/validators/content-check";
 import {
 	ensureDir,
 	optionalArg,
@@ -25,22 +26,11 @@ ensureDir(outDir);
 
 const outPath = join(outDir, `${slug}.mdx`);
 
-const mdx = `---
-slug: ${slug}
-title: ${title}
-definition: ""
-is:
-  - ""
-isNot:
-  - ""
-predictions:
-  - ""
-tests:
-  - ""
----
-
-<!-- Optional prose: examples, notes, citations. Keep definition/boundaries above truthful and stable. -->
-`;
+const mdx = scaffoldSource(
+	"mechanism",
+	{ slug, title, status: "draft" },
+	"Optional prose: examples, notes, citations. Keep the definition and boundaries above truthful and stable.",
+);
 
 writeFileSafe(outPath, mdx);
 console.log(`Created mechanism: ${outPath}`);

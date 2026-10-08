@@ -1,50 +1,58 @@
 import {
+	readBookSources,
+	readRetiredSlugs,
+} from "../../validators/book-validator";
+import {
 	CONTENT_SECTIONS,
 	checkContentItem,
 	isContentSection,
 	mechanismSlugsFrom,
-	type RetiredSlug,
-	retiredSlugsFromCorpus,
 } from "../../validators/content-check";
+import { runWorkspaceCommand } from "../command-runner";
 import type { McpEndpointOptions } from "../types";
 import type { ToolHandler } from "./types";
-
-// Loaded like command-runner's child_process: a runtime without node:fs can
-// still check content against the served book.
-let fs: typeof import("node:fs") | null = null;
-try {
-	fs = await import("node:fs");
-} catch {
-	fs = null;
-}
 
 /** Mechanism sources for the book being checked: from disk when a workspace book is named, else the served book. */
 const mechanismSources = (
 	options: McpEndpointOptions,
 	book: string | undefined,
-): string[] => {
-	if (book && book !== options.bookSlug && options.workspaceRoot && fs) {
-		const dir = `${options.workspaceRoot}/apps/${book}/src/content/book/mechanisms`;
-		const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
-		return files
-			.filter((file) => /\.mdx?$/.test(file))
-			.map((file) =>
-				(fs as typeof import("node:fs")).readFileSync(`${dir}/${file}`, "utf8"),
-			);
-	}
-	return Object.values(options.contentRawModules.mechanisms ?? {});
-};
+): string[] =>
+	book && book !== options.bookSlug && options.workspaceRoot
+		? readBookSources(options.workspaceRoot, book).mechanism.map(
+				({ source }) => source,
+			)
+		: Object.values(options.contentRawModules.mechanisms ?? {});
 
-/** Merges recorded in the workspace's corpus.json, if it can be read. */
-const retiredSlugs = (
+type SimilarMatch = { slug: string; books: string[]; score: number };
+
+/**
+ * For a mechanism, existing ones in any book that share its wording (the same
+ * lookup as find_similar_mechanisms), leaving out its own slug. Needs the
+ * workspace; empty without it.
+ */
+const similarMechanisms = (
 	options: McpEndpointOptions,
-): Map<string, RetiredSlug> | undefined => {
-	const path = `${options.workspaceRoot}/corpus.json`;
-	if (!options.workspaceRoot || !fs?.existsSync(path)) return undefined;
+	frontmatter: Record<string, unknown> | null,
+): SimilarMatch[] => {
+	const title = typeof frontmatter?.title === "string" ? frontmatter.title : "";
+	if (!title || !options.workspaceRoot) return [];
+	const definition =
+		typeof frontmatter?.definition === "string" ? frontmatter.definition : "";
+	const command = runWorkspaceCommand(options.workspaceRoot, [
+		"run",
+		"scripts/bookkit.ts",
+		"similar",
+		title,
+		...(definition ? ["--definition", definition] : []),
+		"--json",
+	]);
 	try {
-		return retiredSlugsFromCorpus(JSON.parse(fs.readFileSync(path, "utf8")));
+		const parsed = JSON.parse(command.stdout) as { similar?: SimilarMatch[] };
+		return (parsed.similar ?? []).filter(
+			(match) => match.slug !== frontmatter?.slug && match.score >= 0.3,
+		);
 	} catch {
-		return undefined;
+		return [];
 	}
 };
 
@@ -75,23 +83,34 @@ export const handleCheckContent: ToolHandler = ({ options, args }) => {
 	const mechanismSlugs = mechanismSlugsFrom(mechanismSources(options, book));
 	const result = checkContentItem(section, source, {
 		mechanismSlugs: mechanismSlugs.size > 0 ? mechanismSlugs : undefined,
-		retiredSlugs: retiredSlugs(options),
+		retiredSlugs: options.workspaceRoot
+			? readRetiredSlugs(options.workspaceRoot)
+			: undefined,
 		releaseMode: args?.releaseMode === true,
 	});
+	const similar =
+		section === "mechanism"
+			? similarMechanisms(options, result.frontmatter)
+			: [];
 	const errors = result.findings.filter((f) => f.level === "error").length;
 	const warnings = result.findings.length - errors;
 	return {
 		ok: result.ok,
-		summary: result.ok
-			? warnings === 0
-				? `Compiles with no findings against ${book ?? "the served book"}.`
-				: `Compiles, with ${warnings} warning(s) to fill in.`
-			: `Does not compile: ${errors} error(s), ${warnings} warning(s). Apply each fix and check again.`,
+		summary:
+			(result.ok
+				? warnings === 0
+					? `Compiles with no findings against ${book ?? "the served book"}.`
+					: `Compiles, with ${warnings} warning(s) to fill in.`
+				: `Does not compile: ${errors} error(s), ${warnings} warning(s). Apply each fix and check again.`) +
+			(similar.length > 0
+				? ` May duplicate ${similar.map((match) => match.slug).join(", ")}: bind that slug if it is the same idea.`
+				: ""),
 		payload: {
 			book,
 			section,
 			ok: result.ok,
 			findings: result.findings,
+			similar,
 			mechanismSlugs: [...mechanismSlugs].sort(),
 		},
 	};

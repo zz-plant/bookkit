@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/pageFacts";
 import { isThinPage } from "../../packages/astro-bookkit/src/seo/page-meta";
 import { corpusEmbeddingText } from "../../packages/astro-bookkit/src/suggestions";
@@ -10,6 +10,7 @@ import {
 	mechanismSlugsFrom,
 	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
+	scaffoldSource,
 } from "../../packages/astro-bookkit/src/validators/content-check";
 import { listBookDirs, repoRoot, slugify } from "../_lib";
 import { embedTexts } from "./embed-text";
@@ -117,19 +118,14 @@ export const chapterSource = ({
 	slug: string;
 	title: string;
 	mechanismSlugs: string[];
-}): string => `---
-slug: ${slug}
-title: ${JSON.stringify(title)}
-status: draft
-prerequisites: []
-mechanisms: []
----
-
-{/* Bind the mechanisms this chapter uses in \`mechanisms:\` above instead of naming new ones in prose.
+}): string =>
+	scaffoldSource(
+		"chapter",
+		{ slug, title, mechanisms: [], prerequisites: [], status: "draft" },
+		`Bind the mechanisms this chapter uses in \`mechanisms:\` above instead of naming new ones in prose.
 This book's mechanisms: ${mechanismSlugs.length > 0 ? mechanismSlugs.join(", ") : "none yet"}.
-Add \`summary:\` for search results; until then the first paragraph is used. */}
-
-`;
+Add \`summary:\` for search results; until then the first paragraph is used.`,
+	);
 
 const STOPWORDS = new Set(
 	"a an and are as at be by for from has have in into is it its of on or that the their them they this to was were when where which who with without".split(
@@ -350,7 +346,10 @@ export const checkContentFile = (
 	const absolute = resolve(path);
 	const root = repoRoot();
 	const book = relative(root, absolute).match(/^apps\/([^/]+)\//)?.[1];
-	const folder = basename(dirname(absolute));
+	// The section is the folder under content/book/; examples nest one deeper.
+	const folder = relative(root, absolute).match(
+		/^apps\/[^/]+\/src\/content\/book\/([^/]+)\//,
+	)?.[1];
 	const section = (
 		Object.entries(SECTION_DIRECTORIES) as Array<[ContentSection, string]>
 	).find(([, directory]) => directory === folder)?.[0];
@@ -393,4 +392,45 @@ export const checkContentFile = (
 			retiredSlugs,
 		}),
 	};
+};
+
+export type SimilarForFile = MechanismMatch & {
+	/** The reason, when corpus.json already rules the pair distinct. */
+	ruledDistinct?: string;
+};
+
+/**
+ * Existing mechanisms that a mechanism file may duplicate, across every book,
+ * by wording. Leaves out the file's own slug (and its copies in other books),
+ * and notes pairs corpus.json already rules distinct.
+ */
+export const similarForMechanismFile = (
+	frontmatter: Record<string, unknown> | null,
+	minimumScore = 0.3,
+): SimilarForFile[] => {
+	const title = typeof frontmatter?.title === "string" ? frontmatter.title : "";
+	if (!title) return [];
+	const slug = typeof frontmatter?.slug === "string" ? frontmatter.slug : "";
+	const definition =
+		typeof frontmatter?.definition === "string"
+			? frontmatter.definition
+			: undefined;
+	let distinct: Array<{ pair: [string, string]; reason: string }> = [];
+	try {
+		const corpusPath = join(repoRoot(), "corpus.json");
+		distinct = existsSync(corpusPath)
+			? (JSON.parse(readFileSync(corpusPath, "utf8")).distinct ?? [])
+			: [];
+	} catch {
+		distinct = [];
+	}
+	return findSimilarMechanisms({ title, definition }, listBookDirs(), 4)
+		.filter((match) => match.slug !== slug && match.score >= minimumScore)
+		.slice(0, 3)
+		.map((match) => ({
+			...match,
+			ruledDistinct: distinct.find(
+				({ pair }) => pair.includes(slug) && pair.includes(match.slug),
+			)?.reason,
+		}));
 };

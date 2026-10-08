@@ -10,7 +10,7 @@ For commands see [`README.md`](./README.md). For how the system is structured â€
 
 1. Install dependencies: `bun install` (this also installs the pre-commit hook).
 2. Make a focused change.
-3. Run `bun run verify`. It reads what changed since `origin/main` and runs the checks those paths need (table below), reporting content findings only for the files you touched. `--all` runs everything CI runs; `--list` shows the plan; `--json` is for agents.
+3. Run `bun run verify`. It reads what changed since `origin/main` and runs the checks those paths need (table below), reporting content findings only for the files you touched. `--all` runs every gate, and CI runs exactly `verify --all`, so the list in `scripts/lib/verify-plan.ts` is the only one to change; `--list` shows the plan; `--json` is for agents. On GitHub Actions, findings with a file also annotate the PR.
 4. For release-critical work, also run:
    - `bun run validate:release`
    - `bun run check:upgrade -- --release`
@@ -116,12 +116,13 @@ Requirements:
 | any formattable file | Biome format, import order, lint (changed files only) |
 | `packages/astro-bookkit/**` | types, tests, shims, architecture doc, build `on-call` |
 | `packages/create-bookkit/**`, `scripts/**` | types (`.ts` only), tests |
-| `apps/<book>/src/content/**` | validate that book, separation, build that book |
+| `apps/<book>/src/content/**` | validate that book, separation, named concepts (warnings only), build that book |
 | a mechanism file, `corpus.json` | mechanisms across books (wording) |
 | `apps/<book>/**` (config, pages, lib) | types, shims, validate, build that book |
 | `docs/architecture.md` | architecture doc |
 | `TODOS.md` | todos |
 | `package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**` | as for engine code |
+| `--all` (what CI runs) | every row above for every book, plus mechanisms across books and named concepts |
 
 By lane, beyond `verify`:
 

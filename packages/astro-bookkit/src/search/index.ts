@@ -1,4 +1,8 @@
 import GithubSlugger from "github-slugger";
+import {
+	frontmatterTextFields,
+	parseFrontmatter as parseSharedFrontmatter,
+} from "../utils/frontmatter";
 import { stripMarkdown } from "../utils/markdown";
 
 export type SearchContentSource = {
@@ -23,24 +27,9 @@ export type SearchEntry = {
 	context: string;
 };
 
-const frontmatterPattern = /^---\n([\s\S]*?)\n---/;
-
 const parseFrontmatter = (raw: string) => {
-	const match = raw.match(frontmatterPattern);
-	if (!match) return { data: {}, body: raw };
-	const data: Record<string, string> = {};
-	for (const line of match[1].split("\n")) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
-		const lineMatch = trimmed.match(/^(\w+):\s*(.*)$/);
-		if (!lineMatch) continue;
-		const key = lineMatch[1];
-		let value = lineMatch[2].trim();
-		value = value.replace(/^['"]|['"]$/g, "");
-		data[key] = value;
-	}
-	const body = raw.slice(match[0].length).trim();
-	return { data, body };
+	const parsed = parseSharedFrontmatter(raw);
+	return { data: frontmatterTextFields(parsed.data), body: parsed.body };
 };
 
 const summarize = (value: string, maxLength = 160) => {

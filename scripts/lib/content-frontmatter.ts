@@ -27,31 +27,24 @@ export function isContentFile(path: string): boolean {
 	return path.endsWith(".md") || path.endsWith(".mdx");
 }
 
-import yaml from "js-yaml";
+import { parseFrontmatter as parseSharedFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
 
+/**
+ * The engine's frontmatter parser (utils/frontmatter.ts) in the shape the
+ * scripts use: a file whose YAML does not parse reads as having none.
+ */
 export function parseFrontmatter(
 	content: string,
 ): Frontmatter & { body: string } {
-	if (!content.startsWith("---")) {
+	const parsed = parseSharedFrontmatter(content);
+	if (parsed.status !== "ok") {
 		return { data: {}, hasFrontmatter: false, body: content };
 	}
-	const end = content.indexOf("\n---", 3);
-	if (end === -1) return { data: {}, hasFrontmatter: false, body: content };
-	const rawYaml = content.slice(3, end).trim();
-	const body = content.slice(end + 4).trim();
-	try {
-		const parsed = yaml.load(rawYaml);
-		if (parsed && typeof parsed === "object") {
-			return {
-				data: parsed as Record<string, FrontmatterValue>,
-				hasFrontmatter: true,
-				body,
-			};
-		}
-	} catch {
-		// Fall back to empty data if malformed
-	}
-	return { data: {}, hasFrontmatter: false, body: content };
+	return {
+		data: parsed.data as Record<string, FrontmatterValue>,
+		hasFrontmatter: true,
+		body: parsed.body,
+	};
 }
 
 export function toStringValue(value: FrontmatterValue): string {

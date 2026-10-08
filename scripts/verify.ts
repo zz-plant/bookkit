@@ -128,7 +128,7 @@ const runGate = (gate: Gate): GateResult => {
 	}
 	const seconds = (performance.now() - started) / 1000;
 	if (!result) return { ...gate, ok: true, seconds, output };
-	if (gate.parse === "validate-json") {
+	if (gate.parse === "findings-json") {
 		try {
 			const parsed = JSON.parse(result.stdout) as {
 				ok: boolean;
@@ -164,6 +164,17 @@ for (const gate of gates) {
 	process.stdout.write(
 		`${process.stdout.isTTY ? "\r" : ""}  ${result.ok ? "✓" : "✗"} ${gate.label.padEnd(24)} ${result.seconds.toFixed(1)}s\n`,
 	);
+	// On GitHub Actions, findings also annotate the PR's files: errors always,
+	// warnings only when the run is scoped to the change (not --all).
+	if (process.env.GITHUB_ACTIONS === "true") {
+		for (const finding of result.findings ?? []) {
+			if (!finding.file || (all && finding.level !== "error")) continue;
+			const text = `${finding.message}${finding.fix ? `. ${finding.fix}` : ""}`;
+			console.log(
+				`::${finding.level} file=${finding.file},title=${gate.label}::${text.replace(/\n/g, " ")}`,
+			);
+		}
+	}
 	for (const level of ["error", "warning"] as const) {
 		const messages = (result.findings ?? [])
 			.filter((finding) => finding.level === level)

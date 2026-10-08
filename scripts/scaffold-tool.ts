@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { scaffoldSource } from "../packages/astro-bookkit/src/validators/content-check";
 import {
 	ensureDir,
 	optionalArg,
@@ -25,22 +26,17 @@ ensureDir(outDir);
 
 const outPath = join(outDir, `${toolSlug}.mdx`);
 
-const mdx = `---
-slug: ${toolSlug}
-mechanism: ${mechanism}
-name: "${nameRaw}"
-trigger: ""
-timeboxMinutes: 10
-steps:
-  - ""
-failureLooksLike:
-  - ""
-legitimateDemand:
-  - ""
----
-
-<!-- Optional notes. Tools must be runnable by a depleted person. No heroics. -->
-`;
+const mdx = scaffoldSource(
+	"tool",
+	{
+		slug: toolSlug,
+		mechanism,
+		name: nameRaw,
+		timeboxMinutes: 10,
+		status: "draft",
+	},
+	"Optional notes. Tools must be runnable by a depleted person. No heroics.",
+);
 
 writeFileSafe(outPath, mdx);
 console.log(`Created tool: ${outPath}`);

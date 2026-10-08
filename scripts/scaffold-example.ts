@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { scaffoldSource } from "../packages/astro-bookkit/src/validators/content-check";
 import {
 	ensureDir,
 	optionalArg,
@@ -28,20 +29,11 @@ ensureDir(outDir);
 
 const outPath = join(outDir, `${slug}.mdx`);
 
-const mdx = `---
-mechanism: ${mechanism}
-domain: ${domain}
-title: "${titleRaw}"
-status: draft
----
-
-Write the example.
-
-Constraints:
-- Do not define the mechanism here.
-- Do not introduce new primary concepts.
-- Make it swappable: if someone replaces this example, the mechanism still stands.
-`;
+const mdx = scaffoldSource(
+	"example",
+	{ mechanism, domain, title: titleRaw, status: "draft" },
+	"Write the example here. Do not define the mechanism or introduce new primary concepts; keep it swappable, so replacing it leaves the mechanism standing.",
+);
 
 writeFileSafe(outPath, mdx);
 console.log(`Created example: ${outPath}`);

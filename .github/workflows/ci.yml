@@ -25,32 +25,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Biome (format, import order, lint)
-        run: bun run check:format
-
-      - name: Typecheck
-        run: bun run check:types
-
-      - name: Check Separation
-        run: bun run check:separation
-
-      - name: Check Architecture Doc
-        run: bun run check:architecture
-
-      - name: Check TODOs
-        run: bun run check:todos
-
-      - name: Check Shims
-        run: bun run check:shims
-
-      - name: Validate All Books
-        run: bun run validate
-
-      - name: Run Tests
-        run: bun run test
-
-      - name: Build All Books
-        run: bun run build:all
-
-      - name: Check Build Output
-        run: bun run check:build
+      # One list of checks for CI and contributors: scripts/lib/verify-plan.ts.
+      # Findings with a file also annotate the PR (see scripts/verify.ts).
+      - name: Verify (every gate)
+        run: bun run verify -- --all

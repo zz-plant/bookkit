@@ -15,12 +15,11 @@ beforeEach(() => {
 			recursive: true,
 		},
 	);
-	mkdirSync(
-		join(root, "apps", "test-book", "src", "content", "book", "toolkit"),
-		{
+	for (const dir of ["toolkit", "chapters", "examples", "glossary"]) {
+		mkdirSync(join(root, "apps", "test-book", "src", "content", "book", dir), {
 			recursive: true,
-		},
-	);
+		});
+	}
 });
 
 afterEach(() => {
@@ -85,12 +84,32 @@ Tool body.
 			bookSlug: "test-book",
 		});
 
-		const schemaIssues = result.warnings.filter(
-			(w) =>
-				w.machineCode === "MECHANISM_SCHEMA_INVALID" ||
-				w.machineCode === "TOOL_SCHEMA_INVALID",
-		);
-		expect(schemaIssues).toEqual([]);
+		expect(result.warnings).toEqual([]);
 		expect(result.ok).toBe(true);
+	});
+
+	it("reports what the shared checker reports, as normalized payloads", () => {
+		writeBook([
+			[
+				"toolkit/orphan.mdx",
+				'---\nslug: orphan\nmechanism: missing-mechanism\nname: "Orphan"\n---\n',
+			],
+		]);
+		const result = validateBookInMemory({
+			workspaceRoot: root,
+			bookSlug: "test-book",
+		});
+		expect(result.ok).toBe(false);
+		expect(result.errors[0]).toMatchObject({
+			machineCode: "UNKNOWN_MECHANISM",
+			severity: "error",
+			gateLevel: "blocking",
+		});
+		expect(result.errors[0].nextAction).toContain(
+			"mechanisms/missing-mechanism.mdx",
+		);
+		expect(result.warnings.map((w) => w.machineCode)).toContain(
+			"FIELD_MISSING",
+		);
 	});
 });

@@ -1,9 +1,8 @@
-import { validateBookInMemory } from "../../validators/book-validator";
+import { checkBookContent } from "../../validators/book-validator";
 import {
 	missingBookSlugError,
 	validateBookCommandFailedError,
 } from "../../validators/governance-errors";
-import { runWorkspaceCommand } from "../command-runner";
 import type { ToolHandler } from "./types";
 
 export const toValidateBookFailure = (exitCode: number) => {
@@ -14,27 +13,10 @@ export const toValidateBookFailure = (exitCode: number) => {
 	};
 };
 
-type ValidateReport = {
-	ok: boolean;
-	findings: Array<{
-		level: "error" | "warning";
-		code?: string;
-		field?: string;
-		message: string;
-		file?: string;
-		fix?: string;
-	}>;
-};
-
-const parseValidateReport = (stdout: string): ValidateReport | null => {
-	try {
-		const parsed = JSON.parse(stdout) as ValidateReport;
-		return Array.isArray(parsed.findings) ? parsed : null;
-	} catch {
-		return null;
-	}
-};
-
+/**
+ * Validates a book in-process with the same checker as `bun run validate`:
+ * each finding has a code, the field, a fix, and its file.
+ */
 export const handleValidateBook: ToolHandler = ({ options, args }) => {
 	const rawBook = args?.book;
 	const book =
@@ -53,50 +35,33 @@ export const handleValidateBook: ToolHandler = ({ options, args }) => {
 		};
 	}
 
-	const inMemoryDiagnostics = validateBookInMemory({
-		workspaceRoot: options.workspaceRoot,
+	const workspaceRoot = options.workspaceRoot ?? process.cwd();
+	const result = checkBookContent({
+		workspaceRoot,
 		bookSlug: book,
+		releaseMode: args?.releaseMode === true,
 	});
-
-	const command = runWorkspaceCommand(options.workspaceRoot, [
-		"run",
-		"validate:book",
-		"--",
-		"--book",
-		book,
-		"--json",
-	]);
-	// Judge by the findings: validate-book exits 0 in warn mode even with errors.
-	const report = parseValidateReport(command.stdout);
-	const errorCount =
-		report?.findings.filter((finding) => finding.level === "error").length ?? 0;
-	const ok = command.ok && report !== null && errorCount === 0;
+	const errorCount = result.findings.filter(
+		(finding) => finding.level === "error",
+	).length;
+	const warningCount = result.findings.length - errorCount;
+	const findings = result.findings.map((finding) => ({
+		...finding,
+		file: finding.file?.startsWith(`${workspaceRoot}/`)
+			? finding.file.slice(workspaceRoot.length + 1)
+			: finding.file,
+	}));
 	return {
-		ok,
-		summary: ok
-			? `Validation passed for ${book}${report?.findings.length ? ` (${report.findings.length} warning(s))` : ""}.`
-			: report
-				? `Validation failed for ${book}: ${errorCount} error(s). Each finding names its file, field, and fix; check a corrected file with bookkit.check_content before writing it.`
-				: `Validation failed for ${book}.`,
-		payload: {
-			book,
-			command: command.command,
-			exitCode: command.exitCode,
-			findings: report?.findings ?? [],
-			stderr: command.stderr.trim() || undefined,
-			stdout: report ? undefined : command.stdout.trim(),
-			diagnostics: {
-				errors: inMemoryDiagnostics.errors,
-				warnings: inMemoryDiagnostics.warnings,
-			},
-		},
-		error: ok
+		ok: result.ok,
+		summary: result.ok
+			? `Validation passed for ${book}${warningCount ? ` (${warningCount} warning(s))` : ""}.`
+			: `Validation failed for ${book}: ${errorCount} error(s). Each finding names its file, field, and fix; check a corrected file with bookkit.check_content before writing it.`,
+		payload: { book, findings },
+		error: result.ok
 			? undefined
 			: {
-					...toValidateBookFailure(command.exitCode),
-					...(report
-						? { cause: `${errorCount} validation error(s) in ${book}.` }
-						: {}),
+					...toValidateBookFailure(1),
+					cause: `${errorCount} validation error(s) in ${book}.`,
 				},
 	};
 };

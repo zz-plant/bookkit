@@ -138,7 +138,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 
 | Module | Tier | Owns |
 | --- | --- | --- |
-| `utils/` | 0 | small shared helpers with no engine dependencies |
+| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser |
 | `schemas/` | 0 | Zod frontmatter schemas — the record contract for every content section |
 | `styles/` | 0 | `bookkit.css`, the shipped stylesheet |
 | `llm-local/` | 0 | in-browser model adapter (optional dependency) |
@@ -154,7 +154,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `localization/` | 1 | locale resolution and translation notices |
 | `suggestions/` | 1 | deterministic analyzers — overlap (per book and across a corpus of books), concept triage, example audit, prerequisites, runbook coverage |
 | `frames/` | 1 | frame registry and the built-in frames (intervention, field-guide, runbook) |
-| `validators/` | 1 | book, frame, and separation validation; content contracts and the per-file checker; the `NormalizedErrorPayload` shape |
+| `validators/` | 1 | book, frame, and separation validation; content contracts, the per-file checker, and scaffolds built from them; the `NormalizedErrorPayload` shape |
 | `search/` | 2 | search index construction and querying |
 | `seo/` | 2 | sitemap, metadata, indexability rules, link-preview images |
 | `mcp/` | 2 | JSON-RPC router, workspace reader, and deterministic tool handlers |

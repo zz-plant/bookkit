@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
+import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
 import { optionalArg, requireArg } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
-import { listContentFiles } from "./lib/content-frontmatter";
 
 type SeoSiteConfig = {
 	url?: string;
@@ -15,115 +15,22 @@ const mode = optionalArg("--mode") ?? "warn";
 const noDrafts = process.argv.includes("--no-drafts");
 
 const workspaceRoot = join(import.meta.dir, "..");
-const bookRoot = join(workspaceRoot, "apps", book, "src", "content", "book");
-
-const requiredDirs = [
-	"chapters",
-	"examples",
-	"glossary",
-	"mechanisms",
-	"toolkit",
-];
 
 const findings: Finding[] = [];
 const error = (message: string, code: string) =>
 	findings.push({ level: "error", code, message });
-const warning = (message: string, code: string) =>
-	findings.push({ level: "warning", code, message });
 
-for (const dir of requiredDirs) {
-	const fullPath = join(bookRoot, dir);
-	if (!existsSync(fullPath)) {
-		error(`Missing required directory: ${fullPath}`, "DIRECTORY_MISSING");
-	}
-}
-
-import {
-	defaultFrames,
-	validateFrameSteps,
-} from "../packages/astro-bookkit/src";
-import {
-	type ContentSection,
-	checkContentItem,
-	mechanismSlugsFrom,
-	type RetiredSlug,
-	retiredSlugsFromCorpus,
-	SECTION_DIRECTORIES,
-} from "../packages/astro-bookkit/src/validators/content-check";
-import { extractFrameConfigFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
-
-// Each file is checked against its section's contract (content-check.ts), the
-// same checker agents call through MCP before writing a file.
-const sourcesBySection = Object.fromEntries(
-	(Object.keys(SECTION_DIRECTORIES) as ContentSection[]).map((section) => [
-		section,
-		listContentFiles(join(bookRoot, SECTION_DIRECTORIES[section])).map(
-			(file) => ({ file, source: readFileSync(file, "utf8") }),
-		),
-	]),
-) as Record<ContentSection, Array<{ file: string; source: string }>>;
-
-const mechanismSlugs = mechanismSlugsFrom(
-	sourcesBySection.mechanism.map(({ source }) => source),
-);
-// Merges recorded in corpus.json let a stale reference name its replacement.
-const corpusPath = join(workspaceRoot, "corpus.json");
-let retiredSlugs = new Map<string, RetiredSlug>();
-try {
-	if (existsSync(corpusPath)) {
-		retiredSlugs = retiredSlugsFromCorpus(
-			JSON.parse(readFileSync(corpusPath, "utf8")),
-		);
-	}
-} catch {
-	// check:corpus reports an unreadable corpus.json; validation goes on without it.
-}
-
-for (const section of [
-	"mechanism",
-	"tool",
-	"example",
-	"chapter",
-	"glossary",
-] as const) {
-	for (const { file, source } of sourcesBySection[section]) {
-		const result = checkContentItem(section, source, {
-			mechanismSlugs,
-			retiredSlugs,
-			releaseMode: noDrafts,
-		});
-		for (const finding of result.findings) {
-			findings.push({ ...finding, file: relative(workspaceRoot, file) });
-		}
-	}
-}
-
-// Frame step enforcement on overview chapter
-const overviewChapter = join(bookRoot, "chapters", "00-overview.mdx");
-if (existsSync(overviewChapter)) {
-	const content = readFileSync(overviewChapter, "utf8");
-	const headingMatches = Array.from(
-		content.matchAll(/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g),
-	).map((m) => m[1].toLowerCase());
-
-	// Author decisions live in book.config.ts; validate against the configured
-	// frame and fall back to the intervention frame when none is declared.
-	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
-	const configuredSlug = existsSync(configPath)
-		? extractFrameConfigFromSource(readFileSync(configPath, "utf8"))?.slug
-		: undefined;
-	const frame =
-		defaultFrames.find((f) => f.slug === configuredSlug) ??
-		defaultFrames.find((f) => f.slug === "intervention");
-	if (frame) {
-		const frameResult = validateFrameSteps(frame, headingMatches);
-		if (frameResult.missingRequiredSteps.length > 0) {
-			warning(
-				`Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${frameResult.missingRequiredSteps.join(", ")}`,
-				"FRAME_STEP_MISSING",
-			);
-		}
-	}
+// Content and frame findings come from the engine (validators/book-validator.ts),
+// the same function MCP and generated projects call.
+for (const finding of checkBookContent({
+	workspaceRoot,
+	bookSlug: book,
+	releaseMode: noDrafts,
+}).findings) {
+	findings.push({
+		...finding,
+		file: finding.file ? relative(workspaceRoot, finding.file) : undefined,
+	});
 }
 
 const bookConfigPath = join(

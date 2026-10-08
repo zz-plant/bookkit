@@ -161,7 +161,7 @@ bun run bookkit dev running-hot
 
 ```bash
 bun run verify             # the checks your change needs, judged by the files it touches
-bun run verify -- --all    # everything CI runs
+bun run verify -- --all    # everything CI runs (CI runs exactly this)
 ```
 
 ### Lint / format / types
@@ -211,7 +211,7 @@ bun run bookkit deploy on-call               # publish one book
 bun run deploy                               # publish every book
 ```
 
-`deploy` refuses to publish a book whose `dist/` fails `bun run check:build` (see below). Before the first real deploy: run `wrangler login` once. The `*.workers.dev` address works immediately and is marked `noindex` by `public/_headers`. To publish on your own domain, set `site.url` in `apps/<book>/src/book.config.ts` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to `apps/<book>/wrangler.jsonc`; the next deploy attaches it (the zone must be on your Cloudflare account). Until then, `deploy` says which domain its canonical links name and that the Worker does not serve it.
+`deploy` refuses to publish a book whose `dist/` fails `bun run check:build` (see below). To publish on every merge to `main`, add a `CLOUDFLARE_API_TOKEN` secret to the repository (plus `CLOUDFLARE_ACCOUNT_ID` if the token can see more than one account); `.github/workflows/deploy.yml` then runs `bookkit deploy` and does nothing until the secret exists. Before the first real deploy: run `wrangler login` once. The `*.workers.dev` address works immediately and is marked `noindex` by `public/_headers`. To publish on your own domain, set `site.url` in `apps/<book>/src/book.config.ts` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to `apps/<book>/wrangler.jsonc`; the next deploy attaches it (the zone must be on your Cloudflare account). Until then, `deploy` says which domain its canonical links name and that the Worker does not serve it.
 
 What a static deployment serves, and what it cannot:
 
@@ -266,7 +266,7 @@ Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp
 
 Use this as the default machine interface instead of ad-hoc repository scraping. On a static deployment only the `GET` manifest is served; tool calls need an on-demand runtime (run `bun run bookkit dev <book>` locally).
 
-For agents working in this repository, the same tools run over stdio with no dev server: `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the first book otherwise). `.mcp.json` registers it as `bookkit`, so Claude Code offers it on first use. Two tools make content compilable by an agent: `bookkit.get_content_contract` (the fields each kind of file needs, what to write in them, the frontmatter's JSON Schema, and a template that compiles) and `bookkit.check_content` (compile one candidate file without writing it; each finding has a code, the field, and a fix). `bookkit.validate_book` returns the same structured findings for a whole book. Without MCP, `bun run bookkit contract [section]` and `bun run bookkit check <file.mdx> [--json]` do the same from the shell. Two tools serve bet B1: `bookkit.find_similar_mechanisms` (does a mechanism for this idea already exist, in any book? pass `semantic: true` to compare meaning, not just wording) and `bookkit.check_corpus` (overlap, drift, and stale rulings across books). Tool results follow MCP: a `text` content item with the JSON, plus the same object as `structuredContent`.
+For agents working in this repository, the same tools run over stdio with no dev server: `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the first book otherwise). `.mcp.json` registers it as `bookkit`, so Claude Code offers it on first use. Two tools make content compilable by an agent: `bookkit.get_content_contract` (the fields each kind of file needs, what to write in them, the frontmatter's JSON Schema, and a template that compiles) and `bookkit.check_content` (compile one candidate file without writing it; each finding has a code, the field, and a fix). `bookkit.validate_book` returns the same structured findings for a whole book. Without MCP, `bun run bookkit contract [section]` and `bun run bookkit check <file.mdx> [--json]` do the same from the shell. Checking a mechanism file, either way, also lists existing mechanisms in any book that share its wording, noting pairs `corpus.json` already rules distinct. Two tools serve bet B1: `bookkit.find_similar_mechanisms` (does a mechanism for this idea already exist, in any book? pass `semantic: true` to compare meaning, not just wording) and `bookkit.check_corpus` (overlap, drift, and stale rulings across books). Tool results follow MCP: a `text` content item with the JSON, plus the same object as `structuredContent`.
 
 ### CI
 

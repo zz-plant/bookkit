@@ -1,0 +1,48 @@
+name: Deploy
+
+# Publishes every book to Cloudflare Workers after a merge to main. Inert until
+# the repository has a CLOUDFLARE_API_TOKEN secret (and, for tokens that can see
+# more than one account, CLOUDFLARE_ACCOUNT_ID). `bookkit deploy` builds each
+# book and refuses to publish one whose dist/ fails check:build.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Skip without a Cloudflare token
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::No CLOUDFLARE_API_TOKEN secret, so nothing was deployed. Add one under Settings → Secrets and variables → Actions to publish main on every merge."
+
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+
+      - name: Setup Bun
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Setup Node
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun install --frozen-lockfile
+
+      - name: Build, verify, and deploy every book
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun run bookkit deploy

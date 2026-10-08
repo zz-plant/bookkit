@@ -6,6 +6,7 @@ import {
 	contentContract,
 	mechanismSlugsFrom,
 	retiredSlugsFromCorpus,
+	scaffoldSource,
 } from "./content-check";
 
 const known = new Set(["promise-drift", "delay-as-force"]);
@@ -164,6 +165,53 @@ describe("retired slugs", () => {
 		)?.fix;
 		expect(fix).toContain("closest: power-of-attorney-gap");
 		expect(fix).not.toContain("delay-as-force");
+	});
+});
+
+describe("scaffoldSource", () => {
+	it("starts every section with no errors, only warnings for what to write", () => {
+		const required: Record<string, Record<string, string>> = {
+			mechanism: { slug: "new-idea", title: "New idea: with a colon" },
+			tool: {
+				slug: "new-tool",
+				mechanism: "promise-drift",
+				name: 'A "quoted" name',
+			},
+			example: { mechanism: "promise-drift" },
+			chapter: { slug: "01-start", title: "Start" },
+			glossary: {},
+		};
+		for (const section of CONTENT_SECTIONS) {
+			const source = scaffoldSource(
+				section,
+				required[section],
+				"Notes */ here.",
+			);
+			const result = checkContentItem(section, source, {
+				mechanismSlugs: known,
+			});
+			expect({ section, ok: result.ok }).toEqual({ section, ok: true });
+			expect(source).toContain("{/* Notes * / here. */}");
+		}
+	});
+});
+
+describe("MDX bodies", () => {
+	it("rejects HTML comments outside code, which break the build", () => {
+		const source = (body: string) =>
+			`---\nslug: c\ntitle: "C"\n---\n\n${body}\n`;
+		const result = checkContentItem("chapter", source("<!-- note -->"));
+		expect(result.ok).toBe(false);
+		expect(result.findings[0]).toMatchObject({ code: "MDX_HTML_COMMENT" });
+		expect(
+			checkContentItem("chapter", source("{/* note */} and `<!-- -->` in code"))
+				.findings,
+		).toEqual([]);
+		expect(
+			checkContentItem("chapter", source("<!-- fine in .md -->"), {
+				format: "md",
+			}).findings,
+		).toEqual([]);
 	});
 });
 

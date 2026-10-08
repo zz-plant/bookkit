@@ -40,8 +40,9 @@ describe("chapterSource", () => {
 			mechanismSlugs: ["delay-as-force"],
 		});
 		expect(source).toStartWith(
-			'---\nslug: repair-has-a-clock\ntitle: "Repair has a clock"\nstatus: draft\n',
+			'---\nslug: repair-has-a-clock\ntitle: "Repair has a clock"\n',
 		);
+		expect(source).toContain("\nstatus: draft\n");
 		expect(source).toContain("This book's mechanisms: delay-as-force.");
 	});
 });

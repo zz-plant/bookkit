@@ -1,18 +1,186 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defaultFrames } from "../frames/defaults";
-import { mechanismSchema, toolkitSchema } from "../schemas";
+import {
+	CONTENT_SECTIONS,
+	type ContentFinding,
+	type ContentSection,
+	checkContentItem,
+	mechanismSlugsFrom,
+	type RetiredSlug,
+	retiredSlugsFromCorpus,
+	SECTION_DIRECTORIES,
+} from "./content-check";
 import { validateFrameSteps } from "./frame";
 import { extractFrameConfigFromSource } from "./frame-config";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
-export type ValidateBookOptions = {
+/**
+ * Validates a whole book's content from disk. `bun run validate`, the MCP
+ * `validate_book` tool, and the validate script that create-bookkit writes
+ * all call this, so a book gets the same findings wherever it is checked.
+ * Each file goes through `checkContentItem`; the book adds the cross-file
+ * context (mechanism slugs, merges recorded in corpus.json) and the frame.
+ */
+
+export type BookFinding = Omit<ContentFinding, "code"> & {
+	/** Content codes, plus DIRECTORY_MISSING and FRAME_STEP_MISSING. */
+	code: string;
+	/** Absolute path, when the finding is about one file. */
+	file?: string;
+};
+
+export type CheckBookOptions = {
 	workspaceRoot?: string;
 	bookSlug: string;
-	mode?: "warn" | "error";
-	noDrafts?: boolean;
-	/** Override the frame slug declared in book.config.ts (defaults to the config value). */
+	/** Release validation (`--no-drafts`): draft examples are errors. */
+	releaseMode?: boolean;
+	/** Override the frame slug declared in book.config.ts. */
 	frameSlug?: string;
+};
+
+export type BookCheckResult = {
+	ok: boolean;
+	book: string;
+	findings: BookFinding[];
+};
+
+export const bookContentDir = (workspaceRoot: string, book: string): string =>
+	join(workspaceRoot, "apps", book, "src", "content", "book");
+
+const listFiles = (dir: string): string[] => {
+	if (!existsSync(dir)) return [];
+	const files: string[] = [];
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const full = join(dir, entry.name);
+		if (entry.isDirectory()) files.push(...listFiles(full));
+		else if (entry.isFile() && /\.mdx?$/.test(entry.name)) files.push(full);
+	}
+	return files;
+};
+
+/** Each section's files and their sources. */
+export const readBookSources = (
+	workspaceRoot: string,
+	book: string,
+): Record<ContentSection, Array<{ file: string; source: string }>> => {
+	const root = bookContentDir(workspaceRoot, book);
+	return Object.fromEntries(
+		CONTENT_SECTIONS.map((section) => [
+			section,
+			listFiles(join(root, SECTION_DIRECTORIES[section])).map((file) => ({
+				file,
+				source: readFileSync(file, "utf8"),
+			})),
+		]),
+	) as Record<ContentSection, Array<{ file: string; source: string }>>;
+};
+
+/** Merges recorded in the workspace's corpus.json; empty when it is absent or unreadable. */
+export const readRetiredSlugs = (
+	workspaceRoot: string,
+): Map<string, RetiredSlug> => {
+	const path = join(workspaceRoot, "corpus.json");
+	if (!existsSync(path)) return new Map();
+	try {
+		return retiredSlugsFromCorpus(JSON.parse(readFileSync(path, "utf8")));
+	} catch {
+		// check:corpus reports an unreadable corpus.json.
+		return new Map();
+	}
+};
+
+const frameFinding = (
+	workspaceRoot: string,
+	book: string,
+	frameSlug: string | undefined,
+): BookFinding | null => {
+	const overview = join(
+		bookContentDir(workspaceRoot, book),
+		"chapters",
+		"00-overview.mdx",
+	);
+	if (!existsSync(overview)) return null;
+	const headings = Array.from(
+		readFileSync(overview, "utf8").matchAll(
+			/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g,
+		),
+	).map((match) => match[1].toLowerCase());
+	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
+	const configured =
+		frameSlug ??
+		(existsSync(configPath)
+			? extractFrameConfigFromSource(readFileSync(configPath, "utf8"))?.slug
+			: undefined);
+	// Author decisions live in book.config.ts; validate against the configured
+	// frame and fall back to the intervention frame when none is declared.
+	const frame =
+		defaultFrames.find((candidate) => candidate.slug === configured) ??
+		defaultFrames.find((candidate) => candidate.slug === "intervention");
+	if (!frame) return null;
+	const { missingRequiredSteps } = validateFrameSteps(frame, headings);
+	if (missingRequiredSteps.length === 0) return null;
+	return {
+		level: "warning",
+		code: "FRAME_STEP_MISSING",
+		message: `Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${missingRequiredSteps.join(", ")}`,
+		fix: `Add a heading for each missing step to chapters/00-overview.mdx (e.g. "## ${missingRequiredSteps[0]}"); the ${frame.slug} frame requires them in that chapter.`,
+	};
+};
+
+export const checkBookContent = (
+	options: CheckBookOptions,
+): BookCheckResult => {
+	const workspaceRoot = options.workspaceRoot ?? process.cwd();
+	const book = options.bookSlug;
+	const root = bookContentDir(workspaceRoot, book);
+	const findings: BookFinding[] = [];
+
+	for (const section of CONTENT_SECTIONS) {
+		const dir = join(root, SECTION_DIRECTORIES[section]);
+		if (!existsSync(dir)) {
+			findings.push({
+				level: "error",
+				code: "DIRECTORY_MISSING",
+				message: `Missing required directory: ${dir}`,
+				fix: `Create ${dir} (it may stay empty), or scaffold the book with bun run bookkit new book.`,
+			});
+		}
+	}
+
+	const sources = readBookSources(workspaceRoot, book);
+	const mechanismSlugs = mechanismSlugsFrom(
+		sources.mechanism.map(({ source }) => source),
+	);
+	const retiredSlugs = readRetiredSlugs(workspaceRoot);
+	for (const section of CONTENT_SECTIONS) {
+		for (const { file, source } of sources[section]) {
+			const result = checkContentItem(section, source, {
+				mechanismSlugs,
+				retiredSlugs,
+				releaseMode: options.releaseMode,
+				format: file.endsWith(".md") ? "md" : "mdx",
+			});
+			for (const finding of result.findings)
+				findings.push({ ...finding, file });
+		}
+	}
+
+	const frame = frameFinding(workspaceRoot, book, options.frameSlug);
+	if (frame) findings.push(frame);
+
+	return {
+		ok: !findings.some((finding) => finding.level === "error"),
+		book,
+		findings,
+	};
+};
+
+export type ValidateBookOptions = CheckBookOptions & {
+	/** @deprecated Unused; callers decide whether errors fail the run. */
+	mode?: "warn" | "error";
+	/** @deprecated Use `releaseMode`. */
+	noDrafts?: boolean;
 };
 
 export type ValidateBookResult = {
@@ -22,191 +190,34 @@ export type ValidateBookResult = {
 	warnings: NormalizedErrorPayload[];
 };
 
-function listFiles(dir: string): string[] {
-	if (!existsSync(dir)) return [];
-	const files: string[] = [];
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const full = join(dir, entry.name);
-		if (entry.isDirectory()) {
-			files.push(...listFiles(full));
-		} else if (
-			entry.isFile() &&
-			(entry.name.endsWith(".md") || entry.name.endsWith(".mdx"))
-		) {
-			files.push(full);
-		}
-	}
-	return files;
-}
+const toNormalized = (finding: BookFinding): NormalizedErrorPayload => ({
+	machineCode: finding.code,
+	humanSummary: finding.message,
+	location: { module: "validators/book-validator", file: finding.file },
+	failingRule: finding.field
+		? `${finding.field} must meet its content contract (bun run bookkit contract)`
+		: finding.code,
+	nextAction: finding.fix ?? "Fix the finding, then validate again.",
+	severity: finding.level,
+	gateLevel: finding.level === "error" ? "blocking" : "advisory",
+});
 
-function parseSimpleFrontmatter(content: string): {
-	data: Record<string, unknown>;
-	body: string;
-} {
-	if (!content.startsWith("---")) return { data: {}, body: content };
-	const end = content.indexOf("\n---", 3);
-	if (end === -1) return { data: {}, body: content };
-	const raw = content.slice(3, end);
-	const body = content.slice(end + 4).trim();
-	const data: Record<string, unknown> = {};
-
-	let lastKey: string | null = null;
-	for (const line of raw.split("\n")) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
-		const listMatch = trimmed.match(/^-\s+(.*)$/);
-		if (listMatch) {
-			if (lastKey) {
-				const item = parseScalarValue(listMatch[1]);
-				const current = data[lastKey];
-				if (Array.isArray(current)) current.push(item);
-				else if (current === undefined || current === "")
-					data[lastKey] = [item];
-				else data[lastKey] = [current, item];
-			}
-			continue;
-		}
-		const match = trimmed.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-		if (match) {
-			lastKey = match[1];
-			data[lastKey] = parseScalarValue(match[2]);
-		}
-	}
-	return { data, body };
-}
-
-function parseScalarValue(value: string): string | number | boolean {
-	const trimmed = value.replace(/^["']|["']$/g, "").trim();
-	if (trimmed === "") return "";
-	if (trimmed === "true") return true;
-	if (trimmed === "false") return false;
-	if (trimmed === "null" || trimmed === "~") return "";
-	if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
-	return trimmed;
-}
-
+/** `checkBookContent` in the NormalizedErrorPayload shape, for generated projects' validate script. */
 export function validateBookInMemory(
 	options: ValidateBookOptions,
 ): ValidateBookResult {
-	const root = options.workspaceRoot ?? process.cwd();
-	const bookDir = join(
-		root,
-		"apps",
-		options.bookSlug,
-		"src",
-		"content",
-		"book",
-	);
-	const errors: NormalizedErrorPayload[] = [];
-	const warnings: NormalizedErrorPayload[] = [];
-
-	if (!existsSync(bookDir)) {
-		errors.push({
-			machineCode: "BOOK_DIRECTORY_NOT_FOUND",
-			humanSummary: `Content directory not found for book "${options.bookSlug}".`,
-			location: { module: "validators/book-validator", file: bookDir },
-			failingRule:
-				"book content directory must exist under apps/<book>/src/content/book",
-			nextAction:
-				"Scaffold the book using bun run new:book or verify the book slug.",
-			severity: "error",
-			gateLevel: "blocking",
-		});
-		return { ok: false, book: options.bookSlug, errors, warnings };
-	}
-
-	const mechanismFiles = listFiles(join(bookDir, "mechanisms"));
-	const mechanismSlugs = new Set<string>();
-
-	for (const file of mechanismFiles) {
-		const { data } = parseSimpleFrontmatter(readFileSync(file, "utf8"));
-		const slug = typeof data.slug === "string" ? data.slug : undefined;
-		if (slug) mechanismSlugs.add(slug);
-
-		const parsed = mechanismSchema.safeParse(data);
-		if (!parsed.success) {
-			warnings.push({
-				machineCode: "MECHANISM_SCHEMA_INVALID",
-				humanSummary: `Mechanism schema issues in ${file}: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
-				location: { module: "validators/book-validator", file },
-				failingRule: "mechanisms must conform to mechanismSchema",
-				nextAction:
-					"Ensure all required mechanism fields are present and valid.",
-				severity: "warning",
-				gateLevel: "advisory",
-			});
-		}
-	}
-
-	const toolkitFiles = listFiles(join(bookDir, "toolkit"));
-	for (const file of toolkitFiles) {
-		const { data } = parseSimpleFrontmatter(readFileSync(file, "utf8"));
-		const mechanism =
-			typeof data.mechanism === "string" ? data.mechanism : undefined;
-		if (mechanism && !mechanismSlugs.has(mechanism)) {
-			errors.push({
-				machineCode: "TOOL_UNKNOWN_MECHANISM",
-				humanSummary: `Tool references unknown mechanism "${mechanism}" in ${file}.`,
-				location: { module: "validators/book-validator", file },
-				failingRule: "tools must bind to a declared mechanism slug",
-				nextAction: `Define mechanism "${mechanism}" under content/book/mechanisms/ or update the tool reference.`,
-				severity: "error",
-				gateLevel: "blocking",
-			});
-		}
-
-		const parsed = toolkitSchema.safeParse(data);
-		if (!parsed.success) {
-			warnings.push({
-				machineCode: "TOOL_SCHEMA_INVALID",
-				humanSummary: `Tool schema issues in ${file}: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
-				location: { module: "validators/book-validator", file },
-				failingRule: "tools must conform to toolkitSchema",
-				nextAction:
-					"Ensure trigger, timeboxMinutes <= 10, and action steps are defined.",
-				severity: "warning",
-				gateLevel: "advisory",
-			});
-		}
-	}
-
-	// Frame check on overview chapter
-	const overviewFile = join(bookDir, "chapters", "00-overview.mdx");
-	if (existsSync(overviewFile)) {
-		const content = readFileSync(overviewFile, "utf8");
-		const headingMatches = Array.from(
-			content.matchAll(/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g),
-		).map((m) => m[1].toLowerCase());
-
-		let configuredSlug = options.frameSlug;
-		if (!configuredSlug) {
-			const configPath = join(
-				root,
-				"apps",
-				options.bookSlug,
-				"src",
-				"book.config.ts",
-			);
-			if (existsSync(configPath)) {
-				configuredSlug =
-					extractFrameConfigFromSource(readFileSync(configPath, "utf8"))
-						?.slug ?? undefined;
-			}
-		}
-
-		// Author decisions live in book.config.ts; validate against the configured
-		// frame and fall back to the intervention frame when none is declared.
-		const activeFrame =
-			defaultFrames.find((f) => f.slug === configuredSlug) ??
-			defaultFrames.find((f) => f.slug === "intervention");
-		if (activeFrame) {
-			const frameResult = validateFrameSteps(activeFrame, headingMatches);
-			for (const err of frameResult.errors) {
-				warnings.push(err);
-			}
-		}
-	}
-
-	const ok = errors.length === 0;
-	return { ok, book: options.bookSlug, errors, warnings };
+	const result = checkBookContent({
+		...options,
+		releaseMode: options.releaseMode ?? options.noDrafts,
+	});
+	return {
+		ok: result.ok,
+		book: result.book,
+		errors: result.findings
+			.filter((finding) => finding.level === "error")
+			.map(toNormalized),
+		warnings: result.findings
+			.filter((finding) => finding.level === "warning")
+			.map(toNormalized),
+	};
 }

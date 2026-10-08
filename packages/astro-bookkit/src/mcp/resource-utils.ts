@@ -1,5 +1,5 @@
-import { load } from "js-yaml";
 import type { BookContentRawModules } from "../book/entrypoints";
+import { frontmatterText, parseFrontmatter } from "../utils/frontmatter";
 import {
 	CONTENT_TYPES,
 	type ContentTypeKey,
@@ -9,7 +9,6 @@ import {
 	type ResourceReadParams,
 } from "./types";
 
-const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
 
 export type ResourceSection = {
@@ -108,31 +107,7 @@ export const buildSectionIndex = (text: string): ResourceSection[] => {
 export const extractFrontmatterField = (
 	raw: string,
 	field: string,
-): string | null => {
-	const match = raw.match(FRONTMATTER_PATTERN);
-	if (!match) return null;
-	const frontmatter = match[1];
-
-	try {
-		const parsed = load(frontmatter);
-		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-			return null;
-
-		const rawValue = (parsed as Record<string, unknown>)[field];
-		if (typeof rawValue === "string") {
-			const trimmed = rawValue.trim();
-			return trimmed.length > 0 ? trimmed : null;
-		}
-
-		if (typeof rawValue === "number" || typeof rawValue === "boolean") {
-			return String(rawValue);
-		}
-	} catch {
-		return null;
-	}
-
-	return null;
-};
+): string | null => frontmatterText(parseFrontmatter(raw).data, field) || null;
 
 export const resolveResourceTitle = (raw: string, fallback: string): string => {
 	return (

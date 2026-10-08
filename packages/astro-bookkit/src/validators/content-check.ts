@@ -1,4 +1,3 @@
-import yaml from "js-yaml";
 import { type ZodType, z } from "zod";
 import {
 	chapterSchema,
@@ -7,6 +6,7 @@ import {
 	mechanismSchema,
 	toolkitSchema,
 } from "../schemas";
+import { parseFrontmatter } from "../utils/frontmatter";
 
 /**
  * What each kind of content file must contain to compile, and a checker that
@@ -375,20 +375,70 @@ export type ContentContract = {
 	template: string;
 };
 
-const yamlValue = (value: string | number | readonly string[]): string =>
-	Array.isArray(value)
-		? `\n${value.map((item) => `  - ${JSON.stringify(item)}`).join("\n")}`
-		: ` ${typeof value === "number" ? value : JSON.stringify(value)}`;
+type ScaffoldValue = string | number | boolean | readonly string[];
 
-const templateFor = (section: ContentSection): string => {
-	const lines = FIELDS[section]
-		.filter((field) => field.whenMissing !== "optional" && field.example)
-		.map(
-			(field) =>
-				`${field.name}:${yamlValue(field.example as string | number | readonly string[])}`,
-		);
-	return `---\n${lines.join("\n")}\nstatus: draft\n---\n\nProse for this ${section} goes here.\n`;
+// Slugs and keywords such as `draft` read better bare; everything else is quoted.
+const yamlScalar = (value: string | number | boolean): string =>
+	typeof value !== "string"
+		? String(value)
+		: /^[a-z][a-z0-9-]*$/.test(value) &&
+				!["true", "false", "null", "yes", "no", "on", "off"].includes(value)
+			? value
+			: JSON.stringify(value);
+
+const yamlValue = (value: ScaffoldValue): string => {
+	if (!Array.isArray(value))
+		return ` ${yamlScalar(value as string | number | boolean)}`;
+	if (value.length === 0) return " []";
+	return `\n${value.map((item) => `  - ${JSON.stringify(item)}`).join("\n")}`;
 };
+
+/**
+ * A new content file for a section, built from its contract: the given values
+ * in contract order, and every required or expected field the caller left out
+ * as an empty placeholder carrying what to write as a YAML comment. Empty
+ * placeholders are warnings, never errors, so the file builds while it is
+ * being filled in. `note` becomes an MDX comment under the frontmatter.
+ */
+export const scaffoldSource = (
+	section: ContentSection,
+	values: Record<string, ScaffoldValue | undefined>,
+	note?: string,
+): string => {
+	const fields = FIELDS[section];
+	const lines: string[] = [];
+	for (const field of fields) {
+		const value = values[field.name];
+		if (value !== undefined) {
+			lines.push(`${field.name}:${yamlValue(value)}`);
+		} else if (field.whenMissing !== "optional") {
+			const empty =
+				field.kind === "list" ? " []" : field.kind === "number" ? "" : ' ""';
+			lines.push(`${field.name}:${empty} # ${field.meaning}`);
+		}
+	}
+	for (const [name, value] of Object.entries(values)) {
+		if (value !== undefined && !fields.some((field) => field.name === name)) {
+			lines.push(`${name}:${yamlValue(value)}`);
+		}
+	}
+	const comment = note ? `\n{/* ${note.replace(/\*\//g, "* /")} */}\n` : "";
+	return `---\n${lines.join("\n")}\n---\n${comment}`;
+};
+
+const templateFor = (section: ContentSection): string =>
+	scaffoldSource(
+		section,
+		{
+			...Object.fromEntries(
+				FIELDS[section]
+					.filter((field) => field.whenMissing !== "optional")
+					.map((field) => [field.name, field.example]),
+			),
+			status: "draft",
+		},
+		`Prose for this ${section} goes here.`,
+	);
 
 export const contentContract = (section: ContentSection): ContentContract => ({
 	section,
@@ -408,7 +458,8 @@ export type ContentFindingCode =
 	| "FIELD_INVALID"
 	| "TIMEBOX_TOO_LONG"
 	| "UNKNOWN_MECHANISM"
-	| "DRAFT_IN_RELEASE";
+	| "DRAFT_IN_RELEASE"
+	| "MDX_HTML_COMMENT";
 
 export type ContentFinding = {
 	level: "error" | "warning";
@@ -430,42 +481,19 @@ export type ContentCheckContext = {
 	retiredSlugs?: ReadonlyMap<string, RetiredSlug>;
 	/** Release validation (`--no-drafts`): draft examples are errors. */
 	releaseMode?: boolean;
+	/** `mdx` (default) rejects HTML comments, which the MDX compiler cannot parse. */
+	format?: "mdx" | "md";
 };
+
+/** Body text outside code, where an HTML comment would reach the MDX compiler. */
+const proseOutsideCode = (body: string): string =>
+	body.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "").replace(/`[^`\n]*`/g, "");
 
 export type ContentCheckResult = {
 	ok: boolean;
 	frontmatter: Record<string, unknown> | null;
 	body: string;
 	findings: ContentFinding[];
-};
-
-type ParsedSource =
-	| { kind: "ok"; data: Record<string, unknown>; body: string }
-	| { kind: "missing"; body: string }
-	| { kind: "invalid"; reason: string; body: string };
-
-const parseSource = (source: string): ParsedSource => {
-	if (!source.startsWith("---")) return { kind: "missing", body: source };
-	const end = source.indexOf("\n---", 3);
-	if (end === -1) return { kind: "missing", body: source };
-	const body = source.slice(end + 4).trim();
-	try {
-		const data = yaml.load(source.slice(3, end).trim());
-		if (data && typeof data === "object" && !Array.isArray(data)) {
-			return { kind: "ok", data: data as Record<string, unknown>, body };
-		}
-		return {
-			kind: "invalid",
-			reason: "it must be a mapping of field: value pairs",
-			body,
-		};
-	} catch (error) {
-		const reason =
-			error instanceof yaml.YAMLException
-				? `${error.reason} at line ${(error.mark?.line ?? 0) + 1}`
-				: String(error);
-		return { kind: "invalid", reason, body };
-	}
 };
 
 const isPresent = (field: ContractField, value: unknown): boolean => {
@@ -557,11 +585,11 @@ export const checkContentItem = (
 ): ContentCheckResult => {
 	const label = LABELS[section];
 	const findings: ContentFinding[] = [];
-	const parsed = parseSource(source);
-	if (parsed.kind !== "ok") {
+	const parsed = parseFrontmatter(source);
+	if (parsed.status !== "ok") {
 		const template = templateFor(section);
 		findings.push(
-			parsed.kind === "missing"
+			parsed.status === "missing"
 				? {
 						level: "error",
 						code: "FRONTMATTER_MISSING",
@@ -649,6 +677,18 @@ export const checkContentItem = (
 		}
 	}
 
+	if (
+		(context.format ?? "mdx") === "mdx" &&
+		proseOutsideCode(body).includes("<!--")
+	) {
+		findings.push({
+			level: "error",
+			code: "MDX_HTML_COMMENT",
+			message: `${label} uses an HTML comment, which MDX cannot compile`,
+			fix: "Replace <!-- … --> with an MDX comment: {/* … */}.",
+		});
+	}
+
 	if (context.releaseMode && section === "example" && data.status === "draft") {
 		findings.push({
 			level: "error",
@@ -671,8 +711,8 @@ export const checkContentItem = (
 export const mechanismSlugsFrom = (sources: Iterable<string>): Set<string> => {
 	const slugs = new Set<string>();
 	for (const source of sources) {
-		const parsed = parseSource(source);
-		if (parsed.kind !== "ok") continue;
+		const parsed = parseFrontmatter(source);
+		if (parsed.status !== "ok") continue;
 		const slug = parsed.data.slug;
 		if (typeof slug === "string" && slug.trim()) slugs.add(slug.trim());
 	}

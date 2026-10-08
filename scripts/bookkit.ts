@@ -18,8 +18,10 @@ import {
 	listChapterFiles,
 	loadBookConfigSummary,
 	nextChapterFileName,
+	similarForMechanismFile,
 	summarizeBook,
 } from "./lib/authoring";
+import { buildB1Report } from "./lib/b1-report";
 import { domainNotice } from "./lib/deploy-domain";
 import { loadBookContent } from "./lib/load-book";
 
@@ -56,7 +58,14 @@ switch (command) {
 	case "status": {
 		if (args.includes("--json")) {
 			console.log(
-				JSON.stringify(await Promise.all(books.map(summarizeBook)), null, 2),
+				JSON.stringify(
+					{
+						books: await Promise.all(books.map(summarizeBook)),
+						b1: await buildB1Report(),
+					},
+					null,
+					2,
+				),
 			);
 		} else {
 			await printStatus();
@@ -457,6 +466,23 @@ async function printStatus() {
 			"\n  Stubs are chapters with too little prose to read yet (site.minIndexableWords, default 60 words). They stay out of search until written.",
 		);
 	}
+	const b1 = await buildB1Report();
+	if ("unavailable" in b1) {
+		console.log(`\n  B1: not measured (${b1.unavailable}).`);
+	} else {
+		console.log(
+			`\nB1 · one argument, three drafts · ${b1.verdict}${b1.daysLeft !== undefined ? ` · ${b1.daysLeft} days to ${b1.killBy}` : ""}`,
+		);
+		console.log(`  ${b1.summary}`);
+		console.log(
+			`  Mechanisms across the corpus books: ${b1.mechanisms.before} at the start, ${b1.mechanisms.now} now${b1.mechanisms.added.length ? `; new: ${b1.mechanisms.added.join(", ")}` : ""}${b1.mechanisms.retired.length ? `; merged away: ${b1.mechanisms.retired.join(", ")}` : ""}.`,
+		);
+		for (const chapter of b1.drafted) {
+			console.log(
+				`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : " binds existing mechanisms only"}`,
+			);
+		}
+	}
 	const first = books[0] ?? "<book>";
 	const next: Array<[string, string]> = [
 		[`bun run bookkit dev ${first}`, "preview a book in the browser"],
@@ -660,10 +686,20 @@ function checkOneFile(path: string, asJson: boolean) {
 		process.exit(1);
 	}
 	const { book, section, result } = checked;
+	// A mechanism file also gets the duplicate check `new mechanism` runs.
+	const similar =
+		section === "mechanism" ? similarForMechanismFile(result.frontmatter) : [];
 	if (asJson) {
 		console.log(
 			JSON.stringify(
-				{ book, section, ...result, frontmatter: undefined, body: undefined },
+				{
+					book,
+					section,
+					...result,
+					frontmatter: undefined,
+					body: undefined,
+					similar,
+				},
 				null,
 				2,
 			),
@@ -677,6 +713,17 @@ function checkOneFile(path: string, asJson: boolean) {
 		console.log(`  ${finding.level}: ${finding.message}`);
 		if (finding.fix)
 			console.log(`    fix: ${finding.fix.replace(/\n/g, "\n    ")}`);
+	}
+	if (similar.length > 0) {
+		console.log("  may duplicate (by wording):");
+		for (const match of similar) {
+			console.log(
+				`    ${match.slug} (${match.books.join(", ")}) ${match.score}${match.ruledDistinct ? ` — ruled distinct: ${match.ruledDistinct}` : ""}`,
+			);
+		}
+		console.log(
+			"    Same idea: bind that slug instead. Different: rule the pair distinct in corpus.json.",
+		);
 	}
 	process.exit(result.ok ? 0 : 1);
 }

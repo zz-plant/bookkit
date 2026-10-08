@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import { parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
 
@@ -9,6 +9,7 @@ const { values } = parseArgs({
 	options: {
 		book: { type: "string" },
 		mode: { type: "string", default: "warn" },
+		json: { type: "boolean", default: false },
 	},
 	strict: false,
 	allowPositionals: true,
@@ -16,6 +17,10 @@ const { values } = parseArgs({
 
 // With strict: false, a flag given without a value parses as `true`.
 const mode = typeof values.mode === "string" ? values.mode : "warn";
+const asJson = values.json === true;
+const log = (...args: unknown[]) => {
+	if (!asJson) console.log(...args);
+};
 
 // Match multi-word Title Case phrases (2-4 capitalized words) representing potential named concepts.
 // Hyphens are treated as word separators so "On-Call Runbook" is one phrase, not "Call Runbook".
@@ -48,7 +53,21 @@ const COMMON_ALLOWLIST = new Set([
 	"European Union",
 	"New York",
 	"San Francisco",
+	"Wall Street",
 ]);
+
+// A sentence-initial word ("How Wall Street prices…") is not part of the name.
+const LEADING_FUNCTION_WORDS = new Set(
+	"A An And As At But By For From How If In Is It Of On Or So That The These This Those To What When Where Which Who Why With".split(
+		" ",
+	),
+);
+
+const withoutLeadingFunctionWord = (term: string): string | null => {
+	const words = term.split(/\s+|-/);
+	if (!LEADING_FUNCTION_WORDS.has(words[0])) return term;
+	return words.length > 2 ? words.slice(1).join(" ") : null;
+};
 
 function walk(dir: string, out: string[] = []) {
 	if (!existsSync(dir)) return out;
@@ -152,6 +171,8 @@ async function discoverBooks(): Promise<string[]> {
 	}
 }
 
+const jsonHits: Array<{ book: string; file: string; term: string }> = [];
+
 async function checkConceptsForBook(book: string): Promise<number> {
 	const base = join(process.cwd(), "apps", book, "src", "content", "book");
 	if (!existsSync(base)) {
@@ -177,9 +198,10 @@ async function checkConceptsForBook(book: string): Promise<number> {
 
 		let match = multiWordConcept.exec(cleanedBody);
 		while (match !== null) {
-			const term = match[1].trim();
+			const matched = match[1].trim();
 			match = multiWordConcept.exec(cleanedBody);
-			if (COMMON_ALLOWLIST.has(term)) continue;
+			const term = withoutLeadingFunctionWord(matched);
+			if (!term || COMMON_ALLOWLIST.has(term)) continue;
 
 			const normalized = normalizeTerm(term);
 			if (vocabulary.has(normalized)) continue;
@@ -202,9 +224,10 @@ async function checkConceptsForBook(book: string): Promise<number> {
 	for (const [file, terms] of Object.entries(hits)) {
 		if (terms.size === 0) continue;
 		bookCount += terms.size;
-		console.log(`\n[${book}] ${file}`);
+		log(`\n[${book}] ${file}`);
 		for (const term of [...terms].sort()) {
-			console.log(`  - "${term}" (unregistered concept)`);
+			log(`  - "${term}" (unregistered concept)`);
+			jsonHits.push({ book, file: relative(process.cwd(), file), term });
 		}
 	}
 
@@ -224,12 +247,33 @@ async function main() {
 	let totalCount = 0;
 
 	for (const book of books) {
-		console.log(`\n🔍 Checking concept registry: ${book}`);
+		log(`\n🔍 Checking concept registry: ${book}`);
 		try {
 			totalCount += await checkConceptsForBook(book);
 		} catch (error) {
 			console.error(`❌ Issues found in ${book}: ${(error as Error).message}`);
 		}
+	}
+
+	if (asJson) {
+		// One finding per phrase, in the shape bun run verify reads.
+		console.log(
+			JSON.stringify(
+				{
+					ok: totalCount === 0,
+					findings: jsonHits.map((hit) => ({
+						level: "warning",
+						code: "CONCEPT_UNREGISTERED",
+						message: `Unregistered concept "${hit.term}"`,
+						file: hit.file,
+						fix: `If "${hit.term}" is a named idea, bind an existing mechanism (bun run bookkit similar "${hit.term}") or register it in glossary/ or mechanisms/; if it is a proper noun, add it to COMMON_ALLOWLIST in scripts/check-floating-concepts.ts.`,
+					})),
+				},
+				null,
+				2,
+			),
+		);
+		process.exit(mode === "error" && totalCount > 0 ? 1 : 0);
 	}
 
 	if (totalCount === 0) {

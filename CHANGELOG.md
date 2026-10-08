@@ -3,6 +3,34 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-08 — One gate, one validator, one parser
+
+**Connected**
+- **CI runs `bun run verify -- --all`.** It replaces the separate steps, so the gate list in `scripts/lib/verify-plan.ts` is the only one. Two checks CI never ran are now in it:
+  - mechanisms across books (`check:corpus --no-semantic --mode error`): unresolved overlap, drifted shared contracts, or stale rulings fail;
+  - named concepts (`check:floating-concepts --json`): reported as warnings, never failing. Content changes get this gate locally too.
+- **CI annotates the PR.** On GitHub Actions, `verify` writes each error finding that has a file as an annotation; when scoped to a change, it writes warnings too.
+- **`bun run bookkit` (status) measures bet B1's test** from git history, against the last commit before `bet.since` in `corpus.json` (new): chapters drafted since, mechanisms added and merged away, and which drafted chapters bind a new mechanism. `status --json` is now `{ books, b1 }`.
+- **Duplicate check in the per-file check.** `bookkit check <mechanism file>` and the MCP `check_content` tool list existing mechanisms in any book that share its wording (score ≥ 0.3), noting pairs `corpus.json` already rules distinct.
+- **New `.github/workflows/deploy.yml`.** It publishes every book on merge to `main` with `bookkit deploy`, and does nothing until the repository has a `CLOUDFLARE_API_TOKEN` secret.
+
+**Streamlined**
+- **One frontmatter parser** (`utils/frontmatter.ts`, full YAML) replaces six: the validator's, the scripts', the MCP resources', the old in-memory validator's, the search index's, and the PDF/EPUB export's. The last three were line-by-line parsers that dropped lists and kept escaped quotes. Built output is unchanged: HTML and search indexes are byte-identical across all four books, and exports differ only in their timestamps.
+- **One validator.** `checkBookContent` (`validators/book-validator.ts`) runs the shared per-file checker over a book and adds the frame check. `bun run validate`, MCP `validate_book` (now in-process, with no subprocess and no second set of diagnostics), and the validate script `create-bookkit` writes (through `validateBookInMemory`) all call it. `validate` text output is unchanged on all four books in normal and release mode.
+- **Scaffolds come from the contract.** `bookkit new mechanism|tool|example`, `new chapter`, and `propose --apply` build files with `scaffoldSource`: the given values in contract order, and each field left to write as an empty placeholder whose YAML comment says what goes there. Every scaffold has no errors; the empty fields are warnings.
+
+**Fixed**
+- `bookkit new tool`, `new mechanism`, and `propose --apply` wrote an HTML comment (`<!-- … -->`) into MDX, which fails the book's build. They now write `{/* … */}`, and the checker reports `MDX_HTML_COMMENT` for any MDX body with an HTML comment outside code.
+- `bookkit new mechanism` wrote the title unquoted, so a title with a colon was invalid YAML. Values are now quoted where YAML needs it.
+- `bookkit check <file>` failed on examples, which sit one folder deeper (`examples/<mechanism>/`).
+- The concept check flagged "How Wall Street" as a coined concept: a sentence-initial word is no longer part of a phrase, and "Wall Street" joins the proper-noun allowlist.
+
+**Migration:**
+- `bookkit status --json` returns `{ books, b1 }` instead of an array.
+- `validateBookInMemory` findings use the shared codes (`FIELD_MISSING`, `UNKNOWN_MECHANISM`, …) instead of `MECHANISM_SCHEMA_INVALID` / `TOOL_SCHEMA_INVALID` / `TOOL_UNKNOWN_MECHANISM`, and it now requires every content folder.
+- MCP `validate_book` no longer returns `stdout` or `diagnostics`; read `findings`.
+- The verify gate parse mode `validate-json` is renamed `findings-json`.
+
 ## 2026-10-08 — Content an agent can make compile
 
 The compiler stays the judge; agents get what they need to satisfy it. No model is added to the build or the validator.

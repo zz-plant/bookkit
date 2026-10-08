@@ -10,12 +10,13 @@
  * | packages/astro-bookkit/**            | types, tests, shims, architecture, build one book   |
  * | packages/create-bookkit/**           | types, tests                                        |
  * | scripts/**                           | types (.ts only), tests                             |
- * | apps/<book>/src/content/**           | validate that book, separation, build that book     |
+ * | apps/<book>/src/content/**           | validate that book, separation, concepts, build it  |
  * | apps/<book>/src/content/.../mechanisms, corpus.json | mechanisms across books (wording)    |
  * | apps/<book>/** (config, pages, lib)  | types, shims, validate, build that book             |
  * | docs/architecture.md                 | architecture                                        |
  * | TODOS.md                             | todos                                               |
  * | package.json, bun.lock, tsconfig, biome.json, CI | everything in the first column above    |
+ * | --all (CI runs exactly this)         | every gate, plus mechanisms across books and concepts |
  */
 
 export type Gate = {
@@ -25,8 +26,8 @@ export type Gate = {
 	why: string;
 	/** Commands run in order; the gate fails on the first nonzero exit. */
 	commands: string[][];
-	/** `validate-json`: stdout is validate-book --json; judge by its findings. */
-	parse?: "validate-json";
+	/** `findings-json`: stdout is `{ findings: [...] }`; judge by error-level findings. */
+	parse?: "findings-json";
 };
 
 /** The book `verify` builds when engine code changes: small, and published. */
@@ -54,12 +55,36 @@ const buildGate = (book: string, why: string): Gate => ({
 	],
 });
 
+/** Unregistered multi-word names in prose: reported as warnings, never failing. */
+const conceptsGate = (books: string[] | null, why: string): Gate => ({
+	id: "concepts",
+	label: "named concepts",
+	why,
+	commands: [
+		bun(
+			"scripts/check-floating-concepts.ts",
+			...(books && books.length === 1 ? ["--book", books[0]] : []),
+			"--json",
+		),
+	],
+	parse: "findings-json",
+});
+
+const corpusGate = (why: string): Gate => ({
+	id: "corpus",
+	label: "mechanisms across books",
+	why,
+	commands: [
+		bun("scripts/check-corpus.ts", "--no-semantic", "--mode", "error"),
+	],
+});
+
 const validateGate = (book: string, why: string): Gate => ({
 	id: `validate:${book}`,
 	label: `validate ${book}`,
 	why,
 	commands: [bun("scripts/validate-book.ts", "--book", book, "--json")],
-	parse: "validate-json",
+	parse: "findings-json",
 });
 
 /**
@@ -111,6 +136,8 @@ export const planGates = (
 				commands: [bun("check:shims")],
 			},
 			...books.map((book) => validateGate(book, "every book")),
+			corpusGate("mechanisms stay distinct across books"),
+			conceptsGate(null, "every book"),
 			{
 				id: "build:all",
 				label: "build every book",
@@ -202,15 +229,11 @@ export const planGates = (
 			commands: [bun("check:separation")],
 		});
 	}
+	if (contentBooks.length > 0) {
+		add(conceptsGate(contentBooks, "names in new prose"));
+	}
 	if (any(MECHANISMS) || changed.includes("corpus.json")) {
-		add({
-			id: "corpus",
-			label: "mechanisms across books",
-			why: "mechanisms or corpus.json changed",
-			commands: [
-				bun("scripts/check-corpus.ts", "--no-semantic", "--mode", "error"),
-			],
-		});
+		add(corpusGate("mechanisms or corpus.json changed"));
 	}
 
 	if (engine || appCode.length > 0) {

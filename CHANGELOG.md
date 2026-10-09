@@ -3,6 +3,12 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-09 — Book sites get icons
+
+- **`BookLayout` links a favicon and a touch icon.** Every page's head now carries `/favicon.ico`, `/favicon.svg` and `/apple-touch-icon.png`. Before, no book had any, so tabs, bookmarks and home-screen shortcuts showed the browser's blank page.
+- **Each book app ships its three files in `public/`**: its title's initial, in the rubric on paper, set in Newsreader. The SVG carries the letter as a path, so it doesn't depend on the reader's fonts.
+- **Migration:** a new book app needs the same three files in `apps/<book>/public/`, or those three requests 404. Nothing else changes.
+
 ## 2026-10-08 — A gentler `bookkit`
 
 - **`bookkit use <book>`** remembers the book you're working on, in `.bookkit/local.json` (gitignored). `new chapter|mechanism|tool|example`, `dev`, and anything else that takes a book then default to it: `bun run bookkit new chapter "Repair has a clock"`. `use` with no argument shows the current book; `--clear` forgets it.

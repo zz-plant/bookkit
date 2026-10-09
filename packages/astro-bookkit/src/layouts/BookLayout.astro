@@ -121,6 +121,10 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{renderState.pageTitle}</title>
+    {/* Each book app ships these three files in its public/ folder. */}
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     {renderState.metaDescription && <meta name="description" content={renderState.metaDescription} />}
     {renderState.head.resolvedCanonical && <link rel="canonical" href={renderState.head.resolvedCanonical} />}
     {renderState.head.resolvedRobots && <meta name="robots" content={renderState.head.resolvedRobots} />}

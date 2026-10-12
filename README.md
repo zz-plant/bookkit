@@ -1,6 +1,12 @@
 # Bookkit — Recompilable Books (Astro + Bun)
 
 <p align="center">
+  <a href="https://github.com/zz-plant/bookkit/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zz-plant/bookkit/ci.yml?branch=main&style=flat-square&label=tests" alt="CI"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-CC0--1.0-informational?style=flat-square" alt="License: CC0-1.0"></a>
+  <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%3E%3D1.3-black?style=flat-square&logo=bun&logoColor=white" alt="Bun"></a>
+</p>
+
+<p align="center">
   <img src="docs/assets/bookkit-demo.gif" alt="bookkit demo animation" width="720">
 </p>
 

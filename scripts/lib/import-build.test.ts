@@ -1,7 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
-	copyFileSync,
-	cpSync,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
@@ -47,30 +45,25 @@ beforeAll(() => {
 	const scratch = join(REPO, ".test-workspaces");
 	mkdirSync(scratch, { recursive: true });
 	workspace = mkdtempSync(join(scratch, "import-build-"));
-	// The engine, its shim templates, and dependencies come from this repo.
-	for (const dir of ["node_modules", "packages"]) {
-		symlinkSync(join(REPO, dir), join(workspace, dir));
+	// The engine, its starter template, and dependencies come from this repo.
+	for (const entry of [
+		"packages",
+		"node_modules",
+		"tsconfig.base.json",
+		"biome.json",
+	]) {
+		symlinkSync(join(REPO, entry), join(workspace, entry));
 	}
-	copyFileSync(
-		join(REPO, "tsconfig.base.json"),
-		join(workspace, "tsconfig.base.json"),
+	writeFileSync(
+		join(workspace, ".gitignore"),
+		"node_modules/\ndist/\n.astro/\n",
 	);
-	// new-book copies apps/bad-people; give it one to copy.
-	cpSync(
-		join(REPO, "apps", "bad-people"),
-		join(workspace, "apps", "bad-people"),
-		{
-			recursive: true,
-			filter: (source) =>
-				!/(^|[\\/])(node_modules|dist|\.astro)([\\/]|$)/.test(source),
-		},
-	);
+	// --no-install: the workspace borrows this repository's node_modules.
 	const scaffold = run(
-		[join(REPO, "scripts", "scaffold-book.ts"), "--book", BOOK],
+		[join(REPO, "scripts", "scaffold-book.ts"), "--book", BOOK, "--no-install"],
 		workspace,
 	);
 	if (scaffold.exitCode !== 0) throw new Error(scaffold.output);
-	rmSync(join(workspace, "apps", "bad-people"), { recursive: true });
 	appDir = join(workspace, "apps", BOOK);
 	// Link-preview images take seconds and are not what this test is about.
 	const config = join(appDir, "astro.config.mjs");

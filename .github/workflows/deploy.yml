@@ -2,8 +2,9 @@ name: Deploy
 
 # Publishes every book to Cloudflare Workers after a merge to main. Inert until
 # the repository has a CLOUDFLARE_API_TOKEN secret (and, for tokens that can see
-# more than one account, CLOUDFLARE_ACCOUNT_ID). `bookkit deploy` builds each
-# book and refuses to publish one whose dist/ fails check:build.
+# more than one account, CLOUDFLARE_ACCOUNT_ID). `bookkit deploy` checks each
+# book's content, builds it, and refuses to publish one with a content error
+# or a dist/ that fails check:build.
 on:
   push:
     branches: [main]

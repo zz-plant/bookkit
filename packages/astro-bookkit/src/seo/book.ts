@@ -102,6 +102,8 @@ export const createBookSitemapEntries = ({
 	defaultLastmod,
 	defaultLocale = "en",
 }: BookSitemapOptions): SitemapEntry[] => {
+	// A site kept out of search lists nothing: a sitemap is an invitation to index.
+	if (site?.indexable === false) return [];
 	const siteUrl = resolveSiteUrl(site);
 	const entries: SitemapEntry[] = basePaths.map((path) =>
 		buildEntry(siteUrl, path, { lastmod: defaultLastmod }),
@@ -152,8 +154,9 @@ export const createBookRobotsTxt = ({
 		new Set([...defaultDisallowPaths, ...disallowPaths]),
 	);
 	const host = includeHost && siteUrl ? new URL(siteUrl).host : undefined;
+	// A site closed to crawlers has an empty sitemap; do not point them at it.
 	const sitemapUrl =
-		includeSitemap && siteUrl
+		includeSitemap && siteUrl && resolvedAllowAll
 			? buildAbsoluteUrl(siteUrl, "/sitemap.xml")
 			: undefined;
 

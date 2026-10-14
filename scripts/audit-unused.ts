@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { listBookDirs, optionalArg } from "./_lib";
+import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
+import { extractBookStatusFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
+import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import {
 	listContentFiles,
 	parseFrontmatter,
@@ -18,7 +20,15 @@ if (books.length === 0) {
 let issueCount = 0;
 
 for (const book of books) {
-	const bookRoot = join(process.cwd(), "apps", book, "src", "content", "book");
+	const bookRoot = join(repoRoot(), "apps", book, "src", "content", "book");
+	const configPath = join(repoRoot(), "apps", book, "src", "book.config.ts");
+	const status =
+		(existsSync(configPath)
+			? extractBookStatusFromSource(readFileSync(configPath, "utf8"))
+			: undefined) ?? "draft";
+	// A draft is expected to have mechanisms it has not written tools or
+	// examples for yet; a published or stable book is not.
+	const released = isReleasedStatus(status);
 	const mechanismFiles = listContentFiles(join(bookRoot, "mechanisms"));
 	const toolFiles = listContentFiles(join(bookRoot, "toolkit"));
 	const exampleFiles = listContentFiles(join(bookRoot, "examples"));
@@ -88,7 +98,9 @@ for (const book of books) {
 		continue;
 	}
 
-	console.log(`\n${book}:`);
+	console.log(
+		`\n${book} (${status}${released ? "" : ": mechanisms without tools or examples are still to write, not failures"}):`,
+	);
 	reportList("Mechanisms without tools", mechanismsWithoutTools);
 	reportList("Mechanisms without examples", mechanismsWithoutExamples);
 	reportList("Tools missing mechanism frontmatter", toolsMissingMechanism);
@@ -103,8 +115,9 @@ for (const book of books) {
 	);
 
 	issueCount +=
-		mechanismsWithoutTools.length +
-		mechanismsWithoutExamples.length +
+		(released
+			? mechanismsWithoutTools.length + mechanismsWithoutExamples.length
+			: 0) +
 		toolsMissingMechanism.length +
 		examplesMissingMechanism.length +
 		toolsWithMissingMechanism.length +

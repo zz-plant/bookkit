@@ -1,13 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { listBookDirs } from "./_lib";
+import { listBookDirs, repoRoot } from "./_lib";
 
 const books = listBookDirs();
 const errors: string[] = [];
+
+if (books.length === 0) {
+	console.error(`TODO policy check found no books under ${repoRoot()}/apps.`);
+	process.exit(1);
+}
 const requiredTags = ["[owner:", "[milestone:", "[debt:"];
 
 for (const book of books) {
-	const todoPath = join(process.cwd(), "apps", book, "TODOS.md");
+	const todoPath = join(repoRoot(), "apps", book, "TODOS.md");
 	if (!existsSync(todoPath)) {
 		errors.push(`Missing TODO tracker: ${todoPath}`);
 		continue;
@@ -45,4 +50,6 @@ if (errors.length > 0) {
 	process.exit(1);
 }
 
-console.log("TODO policy check passed.");
+console.log(
+	`TODO policy check passed (${books.length} tracker${books.length === 1 ? "" : "s"}).`,
+);

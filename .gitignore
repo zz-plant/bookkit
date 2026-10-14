@@ -17,6 +17,9 @@ dist/
 # Generated proposal artifacts (bun run bookkit propose --write)
 apps/*/proposals/
 
+# Default output of bun run export:gitbook
+apps/*/exports/
+
 # TypeScript
 *.tsbuildinfo
 opencode.json

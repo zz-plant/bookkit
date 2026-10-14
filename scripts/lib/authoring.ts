@@ -4,11 +4,13 @@ import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/page
 import { isThinPage } from "../../packages/astro-bookkit/src/seo/page-meta";
 import { corpusEmbeddingText } from "../../packages/astro-bookkit/src/suggestions";
 import {
+	type BookFinding,
+	checkBookContent,
+} from "../../packages/astro-bookkit/src/validators/book-validator";
+import {
 	type ContentCheckResult,
 	type ContentSection,
 	checkContentItem,
-	mechanismSlugsFrom,
-	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
 	scaffoldSource,
 } from "../../packages/astro-bookkit/src/validators/content-check";
@@ -335,14 +337,23 @@ export const groupFindingsByFile = (items: string[]): string[] => {
 };
 
 /**
- * Checks one content file the way `bun run validate` does, inferring its
- * section from its folder and its book from its path, so an agent can check
- * the file it just wrote without validating the whole book.
+ * Checks one content file the way `bun run validate` does: inside its book, so
+ * references, duplicate slugs, and the rules the book's status sets all apply.
+ * The section comes from its folder and the book from its path, so an agent
+ * can check the file it just wrote without reading a whole report.
  */
 export const checkContentFile = (
 	path: string,
 ):
-	| { book: string; section: ContentSection; result: ContentCheckResult }
+	| {
+			book: string;
+			section: ContentSection;
+			/** Absolute path of the file. */
+			file: string;
+			result: Omit<ContentCheckResult, "findings"> & {
+				findings: Array<Omit<BookFinding, "file">>;
+			};
+	  }
 	| {
 			error: string;
 	  } => {
@@ -362,38 +373,18 @@ export const checkContentFile = (
 			error: `Expected apps/<book>/src/content/book/<${Object.values(SECTION_DIRECTORIES).join("|")}>/<file>.mdx, got ${path}`,
 		};
 	}
-	const mechanismsDir = join(
-		root,
-		"apps",
-		book,
-		"src",
-		"content",
-		"book",
-		"mechanisms",
-	);
-	const mechanismSlugs = mechanismSlugsFrom(
-		existsSync(mechanismsDir)
-			? readdirSync(mechanismsDir)
-					.filter((name) => /\.mdx?$/.test(name))
-					.map((name) => readFileSync(join(mechanismsDir, name), "utf8"))
-			: [],
-	);
-	const corpusPath = join(root, "corpus.json");
-	let retiredSlugs: ReturnType<typeof retiredSlugsFromCorpus> | undefined;
-	try {
-		retiredSlugs = existsSync(corpusPath)
-			? retiredSlugsFromCorpus(JSON.parse(readFileSync(corpusPath, "utf8")))
-			: undefined;
-	} catch {
-		retiredSlugs = undefined;
-	}
+	const findings = checkBookContent({ workspaceRoot: root, bookSlug: book })
+		.findings.filter((finding) => finding.file === absolute)
+		.map(({ file: _file, ...finding }) => finding);
 	return {
 		book,
 		section,
-		result: checkContentItem(section, readFileSync(absolute, "utf8"), {
-			mechanismSlugs,
-			retiredSlugs,
-		}),
+		file: absolute,
+		result: {
+			...checkContentItem(section, readFileSync(absolute, "utf8")),
+			ok: !findings.some((finding) => finding.level === "error"),
+			findings,
+		},
 	};
 };
 

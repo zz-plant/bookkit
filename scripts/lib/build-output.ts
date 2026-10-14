@@ -29,8 +29,16 @@ export type BuildInspection = {
 export type InspectBuildOptions = {
 	book: string;
 	distDir: string;
-	/** Published books must be indexable; drafts are expected to be noindex. */
+	/**
+	 * `true` for a published or stable book, whose pages must be indexable;
+	 * `false` for any other status, whose pages must be noindex. Unset: the
+	 * book's status is unknown and indexing is not checked.
+	 */
 	published?: boolean;
+	/** previewAccess is on although the site has no server runtime to check tokens. */
+	previewAccessOnStaticSite?: boolean;
+	/** The book is past draft, so it must have built at least one chapter page. */
+	requireChapters?: boolean;
 };
 
 /** Present in every page the preview-access middleware renders instead of content. */
@@ -108,7 +116,9 @@ const canonicalOf = (html: string): string | undefined =>
 export const inspectBuildOutput = ({
 	book,
 	distDir,
-	published = false,
+	published,
+	previewAccessOnStaticSite = false,
+	requireChapters = false,
 }: InspectBuildOptions): BuildInspection => {
 	const findings: BuildFinding[] = [];
 	const error = (message: string, file?: string) =>
@@ -131,6 +141,26 @@ export const inspectBuildOutput = ({
 
 	const files = walk(distDir);
 	const pageCount = files.filter((file) => file.endsWith(".html")).length;
+
+	if (previewAccessOnStaticSite) {
+		error(
+			'previewAccess is enabled in book.config.ts, but this is a static build: nothing checks preview tokens, so every page here is public. Set previewAccess.enabled to false (a book whose status is draft or in-review is already kept out of search), or serve the book with an adapter that enforces tokens and set site.runtime to "server".',
+		);
+	}
+
+	if (requireChapters) {
+		const chapterPages = files.filter((file) =>
+			/^read\/chapters\/[^/]+(?:\/index)?\.html$/.test(
+				relative(distDir, file).split("\\").join("/"),
+			),
+		);
+		if (chapterPages.length === 0) {
+			error(
+				'No chapter pages were built, so the site has nothing to read. Add a chapter, or set status: "draft" in book.config.ts until the book has one.',
+				"read/chapters/",
+			);
+		}
+	}
 
 	for (const file of files) {
 		if (!SCANNED_EXTENSIONS.has(extname(file))) continue;
@@ -184,18 +214,18 @@ export const inspectBuildOutput = ({
 			);
 		}
 
-		if (/<meta name="robots" content="[^"]*noindex/.test(html)) {
-			if (published) {
-				error(
-					'Is marked noindex although the book status is "published". Build with NODE_ENV=production and without BOOKKIT_NOINDEX, or set site.indexable explicitly.',
-					"index.html",
-				);
-			} else {
-				warning(
-					"Is marked noindex; search engines will skip this build. Expected while the book is a draft.",
-					"index.html",
-				);
-			}
+		const noindex = /<meta name="robots" content="[^"]*noindex/.test(html);
+		if (published === true && noindex) {
+			error(
+				"Is marked noindex although the book status is published or stable. Build with NODE_ENV=production and without BOOKKIT_NOINDEX, and do not set site.indexable to false.",
+				"index.html",
+			);
+		}
+		if (published === false && !noindex) {
+			error(
+				"Is indexable although the book status is not published or stable. An unreleased book must stay out of search: its layout should build every page noindex from bookConfig.status (run bun run check:shims).",
+				"index.html",
+			);
 		}
 
 		const hosts: Array<[string, string | null]> = [

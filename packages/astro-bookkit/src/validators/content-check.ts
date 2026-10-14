@@ -3,6 +3,7 @@ import {
 	chapterSchema,
 	exampleSchema,
 	glossarySchema,
+	isReleasedStatus,
 	mechanismSchema,
 	toolkitSchema,
 } from "../schemas";
@@ -74,7 +75,8 @@ const STATUS_FIELD: ContractField = {
 	name: "status",
 	whenMissing: "optional",
 	kind: "string",
-	meaning: "draft (default), in-review, published, or stable.",
+	meaning:
+		"draft (the default when absent), in-review, published, or stable. A published or stable book may not contain drafts, and a published or stable record's broken links and prerequisites are errors rather than warnings.",
 	example: "draft",
 };
 
@@ -232,7 +234,8 @@ const FIELDS: Record<ContentSection, readonly ContractField[]> = {
 			name: "runbookSteps",
 			whenMissing: "optional",
 			kind: "list",
-			meaning: "Branching steps as { when?, action } objects (runbook books).",
+			meaning:
+				"Branching steps as { when?, action } objects. Required in runbook books.",
 		},
 		{
 			name: "drills",
@@ -245,7 +248,7 @@ const FIELDS: Record<ContentSection, readonly ContractField[]> = {
 			whenMissing: "optional",
 			kind: "object",
 			meaning:
-				"When to hand off and to whom: { to, when, withinHours? } (runbook books).",
+				"When to hand off and to whom: { to, when, withinHours? }. Required in runbook books.",
 		},
 		{
 			name: "satisfies",
@@ -284,10 +287,7 @@ const FIELDS: Record<ContentSection, readonly ContractField[]> = {
 			kind: "string",
 			meaning: "One sentence for search results and link previews.",
 		},
-		{
-			...STATUS_FIELD,
-			meaning: `${STATUS_FIELD.meaning} Release validation (--no-drafts) refuses draft examples.`,
-		},
+		STATUS_FIELD,
 	],
 	chapter: [
 		{
@@ -456,8 +456,12 @@ export type ContentFindingCode =
 	| "FRONTMATTER_INVALID"
 	| "FIELD_MISSING"
 	| "FIELD_INVALID"
+	| "FIELD_MISPLACED"
+	| "SLUG_INVALID"
 	| "TIMEBOX_TOO_LONG"
 	| "UNKNOWN_MECHANISM"
+	| "UNKNOWN_PREREQUISITE"
+	| "BROKEN_LINK"
 	| "DRAFT_IN_RELEASE"
 	| "MDX_HTML_COMMENT";
 
@@ -477,10 +481,20 @@ export type RetiredSlug = { into: string; date?: string };
 export type ContentCheckContext = {
 	/** Mechanism slugs in the book; references are checked only when given. */
 	mechanismSlugs?: ReadonlySet<string>;
+	/**
+	 * Every slug the book's read routes serve, per section. Prerequisites and
+	 * `/read/...` links in the body are checked only when given.
+	 */
+	slugs?: Partial<Record<ContentSection, ReadonlySet<string>>>;
 	/** Slugs merged away (corpus.json `merged`), so a stale reference names its replacement. */
 	retiredSlugs?: ReadonlyMap<string, RetiredSlug>;
-	/** Release validation (`--no-drafts`): draft examples are errors. */
+	/**
+	 * Release rules, for a published or stable book: draft records are errors,
+	 * and so are broken links and prerequisites in every record.
+	 */
 	releaseMode?: boolean;
+	/** The book's frame; `runbook` requires escalation and runbookSteps on tools. */
+	frame?: string;
 	/** `mdx` (default) rejects HTML comments, which the MDX compiler cannot parse. */
 	format?: "mdx" | "md";
 };
@@ -488,6 +502,77 @@ export type ContentCheckContext = {
 /** Body text outside code, where an HTML comment would reach the MDX compiler. */
 const proseOutsideCode = (body: string): string =>
 	body.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "").replace(/`[^`\n]*`/g, "");
+
+/** The body with code blanked out, keeping every offset and line. */
+const maskCode = (body: string): string =>
+	body.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g, (code) =>
+		code.replace(/[^\n]/g, " "),
+	);
+
+/** The path segment under /read/ each section's pages are served from. */
+const READ_SECTIONS: Record<string, ContentSection> = {
+	chapters: "chapter",
+	mechanisms: "mechanism",
+	toolkit: "tool",
+	glossary: "glossary",
+	examples: "example",
+};
+
+/**
+ * Site-relative links to a content page: Markdown links and definitions, and
+ * href/src attributes, with an optional locale prefix (`/es/read/...`).
+ */
+const READ_LINK =
+	/(?:\]\(\s*<?|\b(?:href|src)\s*=\s*["']|^[ \t]*\[[^\]\n]+\]:[ \t]*<?)((?:\/[a-z]{2}(?:-[a-z0-9]+)?)?\/read\/([a-z]+)\/([^\s)"'<>#?]+))/gim;
+
+/** What the read routes and the schemas accept as a slug. */
+const isValidSlug = (value: string): boolean => /^[a-z0-9-]+$/.test(value);
+
+/** The slug an author most likely meant: lowercase words joined by hyphens. */
+const suggestedSlug = (value: string): string =>
+	value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+
+/** Strings in a frontmatter list; anything else is left to the schema. */
+const stringList = (value: unknown): string[] =>
+	Array.isArray(value)
+		? value.filter((item): item is string => typeof item === "string")
+		: [];
+
+/**
+ * Fields of a section's nested objects. Written at the top level they are
+ * ignored by the build, and the object they belong to reads as missing.
+ */
+const NESTED_FIELDS: Partial<
+	Record<ContentSection, Record<string, "escalation" | "runbookSteps" | "both">>
+> = {
+	tool: {
+		to: "escalation",
+		withinHours: "escalation",
+		when: "both",
+		action: "runbookSteps",
+	},
+};
+
+const ESCALATION_EXAMPLE =
+	'escalation:\n  to: "<who takes over>"\n  when: "<the condition that hands it off>"\n  withinHours: 2';
+const RUNBOOK_STEPS_EXAMPLE =
+	'runbookSteps:\n  - when: "<the condition, optional>"\n    action: "<what to do>"';
+
+const misplacedFix = (
+	key: string,
+	parent: "escalation" | "runbookSteps" | "both",
+): string =>
+	parent === "escalation"
+		? `Indent \`${key}:\` under escalation:, e.g.\n${ESCALATION_EXAMPLE}`
+		: parent === "runbookSteps"
+			? `Move \`${key}:\` into a runbookSteps item, e.g.\n${RUNBOOK_STEPS_EXAMPLE}`
+			: `Indent \`${key}:\` under escalation: (when to hand off) or into a runbookSteps item (when a step applies), e.g.\n${ESCALATION_EXAMPLE}`;
+
+/** Fields a runbook book needs on every tool, beyond the base contract. */
+const RUNBOOK_TOOL_FIELDS = ["escalation", "runbookSteps"] as const;
 
 export type ContentCheckResult = {
 	ok: boolean;
@@ -540,10 +625,36 @@ const unknownMechanismFix = (
 	if (retired && known.has(retired.into)) {
 		return `${slug} was merged into ${retired.into}${retired.date ? ` on ${retired.date}` : ""}; use ${retired.into}.`;
 	}
-	const close = nearest(slug, [...known]);
+	// A mechanism with an invalid slug is reported on its own file; never offer it here.
+	const valid = [...known].filter(isValidSlug);
+	const close = nearest(slug, valid);
 	return close.length > 0
 		? `Use an existing mechanism slug; closest: ${close.join(", ")}. If it is a new idea, add mechanisms/${slug}.mdx first (run find_similar_mechanisms before coining one).`
-		: `Use one of this book's mechanism slugs (${[...known].sort().join(", ") || "none yet"}), or add mechanisms/${slug}.mdx first.`;
+		: `Use one of this book's mechanism slugs (${valid.sort().join(", ") || "none yet"}), or add mechanisms/${slug}.mdx first.`;
+};
+
+const SECTION_NOUNS: Record<ContentSection, string> = {
+	mechanism: "mechanism",
+	tool: "tool",
+	example: "example",
+	chapter: "chapter",
+	glossary: "glossary entry",
+};
+
+/** The fix for a reference to a slug the section does not have. */
+const unknownSlugFix = (
+	slug: string,
+	section: ContentSection,
+	known: ReadonlySet<string>,
+): string => {
+	const valid = [...known].filter(isValidSlug).sort();
+	const close = nearest(slug, valid);
+	const noun = SECTION_NOUNS[section];
+	if (close.length > 0)
+		return `Use an existing ${noun} slug; closest: ${close.join(", ")}.`;
+	return valid.length > 0 && valid.length <= 20
+		? `Use one of this book's ${noun} slugs (${valid.join(", ")}), or add that ${noun} first.`
+		: `Point it at an existing ${noun}, or add that ${noun} first.`;
 };
 
 /** Retired slugs from corpus.json's `merged` records; malformed entries are skipped. */
@@ -607,6 +718,9 @@ export const checkContentItem = (
 	}
 
 	const { data, body } = parsed;
+	// A released record is finished: what would only be a gap in a draft is an error.
+	const released =
+		context.releaseMode === true || isReleasedStatus(data.status);
 	const reported = new Set<string>();
 	for (const field of FIELDS[section]) {
 		if (field.whenMissing === "optional") continue;
@@ -631,6 +745,21 @@ export const checkContentItem = (
 			const top = String(issue.path[0] ?? "");
 			if (reported.has(top)) continue;
 			const fieldInfo = FIELDS[section].find((field) => field.name === top);
+			if (top === "slug" && section !== "glossary") {
+				// The slug is the page's URL and every reference's target.
+				const value = String(data.slug);
+				const suggestion = suggestedSlug(value);
+				findings.push({
+					level: "error",
+					code: "SLUG_INVALID",
+					field: "slug",
+					message: `${label} slug "${value}" is not a valid slug (${issue.message})`,
+					fix: suggestion
+						? `Use lowercase letters, digits, and hyphens: slug: ${suggestion}. Update anything that references the old slug.`
+						: "Use lowercase letters, digits, and hyphens.",
+				});
+				continue;
+			}
 			if (section === "tool" && top === "timeboxMinutes") {
 				findings.push({
 					level: "error",
@@ -649,6 +778,31 @@ export const checkContentItem = (
 				fix: fieldInfo
 					? `${fieldInfo.name}: ${fieldInfo.meaning}${exampleText(fieldInfo)}`
 					: undefined,
+			});
+		}
+	}
+
+	for (const [key, parent] of Object.entries(NESTED_FIELDS[section] ?? {})) {
+		if (!(key in data)) continue;
+		findings.push({
+			level: "error",
+			code: "FIELD_MISPLACED",
+			field: key,
+			message: `${label} has \`${key}:\` at the top level, where the build ignores it`,
+			fix: misplacedFix(key, parent),
+		});
+	}
+
+	if (context.frame === "runbook" && section === "tool") {
+		for (const name of RUNBOOK_TOOL_FIELDS) {
+			const field = FIELDS.tool.find((candidate) => candidate.name === name);
+			if (!field || isPresent(field, data[name])) continue;
+			findings.push({
+				level: released ? "error" : "warning",
+				code: "FIELD_MISSING",
+				field: name,
+				message: `${label} missing ${name}${field.kind === "list" ? " list" : ""}`,
+				fix: `${missingFix(field)} The runbook frame requires it on every tool.`,
 			});
 		}
 	}
@@ -677,6 +831,47 @@ export const checkContentItem = (
 		}
 	}
 
+	const chapterSlugs = context.slugs?.chapter;
+	if (section === "chapter" && chapterSlugs) {
+		for (const slug of stringList(data.prerequisites)) {
+			if (chapterSlugs.has(slug)) continue;
+			findings.push({
+				level: released ? "error" : "warning",
+				code: "UNKNOWN_PREREQUISITE",
+				field: "prerequisites",
+				message: `${label} lists prerequisite "${slug}", which is not a chapter slug in this book`,
+				fix: unknownSlugFix(slug, "chapter", chapterSlugs),
+			});
+		}
+	}
+
+	if (context.slugs) {
+		// Lines are counted in the whole file, so they match the author's editor.
+		const bodyStart = source.trimEnd().length - body.length;
+		for (const match of maskCode(body).matchAll(READ_LINK)) {
+			const [, path, sectionPath, rawSlug] = match;
+			const target = READ_SECTIONS[sectionPath.toLowerCase()];
+			const slugs = target ? context.slugs[target] : undefined;
+			if (!target || !slugs) continue;
+			let slug = rawSlug.replace(/\/+$/, "");
+			try {
+				slug = decodeURIComponent(slug);
+			} catch {
+				// Leave a malformed escape as written; it will not match a slug.
+			}
+			if (slugs.has(slug)) continue;
+			const line = source
+				.slice(0, bodyStart + (match.index ?? 0))
+				.split("\n").length;
+			findings.push({
+				level: released ? "error" : "warning",
+				code: "BROKEN_LINK",
+				message: `${label} links to ${path} on line ${line}, but no ${SECTION_NOUNS[target]} has the slug "${slug}"`,
+				fix: unknownSlugFix(slug, target, slugs),
+			});
+		}
+	}
+
 	if (
 		(context.format ?? "mdx") === "mdx" &&
 		proseOutsideCode(body).includes("<!--")
@@ -689,13 +884,13 @@ export const checkContentItem = (
 		});
 	}
 
-	if (context.releaseMode && section === "example" && data.status === "draft") {
+	if (context.releaseMode && (data.status ?? "draft") === "draft") {
 		findings.push({
 			level: "error",
 			code: "DRAFT_IN_RELEASE",
 			field: "status",
-			message: "Draft examples are forbidden in release mode",
-			fix: "Set status to in-review, published, or stable once the example is ready, or remove it from the release.",
+			message: `${label} is a draft${data.status === undefined ? " (no status means draft)" : ""}, and a published or stable book may not contain drafts`,
+			fix: "Set status: in-review, published, or stable once it is ready, or take it out of the book until it is.",
 		});
 	}
 

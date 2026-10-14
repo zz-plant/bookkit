@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { defaultFrames } from "../frames/defaults";
+import { isReleasedStatus, isStatus, STATUSES } from "../schemas/status";
+import { parseFrontmatter } from "../utils/frontmatter";
 import {
 	CONTENT_SECTIONS,
 	type ContentFinding,
@@ -12,7 +14,10 @@ import {
 	SECTION_DIRECTORIES,
 } from "./content-check";
 import { validateFrameSteps } from "./frame";
-import { extractFrameConfigFromSource } from "./frame-config";
+import {
+	extractBookStatusFromSource,
+	extractFrameConfigFromSource,
+} from "./frame-config";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 /**
@@ -21,11 +26,16 @@ import type { NormalizedErrorPayload } from "./normalized-error";
  * create-bookkit writes all call this, so a book gets the same findings
  * wherever it is checked.
  * Each file goes through `checkContentItem`; the book adds the cross-file
- * context (mechanism slugs, merges recorded in corpus.json) and the frame.
+ * context (every section's slugs, merges recorded in corpus.json), the frame,
+ * slugs used twice, and the rules its status sets: a published or stable
+ * book is checked with release rules (`releaseMode`).
  */
 
 export type BookFinding = Omit<ContentFinding, "code"> & {
-	/** Content codes, plus DIRECTORY_MISSING and FRAME_STEP_MISSING. */
+	/**
+	 * Content codes, plus DIRECTORY_MISSING, FRAME_STEP_MISSING, DUPLICATE_SLUG,
+	 * BOOK_STATUS_INVALID, and BOOK_EMPTY.
+	 */
 	code: string;
 	/** Absolute path, when the finding is about one file. */
 	file?: string;
@@ -34,7 +44,10 @@ export type BookFinding = Omit<ContentFinding, "code"> & {
 export type CheckBookOptions = {
 	workspaceRoot?: string;
 	bookSlug: string;
-	/** Release validation (`--no-drafts`): draft examples are errors. */
+	/**
+	 * Apply release rules whatever the book's status. Otherwise a published or
+	 * stable book gets them and any other book does not.
+	 */
 	releaseMode?: boolean;
 	/** Override the frame slug declared in book.config.ts. */
 	frameSlug?: string;
@@ -43,12 +56,21 @@ export type CheckBookOptions = {
 export type BookCheckResult = {
 	ok: boolean;
 	book: string;
+	/** `status` in book.config.ts; undefined when it sets none (a draft). */
+	status?: string;
+	/** Whether release rules applied. */
+	releaseMode: boolean;
 	findings: BookFinding[];
 };
 
 export const bookContentDir = (workspaceRoot: string, book: string): string =>
 	join(workspaceRoot, "apps", book, "src", "content", "book");
 
+/**
+ * Content files under a folder, in path order: the order the build's
+ * import.meta.glob index sorts them, so the first of two files sharing a slug
+ * is the one the site serves.
+ */
 const listFiles = (dir: string): string[] => {
 	if (!existsSync(dir)) return [];
 	const files: string[] = [];
@@ -57,7 +79,7 @@ const listFiles = (dir: string): string[] => {
 		if (entry.isDirectory()) files.push(...listFiles(full));
 		else if (entry.isFile() && /\.mdx?$/.test(entry.name)) files.push(full);
 	}
-	return files;
+	return files.sort((a, b) => a.localeCompare(b));
 };
 
 /** Each section's files and their sources. */
@@ -94,7 +116,7 @@ export const readRetiredSlugs = (
 const frameFinding = (
 	workspaceRoot: string,
 	book: string,
-	frameSlug: string | undefined,
+	configured: string | undefined,
 ): BookFinding | null => {
 	const overview = join(
 		bookContentDir(workspaceRoot, book),
@@ -107,12 +129,6 @@ const frameFinding = (
 			/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g,
 		),
 	).map((match) => match[1].toLowerCase());
-	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
-	const configured =
-		frameSlug ??
-		(existsSync(configPath)
-			? extractFrameConfigFromSource(readFileSync(configPath, "utf8"))?.slug
-			: undefined);
 	// Author decisions live in book.config.ts; validate against the configured
 	// frame and fall back to the intervention frame when none is declared.
 	const frame =
@@ -129,6 +145,52 @@ const frameFinding = (
 	};
 };
 
+/** The slug a record's page is served at: its `slug`, else its file name. */
+const routeSlug = (file: string, data: Record<string, unknown>): string =>
+	typeof data.slug === "string" || typeof data.slug === "number"
+		? String(data.slug)
+		: basename(file).replace(/\.mdx?$/, "");
+
+type ParsedSource = {
+	file: string;
+	source: string;
+	data: Record<string, unknown> | null;
+};
+
+/**
+ * Two records of a section served at the same slug (in the same locale): the
+ * site builds one page for it and drops the other, while the PDF and EPUB
+ * include every chapter.
+ */
+const duplicateSlugFindings = (
+	root: string,
+	section: ContentSection,
+	parsed: ParsedSource[],
+): BookFinding[] => {
+	const first = new Map<string, string>();
+	const findings: BookFinding[] = [];
+	for (const { file, data } of parsed) {
+		if (!data) continue;
+		const slug = routeSlug(file, data);
+		const locale = typeof data.locale === "string" ? data.locale : "";
+		const key = `${slug}\u0000${locale.toLowerCase()}`;
+		const earlier = first.get(key);
+		if (!earlier) {
+			first.set(key, file);
+			continue;
+		}
+		findings.push({
+			level: "error",
+			code: "DUPLICATE_SLUG",
+			field: "slug",
+			file,
+			message: `${section === "glossary" ? "Glossary entry" : `${section[0].toUpperCase()}${section.slice(1)}`} slug "${slug}" is also used by ${relative(root, earlier)}; the site serves one page per slug, so one of them would not be published${section === "chapter" ? " (the PDF and EPUB would include both)" : ""}`,
+			fix: "Give each its own slug (and update anything that links to the one you rename), or delete the duplicate.",
+		});
+	}
+	return findings;
+};
+
 export const checkBookContent = (
 	options: CheckBookOptions,
 ): BookCheckResult => {
@@ -136,6 +198,30 @@ export const checkBookContent = (
 	const book = options.bookSlug;
 	const root = bookContentDir(workspaceRoot, book);
 	const findings: BookFinding[] = [];
+
+	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
+	const configSource = existsSync(configPath)
+		? readFileSync(configPath, "utf8")
+		: undefined;
+	const status = configSource
+		? extractBookStatusFromSource(configSource)
+		: undefined;
+	if (status !== undefined && !isStatus(status)) {
+		findings.push({
+			level: "error",
+			code: "BOOK_STATUS_INVALID",
+			field: "status",
+			file: configPath,
+			message: `Book status "${status}" is not one of ${STATUSES.join(", ")}`,
+			fix: 'Set status in book.config.ts to "draft" while writing, "in-review" while it is read by reviewers, and "published" (or "stable") once it is released.',
+		});
+	}
+	const releaseMode = options.releaseMode === true || isReleasedStatus(status);
+	const frameSlug =
+		options.frameSlug ??
+		(configSource
+			? extractFrameConfigFromSource(configSource)?.slug
+			: undefined);
 
 	for (const section of CONTENT_SECTIONS) {
 		const dir = join(root, SECTION_DIRECTORIES[section]);
@@ -150,6 +236,29 @@ export const checkBookContent = (
 	}
 
 	const sources = readBookSources(workspaceRoot, book);
+	const parsed = Object.fromEntries(
+		CONTENT_SECTIONS.map((section) => [
+			section,
+			sources[section].map(({ file, source }) => {
+				const frontmatter = parseFrontmatter(source);
+				return {
+					file,
+					source,
+					data: frontmatter.status === "ok" ? frontmatter.data : null,
+				};
+			}),
+		]),
+	) as Record<ContentSection, ParsedSource[]>;
+	const slugs = Object.fromEntries(
+		CONTENT_SECTIONS.map((section) => [
+			section,
+			new Set(
+				parsed[section].flatMap(({ file, data }) =>
+					data ? [routeSlug(file, data)] : [],
+				),
+			),
+		]),
+	) as Record<ContentSection, Set<string>>;
 	const mechanismSlugs = mechanismSlugsFrom(
 		sources.mechanism.map(({ source }) => source),
 	);
@@ -158,21 +267,36 @@ export const checkBookContent = (
 		for (const { file, source } of sources[section]) {
 			const result = checkContentItem(section, source, {
 				mechanismSlugs,
+				slugs,
 				retiredSlugs,
-				releaseMode: options.releaseMode,
+				releaseMode,
+				frame: frameSlug,
 				format: file.endsWith(".md") ? "md" : "mdx",
 			});
 			for (const finding of result.findings)
 				findings.push({ ...finding, file });
 		}
+		findings.push(...duplicateSlugFindings(root, section, parsed[section]));
 	}
 
-	const frame = frameFinding(workspaceRoot, book, options.frameSlug);
+	// Only a draft may be empty: anything further along is meant to be read.
+	if ((status ?? "draft") !== "draft" && sources.chapter.length === 0) {
+		findings.push({
+			level: "error",
+			code: "BOOK_EMPTY",
+			message: `The book is ${status} but has no chapters, so it would publish an empty site`,
+			fix: `Add a chapter (bun run bookkit new chapter ${book} "<title>"), or set status: "draft" in book.config.ts until it has one.`,
+		});
+	}
+
+	const frame = frameFinding(workspaceRoot, book, frameSlug);
 	if (frame) findings.push(frame);
 
 	return {
 		ok: !findings.some((finding) => finding.level === "error"),
 		book,
+		status,
+		releaseMode,
 		findings,
 	};
 };

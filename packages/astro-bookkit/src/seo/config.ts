@@ -1,3 +1,4 @@
+import { isReleasedStatus } from "../schemas/status";
 import { buildAbsoluteUrl, normalizeSiteUrl } from "./urls";
 
 export type BookSeoDefaults = {
@@ -49,6 +50,21 @@ export type SeoProps = SeoInput & {
 	siteUrl?: string;
 	metaDescription?: string;
 };
+
+/**
+ * The site settings a build applies to a book. Only a released book (status
+ * published or stable) is offered to search engines; before that, whatever
+ * `site.indexable` says, every page is noindex, robots.txt disallows
+ * crawling, and the sitemap lists no pages. A released book can still opt out
+ * with `indexable: false`.
+ */
+export const resolveBookSite = (book: {
+	status?: string;
+	site?: BookSeoConfig;
+}): BookSeoConfig => ({
+	...book.site,
+	indexable: book.site?.indexable !== false && isReleasedStatus(book.status),
+});
 
 /** Whether request handlers serve this book; see `BookSeoConfig.runtime`. */
 export const hasServerRuntime = (site?: BookSeoConfig): boolean =>

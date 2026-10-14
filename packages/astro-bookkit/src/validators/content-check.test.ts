@@ -129,6 +129,176 @@ describe("checkContentItem", () => {
 				?.code,
 		).toBe("DRAFT_IN_RELEASE");
 	});
+
+	it("refuses drafts of every kind under release rules, counting a missing status as draft", () => {
+		const chapter = '---\nslug: c\ntitle: "C"\n---\n';
+		const result = checkContentItem("chapter", chapter, { releaseMode: true });
+		expect(result.ok).toBe(false);
+		expect(result.findings[0]).toMatchObject({
+			code: "DRAFT_IN_RELEASE",
+			field: "status",
+		});
+		expect(result.findings[0]?.message).toContain("no status means draft");
+		expect(
+			checkContentItem(
+				"chapter",
+				'---\nslug: c\ntitle: "C"\nstatus: in-review\n---\n',
+				{ releaseMode: true },
+			).ok,
+		).toBe(true);
+	});
+
+	it("makes an invalid slug an error and never suggests it as a reference", () => {
+		const mechanism = checkContentItem(
+			"mechanism",
+			'---\nslug: Promise_Drift\nstatus: published\ntitle: "P"\ndefinition: "d"\nis: ["a"]\nisNot: ["b"]\npredictions: ["c"]\ntests: ["e"]\n---\n',
+		);
+		expect(mechanism.ok).toBe(false);
+		expect(mechanism.findings).toHaveLength(1);
+		expect(mechanism.findings[0]).toMatchObject({
+			level: "error",
+			code: "SLUG_INVALID",
+			field: "slug",
+		});
+		expect(mechanism.findings[0]?.fix).toContain("slug: promise-drift");
+
+		const tool = checkContentItem(
+			"tool",
+			'---\nslug: a\nmechanism: promise-drifting\nname: "A"\n---\n',
+			{ mechanismSlugs: new Set(["Promise_Drift", "promise-drift-gap"]) },
+		);
+		const fix = tool.findings.find((f) => f.code === "UNKNOWN_MECHANISM")?.fix;
+		expect(fix).toContain("promise-drift-gap");
+		expect(fix).not.toContain("Promise_Drift");
+	});
+});
+
+describe("runbook tools", () => {
+	const runbookTool = (extra: string, status = "published") =>
+		`---\nslug: rollback\nstatus: ${status}\nmechanism: promise-drift\nname: "Roll back"\ntrigger: "t"\ntimeboxMinutes: 5\nsteps: ["s"]\nfailureLooksLike: ["f"]\nlegitimateDemand: ["l"]\n${extra}---\n`;
+
+	it("errors when escalation lost its nesting, as fix:frontmatter left on-call's tools", () => {
+		const result = checkContentItem(
+			"tool",
+			runbookTool(
+				'to: "Incident commander"\nwhen: "No rollback in 15 minutes"\nwithinHours: 1\naction: "Page the owner"\n',
+			),
+			{ mechanismSlugs: known, frame: "runbook" },
+		);
+		expect(result.ok).toBe(false);
+		const codes = result.findings.map((f) => `${f.code}:${f.field}`);
+		expect(codes).toEqual(
+			expect.arrayContaining([
+				"FIELD_MISPLACED:to",
+				"FIELD_MISPLACED:when",
+				"FIELD_MISPLACED:withinHours",
+				"FIELD_MISPLACED:action",
+				"FIELD_MISSING:escalation",
+				"FIELD_MISSING:runbookSteps",
+			]),
+		);
+		expect(result.findings.find((f) => f.field === "to")?.fix).toContain(
+			"escalation:",
+		);
+	});
+
+	it("passes nested escalation and runbookSteps, and only warns while the tool is a draft", () => {
+		const nested =
+			'escalation:\n  to: "Incident commander"\n  when: "No rollback in 15 minutes"\nrunbookSteps:\n  - action: "Roll back the last deploy"\n';
+		expect(
+			checkContentItem("tool", runbookTool(nested), {
+				mechanismSlugs: known,
+				frame: "runbook",
+			}).findings,
+		).toEqual([]);
+		const draft = checkContentItem("tool", runbookTool("", "draft"), {
+			mechanismSlugs: known,
+			frame: "runbook",
+		});
+		expect(draft.ok).toBe(true);
+		expect(draft.findings.map((f) => `${f.level}:${f.field}`)).toEqual([
+			"warning:escalation",
+			"warning:runbookSteps",
+		]);
+		// Other frames do not need them.
+		expect(
+			checkContentItem("tool", runbookTool(""), { mechanismSlugs: known })
+				.findings,
+		).toEqual([]);
+	});
+});
+
+describe("references to other records", () => {
+	const slugs = {
+		chapter: new Set(["overview", "rollback-first"]),
+		mechanism: new Set(["promise-drift"]),
+		tool: new Set(["date-check"]),
+		glossary: new Set(["repair-clock"]),
+		example: new Set(["housing-repair"]),
+	};
+	const chapter = (status: string, extra: string, body = "") =>
+		`---\nslug: drills\ntitle: "Drills"\nstatus: ${status}\n${extra}---\n${body}`;
+
+	it("errors on an unknown prerequisite in a published chapter, and warns in a draft", () => {
+		const published = checkContentItem(
+			"chapter",
+			chapter(
+				"published",
+				"prerequisites:\n  - no-such-chapter\n  - overview\n",
+			),
+			{ slugs },
+		);
+		expect(published.ok).toBe(false);
+		expect(published.findings).toEqual([
+			expect.objectContaining({
+				level: "error",
+				code: "UNKNOWN_PREREQUISITE",
+				field: "prerequisites",
+			}),
+		]);
+		expect(published.findings[0]?.fix).toContain("overview");
+
+		const draft = checkContentItem(
+			"chapter",
+			chapter("draft", "prerequisites:\n  - no-such-chapter\n"),
+			{ slugs },
+		);
+		expect(draft.ok).toBe(true);
+		expect(draft.findings[0]).toMatchObject({
+			level: "warning",
+			code: "UNKNOWN_PREREQUISITE",
+		});
+	});
+
+	it("checks /read/ links in the body against every section, with the line", () => {
+		const body = [
+			"See [rollback](/read/chapters/rollback-first#steps) and [drift](/read/mechanisms/promise-drift/).",
+			"",
+			"Broken: [gone](/read/chapters/no-such-chapter), [tool](/read/toolkit/missing-tool),",
+			'<a href="/read/glossary/missing-term">term</a> and [ex](/es/read/examples/nope).',
+			"",
+			"```",
+			"[in code](/read/chapters/ignored)",
+			"```",
+			"Elsewhere: [site](/about) and [web](https://example.com/read/chapters/x).",
+		].join("\n");
+		const result = checkContentItem("chapter", chapter("published", "", body), {
+			slugs,
+		});
+		const links = result.findings.filter((f) => f.code === "BROKEN_LINK");
+		expect(links.map((f) => f.message)).toEqual([
+			'Chapter links to /read/chapters/no-such-chapter on line 8, but no chapter has the slug "no-such-chapter"',
+			'Chapter links to /read/toolkit/missing-tool on line 8, but no tool has the slug "missing-tool"',
+			'Chapter links to /read/glossary/missing-term on line 9, but no glossary entry has the slug "missing-term"',
+			'Chapter links to /es/read/examples/nope on line 9, but no example has the slug "nope"',
+		]);
+		expect(links.every((f) => f.level === "error")).toBe(true);
+		expect(
+			checkContentItem("chapter", chapter("draft", "", body), { slugs })
+				.findings.filter((f) => f.code === "BROKEN_LINK")
+				.every((f) => f.level === "warning"),
+		).toBe(true);
+	});
 });
 
 describe("retired slugs", () => {

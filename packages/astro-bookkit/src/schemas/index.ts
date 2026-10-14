@@ -5,6 +5,13 @@ export { type ExampleFrontmatter, exampleSchema } from "./example";
 export { type GlossaryFrontmatter, glossarySchema } from "./glossary";
 export { type MechanismFrontmatter, mechanismSchema } from "./mechanism";
 export {
+	isReleasedStatus,
+	isStatus,
+	STATUSES,
+	type Status,
+	statusSchema,
+} from "./status";
+export {
 	type ToolkitFrontmatter,
 	toolkitDisplayName,
 	toolkitSchema,

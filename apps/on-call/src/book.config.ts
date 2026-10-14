@@ -44,6 +44,9 @@ export const bookConfig = {
 		transformation:
 			"From reactive alarm to bounded, verifiable procedure with an explicit owner and escape hatch.",
 	},
+	// The procedures here are an example; their review dates are fixtures, judged
+	// as of the book's last release so check:runbooks does not age them.
+	reviewsAsOf: "2026-02-10",
 	frame: {
 		slug: "runbook",
 		steps: ["ownership", "trigger", "steps", "escalation", "verification"],

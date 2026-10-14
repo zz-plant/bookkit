@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { statusSchema } from "./status";
 
 export const exampleSchema = z.object({
 	mechanism: z.string().min(1, "Example must reference a mechanism slug"),
@@ -6,9 +7,7 @@ export const exampleSchema = z.object({
 	title: z.string().min(1, "Example must have a title"),
 	/** Optional one-sentence description for search results and link previews. */
 	summary: z.string().optional(),
-	status: z
-		.enum(["draft", "in-review", "published", "stable"])
-		.default("draft"),
+	status: statusSchema,
 });
 
 export type ExampleFrontmatter = z.infer<typeof exampleSchema>;

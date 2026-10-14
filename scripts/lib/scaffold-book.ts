@@ -74,6 +74,24 @@ const fillTemplate = (
 		.replaceAll("__BOOK_TITLE__", title);
 };
 
+/** The starter template's files for a book, keyed by path in its app folder. */
+export const starterAppFiles = (
+	root: string,
+	slug: string,
+	title: string,
+): Record<string, string> => {
+	const templateDir = starterTemplateRootIn(root);
+	return Object.fromEntries(
+		listFilesRecursive(templateDir).map((file) => [
+			file,
+			fillTemplate(readFileSync(join(templateDir, file), "utf8"), file, {
+				slug,
+				title,
+			}),
+		]),
+	);
+};
+
 export const scaffoldBook = (
 	options: ScaffoldBookOptions,
 ): ScaffoldBookResult => {
@@ -98,14 +116,10 @@ export const scaffoldBook = (
 		files.push(relative(root, path).split(sep).join("/"));
 	};
 
-	for (const file of listFilesRecursive(templateDir)) {
-		write(
-			join(appDir, file),
-			fillTemplate(readFileSync(join(templateDir, file), "utf8"), file, {
-				slug,
-				title,
-			}),
-		);
+	for (const [file, content] of Object.entries(
+		starterAppFiles(root, slug, title),
+	)) {
+		write(join(appDir, file), content);
 	}
 	for (const file of syncShimTemplatesToBook(slug, root)) {
 		files.push(`apps/${slug}/${file}`);

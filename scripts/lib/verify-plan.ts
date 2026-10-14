@@ -88,13 +88,31 @@ const validateGate = (book: string, why: string): Gate => ({
 });
 
 /**
+ * Gates a standalone project (create-bookkit) has nothing for: it installs no
+ * Biome, vendors no engine tests, and has no architecture doc.
+ */
+export const WORKSPACE_ONLY_GATES = ["biome", "test", "architecture"];
+
+/**
  * `changed`: repo-relative paths, deleted ones included. `null` plans every
  * gate CI runs. `exists` filters deleted files out of formatter arguments.
+ * `project` plans for a standalone project rather than this workspace.
  */
 export const planGates = (
 	changed: string[] | null,
 	books: string[],
 	exists: (path: string) => boolean = () => true,
+	profile: "workspace" | "project" = "workspace",
+): Gate[] =>
+	planWorkspaceGates(changed, books, exists).filter(
+		(gate) =>
+			profile === "workspace" || !WORKSPACE_ONLY_GATES.includes(gate.id),
+	);
+
+const planWorkspaceGates = (
+	changed: string[] | null,
+	books: string[],
+	exists: (path: string) => boolean,
 ): Gate[] => {
 	if (changed === null) {
 		return [

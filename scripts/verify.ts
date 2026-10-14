@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
+import { isStandaloneProject } from "./lib/project";
 import { type Gate, planGates } from "./lib/verify-plan";
 
 /**
@@ -65,8 +66,11 @@ if (!all && !base) {
 	process.exit(1);
 }
 
-const gates = planGates(all ? null : changed, listBookDirs(), (file) =>
-	existsSync(join(root, file)),
+const gates = planGates(
+	all ? null : changed,
+	listBookDirs(),
+	(file) => existsSync(join(root, file)),
+	isStandaloneProject(root) ? "project" : "workspace",
 );
 
 const describeScope = () =>

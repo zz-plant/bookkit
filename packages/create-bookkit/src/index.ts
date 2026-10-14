@@ -1,543 +1,148 @@
 #!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
+import { slugify } from "../../../scripts/_lib";
+import { titleFromSlug } from "../../../scripts/lib/scaffold-book";
+import { parseCreateArgs, USAGE } from "./args";
 import {
-	cpSync,
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
-import { join, resolve } from "node:path";
-import { COPIED_SCRIPTS } from "./copied-scripts";
+	createConflicts,
+	createProject,
+	isBookkitProject,
+	isBookkitRepository,
+	isInside,
+	readSource,
+	summarizeUpgrade,
+	upgradeProject,
+} from "./project";
 
-const here = import.meta.dir;
-const repoRoot = join(here, "../../..");
-const engineDir = join(repoRoot, "packages", "astro-bookkit");
-const templateSurface = join(engineDir, "templates", "book-app", "src");
-const starterApp = join(repoRoot, "apps", "bad-people");
-
-const argValue = (name: string): string | undefined => {
-	const i = process.argv.indexOf(name);
-	return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : undefined;
-};
-
-const titleize = (slug: string): string =>
-	slug
-		.split("-")
-		.map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
-		.join(" ");
-
-const targetDir = resolve(process.argv[2] ?? ".");
-const bookSlug = argValue("--book") ?? "guide";
-const title = argValue("--title") ?? titleize(bookSlug);
-const markdownDir = argValue("--dir");
-const force = process.argv.includes("--force");
-
-const copyTree = (from: string, to: string, exclude?: RegExp): void => {
-	cpSync(from, to, {
-		recursive: true,
-		filter: (src) => (exclude ? !exclude.test(src) : true),
-	});
-};
-
-const write = (file: string, content: string): void => {
-	mkdirSync(join(file, ".."), { recursive: true });
-	writeFileSync(file, content, "utf8");
-};
+const repoRoot = join(import.meta.dir, "../../..");
 
 const fail = (message: string): never => {
-	console.error(`✗ ${message}`);
+	console.error(message);
 	process.exit(1);
 };
 
-if (!existsSync(engineDir))
-	fail(`Engine not found at ${engineDir}. Run from the bookkit repo.`);
-if (!existsSync(starterApp)) fail(`Starter app not found at ${starterApp}.`);
-if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true });
-if (existsSync(join(targetDir, "package.json")) && !force) {
+const parsed = parseCreateArgs(process.argv.slice(2));
+if ("help" in parsed) {
+	console.log(USAGE);
+	process.exit(0);
+}
+if ("error" in parsed) fail(`${parsed.error}\n\n${USAGE}`);
+const args = (parsed as Extract<typeof parsed, { values: unknown }>).values;
+const target = resolve(args.target);
+
+if (isInside(target, repoRoot)) {
 	fail(
-		`Target already has a package.json (${targetDir}). Use --force to overwrite.`,
+		`${target} is inside the bookkit repository (${repoRoot}). Pick a folder outside it, e.g. ../${basename(target)}: a project inside would be read as part of this workspace.`,
 	);
 }
 
-if (existsSync(join(targetDir, "apps", bookSlug)) && !force) {
+if (args.upgrade) {
+	if (!existsSync(target) || !isBookkitProject(target)) {
+		fail(
+			`${target} is not a Bookkit project: it has no packages/astro-bookkit/ engine and apps/ folder. Nothing was changed. To create one there, leave out --upgrade.`,
+		);
+	}
+	if (isBookkitRepository(target)) {
+		fail(
+			`${target} is a bookkit repository, not a project made from one. Update it with git.`,
+		);
+	}
+	const result = upgradeProject(readSource(repoRoot), target);
+	for (const line of summarizeUpgrade(result)) console.log(line);
+	console.log(`
+Not touched: book content (apps/*/src/content/), book.config.ts, each book's own
+pages, README.md, and anything else the scaffolder does not own.
+Next:
+  cd ${target}
+  bun install
+  bun run verify -- --all`);
+	process.exit(0);
+}
+
+const book = args.book ?? slugify(basename(target));
+if (!book) {
 	fail(
-		`apps/${bookSlug} already exists in the target. Use --force to overwrite.`,
+		`Cannot make a book slug from the folder name "${basename(target)}". Pass --book <slug>.`,
 	);
 }
-const appDir = join(targetDir, "apps", bookSlug);
+const title = args.title ?? titleFromSlug(book);
 
-console.log(`Scaffolding bookkit project at ${targetDir}`);
-
-if (force) {
-	rmSync(join(targetDir, "packages"), { recursive: true, force: true });
-	rmSync(join(targetDir, "scripts"), { recursive: true, force: true });
-	rmSync(appDir, { recursive: true, force: true });
+if (existsSync(target) && isBookkitProject(target)) {
+	fail(
+		`${target} is already a Bookkit project. To update its engine and wrappers, run with --upgrade; that never writes content.`,
+	);
 }
-rmSync(join(targetDir, "apps", "scratch-import"), {
-	recursive: true,
-	force: true,
-});
-
-copyTree(
-	engineDir,
-	join(targetDir, "packages", "astro-bookkit"),
-	/(node_modules|\/\.astro|\/dist)(\/|$)/,
-);
-const vendoredPkgPath = join(
-	targetDir,
-	"packages",
-	"astro-bookkit",
-	"package.json",
-);
-const vendoredPkg = JSON.parse(readFileSync(vendoredPkgPath, "utf8"));
-if (vendoredPkg.optionalDependencies) {
-	delete vendoredPkg.optionalDependencies;
-	vendoredPkg.description = `${vendoredPkg.description} (vendored by create-bookkit)`;
-	writeFileSync(
-		vendoredPkgPath,
-		`${JSON.stringify(vendoredPkg, null, 2)}\n`,
-		"utf8",
+const entries = existsSync(target)
+	? readdirSync(target).filter((name) => ![".git", ".DS_Store"].includes(name))
+	: [];
+if (entries.length > 0 && !args.force) {
+	fail(
+		`${target} is not empty (${entries.slice(0, 5).join(", ")}${entries.length > 5 ? ", …" : ""}). Use an empty folder, or pass --force to add the project beside those files; --force never overwrites one.`,
 	);
 }
 
-mkDir(appDir);
-for (const entry of [
-	"package.json",
-	"astro.config.mjs",
-	"tsconfig.json",
-	"wrangler.jsonc",
-	"public",
-	"src",
-]) {
-	cpSync(join(starterApp, entry), join(appDir, entry), { recursive: true });
-}
-rmSync(join(appDir, "src", "content", "book"), {
-	recursive: true,
-	force: true,
-});
-copyTree(templateSurface, join(appDir, "src"));
-
-const contentRoot = join(appDir, "src", "content", "book");
-for (const dir of [
-	"chapters",
-	"examples",
-	"mechanisms",
-	"releases",
-	"toolkit",
-	"glossary",
-]) {
-	mkdirSync(join(contentRoot, dir), { recursive: true });
-}
-writeStarterContent(contentRoot, { title });
-writeConfig(join(appDir, "src", "book.config.ts"), { bookSlug, title });
-writeAppPackageJson(join(appDir, "package.json"), { bookSlug });
-rewriteWorkerName(join(appDir, "wrangler.jsonc"), { bookSlug });
-
-for (const rel of [
-	"tsconfig.base.json",
-	".gitignore",
-	"package.json",
-	"README.md",
-]) {
-	writeProjectRootFile(targetDir, rel, { bookSlug, title });
+const source = readSource(repoRoot);
+const conflicts = createConflicts(source, target, book);
+if (conflicts.length > 0) {
+	fail(
+		`These already exist in ${target}, and the project would overwrite them:\n  ${conflicts.join("\n  ")}\nNothing was written. Move them, or pick another folder.`,
+	);
 }
 
-for (const rel of COPIED_SCRIPTS) {
-	const srcPath = join(repoRoot, "scripts", rel);
-	const destPath = join(targetDir, "scripts", rel);
-	mkdirSync(join(destPath, ".."), { recursive: true });
-	writeFileSync(destPath, readFileSync(srcPath));
-}
-write(
-	join(targetDir, "scripts", "validate.ts"),
-	`import { validateBookInMemory } from "../packages/astro-bookkit/src/validators/book-validator";
-import { listBookDirs, optionalArg } from "./_lib";
-
-const mode = optionalArg("--mode") ?? "warn";
-const requested = optionalArg("--book");
-const books = requested ? [requested] : listBookDirs();
-
-let totalErrors = 0;
-for (const book of books) {
-	const result = validateBookInMemory({
-		workspaceRoot: process.cwd(),
-		bookSlug: book,
-	});
-	for (const err of result.errors) {
-		totalErrors += 1;
-		console.error(\`  [\${err.machineCode}/\${err.severity}] \${err.location.file ?? "(book)"}: \${err.humanSummary}\`);
-		console.error(\`    → \${err.nextAction}\`);
+let markdownSource: string | undefined;
+if (args.dir) {
+	markdownSource = resolve(args.dir);
+	if (!existsSync(markdownSource)) {
+		fail(`Markdown folder not found: ${markdownSource}. Nothing was written.`);
 	}
-	for (const err of result.warnings) {
-		console.log(\`  [\${err.machineCode}/\${err.severity}] \${err.location.file ?? "(book)"}: \${err.humanSummary}\`);
-	}
-	console.log(\`VALIDATE \${book}: \${result.ok ? "ok" : "failed"} (\${result.errors.length} errors, \${result.warnings.length} warnings)\`);
 }
 
-if (books.length === 0) {
-	console.error("No books found under apps/.");
-	process.exit(1);
-}
-if (mode === "error" && totalErrors > 0) process.exit(1);
-`,
+mkdirSync(target, { recursive: true });
+const created = createProject(source, target, { book, title });
+console.log(
+	`Created ${target}: book "${book}", engine ${source.engineVersion}${source.commit ? ` (${source.commit})` : ""}, ${created.files} files.`,
 );
+if (created.keptExisting.length > 0) {
+	console.log(`Kept your existing ${created.keptExisting.join(" and ")}.`);
+}
 
-// Import reads frontmatter with the project's own dependencies, so a project
-// that imports Markdown is installed first. The source path is resolved here:
-// the import runs inside the new project, where a relative path would differ.
+// Import reads frontmatter with the project's own dependencies, so the
+// project is installed first.
 let installed = false;
-if (markdownDir) {
-	const source = resolve(markdownDir);
-	if (!existsSync(source))
-		fail(`Markdown source directory not found: ${source}`);
+if (markdownSource) {
 	console.log("Installing dependencies (bun install)...");
-	const install = spawnSync("bun", ["install"], {
-		cwd: targetDir,
+	const install = spawnSync(process.execPath, ["install"], {
+		cwd: target,
 		stdio: "inherit",
 	});
 	if (install.status !== 0) {
 		fail(
-			`bun install exited with status ${install.status}. Run it in ${targetDir}, then: bun run import --book ${bookSlug} --dir ${source}`,
+			`bun install exited with status ${install.status}. Run it in ${target}, then: bun run import --book ${book} --dir ${markdownSource}`,
 		);
 	}
 	installed = true;
-	console.log(`Importing chapters from ${source}...`);
+	console.log(`Importing chapters from ${markdownSource}...`);
 	const run = spawnSync(
-		"bun",
+		process.execPath,
 		[
 			"run",
 			"scripts/import-book-from-markdown.ts",
 			"--book",
-			bookSlug,
+			book,
 			"--dir",
-			source,
+			markdownSource,
 		],
-		{ cwd: targetDir, stdio: "inherit" },
+		{ cwd: target, stdio: "inherit" },
 	);
 	if (run.status !== 0) fail(`Import exited with status ${run.status}.`);
 }
 
 console.log(`
-Done. Next:
-  cd ${targetDir}${installed ? "" : "\n  bun install"}
-  bun run validate
-  bun run dev          (or: bun run build)
-  bun run suggest      (analyzer proposes mechanism/tool drafts)
-  bun run import --book ${bookSlug} --dir ./notes   (pull in existing markdown)
-`);
-
-function mkDir(path: string): void {
-	mkdirSync(path, { recursive: true });
-}
-
-function writeStarterContent(root: string, opts: { title: string }): void {
-	write(
-		join(root, "chapters", "00-overview.mdx"),
-		`---
-slug: overview
-status: draft
-title: "Overview"
----
-
-## Purpose
-
-- The reader moves from a stuck, over-responsible stance to a practical, system-aware response.
-- Causal stance: incentives and constraints drive outcomes more than individual intent.
-
-## Recognition
-
-## Exoneration
-
-## Mechanism
-
-- Preview the mechanisms this book will define and rely on.
-
-## Agency
-
-- Preview the small, reversible actions the reader will be able to take.
-
-## Primary mechanisms referenced
-
-- starter-mechanism
-`,
-	);
-	write(
-		join(root, "mechanisms", "starter-mechanism.mdx"),
-		`---
-slug: starter-mechanism
-status: draft
-title: "Starter mechanism"
-definition: "A repeatable pattern where a system produces harm while preserving surface legitimacy."
-is:
-  - "A named incentive or process keeps harm in motion without clear accountability."
-isNot:
-  - "One-off mistakes or accidents with no repeatable structure."
-predictions:
-  - "If the mechanism is active, similar outcomes will appear across unrelated cases."
-tests:
-  - "Ask: if we swapped the person but kept the incentives, would the outcome stay the same?"
----
-
-Replace this placeholder with the first real mechanism in your book.
-`,
-	);
-	write(
-		join(root, "toolkit", "starter-mechanism--starter-tool.mdx"),
-		`---
-slug: starter-mechanism--starter-tool
-status: draft
-mechanism: starter-mechanism
-name: "Starter tool"
-trigger: "When you notice the same harm repeating even after good-faith effort."
-timeboxMinutes: 10
-steps:
-  - "Name the repeating outcome in one sentence."
-failureLooksLike:
-  - "You still cannot name a repeatable pattern after 10 minutes."
-legitimateDemand:
-  - "A clear, repeatable description of the harm that can be shared or escalated."
----
-
-Keep this tool runnable by a depleted reader. No heroics.
-`,
-	);
-	write(
-		join(root, "examples", "starter-mechanism", "starter-example.mdx"),
-		`---
-mechanism: starter-mechanism
-domain: "Workplace"
-title: "Starter example"
-status: draft
----
-
-Write an example that illustrates the mechanism. Keep it swappable: replacing the example must not change the mechanism.
-`,
-	);
-	write(
-		join(root, "glossary", "starter-term.mdx"),
-		`---
-slug: starter-term
-status: draft
-term: "Starter term"
----
-
-Define the key term here. Keep it concise and replaceable.
-`,
-	);
-	const date = new Date().toISOString().slice(0, 10);
-	write(
-		join(root, "releases", `${date}-initial-draft.mdx`),
-		`---
-title: "Initial draft"
-version: "0.1.0"
-date: "${date}"
-summary: "Introduces the first draft structure for ${opts.title}."
-highlights:
-  - "Added the initial overview chapter."
-  - "Seeded one starter mechanism, example, and tool."
----
-
-Update this release note before publication.
-`,
-	);
-}
-
-function writeConfig(
-	path: string,
-	opts: { bookSlug: string; title: string },
-): void {
-	write(
-		path,
-		`export const bookConfig = {
-  slug: "${opts.bookSlug}",
-  title: "${opts.title}",
-  status: "draft",
-  site: {
-    url: "https://${opts.bookSlug}.book",
-    enforceHttps: true,
-    indexable: false,
-    defaultMeta: {
-      description: "Draft book instance for ${opts.title}.",
-    },
-  },
-  localization: {
-    defaultLocale: "en",
-    includeDefaultPrefix: false,
-    label: "Language",
-    locales: [
-      {
-        code: "en",
-        label: "English",
-        isDefault: true,
-        completeness: 1,
-      },
-    ],
-  },
-  previewAccess: {
-    enabled: false,
-    paramName: "preview",
-    protectedPaths: ["/"],
-    tokens: [],
-  },
-  features: {
-    aiQa: false,
-  },
-  objectives: {
-    readerStart:
-      "Feels stuck at the starting edge of the transformation and lacks a reliable next move.",
-    readerEnd:
-      "Can name the core mechanism, route responsibility correctly, and take a small, reversible action.",
-    transformation:
-      "From stuck and over-responsible to system-aware action with a concrete first step.",
-  },
-  frame: {
-    slug: "intervention",
-    steps: ["recognition", "exoneration", "mechanism", "agency"],
-    intent: "Move readers from recognition to agency with enforceable steps.",
-  },
-  causalStance:
-    "Outcomes are shaped by incentives and constraints, not just individual intent or character.",
-  constraints: {
-    mechanismCountTarget: [6, 8],
-    actionPrimitiveMaxMinutes: 10,
-    examplesMustBeSwappable: true,
-    orderingModel: "constraint-graph",
-  },
-  mechanisms: [],
-  glossaryFocus: [],
-} as const;
-
-export default bookConfig;
-`,
-	);
-}
-
-function writeAppPackageJson(path: string, opts: { bookSlug: string }): void {
-	write(
-		path,
-		`{
-	"name": "@books/${opts.bookSlug}",
-	"private": true,
-	"version": "0.0.0",
-	"type": "module",
-	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build"
-	},
-	"dependencies": {
-		"@astrojs/mdx": "^6.0.1",
-		"@bookkit/astro-bookkit": "workspace:*",
-		"astro": "^7.2.2"
-	}
-}
-`,
-	);
-}
-
-// astro.config.mjs reads `site` from book.config.ts, so only the Worker name needs rewriting.
-function rewriteWorkerName(path: string, opts: { bookSlug: string }): void {
-	const content = readFileSync(path, "utf8");
-	write(
-		path,
-		content.replace(
-			/"name": "bookkit-[^"]+"/,
-			`"name": "bookkit-${opts.bookSlug}"`,
-		),
-	);
-}
-
-function writeProjectRootFile(
-	target: string,
-	rel: string,
-	opts: { bookSlug: string; title: string },
-): void {
-	if (rel === "tsconfig.base.json") {
-		const src = join(repoRoot, rel);
-		if (!existsSync(src)) return;
-		copyTree(src, join(target, rel));
-		return;
-	}
-	if (rel === ".gitignore") {
-		write(
-			join(target, rel),
-			`node_modules/
-dist/
-.astro/
-.vercel/
-.netlify/
-.DS_Store
-`,
-		);
-		return;
-	}
-	if (rel === "package.json") {
-		write(
-			join(target, rel),
-			`{
-	"name": "${opts.bookSlug}-book",
-	"private": true,
-	"type": "module",
-	"workspaces": ["apps/*", "packages/*"],
-	"scripts": {
-		"dev": "bun run --cwd apps/${opts.bookSlug} astro dev",
-		"build": "bun run --cwd apps/${opts.bookSlug} astro build",
-		"validate": "bun run scripts/validate.ts",
-		"validate:error": "bun run scripts/validate.ts --mode error",
-		"suggest": "bun run scripts/check-suggestions.ts",
-		"runbooks": "bun run scripts/check-runbooks.ts",
-		"import": "bun run scripts/import-book-from-markdown.ts",
-		"deploy": "bun run --cwd apps/${opts.bookSlug} astro build && bun run --cwd apps/${opts.bookSlug} wrangler deploy"
-	},
-	"devDependencies": {
-		"@astrojs/mdx": "^6.0.1",
-		"astro": "^7.2.2",
-		"bun-types": "^1.2.0",
-		"js-yaml": "^4.1.1",
-		"typescript": "^5.8.0",
-		"wrangler": "^4.131.2"
-	}
-}
-`,
-		);
-		return;
-	}
-	write(
-		join(target, rel),
-		`# ${opts.title}
-
-A recompilable book built with Bookkit.
-
-## Commands
-
-\`\`\`bash
-bun install
-bun run validate        # compiler checks schemas, frames, ordering
-bun run suggest         # analyzer proposes mechanism/tool drafts
-bun run dev             # local Astro dev server
-bun run build           # static build of the book
-bun run runbooks        # compliance matrix for runbook-frame books
-bun run deploy          # build, then publish dist/ to Cloudflare Workers static assets
-bun run import --book ${opts.bookSlug} --dir ./notes   # pull existing markdown into chapters
-\`\`\`
-
-## Structure
-
-- \`apps/${opts.bookSlug}/\` — one book instance (author decisions here).
-- \`apps/${opts.bookSlug}/src/content/book/**\` — mechanisms, toolkit, chapters, examples, glossary, releases.
-- \`packages/astro-bookkit/\` — the compiler engine (vendored; upgrade by re-running the scaffolder or replacing the folder).
-
-## Rules that hold by construction
-
-- Book-specific logic lives in the book app, never in the engine.
-- Mechanisms are durable: changing a slug is a breaking change.
-- Required frame steps are enforced, not implied.
-- Actions fit in ≤10 minutes and survive a depleted reader.
-
-AI features (Q&A against the book) are off by default. To enable, set
-\`features.aiQa: true\` in the book config and run \`bun add @xenova/transformers\`
-in \`packages/astro-bookkit\`.
-`,
-	);
-}
+Next:
+  cd ${target}${installed ? "" : "\n  bun install"}
+  bun run dev                    preview the book
+  bun run verify -- --all        every check, as CI runs them
+  git init, then commit          deploy publishes from a commit
+  bun run deploy -- --dry-run    check content, build, verify dist/, stop before publishing`);

@@ -6,8 +6,8 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { engineRequire } from "../utils/engine-require";
 import {
 	OG_IMAGE_HEIGHT,
 	OG_IMAGE_WIDTH,
@@ -31,7 +31,8 @@ export type OgFonts = {
 	apparatus: ArrayBuffer;
 };
 
-const require = createRequire(import.meta.url);
+// From the engine's folder, not the bundle's: see utils/engine-require.ts.
+const require = engineRequire();
 
 const fontBytes = (specifier: string): ArrayBuffer => {
 	const bytes = readFileSync(require.resolve(specifier));

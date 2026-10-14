@@ -41,6 +41,7 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
+		"./package.json": "./package.json",
 		"./integration": "./src/integration.ts",
 		"./env": "./src/astro-env.d.ts",
 		"./schemas": "./src/schemas/index.ts",

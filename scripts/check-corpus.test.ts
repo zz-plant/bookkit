@@ -82,7 +82,10 @@ describe("check:corpus", () => {
 	it("checks the corpus books that exist, and names the missing ones without failing", () => {
 		const result = checkCorpus();
 		expect(result.output).toContain(
-			"corpus.json lists book(s) not in apps/: gone-book. Checking kept-book.",
+			"corpus.json lists book(s) not in apps/: gone-book. They are left out, with their rulings.",
+		);
+		expect(result.output).toContain(
+			'shared corpus (corpus.json "books"): kept-book',
 		);
 		expect(result.output).not.toContain("STALE DECISION");
 		expect(result.status).toBe(0);

@@ -3,19 +3,25 @@ import {
 	copyFileSync,
 	cpSync,
 	existsSync,
+	mkdirSync,
 	mkdtempSync,
 	readFileSync,
 	rmSync,
 	symlinkSync,
 	writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /**
  * `fixtures/import-notes`, imported by the import command into a new book,
  * builds with Astro. The book lives in a scratch workspace that borrows this
  * repo's node_modules, so nothing under apps/ changes.
+ *
+ * The workspace sits inside the repo (in gitignored .test-workspaces/), not
+ * the OS temp dir: Vite resolves the borrowed engine to its real path, and
+ * Astro reads an absolute path that shares no directory with the app as
+ * relative to the app, so a book under /tmp cannot find the engine's
+ * components.
  */
 
 const REPO = join(import.meta.dir, "..", "..");
@@ -38,7 +44,9 @@ const run = (args: string[], cwd: string) => {
 };
 
 beforeAll(() => {
-	workspace = mkdtempSync(join(tmpdir(), "bookkit-import-build-"));
+	const scratch = join(REPO, ".test-workspaces");
+	mkdirSync(scratch, { recursive: true });
+	workspace = mkdtempSync(join(scratch, "import-build-"));
 	// The engine, its shim templates, and dependencies come from this repo.
 	for (const dir of ["node_modules", "packages"]) {
 		symlinkSync(join(REPO, dir), join(workspace, dir));

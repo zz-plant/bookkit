@@ -1,4 +1,9 @@
 import {
+	decidePair,
+	type PairCall,
+	type PairJudgment,
+} from "./corpus-judgment";
+import {
 	DEFAULT_LEXICAL_OVERLAP_THRESHOLD,
 	lexicalMechanismSimilarity,
 	type MechanismRecord,
@@ -17,6 +22,10 @@ import type { ContentSuggestion } from "./types";
  * carry a copy under the same slug; copies must keep the same contract, and a
  * copy that drifts is reported. Pairs the author has reviewed and judged
  * distinct are passed in as decisions and stop being flagged.
+ *
+ * Judges' verdicts on pairs (see corpus-judgment.ts) add a third signal: a
+ * pair any judge called the same idea is flagged whatever its wording, and
+ * every flagged pair carries the judges' call for the author's ruling.
  *
  * Books need not all belong to one corpus (`corpusOf`). Slugs and clusters
  * are then per corpus, and a flagged pair from two corpora is listed under
@@ -42,7 +51,9 @@ export type CorpusPair = {
 	lexical: number;
 	semantic: number | null;
 	sharedBoundaryPhrases: string[];
-	flaggedBy: Array<"lexical" | "semantic">;
+	flaggedBy: Array<"lexical" | "semantic" | "judged">;
+	/** The judges' call, when verdicts are recorded on this pair as it reads today. */
+	judged?: PairCall;
 };
 
 export type CorpusCluster = {
@@ -70,6 +81,12 @@ export type CorpusOverlapOptions = {
 	lexicalThreshold?: number;
 	/** Pairs the author reviewed and ruled distinct; they are not flagged. */
 	distinct?: CorpusDistinctDecision[];
+	/**
+	 * Judges' verdicts on pairs as they read today (check:corpus drops verdicts
+	 * on a text that has changed since). A pair any judge called the same idea
+	 * is flagged.
+	 */
+	judgments?: PairJudgment[];
 	/**
 	 * The corpus a book belongs to; one corpus for every book when omitted.
 	 * Slug identity, drift, and clusters apply within a corpus only.
@@ -221,6 +238,11 @@ export const analyzeCorpusOverlap = (
 		(decision) => !decision.pair.every((slug) => knownSlugs.has(slug)),
 	);
 	const reviewedDistinct: CorpusDistinctDecision[] = [];
+	const calls = new Map<string, PairCall>();
+	for (const judgment of options.judgments ?? []) {
+		const call = decidePair(judgment.votes);
+		if (call) calls.set(pairKey(...judgment.pair), call);
+	}
 
 	const pairs: CorpusPair[] = [];
 	const related: CorpusPair[] = [];
@@ -245,6 +267,10 @@ export const analyzeCorpusOverlap = (
 			if (semantic !== null && semantic >= semanticThreshold) {
 				flaggedBy.push("semantic");
 			}
+			const judged = calls.get(
+				pairKey(left.mechanism.slug, right.mechanism.slug),
+			);
+			if (judged && judged.call !== "distinct") flaggedBy.push("judged");
 			if (flaggedBy.length === 0) continue;
 			const decision = decided.get(
 				pairKey(left.mechanism.slug, right.mechanism.slug),
@@ -263,6 +289,7 @@ export const analyzeCorpusOverlap = (
 				semantic: semantic === null ? null : round(semantic),
 				sharedBoundaryPhrases: lexical.sharedBoundaryPhrases,
 				flaggedBy,
+				...(judged ? { judged } : {}),
 			});
 		}
 	}

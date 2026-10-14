@@ -27,6 +27,23 @@ export {
 	triageConcepts,
 } from "./concept-triage";
 export type {
+	JudgeRelation,
+	JudgeVote,
+	JudgmentEval,
+	JudgmentEvalMiss,
+	PairCall,
+	PairJudgment,
+} from "./corpus-judgment";
+export {
+	decidePair,
+	describeCall,
+	evaluateJudgments,
+	JUDGE_RELATIONS,
+	judgmentScore,
+	RELATION_DRAFTS,
+	RELATION_LABELS,
+} from "./corpus-judgment";
+export type {
 	CorpusCluster,
 	CorpusDistinctDecision,
 	CorpusMechanism,

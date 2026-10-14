@@ -4,11 +4,26 @@ import {
 	analyzeCorpusOverlap,
 	type CorpusDistinctDecision,
 	type CorpusMechanism,
+	type CorpusPair,
 	corpusEmbeddingText,
+	decidePair,
+	describeCall,
+	evaluateJudgments,
+	lexicalMechanismSimilarity,
 } from "../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { didYouMean } from "./lib/cli";
 import { type CorpusMergeRecord, evaluateCorpusModel } from "./lib/corpus-eval";
+import {
+	JUDGMENTS_FILE,
+	matchJudgments,
+	mergeRecords,
+	readAnswers,
+	readJudgments,
+	votesOn,
+	writeJudgeRequest,
+	writeJudgments,
+} from "./lib/corpus-judgments";
 import { corpusScope } from "./lib/corpus-scope";
 import {
 	DEFAULT_EMBEDDING_MODEL_KEY,
@@ -31,7 +46,9 @@ import { loadBookContent } from "./lib/load-book";
  *   bun run check:corpus -- --threshold 0.5 --json
  *   bun run check:corpus -- --export corpus-report.json
  *   bun run check:corpus -- --mode error                   # exit 1 while anything is unresolved
- *   bun run check:corpus -- --eval [--model nomic,minilm]  # score models against the author's rulings
+ *   bun run check:corpus -- --eval [--model nomic,minilm]  # score models and judges against the author's rulings
+ *   bun run check:corpus -- --judge-prompt <dir> [--judge-top 10]  # ask judges about pairs, blind
+ *   bun run check:corpus -- --judge-record <dir>           # record their answers in corpus-judgments.json
  *
  * corpus.json at the repo root, when present, names the books in the shared
  * corpus, records pairs the author reviewed and ruled distinct, and keeps each
@@ -41,6 +58,15 @@ import { loadBookContent } from "./lib/load-book";
  * different corpora are listed for information without failing --mode error.
  * --books makes the books given one corpus. --eval scores against the shared
  * corpus only.
+ *
+ * corpus-judgments.json, when present, holds judges' verdicts on pairs: the
+ * author's merge rule (same lever, same evidence) asked of an LLM or a person
+ * who sees only the two texts. A pair any judge called the same idea is
+ * flagged even when its wording differs, and each flagged pair shows the
+ * judges' call (see packages/astro-bookkit/src/suggestions/corpus-judgment.ts).
+ * Verdicts on a text that has changed since stop applying. Judging needs no
+ * model here: --judge-prompt writes the question and the pairs to hand to
+ * judges, and --judge-record reads their answers back.
  *
  *   {
  *     "books": ["a", "b"],
@@ -78,6 +104,15 @@ const semanticRequested = !process.argv.includes("--no-semantic");
 const allowDownload = process.argv.includes("--download-model") || undefined;
 const asJson = process.argv.includes("--json");
 const evalRequested = process.argv.includes("--eval");
+const judgePromptDir = optionalArg("--judge-prompt");
+const judgeRecordDir = optionalArg("--judge-record");
+const judgeTop = Number(optionalArg("--judge-top") ?? 10);
+if (!Number.isInteger(judgeTop) || judgeTop < 0) {
+	console.error(
+		`--judge-top takes a whole number of pairs, got "${optionalArg("--judge-top")}".`,
+	);
+	process.exit(1);
+}
 
 const modelKeys = (modelArg ?? "")
 	.split(",")
@@ -167,6 +202,38 @@ const mechanisms = loaded.filter(
 	(mechanism) => !undefinedSlugs.has(mechanism.slug),
 );
 
+const judgmentsRead = readJudgments(repoRoot());
+if ("error" in judgmentsRead) {
+	console.error(judgmentsRead.error);
+	process.exit(1);
+}
+let judgmentRecords = judgmentsRead.records;
+
+if (judgeRecordDir) {
+	const read = readAnswers(
+		judgeRecordDir,
+		new Date().toISOString().slice(0, 10),
+	);
+	if ("error" in read) {
+		console.error(read.error);
+		process.exit(1);
+	}
+	judgmentRecords = mergeRecords(judgmentRecords, read.records);
+	writeJudgments(repoRoot(), judgmentRecords);
+	console.log(
+		`Recorded ${read.judges.length} judge(s) on ${read.records.length} pair(s) in ${JUDGMENTS_FILE}:`,
+	);
+	for (const judgment of matchJudgments(read.records, mechanisms).current) {
+		const call = decidePair(judgment.votes);
+		if (call)
+			console.log(`  ${judgment.pair.join(" ~ ")}: ${describeCall(call)}`);
+	}
+	console.log("\nNext: bun run check:corpus, which now reads them.");
+	process.exit(0);
+}
+
+const judgments = matchJudgments(judgmentRecords, mechanisms);
+
 if (evalRequested) {
 	await runEval();
 	process.exit(0);
@@ -207,7 +274,13 @@ const fullReport = analyzeCorpusOverlap(mechanisms, {
 	semanticThreshold,
 	distinct,
 	corpusOf: scope.corpusOf,
+	judgments: judgments.current,
 });
+
+if (judgePromptDir) {
+	writeJudgeRequestFor(judgePromptDir);
+	process.exit(0);
+}
 
 // --book: only what involves that book. Stale rulings belong to the shared corpus.
 const involves = (list: string[]) => !bookArg || list.includes(bookArg);
@@ -253,6 +326,10 @@ if (asJson) {
 				...report,
 				// Why "semantic" is false when the meaning pass was asked for.
 				semanticNote,
+				judgments: {
+					pairs: judgments.current.length,
+					changedSinceJudged: judgments.changed,
+				},
 				scope: { shared: scope.shared, separate: scope.separate },
 			},
 			null,
@@ -277,6 +354,11 @@ if (asJson) {
 		);
 	}
 	console.log(`  ${semanticNote}`);
+	if (judgments.current.length > 0 || judgments.changed.length > 0) {
+		console.log(
+			`  judges: verdicts on ${judgments.current.length} pair(s) in ${JUDGMENTS_FILE}${judgments.changed.length > 0 ? `; ${judgments.changed.length} changed since judged (${judgments.changed.map((pair) => pair.join(" ~ ")).join(", ")}): ask again with --judge-prompt <dir>` : ""}`,
+		);
+	}
 	if (undefinedSlugs.size > 0) {
 		console.log(
 			`  not compared until they have a definition: ${[...undefinedSlugs].join(", ")}`,
@@ -314,6 +396,7 @@ if (asJson) {
 		report.clusters.forEach((cluster, index) => {
 			const strongest = cluster.strongest;
 			const scores = [
+				strongest.flaggedBy.includes("judged") ? "judged the same idea" : null,
 				strongest.semantic !== null ? `semantic ${strongest.semantic}` : null,
 				`lexical ${strongest.lexical}`,
 			]
@@ -334,10 +417,19 @@ if (asJson) {
 					console.log(`       ${mechanism.definition}`);
 				}
 			}
+			for (const pair of cluster.pairs) printJudged(pair);
 		});
 		console.log(
 			"\n→ For each cluster, decide: one mechanism (same slug and contract in every book that uses it) or distinct (add the pair to corpus.json with a reason).",
 		);
+		const unjudged = report.clusters
+			.flatMap((cluster) => cluster.pairs)
+			.filter((pair) => !pair.judged).length;
+		if (unjudged > 0) {
+			console.log(
+				`  ${unjudged} flagged pair(s) have no judges' verdict yet: bun run check:corpus -- --judge-prompt <dir> writes the question for them.`,
+			);
+		}
 	}
 	if (report.related.length > 0) {
 		console.log(
@@ -371,6 +463,85 @@ if (asJson) {
 }
 
 process.exit(mode === "error" && unresolved > 0 ? 1 : 0);
+
+/** The judges' call under a flagged pair, with a draft ruling when they found it distinct. */
+function printJudged(pair: CorpusPair): void {
+	if (!pair.judged) return;
+	console.log(`   ${pair.a} ~ ${pair.b}: ${describeCall(pair.judged)}`);
+	if (pair.judged.call === "same-idea") {
+		console.log(
+			"     → likely one mechanism. Merge them, or rule them distinct with a reason that names each one's lever.",
+		);
+	} else if (pair.judged.call === "split") {
+		console.log("     → the judges disagree; your ruling settles it.");
+	} else {
+		console.log(
+			`     → draft for corpus.json "distinct" (rewrite the reason to name each lever): ${JSON.stringify({ pair: [pair.a, pair.b], reason: pair.judged.draft })}`,
+		);
+	}
+}
+
+/**
+ * check:corpus --judge-prompt: the pairs worth a judge's time, most useful
+ * first. Flagged pairs with no verdict, then pairs whose text changed since
+ * judged, then the closest unjudged, unruled pairs (by meaning when the model
+ * ran, else by wording), up to --judge-top.
+ */
+function writeJudgeRequestFor(dir: string): void {
+	const embedded = vectors;
+	const bySlug = new Map(mechanisms.map((m) => [m.slug, m]));
+	const key = (a: string, b: string) => [a, b].sort().join("\u0000");
+	const judged = new Set(judgments.current.map((j) => key(...j.pair)));
+	const ruled = new Set(distinct.map((d) => key(...d.pair)));
+	const chosen = new Map<string, [CorpusMechanism, CorpusMechanism]>();
+	const add = (a: string, b: string) => {
+		const left = bySlug.get(a);
+		const right = bySlug.get(b);
+		if (left && right && !chosen.has(key(a, b)))
+			chosen.set(key(a, b), [left, right]);
+	};
+	const flagged = fullReport.pairs.filter(
+		(pair) => !judged.has(key(pair.a, pair.b)),
+	);
+	for (const pair of flagged) add(pair.a, pair.b);
+	for (const [a, b] of judgments.changed) add(a, b);
+	const candidates: Array<{ a: string; b: string; score: number }> = [];
+	const unique = [...bySlug.values()];
+	for (let i = 0; i < unique.length; i += 1) {
+		for (let j = i + 1; j < unique.length; j += 1) {
+			const [a, b] = [unique[i], unique[j]];
+			if (scope.corpusOf(a.book) !== scope.corpusOf(b.book)) continue;
+			const pairKey = key(a.slug, b.slug);
+			if (judged.has(pairKey) || ruled.has(pairKey) || chosen.has(pairKey))
+				continue;
+			const ia = mechanisms.indexOf(a);
+			const ib = mechanisms.indexOf(b);
+			const score = embedded
+				? embedded[ia].reduce(
+						(sum, value, k) => sum + value * embedded[ib][k],
+						0,
+					)
+				: lexicalMechanismSimilarity(a, b).combined;
+			candidates.push({ a: a.slug, b: b.slug, score });
+		}
+	}
+	candidates.sort((x, y) => y.score - x.score);
+	for (const candidate of candidates.slice(0, judgeTop))
+		add(candidate.a, candidate.b);
+	if (chosen.size === 0) {
+		console.log(
+			"Nothing to judge: every flagged pair has a verdict, and --judge-top is 0 or every pair is judged or ruled.",
+		);
+		return;
+	}
+	writeJudgeRequest(dir, [...chosen.values()]);
+	console.log(
+		`Wrote ${chosen.size} pair(s) to judge in ${dir}: ${flagged.length} flagged without a verdict, ${judgments.changed.length} changed since judged, the rest the closest unjudged by ${embedded ? "meaning" : "wording"}.`,
+	);
+	console.log(
+		`\n1. Give each judge prompt.md and pairs.json, and nothing else (keep key.json from them). Use more than one judge, or one model in fresh sessions; a fresh session per judge keeps them independent.\n2. Save each judge's reply in ${dir} as answer-1.json, answer-2.json, ...\n3. bun run check:corpus -- --judge-record ${dir}`,
+	);
+}
 
 /**
  * check:corpus --eval: scores each model against the author's rulings. Merges
@@ -433,8 +604,28 @@ async function runEval(): Promise<void> {
 		results.push({ model: candidate, seconds, report });
 	}
 
+	const bySlug = new Map(
+		unique.map((mechanism) => [mechanism.slug, mechanism]),
+	);
+	const judgeRulings = [
+		...merged.map((merge) => ({
+			pair: [merge.before[0].slug, merge.before[1].slug] as [string, string],
+			ruled: "merge" as const,
+			votes: votesOn(judgmentRecords, merge.before[0], merge.before[1]),
+		})),
+		...distinct.map((ruling) => {
+			const [a, b] = ruling.pair.map((slug) => bySlug.get(slug));
+			return {
+				pair: ruling.pair,
+				ruled: "distinct" as const,
+				votes: a && b ? votesOn(judgmentRecords, a, b) : [],
+			};
+		}),
+	];
+	const judges = evaluateJudgments(judgeRulings);
+
 	if (asJson) {
-		console.log(JSON.stringify(results, null, 2));
+		console.log(JSON.stringify({ models: results, judges }, null, 2));
 		return;
 	}
 
@@ -482,5 +673,49 @@ async function runEval(): Promise<void> {
 	}
 	console.log(
 		"\n→ A better model catches every merge while flagging fewer pairs. Unreviewed pairs at a model's cutoff are what check:corpus reports for the author to rule on when that model runs.",
+	);
+
+	const votes = judgeRulings.reduce((n, ruling) => n + ruling.votes.length, 0);
+	console.log(
+		`\nJUDGES (${JUDGMENTS_FILE}): ${judges.scored} of ${judgeRulings.length} rulings have verdicts on the text as ruled, ${votes} votes`,
+	);
+	if (judges.scored === 0) {
+		console.log(
+			"  Nothing to score. Ask judges about the ruled pairs with --judge-prompt, then --judge-record.",
+		);
+		return;
+	}
+	const { table, scoreCutoff } = judges;
+	console.log(
+		"  decision table (every judge says same idea: merge; some do: yours to rule; none do: distinct):",
+	);
+	console.log(
+		`    ${table.right} right, ${table.wrong.length} wrong, ${table.left.length} left to you`,
+	);
+	for (const [label, misses] of [
+		["wrong", table.wrong],
+		["left to you", table.left],
+	] as const) {
+		for (const miss of misses) {
+			console.log(
+				`    ${label}: ${miss.pair.join(" ~ ")} (ruled ${miss.ruled}): ${describeCall(miss.call)}`,
+			);
+		}
+	}
+	console.log(
+		`  lever × evidence score, cutoff fitted on the other rulings (leave one out): ${scoreCutoff.right} right, ${scoreCutoff.wrong.length} wrong`,
+	);
+	for (const miss of scoreCutoff.wrong) {
+		console.log(
+			`    wrong: ${miss.pair.join(" ~ ")} (ruled ${miss.ruled}, score ${miss.call.score.toFixed(2)})`,
+		);
+	}
+	if (judges.unjudged.length > 0) {
+		console.log(
+			`  no verdicts on the text as ruled: ${judges.unjudged.map((pair) => pair.join(" ~ ")).join(", ")}`,
+		);
+	}
+	console.log(
+		"\n→ The table never needs a cutoff, so it cannot be fitted to these rulings; the score needs one, and a cutoff fitted on three merges can move with the fourth.",
 	);
 }

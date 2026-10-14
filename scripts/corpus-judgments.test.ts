@@ -1,0 +1,268 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { repoRoot } from "./_lib";
+import {
+	formatJson,
+	type JudgmentRecord,
+	matchJudgments,
+	mergeRecords,
+	textHash,
+} from "./lib/corpus-judgments";
+
+/**
+ * check:corpus with judges' verdicts, in a workspace of its own: a pair the
+ * judges called the same idea is flagged though its wording differs, a
+ * verdict on a text that changed stops applying, and --judge-prompt then
+ * --judge-record round-trips answers into corpus-judgments.json.
+ */
+
+let workspace: string;
+
+const MECHANISMS = {
+	"waiting-game": {
+		title: "Waiting game",
+		definition: "Stalling until the other side gives up.",
+	},
+	"slow-walk": {
+		title: "Slow walk",
+		definition: "Processing a request at a crawl on purpose.",
+	},
+	"tidy-desk": {
+		title: "Tidy desk",
+		definition: "Filing every record by colour.",
+	},
+} as const;
+
+const source = (slug: keyof typeof MECHANISMS) => `---
+slug: ${slug}
+title: "${MECHANISMS[slug].title}"
+definition: "${MECHANISMS[slug].definition}"
+---
+`;
+
+const text = (slug: keyof typeof MECHANISMS) => ({
+	slug,
+	title: MECHANISMS[slug].title,
+	definition: MECHANISMS[slug].definition,
+	is: [],
+});
+
+const vote = (relation: string, judge = "test judge") => ({
+	judge,
+	date: "2026-10-14",
+	relation,
+	sameLever: 0.8,
+	sameEvidence: 0.7,
+});
+
+const checkCorpus = (...args: string[]) => {
+	const result = Bun.spawnSync(
+		[
+			process.execPath,
+			join(repoRoot(), "scripts", "check-corpus.ts"),
+			"--no-semantic",
+			...args,
+		],
+		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+	);
+	return {
+		status: result.exitCode,
+		output: `${result.stdout.toString()}${result.stderr.toString()}`,
+	};
+};
+
+const writeRecords = (records: unknown[]) =>
+	writeFileSync(
+		join(workspace, "corpus-judgments.json"),
+		formatJson({ judgments: records }),
+	);
+
+beforeAll(() => {
+	workspace = mkdtempSync(join(tmpdir(), "bookkit-judgments-"));
+	writeFileSync(
+		join(workspace, "corpus.json"),
+		JSON.stringify({ books: ["one", "two"], distinct: [] }),
+	);
+	for (const [book, slugs] of [
+		["one", ["waiting-game"]],
+		["two", ["slow-walk", "tidy-desk"]],
+	] as const) {
+		const dir = join(workspace, "apps", book, "src/content/book/mechanisms");
+		mkdirSync(dir, { recursive: true });
+		for (const slug of slugs) {
+			writeFileSync(join(dir, `${slug}.mdx`), source(slug));
+		}
+	}
+});
+
+afterAll(() => {
+	rmSync(workspace, { recursive: true, force: true });
+});
+
+describe("check:corpus with judges' verdicts", () => {
+	it("passes with no verdicts: the wording alone flags nothing here", () => {
+		const result = checkCorpus("--mode", "error");
+		expect(result.output).toContain("No unresolved overlapping mechanisms.");
+		expect(result.status).toBe(0);
+	});
+
+	it("flags a pair every judge called the same idea, with the call and what to do", () => {
+		writeRecords([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				texts: [textHash(text("waiting-game")), textHash(text("slow-walk"))],
+				votes: [vote("same_idea", "a"), vote("same_idea", "b")],
+			},
+		]);
+		const result = checkCorpus("--mode", "error");
+		expect(result.output).toContain(
+			"judges: verdicts on 1 pair(s) in corpus-judgments.json",
+		);
+		expect(result.output).toContain("judged the same idea");
+		expect(result.output).toContain(
+			"waiting-game ~ slow-walk: judges: same idea, 2 of 2",
+		);
+		expect(result.output).toContain("likely one mechanism");
+		expect(result.status).toBe(1);
+	});
+
+	it("drops a verdict once either text changes, and says which pair to ask about again", () => {
+		writeRecords([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				texts: [textHash(text("waiting-game")), "0000000000000000"],
+				votes: [vote("same_idea")],
+			},
+		]);
+		const result = checkCorpus("--mode", "error");
+		expect(result.output).toContain(
+			"1 changed since judged (waiting-game ~ slow-walk)",
+		);
+		expect(result.status).toBe(0);
+	});
+
+	it("writes a blind request, then records the answers", () => {
+		writeRecords([]);
+		const dir = join(workspace, "judging");
+		const prompt = checkCorpus("--judge-prompt", dir, "--judge-top", "3");
+		expect(prompt.status).toBe(0);
+		expect(prompt.output).toContain("Wrote 3 pair(s) to judge");
+		const pairs = JSON.parse(readFileSync(join(dir, "pairs.json"), "utf8"));
+		expect(pairs).toHaveLength(3);
+		// Blind: the judge sees titles and definitions, not slugs or books.
+		const visible = readFileSync(join(dir, "pairs.json"), "utf8");
+		expect(visible).not.toContain("waiting-game");
+		expect(visible).not.toContain('"two"');
+		expect(readFileSync(join(dir, "prompt.md"), "utf8")).toContain(
+			"holds 3 pairs",
+		);
+
+		const answers = (relation: string) =>
+			JSON.stringify(
+				pairs.map((pair: { id: string }) => ({
+					id: pair.id,
+					same_lever: 0.2,
+					same_evidence: 0.1,
+					relation,
+					relation_p: 0.6,
+				})),
+			);
+		// Prose around the array is fine: it is what a chat reply looks like.
+		writeFileSync(
+			join(dir, "answer-1.json"),
+			`Here you go:\n${answers("same_family")}`,
+		);
+		writeFileSync(join(dir, "answer-2.json"), answers("unrelated"));
+		const record = checkCorpus("--judge-record", dir);
+		expect(record.status).toBe(0);
+		expect(record.output).toContain("Recorded 2 judge(s) on 3 pair(s)");
+		const saved = JSON.parse(
+			readFileSync(join(workspace, "corpus-judgments.json"), "utf8"),
+		).judgments as JudgmentRecord[];
+		expect(saved).toHaveLength(3);
+		expect(saved.every((r) => r.votes.length === 2)).toBe(true);
+
+		// Recording the same answers again adds nothing.
+		checkCorpus("--judge-record", dir);
+		const again = JSON.parse(
+			readFileSync(join(workspace, "corpus-judgments.json"), "utf8"),
+		).judgments as JudgmentRecord[];
+		expect(again.every((r) => r.votes.length === 2)).toBe(true);
+
+		// Every pair is judged now, so nothing is left to ask about.
+		const none = checkCorpus("--judge-prompt", join(workspace, "next"));
+		expect(none.output).toContain("Nothing to judge");
+		expect(existsSync(join(workspace, "next"))).toBe(false);
+	});
+
+	it("refuses an answer file that skips a pair or invents a relation", () => {
+		const dir = join(workspace, "judging");
+		writeFileSync(
+			join(dir, "answer-1.json"),
+			'[{"id":"P01","same_lever":0.2,"same_evidence":0.1,"relation":"cousins"}]',
+		);
+		const result = checkCorpus("--judge-record", dir);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain("a relation from same_idea");
+	});
+});
+
+describe("corpus-judgments helpers", () => {
+	const record = (
+		texts: [string, string],
+		judge: string,
+		relation = "same_family",
+	): JudgmentRecord => ({
+		pair: ["waiting-game", "slow-walk"],
+		texts,
+		votes: [vote(relation, judge) as JudgmentRecord["votes"][number]],
+	});
+	const now: [string, string] = [
+		textHash(text("waiting-game")),
+		textHash(text("slow-walk")),
+	];
+
+	it("merges votes on the same texts into one record, whichever way the pair was written", () => {
+		const reversed: JudgmentRecord = {
+			pair: ["slow-walk", "waiting-game"],
+			texts: [now[1], now[0]],
+			votes: [vote("same_idea", "b") as JudgmentRecord["votes"][number]],
+		};
+		const merged = mergeRecords([record(now, "a")], [reversed]);
+		expect(merged).toHaveLength(1);
+		expect(merged[0].votes.map((v) => v.judge)).toEqual(["a", "b"]);
+		const matched = matchJudgments(merged, [
+			text("waiting-game"),
+			text("slow-walk"),
+		]);
+		expect(matched.current[0].votes).toHaveLength(2);
+		expect(matched.changed).toEqual([]);
+	});
+
+	it("keeps a verdict on older texts as its own record", () => {
+		const merged = mergeRecords(
+			[record(["old", "old"], "a")],
+			[record(now, "a")],
+		);
+		expect(merged).toHaveLength(2);
+	});
+
+	it("writes JSON the way Biome formats it", () => {
+		expect(
+			formatJson({
+				judgments: [{ pair: ["a", "b"], votes: [{ relation: "same_idea" }] }],
+			}),
+		).toBe(
+			'{\n\t"judgments": [\n\t\t{\n\t\t\t"pair": ["a", "b"],\n\t\t\t"votes": [\n\t\t\t\t{\n\t\t\t\t\t"relation": "same_idea"\n\t\t\t\t}\n\t\t\t]\n\t\t}\n\t]\n}\n',
+		);
+	});
+});

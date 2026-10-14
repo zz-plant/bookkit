@@ -13,7 +13,7 @@ import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
  *   bun run check:types -- --no-astro   # .ts only, for a quick local loop
  *
  * TypeScript 7 is installed under the alias `typescript-native` because the
- * `typescript` package stays on 5.x: scripts/validate-book.ts parses
+ * `typescript` package stays on 5.x: scripts/lib/site-config.ts parses
  * book.config.ts with the 5.x compiler API, which 7.x replaced.
  *
  * Neither compiler reads `.astro` files, so `astro check` covers them: every

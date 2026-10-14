@@ -3,6 +3,10 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — Release SEO gate reads real configs
+
+- **Fixed: `validate:release:seo` failed every book with `RELEASE_SITE_URL`.** The `book.config.ts` reader skipped `bookConfig = { ... } as const`, the form every app uses, so it never saw `site.url`. It now looks through `as const` and `satisfies`, and follows a shorthand `{ site }` to its binding. `on-call` and `bad-people` now pass the gate; `crumple-zone` and `running-hot` report `RELEASE_NOT_INDEXABLE` for their literal `indexable: false`, which the gate had been missing. The reader moved to `scripts/lib/site-config.ts`. **Migration:** none.
+
 ## 2026-10-14 — Reader search reports its real backend
 
 - **Fixed: semantic search said "Model loaded (WebGPU)." while running on WebAssembly.** `createEmbeddingEngine` passed WebGPU options that `@xenova/transformers` v2 does not support and silently ignores, so the WebGPU branch always "succeeded". It now loads once and reports "Model loaded."; the "GPU acceleration unavailable." message is gone too. Search results are unchanged. **Migration:** none.

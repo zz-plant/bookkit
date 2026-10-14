@@ -5,6 +5,7 @@ import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { isStandaloneProject } from "./lib/project";
 import { type Gate, planGates } from "./lib/verify-plan";
+import { failedWorkspaces } from "./lib/workspace-output";
 
 /**
  * verify — runs the checks a change needs, judged by which files it touches.
@@ -96,6 +97,35 @@ type GateResult = Gate & {
 	seconds: number;
 	output: string;
 	findings?: Finding[];
+};
+
+/**
+ * What a failed gate reports: the books whose build failed, if it built
+ * several at once, and the last lines of their own output (a tail of the
+ * combined output is mostly the books that passed); else its last 40 lines.
+ */
+const failureReport = (
+	output: string,
+): { books: string[]; lines: string[] } => {
+	const builds = failedWorkspaces(output);
+	if (builds.length === 0) {
+		return { books: [], lines: output.trimEnd().split("\n").slice(-40) };
+	}
+	return {
+		books: builds.map((build) => build.name),
+		lines: builds.flatMap((build) => [
+			`${build.name} failed:`,
+			...build.lines.slice(-40).map((line) => `  ${line}`),
+		]),
+	};
+};
+
+/** A failed gate's label, naming the books that broke it. */
+const failedLabel = (result: GateResult): string => {
+	const { books } = failureReport(result.output);
+	return books.length > 0
+		? `${result.label} (${books.join(", ")})`
+		: result.label;
 };
 
 /** Findings a content gate reports, narrowed to the files this change touched. */
@@ -192,8 +222,9 @@ for (const gate of gates) {
 		}
 	}
 	if (!result.ok && result.output) {
-		const tail = result.output.trimEnd().split("\n").slice(-40);
-		for (const line of tail) console.log(`      ${line}`);
+		for (const line of failureReport(result.output).lines) {
+			console.log(`      ${line}`);
+		}
 	}
 }
 
@@ -208,10 +239,11 @@ if (asJson) {
 				gates: results.map(({ id, label, ok, seconds, findings, output }) => ({
 					id,
 					label,
+					failedBooks: ok ? undefined : failureReport(output).books,
 					ok,
 					seconds: Math.round(seconds * 10) / 10,
 					findings,
-					output: ok ? undefined : output.trimEnd().split("\n").slice(-40),
+					output: ok ? undefined : failureReport(output).lines,
 				})),
 			},
 			null,
@@ -222,7 +254,7 @@ if (asJson) {
 	console.log(
 		failed.length === 0
 			? `\nAll ${results.length} checks passed.`
-			: `\n${failed.length} of ${results.length} checks failed: ${failed.map((result) => result.label).join(", ")}.`,
+			: `\n${failed.length} of ${results.length} checks failed: ${failed.map(failedLabel).join(", ")}.`,
 	);
 }
 

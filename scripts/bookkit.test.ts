@@ -169,4 +169,21 @@ describe("bookkit deploy", () => {
 		expect(result.status).not.toBe(0);
 		expect(result.published.join("\n")).not.toContain("broken-book");
 	});
+
+	it("deploys the current book when none is named, and every book with --all", () => {
+		const state = join(workspace, ".bookkit", "local.json");
+		mkdirSync(join(workspace, ".bookkit"), { recursive: true });
+		writeFileSync(state, JSON.stringify({ book: "clean-book" }));
+		try {
+			const current = deploy();
+			expect(current.status).toBe(0);
+			expect(current.output).toContain("clean-book is the current book");
+			expect(current.published).toEqual(["clean-book deploy --dry-run"]);
+
+			const all = deploy("--all");
+			expect(all.output).toContain("Refusing to deploy broken-book");
+		} finally {
+			rmSync(state, { force: true });
+		}
+	});
 });

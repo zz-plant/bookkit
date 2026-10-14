@@ -9,6 +9,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
+import { COPIED_SCRIPTS } from "./copied-scripts";
 
 const here = import.meta.dir;
 const repoRoot = join(here, "../../..");
@@ -143,13 +144,7 @@ for (const rel of [
 	writeProjectRootFile(targetDir, rel, { bookSlug, title });
 }
 
-for (const rel of [
-	"_lib.ts",
-	"lib/content-frontmatter.ts",
-	"import-book-from-markdown.ts",
-	"check-suggestions.ts",
-	"check-runbooks.ts",
-]) {
+for (const rel of COPIED_SCRIPTS) {
 	const srcPath = join(repoRoot, "scripts", rel);
 	const destPath = join(targetDir, "scripts", rel);
 	mkdirSync(join(destPath, ".."), { recursive: true });
@@ -189,10 +184,26 @@ if (mode === "error" && totalErrors > 0) process.exit(1);
 `,
 );
 
+// Import reads frontmatter with the project's own dependencies, so a project
+// that imports Markdown is installed first. The source path is resolved here:
+// the import runs inside the new project, where a relative path would differ.
+let installed = false;
 if (markdownDir) {
-	if (!existsSync(markdownDir))
-		fail(`Markdown source directory not found: ${markdownDir}`);
-	console.log(`Importing chapters from ${markdownDir}...`);
+	const source = resolve(markdownDir);
+	if (!existsSync(source))
+		fail(`Markdown source directory not found: ${source}`);
+	console.log("Installing dependencies (bun install)...");
+	const install = spawnSync("bun", ["install"], {
+		cwd: targetDir,
+		stdio: "inherit",
+	});
+	if (install.status !== 0) {
+		fail(
+			`bun install exited with status ${install.status}. Run it in ${targetDir}, then: bun run import --book ${bookSlug} --dir ${source}`,
+		);
+	}
+	installed = true;
+	console.log(`Importing chapters from ${source}...`);
 	const run = spawnSync(
 		"bun",
 		[
@@ -201,7 +212,7 @@ if (markdownDir) {
 			"--book",
 			bookSlug,
 			"--dir",
-			markdownDir,
+			source,
 		],
 		{ cwd: targetDir, stdio: "inherit" },
 	);
@@ -210,8 +221,7 @@ if (markdownDir) {
 
 console.log(`
 Done. Next:
-  cd ${targetDir}
-  bun install
+  cd ${targetDir}${installed ? "" : "\n  bun install"}
   bun run validate
   bun run dev          (or: bun run build)
   bun run suggest      (analyzer proposes mechanism/tool drafts)

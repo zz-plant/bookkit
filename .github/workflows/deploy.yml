@@ -46,4 +46,4 @@ jobs:
 
       - name: Build, verify, and deploy every book
         if: env.CLOUDFLARE_API_TOKEN != ''
-        run: bun run bookkit deploy
+        run: bun run bookkit deploy --all

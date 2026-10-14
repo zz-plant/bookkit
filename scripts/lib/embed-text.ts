@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 /**
  * Local sentence embeddings for author-side checks (check:corpus).
  *
@@ -71,6 +74,27 @@ export const resolveEmbeddingModel = (
 	key: string = DEFAULT_EMBEDDING_MODEL_KEY,
 ): EmbeddingModel | null => EMBEDDING_MODELS[key] ?? null;
 
+/** Where @xenova/transformers keeps downloaded models: BOOKKIT_MODEL_CACHE, else its own .cache folder. */
+const modelCacheDir = (): string | undefined => {
+	if (process.env.BOOKKIT_MODEL_CACHE) return process.env.BOOKKIT_MODEL_CACHE;
+	try {
+		return join(
+			dirname(
+				Bun.resolveSync("@xenova/transformers/package.json", import.meta.dir),
+			),
+			".cache",
+		);
+	} catch {
+		return undefined;
+	}
+};
+
+/** True once a model has been downloaded, so the first run can say it is downloading. */
+export const isModelCached = (model: EmbeddingModel): boolean => {
+	const dir = modelCacheDir();
+	return dir !== undefined && existsSync(join(dir, model.id));
+};
+
 export type EmbedResult =
 	| { ok: true; model: EmbeddingModel; vectors: Float32Array[] }
 	| { ok: false; model: EmbeddingModel; reason: string };
@@ -114,6 +138,12 @@ export const embedTexts = async (
 			transformers.env.cacheDir = process.env.BOOKKIT_MODEL_CACHE;
 		}
 		transformers.env.allowLocalModels = false;
+		if (!isModelCached(model)) {
+			// stderr, so --json output on stdout stays parseable.
+			console.error(
+				`Downloading ${model.id} (about ${model.download}) for the meaning check. This happens once; later runs use the cache.`,
+			);
+		}
 		// Single-threaded WASM: the multi-threaded backend spawns workers from blob
 		// URLs, which Bun rejects (ERR_WORKER_PATH) and which can leave the process hung.
 		transformers.env.backends.onnx.wasm.numThreads = 1;

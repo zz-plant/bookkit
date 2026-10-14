@@ -3,6 +3,12 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — `bookkit deploy` refuses invalid content
+
+- **Fixed: `bookkit deploy` published books whose content failed validation.** It built each book and checked only its `dist/`, and a build renders a tool with `timeboxMinutes: 45` or an unknown mechanism without complaint. Run from a laptop, deploy could publish what CI would have rejected. It now runs the per-book content check `bun run verify` runs (`checkBookContent`) before building. A book with any error is refused the way a failing `check:build` already was: a `CONTENT <book>: failed` line, each error with its file and fix, `Refusing to deploy <book>: its content failed validation.`, and exit 1, which ends the run. Warnings are counted, not listed, and do not block.
+- **`bookkit build` is unchanged** and still builds a book with content errors. Builds belong to the render pipeline and content checks to the governance pipeline (`docs/architecture.md`); `dev` and `build` keep working on drafts.
+- **Migration:** none for a book that passes `bun run verify`. A book with content errors no longer deploys until they are fixed.
+
 ## 2026-10-14 — README images show real output
 
 - **The README's images are new.** The 2.9 MB GIF of a generic open book is replaced by screenshots of two built On-Call Runbook pages, in a light and a dark version. "How a book compiles" gets a diagram of the inputs, the gates, and the artifacts, and the line "AI may propose; the compiler decides." gets the real output of `bookkit check` rejecting a toolkit action broken on purpose. Both are SVG in light and dark versions, with the books' typefaces embedded as subsets, so the text stays text.

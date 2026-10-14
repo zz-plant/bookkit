@@ -1,0 +1,609 @@
+[
+	{
+		"id": "P01",
+		"A": {
+			"title": "The Pyrrhic Condition",
+			"definition": "Winning in a way that destroys what made winning worthwhile.",
+			"covers": [
+				"Victories that cost what you were fighting to protect are systemic failures",
+				"Institutional incentive structures reward Pyrrhic outcomes",
+				"Diagnose by asking: what did winning cost?"
+			]
+		},
+		"B": {
+			"title": "Transfer Success",
+			"definition": "A system preserves power by moving cost, risk, or blame onto weaker parties while keeping decision authority elsewhere.",
+			"covers": [
+				"A recurring pattern where accountability travels downward but authority stays upward.",
+				"A designed outcome that looks like failure to the harmed party but success to the system."
+			]
+		}
+	},
+	{
+		"id": "P02",
+		"A": {
+			"title": "Attrition by queue",
+			"definition": "A filtering mechanism where queue structure, resets, and handoffs quietly remove people from service pathways.",
+			"covers": [
+				"Multi-step waits with expiry windows, missed-call penalties, or restart requirements.",
+				"Neutral-seeming throughput controls that disproportionately expel people with less scheduling flexibility."
+			]
+		},
+		"B": {
+			"title": "Delay as force",
+			"definition": "A governance pattern where elapsed time is weaponized: delays exhaust options, reduce claims, and push people to withdraw or accept worse terms without an explicit denial.",
+			"covers": [
+				"Wait times and review loops that increase burden for the claimant while preserving institutional flexibility.",
+				"Time costs shifted onto people with urgent needs, unstable income, or fragile health.",
+				"Waiting that raises the cost of refusal, relying on fatigue, deadlines, or uncertainty to force consent."
+			]
+		}
+	},
+	{
+		"id": "P03",
+		"A": {
+			"title": "Delay as force",
+			"definition": "A governance pattern where elapsed time is weaponized: delays exhaust options, reduce claims, and push people to withdraw or accept worse terms without an explicit denial.",
+			"covers": [
+				"Wait times and review loops that increase burden for the claimant while preserving institutional flexibility.",
+				"Time costs shifted onto people with urgent needs, unstable income, or fragile health.",
+				"Waiting that raises the cost of refusal, relying on fatigue, deadlines, or uncertainty to force consent."
+			]
+		},
+		"B": {
+			"title": "Temporal Capture",
+			"definition": "Institutions capture human duration as a resource. Time is extracted but never accounted for.",
+			"covers": [
+				"Human time is systematically extracted without compensation",
+				"Waiting, paperwork, and procedural delay are temporal taxation",
+				"Time sovereignty is the right to control your own duration"
+			]
+		}
+	},
+	{
+		"id": "P04",
+		"A": {
+			"title": "Delay as force",
+			"definition": "A governance pattern where elapsed time is weaponized to reduce claims, lower payouts, or induce withdrawal without explicit denial.",
+			"covers": [
+				"Wait times and review loops that increase burden for the claimant while preserving institutional flexibility.",
+				"Time costs shifted onto people with urgent needs, unstable income, or fragile health."
+			]
+		},
+		"B": {
+			"title": "Coercive Waiting",
+			"definition": "Time is used as pressure: delays exhaust options, narrow choices, and coerce agreement.",
+			"covers": [
+				"A pattern where waiting increases the cost of refusal.",
+				"A tactic that relies on fatigue, deadlines, or uncertainty to force consent."
+			]
+		}
+	},
+	{
+		"id": "P05",
+		"A": {
+			"title": "Credibility as Access Control",
+			"definition": "Credibility is gatekeeping disguised as quality control. Who gets believed determines access.",
+			"covers": [
+				"Credibility assessments function as structural filters",
+				"The credibility frame obscures power dynamics of who gets believed",
+				"Access to resources and justice depends on passing credibility gates"
+			]
+		},
+		"B": {
+			"title": "Reputation Membrane",
+			"definition": "Safety or ethics language forms a protective membrane that shields reputations without creating real reversibility or repair.",
+			"covers": [
+				"A focus on appearances of care over measurable remedy.",
+				"A system that treats transparency as optional while requiring positive messaging."
+			]
+		}
+	},
+	{
+		"id": "P06",
+		"A": {
+			"title": "Refusability Gap",
+			"definition": "The ability to say no is treated as optional when it should be a structural design requirement.",
+			"covers": [
+				"Refusal is not currently designed into most systems",
+				"The absence of refusal points is a political choice",
+				"Systems that make refusal impossible are coercive by design"
+			]
+		},
+		"B": {
+			"title": "Coercion by Design",
+			"definition": "Coercion is not accidental. It is designed into systems, and therefore can be designed out.",
+			"covers": [
+				"Coercive outcomes result from design choices",
+				"Systems can be built where coercion is structurally impossible",
+				"Designers should bear the burden of proving non-coercion"
+			]
+		}
+	},
+	{
+		"id": "P07",
+		"A": {
+			"title": "Compliance Trap",
+			"definition": "Warmth and niceness are used to secure compliance, making refusal feel like cruelty or betrayal.",
+			"covers": [
+				"A social setup where refusal is framed as harm while compliance is framed as kindness.",
+				"A situation where relational tone is used to bypass consent."
+			]
+		},
+		"B": {
+			"title": "Bureaucracy as Moral Technology",
+			"definition": "Procedures transform compliance into moral cover, allowing harm to be treated as acceptable if the process was followed.",
+			"covers": [
+				"A reliance on paperwork or policy to replace moral judgment.",
+				"A system that treats procedural compliance as innocence."
+			]
+		}
+	},
+	{
+		"id": "P08",
+		"A": {
+			"title": "Reputation Membrane",
+			"definition": "Safety or ethics language forms a protective membrane that shields reputations without creating real reversibility or repair.",
+			"covers": [
+				"A focus on appearances of care over measurable remedy.",
+				"A system that treats transparency as optional while requiring positive messaging."
+			]
+		},
+		"B": {
+			"title": "Bureaucracy as Moral Technology",
+			"definition": "Procedures transform compliance into moral cover, allowing harm to be treated as acceptable if the process was followed.",
+			"covers": [
+				"A reliance on paperwork or policy to replace moral judgment.",
+				"A system that treats procedural compliance as innocence."
+			]
+		}
+	},
+	{
+		"id": "P09",
+		"A": {
+			"title": "Attrition by queue",
+			"definition": "A filtering mechanism where queue structure, resets, and handoffs quietly remove people from service pathways.",
+			"covers": [
+				"Multi-step waits with expiry windows, missed-call penalties, or restart requirements.",
+				"Neutral-seeming throughput controls that disproportionately expel people with less scheduling flexibility."
+			]
+		},
+		"B": {
+			"title": "The Death of Slack",
+			"definition": "Eliminating buffer and margin breaks people instead of systems. Slack is structural mercy.",
+			"covers": [
+				"Efficiency optimization eliminates the buffer that protects humans",
+				"When systems run at 100 percent, people become the shock absorber",
+				"Slack is the difference between a working system and a broken person"
+			]
+		}
+	},
+	{
+		"id": "P10",
+		"A": {
+			"title": "Delay as force",
+			"definition": "A governance pattern where elapsed time is weaponized: delays exhaust options, reduce claims, and push people to withdraw or accept worse terms without an explicit denial.",
+			"covers": [
+				"Wait times and review loops that increase burden for the claimant while preserving institutional flexibility.",
+				"Time costs shifted onto people with urgent needs, unstable income, or fragile health.",
+				"Waiting that raises the cost of refusal, relying on fatigue, deadlines, or uncertainty to force consent."
+			]
+		},
+		"B": {
+			"title": "Reversibility gap",
+			"definition": "A structural asymmetry where institutions can impose harmful states quickly but cannot restore people to baseline at comparable speed.",
+			"covers": [
+				"Instant suspensions, cancellations, or denials paired with slow restoration channels.",
+				"Interim harm accumulates while correction is pending."
+			]
+		}
+	},
+	{
+		"id": "P11",
+		"A": {
+			"title": "Transfer Success",
+			"definition": "A system preserves power by moving cost, risk, or blame onto weaker parties while keeping decision authority elsewhere.",
+			"covers": [
+				"A recurring pattern where accountability travels downward but authority stays upward.",
+				"A designed outcome that looks like failure to the harmed party but success to the system."
+			]
+		},
+		"B": {
+			"title": "Crumple zone",
+			"definition": "A system-stability pattern where institutions preserve output by routing shocks and volatility into people. Unpaid labor, delay, and physiological stress absorb what buffers and slack should; human bodies become the cheapest shock absorbers.",
+			"covers": [
+				"Institutional stability is purchased by externalizing pressure onto people instead of containing it.",
+				"The organization stays operational by routing spikes into waiting, paperwork, escalation friction, and emotional regulation demands on individuals.",
+				"Cooling capacity (buffers, slack, rollback, coverage) is underbuilt while throughput targets stay unchanged.",
+				"The human body is treated as the cheapest available infrastructure."
+			]
+		}
+	},
+	{
+		"id": "P12",
+		"A": {
+			"title": "Reversibility gap",
+			"definition": "A structural asymmetry where institutions can impose harmful states quickly but cannot restore people to baseline at comparable speed.",
+			"covers": [
+				"Instant suspensions, cancellations, or denials paired with slow restoration channels.",
+				"Interim harm accumulates while correction is pending."
+			]
+		},
+		"B": {
+			"title": "Transfer Success",
+			"definition": "A system preserves power by moving cost, risk, or blame onto weaker parties while keeping decision authority elsewhere.",
+			"covers": [
+				"A recurring pattern where accountability travels downward but authority stays upward.",
+				"A designed outcome that looks like failure to the harmed party but success to the system."
+			]
+		}
+	},
+	{
+		"id": "P13",
+		"A": {
+			"title": "The Cowardice of Inference",
+			"definition": "Drawing the correct conclusion without the courage to act on it.",
+			"covers": [
+				"Institutions regularly identify problems they refuse to solve",
+				"The diagnosis-to-action gap is maintained by incentive structures",
+				"Inference without action is institutional bad faith"
+			]
+		},
+		"B": {
+			"title": "The Pyrrhic Condition",
+			"definition": "Winning in a way that destroys what made winning worthwhile.",
+			"covers": [
+				"Victories that cost what you were fighting to protect are systemic failures",
+				"Institutional incentive structures reward Pyrrhic outcomes",
+				"Diagnose by asking: what did winning cost?"
+			]
+		}
+	},
+	{
+		"id": "P14",
+		"A": {
+			"title": "Governance by Caricature",
+			"definition": "Institutions ruled by distorted, simplified, weaponized versions of their own principles.",
+			"covers": [
+				"Institutional self-description diverges sharply from behavior",
+				"The caricature version of a principle is easier to enforce than the real thing",
+				"Stated values become tools for suppressing internal dissent"
+			]
+		},
+		"B": {
+			"title": "Sanctiphagy (Virtue Extraction)",
+			"definition": "Systems consume and commodify moral goodness. Virtue is extracted, branded, and the husk discarded.",
+			"covers": [
+				"Moral behavior is treated as a resource to be mined",
+				"Institutions extract reputational value from good acts",
+				"The language of ethics is co-opted to justify extraction"
+			]
+		}
+	},
+	{
+		"id": "P15",
+		"A": {
+			"title": "Sanctiphagy (Virtue Extraction)",
+			"definition": "Systems consume and commodify moral goodness. Virtue is extracted, branded, and the husk discarded.",
+			"covers": [
+				"Moral behavior is treated as a resource to be mined",
+				"Institutions extract reputational value from good acts",
+				"The language of ethics is co-opted to justify extraction"
+			]
+		},
+		"B": {
+			"title": "Bureaucracy as Moral Technology",
+			"definition": "Procedures transform compliance into moral cover, allowing harm to be treated as acceptable if the process was followed.",
+			"covers": [
+				"A reliance on paperwork or policy to replace moral judgment.",
+				"A system that treats procedural compliance as innocence."
+			]
+		}
+	},
+	{
+		"id": "P16",
+		"A": {
+			"title": "Human heat sink",
+			"definition": "A system-stability pattern where institutions preserve output by exporting volatility into people's unpaid labor, delay exposure, and physiological stress.",
+			"covers": [
+				"The organization remains operational by routing spikes into waiting, paperwork, escalation friction, and emotional regulation demands on individuals.",
+				"Cooling capacity (buffers, slack, rollback, coverage) is underbuilt while throughput targets remain unchanged."
+			]
+		},
+		"B": {
+			"title": "Crumple Zone",
+			"definition": "Individuals absorb the force of systemic failures. Human bodies become the cheapest shock absorbers.",
+			"covers": [
+				"Systems transfer risk to individuals rather than containing it",
+				"Institutional stability is purchased by externalizing pressure onto people",
+				"The human body is treated as the cheapest available infrastructure"
+			]
+		}
+	},
+	{
+		"id": "P17",
+		"A": {
+			"title": "Volatocracy",
+			"definition": "Rule through manufactured instability. Keeping people too unsteady to organize.",
+			"covers": [
+				"Instability is deliberately produced to prevent collective action",
+				"Economic, informational, social volatility are governance tools",
+				"Stability becomes a luxury good rather than baseline"
+			]
+		},
+		"B": {
+			"title": "Governance by Caricature",
+			"definition": "Institutions ruled by distorted, simplified, weaponized versions of their own principles.",
+			"covers": [
+				"Institutional self-description diverges sharply from behavior",
+				"The caricature version of a principle is easier to enforce than the real thing",
+				"Stated values become tools for suppressing internal dissent"
+			]
+		}
+	},
+	{
+		"id": "P18",
+		"A": {
+			"title": "Transfer Success",
+			"definition": "A system preserves power by moving cost, risk, or blame onto weaker parties while keeping decision authority elsewhere.",
+			"covers": [
+				"A recurring pattern where accountability travels downward but authority stays upward.",
+				"A designed outcome that looks like failure to the harmed party but success to the system."
+			]
+		},
+		"B": {
+			"title": "Reversal Capacity",
+			"definition": "The ability to reverse harm depends on access to documentation, allies, and buffers, not on who is right.",
+			"covers": [
+				"A structural advantage for people with resources to contest decisions.",
+				"A gap between formal rights and practical ability to use them."
+			]
+		}
+	},
+	{
+		"id": "P19",
+		"A": {
+			"title": "Bureaucracy as Moral Technology",
+			"definition": "Procedures transform compliance into moral cover, allowing harm to be treated as acceptable if the process was followed.",
+			"covers": [
+				"A reliance on paperwork or policy to replace moral judgment.",
+				"A system that treats procedural compliance as innocence."
+			]
+		},
+		"B": {
+			"title": "Clearance Culture",
+			"definition": "Needing institutional permission to re-enter after any deviation from expected behavior.",
+			"covers": [
+				"Deviation triggers a clearance process the deviant must manage",
+				"The burden of re-entry falls entirely on the person who deviated",
+				"Clearance is ongoing punishment disguised as due process"
+			]
+		}
+	},
+	{
+		"id": "P20",
+		"A": {
+			"title": "Volatocracy",
+			"definition": "Rule through manufactured instability. Keeping people too unsteady to organize.",
+			"covers": [
+				"Instability is deliberately produced to prevent collective action",
+				"Economic, informational, social volatility are governance tools",
+				"Stability becomes a luxury good rather than baseline"
+			]
+		},
+		"B": {
+			"title": "Crumple zone",
+			"definition": "A system-stability pattern where institutions preserve output by routing shocks and volatility into people. Unpaid labor, delay, and physiological stress absorb what buffers and slack should; human bodies become the cheapest shock absorbers.",
+			"covers": [
+				"Institutional stability is purchased by externalizing pressure onto people instead of containing it.",
+				"The organization stays operational by routing spikes into waiting, paperwork, escalation friction, and emotional regulation demands on individuals.",
+				"Cooling capacity (buffers, slack, rollback, coverage) is underbuilt while throughput targets stay unchanged.",
+				"The human body is treated as the cheapest available infrastructure."
+			]
+		}
+	},
+	{
+		"id": "P21",
+		"A": {
+			"title": "Vibe-Based Legitimacy",
+			"definition": "Authority derived from aesthetic and affect rather than demonstrated competence.",
+			"covers": [
+				"Institutions rely on aesthetic signals rather than substantive proof",
+				"Charisma and cultural fluency substitute for demonstrated effectiveness",
+				"The gap between vibe and substance is the legitimacy deficit"
+			]
+		},
+		"B": {
+			"title": "Compliance Trap",
+			"definition": "Warmth and niceness are used to secure compliance, making refusal feel like cruelty or betrayal.",
+			"covers": [
+				"A social setup where refusal is framed as harm while compliance is framed as kindness.",
+				"A situation where relational tone is used to bypass consent."
+			]
+		}
+	},
+	{
+		"id": "P22",
+		"A": {
+			"title": "Vibe-Based Legitimacy",
+			"definition": "Authority derived from aesthetic and affect rather than demonstrated competence.",
+			"covers": [
+				"Institutions rely on aesthetic signals rather than substantive proof",
+				"Charisma and cultural fluency substitute for demonstrated effectiveness",
+				"The gap between vibe and substance is the legitimacy deficit"
+			]
+		},
+		"B": {
+			"title": "Governance by Caricature",
+			"definition": "Institutions ruled by distorted, simplified, weaponized versions of their own principles.",
+			"covers": [
+				"Institutional self-description diverges sharply from behavior",
+				"The caricature version of a principle is easier to enforce than the real thing",
+				"Stated values become tools for suppressing internal dissent"
+			]
+		}
+	},
+	{
+		"id": "P23",
+		"A": {
+			"title": "The Death of Slack",
+			"definition": "Eliminating buffer and margin breaks people instead of systems. Slack is structural mercy.",
+			"covers": [
+				"Efficiency optimization eliminates the buffer that protects humans",
+				"When systems run at 100 percent, people become the shock absorber",
+				"Slack is the difference between a working system and a broken person"
+			]
+		},
+		"B": {
+			"title": "Crumple zone",
+			"definition": "A system-stability pattern where institutions preserve output by routing shocks and volatility into people. Unpaid labor, delay, and physiological stress absorb what buffers and slack should; human bodies become the cheapest shock absorbers.",
+			"covers": [
+				"Institutional stability is purchased by externalizing pressure onto people instead of containing it.",
+				"The organization stays operational by routing spikes into waiting, paperwork, escalation friction, and emotional regulation demands on individuals.",
+				"Cooling capacity (buffers, slack, rollback, coverage) is underbuilt while throughput targets stay unchanged.",
+				"The human body is treated as the cheapest available infrastructure."
+			]
+		}
+	},
+	{
+		"id": "P24",
+		"A": {
+			"title": "Obligation without custody",
+			"definition": "A control mismatch where institutions assign responsibility for outcomes to people who do not control the governing levers.",
+			"covers": [
+				"A person is judged on timeliness, correctness, or compliance while approvals, system access, and sequencing are controlled elsewhere.",
+				"Failure is individualized even when the blocked lever is organizational."
+			]
+		},
+		"B": {
+			"title": "Bureaucracy as Moral Technology",
+			"definition": "Procedures transform compliance into moral cover, allowing harm to be treated as acceptable if the process was followed.",
+			"covers": [
+				"A reliance on paperwork or policy to replace moral judgment.",
+				"A system that treats procedural compliance as innocence."
+			]
+		}
+	},
+	{
+		"id": "P25",
+		"A": {
+			"title": "Compliance Trap",
+			"definition": "Warmth and niceness are used to secure compliance, making refusal feel like cruelty or betrayal.",
+			"covers": [
+				"A social setup where refusal is framed as harm while compliance is framed as kindness.",
+				"A situation where relational tone is used to bypass consent."
+			]
+		},
+		"B": {
+			"title": "Refusability Gap",
+			"definition": "The ability to say no is treated as optional when it should be a structural design requirement. Where refusal is not designed in, coercion is: it is a design choice, not an accident, and so it can be designed out.",
+			"covers": [
+				"Refusal is not currently designed into most systems",
+				"The absence of refusal points is a political choice",
+				"Coercive outcomes result from design choices; systems that make refusal impossible are coercive by design",
+				"Systems can be built where coercion is structurally impossible",
+				"Designers should bear the burden of proving non-coercion"
+			]
+		}
+	},
+	{
+		"id": "P26",
+		"A": {
+			"title": "Reversibility gap",
+			"definition": "A structural asymmetry where institutions can impose harmful states quickly but cannot restore people to baseline at comparable speed.",
+			"covers": [
+				"Instant suspensions, cancellations, or denials paired with slow restoration channels.",
+				"Interim harm accumulates while correction is pending."
+			]
+		},
+		"B": {
+			"title": "Refusability Gap",
+			"definition": "The ability to say no is treated as optional when it should be a structural design requirement. Where refusal is not designed in, coercion is: it is a design choice, not an accident, and so it can be designed out.",
+			"covers": [
+				"Refusal is not currently designed into most systems",
+				"The absence of refusal points is a political choice",
+				"Coercive outcomes result from design choices; systems that make refusal impossible are coercive by design",
+				"Systems can be built where coercion is structurally impossible",
+				"Designers should bear the burden of proving non-coercion"
+			]
+		}
+	},
+	{
+		"id": "P27",
+		"A": {
+			"title": "Credibility as Access Control",
+			"definition": "Credibility is gatekeeping disguised as quality control. Who gets believed determines access.",
+			"covers": [
+				"Credibility assessments function as structural filters",
+				"The credibility frame obscures power dynamics of who gets believed",
+				"Access to resources and justice depends on passing credibility gates"
+			]
+		},
+		"B": {
+			"title": "Discretion as gate",
+			"definition": "A decision architecture where opaque judgment determines access and recourse without stable, inspectable criteria.",
+			"covers": [
+				"Case outcomes vary significantly by reviewer, shift, or channel with weak explanation quality.",
+				"Policy language delegates broad exceptions without guardrails or appeal transparency."
+			]
+		}
+	},
+	{
+		"id": "P28",
+		"A": {
+			"title": "Reversibility gap",
+			"definition": "A structural asymmetry where institutions can impose harmful states quickly but cannot restore people to baseline at comparable speed.",
+			"covers": [
+				"Instant suspensions, cancellations, or denials paired with slow restoration channels.",
+				"Interim harm accumulates while correction is pending."
+			]
+		},
+		"B": {
+			"title": "Reversal Capacity",
+			"definition": "The ability to reverse harm depends on access to documentation, allies, and buffers, not on who is right.",
+			"covers": [
+				"A structural advantage for people with resources to contest decisions.",
+				"A gap between formal rights and practical ability to use them."
+			]
+		}
+	},
+	{
+		"id": "P29",
+		"A": {
+			"title": "Reputation Membrane",
+			"definition": "Safety or ethics language forms a protective membrane that shields reputations without creating real reversibility or repair.",
+			"covers": [
+				"A focus on appearances of care over measurable remedy.",
+				"A system that treats transparency as optional while requiring positive messaging."
+			]
+		},
+		"B": {
+			"title": "Sanctiphagy (Virtue Extraction)",
+			"definition": "Systems consume and commodify moral goodness. Virtue is extracted, branded, and the husk discarded.",
+			"covers": [
+				"Moral behavior is treated as a resource to be mined",
+				"Institutions extract reputational value from good acts",
+				"The language of ethics is co-opted to justify extraction"
+			]
+		}
+	},
+	{
+		"id": "P30",
+		"A": {
+			"title": "Reputation Membrane",
+			"definition": "Safety or ethics language forms a protective membrane that shields reputations without creating real reversibility or repair.",
+			"covers": [
+				"A focus on appearances of care over measurable remedy.",
+				"A system that treats transparency as optional while requiring positive messaging."
+			]
+		},
+		"B": {
+			"title": "Discretion as gate",
+			"definition": "A decision architecture where opaque judgment determines access and recourse without stable, inspectable criteria.",
+			"covers": [
+				"Case outcomes vary significantly by reviewer, shift, or channel with weak explanation quality.",
+				"Policy language delegates broad exceptions without guardrails or appeal transparency."
+			]
+		}
+	}
+]

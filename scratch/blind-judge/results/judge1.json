@@ -1,0 +1,212 @@
+[
+	{
+		"id": "P01",
+		"same_lever": 0.05,
+		"same_evidence": 0.07,
+		"relation": "unrelated",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P02",
+		"same_lever": 0.22,
+		"same_evidence": 0.25,
+		"relation": "same_family",
+		"relation_p": 0.55
+	},
+	{
+		"id": "P03",
+		"same_lever": 0.45,
+		"same_evidence": 0.3,
+		"relation": "same_family",
+		"relation_p": 0.45
+	},
+	{
+		"id": "P04",
+		"same_lever": 0.87,
+		"same_evidence": 0.78,
+		"relation": "same_idea",
+		"relation_p": 0.78
+	},
+	{
+		"id": "P05",
+		"same_lever": 0.07,
+		"same_evidence": 0.06,
+		"relation": "different_target",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P06",
+		"same_lever": 0.6,
+		"same_evidence": 0.55,
+		"relation": "same_idea",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P07",
+		"same_lever": 0.05,
+		"same_evidence": 0.05,
+		"relation": "unrelated",
+		"relation_p": 0.45
+	},
+	{
+		"id": "P08",
+		"same_lever": 0.2,
+		"same_evidence": 0.2,
+		"relation": "same_family",
+		"relation_p": 0.65
+	},
+	{
+		"id": "P09",
+		"same_lever": 0.1,
+		"same_evidence": 0.1,
+		"relation": "same_family",
+		"relation_p": 0.45
+	},
+	{
+		"id": "P10",
+		"same_lever": 0.15,
+		"same_evidence": 0.18,
+		"relation": "same_family",
+		"relation_p": 0.55
+	},
+	{
+		"id": "P11",
+		"same_lever": 0.3,
+		"same_evidence": 0.2,
+		"relation": "same_family",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P12",
+		"same_lever": 0.07,
+		"same_evidence": 0.07,
+		"relation": "unrelated",
+		"relation_p": 0.4
+	},
+	{
+		"id": "P13",
+		"same_lever": 0.03,
+		"same_evidence": 0.03,
+		"relation": "unrelated",
+		"relation_p": 0.7
+	},
+	{
+		"id": "P14",
+		"same_lever": 0.2,
+		"same_evidence": 0.15,
+		"relation": "same_family",
+		"relation_p": 0.55
+	},
+	{
+		"id": "P15",
+		"same_lever": 0.12,
+		"same_evidence": 0.1,
+		"relation": "same_family",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P16",
+		"same_lever": 0.85,
+		"same_evidence": 0.75,
+		"relation": "same_idea",
+		"relation_p": 0.8
+	},
+	{
+		"id": "P17",
+		"same_lever": 0.04,
+		"same_evidence": 0.04,
+		"relation": "unrelated",
+		"relation_p": 0.6
+	},
+	{
+		"id": "P18",
+		"same_lever": 0.05,
+		"same_evidence": 0.06,
+		"relation": "unrelated",
+		"relation_p": 0.45
+	},
+	{
+		"id": "P19",
+		"same_lever": 0.15,
+		"same_evidence": 0.1,
+		"relation": "different_target",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P20",
+		"same_lever": 0.15,
+		"same_evidence": 0.12,
+		"relation": "same_family",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P21",
+		"same_lever": 0.2,
+		"same_evidence": 0.12,
+		"relation": "different_target",
+		"relation_p": 0.4
+	},
+	{
+		"id": "P22",
+		"same_lever": 0.15,
+		"same_evidence": 0.25,
+		"relation": "same_family",
+		"relation_p": 0.5
+	},
+	{
+		"id": "P23",
+		"same_lever": 0.5,
+		"same_evidence": 0.5,
+		"relation": "cause_effect",
+		"relation_p": 0.45
+	},
+	{
+		"id": "P24",
+		"same_lever": 0.07,
+		"same_evidence": 0.07,
+		"relation": "same_family",
+		"relation_p": 0.35
+	},
+	{
+		"id": "P25",
+		"same_lever": 0.12,
+		"same_evidence": 0.15,
+		"relation": "same_family",
+		"relation_p": 0.6
+	},
+	{
+		"id": "P26",
+		"same_lever": 0.1,
+		"same_evidence": 0.1,
+		"relation": "before_after",
+		"relation_p": 0.7
+	},
+	{
+		"id": "P27",
+		"same_lever": 0.4,
+		"same_evidence": 0.35,
+		"relation": "same_family",
+		"relation_p": 0.4
+	},
+	{
+		"id": "P28",
+		"same_lever": 0.2,
+		"same_evidence": 0.2,
+		"relation": "same_family",
+		"relation_p": 0.45
+	},
+	{
+		"id": "P29",
+		"same_lever": 0.3,
+		"same_evidence": 0.25,
+		"relation": "same_family",
+		"relation_p": 0.55
+	},
+	{
+		"id": "P30",
+		"same_lever": 0.07,
+		"same_evidence": 0.07,
+		"relation": "different_target",
+		"relation_p": 0.4
+	}
+]

@@ -214,4 +214,50 @@ describe("corpus overlap", () => {
 			{ pair: ["one", "gone"], reason: "Merged away." },
 		]);
 	});
+
+	it("keeps books in different corpora apart: similar pairs are related, not clusters", () => {
+		// "garden" is outside the shared corpus of "a" and "b".
+		const corpusOf = (book: string) =>
+			["a", "b"].includes(book) ? "shared" : book;
+		const report = analyzeCorpusOverlap(
+			[
+				mechanism("a", "cowardice-of-inference", "Knowing without acting."),
+				mechanism("b", "starter-mechanism", "A placeholder."),
+				mechanism("garden", "compaction-debt", "Knowing the bed is packed."),
+				mechanism("garden", "starter-mechanism", "Another placeholder."),
+			],
+			{
+				vectors: [unit(1, 0, 0), unit(0, 1, 0), unit(1, 0.1, 0), unit(0, 1, 0)],
+				corpusOf,
+			},
+		);
+
+		// The same slug in two corpora is two mechanisms, not one drifting copy.
+		expect(report.mechanismCount).toBe(4);
+		expect(report.shared).toEqual([]);
+		expect(report.clusters).toEqual([]);
+		expect(report.suggestions).toEqual([]);
+		expect(
+			report.related.map((pair) => [pair.a, pair.aBooks, pair.b, pair.bBooks]),
+		).toEqual([
+			["cowardice-of-inference", ["a"], "compaction-debt", ["garden"]],
+			["starter-mechanism", ["b"], "starter-mechanism", ["garden"]],
+		]);
+	});
+
+	it("still clusters within a book that is its own corpus", () => {
+		const report = analyzeCorpusOverlap(
+			[
+				mechanism("garden", "compaction-debt", "Packed soil."),
+				mechanism("garden", "soil-crust", "Packed soil, again."),
+			],
+			{ vectors: [unit(1, 0), unit(1, 0.05)], corpusOf: (book) => book },
+		);
+
+		expect(report.related).toEqual([]);
+		expect(report.clusters[0]).toMatchObject({
+			members: ["compaction-debt", "soil-crust"],
+			books: ["garden"],
+		});
+	});
 });

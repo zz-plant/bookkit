@@ -13,11 +13,24 @@ export type FrameDetection = {
 
 export type MechanismProposal = MechanismDraft & {
 	id: string;
-	evidence: {
+};
+
+/**
+ * What the proposal read, so "no mechanism proposals" can be told apart
+ * from "nothing was analyzed".
+ */
+export type ProposalAnalysis = {
+	/** Chapter files with prose left once code, markup, and headings are removed. */
+	chaptersRead: number;
+	wordsRead: number;
+	/** Recurring terms that match a registered mechanism, glossary term, or tool. */
+	registered: Array<{
 		term: string;
+		registeredAs: string;
 		occurrences: number;
-		files: string[];
-	};
+	}>;
+	/** Recurring unregistered terms used too little to propose (under 3 uses, or 1 file). */
+	belowThreshold: Array<{ term: string; occurrences: number; files: number }>;
 };
 
 export type EdgeProposal = {
@@ -50,6 +63,7 @@ export type ProposalBundle = {
 	book: string;
 	generatedAt: string;
 	frame: FrameDetection;
+	analysis: ProposalAnalysis;
 	mechanisms: MechanismProposal[];
 	edges: EdgeProposal[];
 	tools: ToolProposal[];

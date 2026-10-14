@@ -1,13 +1,17 @@
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import { ask, isInteractive } from "./cli";
 
 /**
  * Local sentence embeddings for author-side checks (check:corpus).
  *
  * Uses @xenova/transformers, an optional dependency of the engine, running on
- * CPU. The first run of a model downloads it from Hugging Face into the
- * transformers cache, or into BOOKKIT_MODEL_CACHE when set. Nothing here runs
- * in CI or at build time.
+ * CPU. A model that is not cached yet is downloaded from Hugging Face into
+ * the transformers cache (inside node_modules), or into BOOKKIT_MODEL_CACHE
+ * when set, and only with consent: a yes at a terminal prompt,
+ * BOOKKIT_DOWNLOAD_MODEL=1, or `allowDownload`. Without a terminal and without
+ * either opt-in nothing is downloaded and the caller falls back to wording.
+ * Nothing here runs in CI or at build time.
  */
 
 /**
@@ -54,7 +58,7 @@ export const EMBEDDING_MODELS: Record<string, EmbeddingModel> = {
 		pooling: "mean",
 		quantized: false,
 		threshold: 0.79,
-		download: "520 MB",
+		download: "550 MB",
 	},
 	"bge-base": {
 		key: "bge-base",
@@ -74,27 +78,6 @@ export const resolveEmbeddingModel = (
 	key: string = DEFAULT_EMBEDDING_MODEL_KEY,
 ): EmbeddingModel | null => EMBEDDING_MODELS[key] ?? null;
 
-/** Where @xenova/transformers keeps downloaded models: BOOKKIT_MODEL_CACHE, else its own .cache folder. */
-const modelCacheDir = (): string | undefined => {
-	if (process.env.BOOKKIT_MODEL_CACHE) return process.env.BOOKKIT_MODEL_CACHE;
-	try {
-		return join(
-			dirname(
-				Bun.resolveSync("@xenova/transformers/package.json", import.meta.dir),
-			),
-			".cache",
-		);
-	} catch {
-		return undefined;
-	}
-};
-
-/** True once a model has been downloaded, so the first run can say it is downloading. */
-export const isModelCached = (model: EmbeddingModel): boolean => {
-	const dir = modelCacheDir();
-	return dir !== undefined && existsSync(join(dir, model.id));
-};
-
 export type EmbedResult =
 	| { ok: true; model: EmbeddingModel; vectors: Float32Array[] }
 	| { ok: false; model: EmbeddingModel; reason: string };
@@ -104,27 +87,62 @@ type FeatureExtractor = (
 	options: { pooling: "mean" | "cls"; normalize: boolean },
 ) => Promise<{ dims: number[]; data: Float32Array }>;
 
+/** The subset of @xenova/transformers used here. */
+export type TransformersModule = {
+	pipeline: (
+		task: string,
+		model: string,
+		options: { quantized: boolean },
+	) => Promise<FeatureExtractor>;
+	env: {
+		cacheDir: string;
+		allowLocalModels: boolean;
+		backends: { onnx: { wasm: { numThreads: number } } };
+	};
+};
+
+export type EmbedOptions = {
+	/**
+	 * Download the model if it is not cached. Default: yes when
+	 * BOOKKIT_DOWNLOAD_MODEL is 1 or true, else ask at a terminal, else no.
+	 */
+	allowDownload?: boolean;
+	/** Replaces the @xenova/transformers import (tests). */
+	loadTransformers?: () => Promise<TransformersModule>;
+	/** Whether a person can answer a prompt. Default: stdin and stdout are terminals. */
+	interactive?: boolean;
+	/** Asks a yes/no question. Default: a prompt on the terminal. */
+	confirm?: (question: string) => boolean;
+	/** Where notices go. Default: stderr, so --json output stays parseable. */
+	log?: (line: string) => void;
+};
+
+/** Where the model's weights land once downloaded. */
+const modelWeightsPath = (cacheDir: string, model: EmbeddingModel): string =>
+	join(
+		cacheDir,
+		model.id,
+		"onnx",
+		model.quantized ? "model_quantized.onnx" : "model.onnx",
+	);
+
+const downloadAllowedByEnv = (): boolean =>
+	/^(1|true|yes)$/i.test(process.env.BOOKKIT_DOWNLOAD_MODEL ?? "");
+
 export const embedTexts = async (
 	texts: string[],
 	model: EmbeddingModel = EMBEDDING_MODELS[DEFAULT_EMBEDDING_MODEL_KEY],
+	options: EmbedOptions = {},
 ): Promise<EmbedResult> => {
-	let transformers: {
-		pipeline: (
-			task: string,
-			model: string,
-			options: { quantized: boolean },
-		) => Promise<FeatureExtractor>;
-		env: {
-			cacheDir: string;
-			allowLocalModels: boolean;
-			backends: { onnx: { wasm: { numThreads: number } } };
-		};
-	};
+	const log = options.log ?? ((line: string) => console.error(line));
+	let transformers: TransformersModule;
 	try {
 		// The package's own types are looser than the subset used here.
-		transformers = (await import(
-			"@xenova/transformers"
-		)) as unknown as typeof transformers;
+		transformers = options.loadTransformers
+			? await options.loadTransformers()
+			: ((await import(
+					"@xenova/transformers"
+				)) as unknown as TransformersModule);
 	} catch (error) {
 		return {
 			ok: false,
@@ -138,15 +156,43 @@ export const embedTexts = async (
 			transformers.env.cacheDir = process.env.BOOKKIT_MODEL_CACHE;
 		}
 		transformers.env.allowLocalModels = false;
-		if (!isModelCached(model)) {
-			// stderr, so --json output on stdout stays parseable.
-			console.error(
-				`Downloading ${model.id} (about ${model.download}) for the meaning check. This happens once; later runs use the cache.`,
-			);
-		}
 		// Single-threaded WASM: the multi-threaded backend spawns workers from blob
 		// URLs, which Bun rejects (ERR_WORKER_PATH) and which can leave the process hung.
 		transformers.env.backends.onnx.wasm.numThreads = 1;
+
+		const cacheDir = transformers.env.cacheDir;
+		if (!existsSync(modelWeightsPath(cacheDir, model))) {
+			const where = process.env.BOOKKIT_MODEL_CACHE
+				? cacheDir
+				: `${cacheDir} (inside node_modules, so a reinstall deletes it; set BOOKKIT_MODEL_CACHE to keep it elsewhere)`;
+			const what = `The meaning pass needs ${model.id}, which is not downloaded yet: about ${model.download} from huggingface.co, saved in ${where}.`;
+			const interactive = options.interactive ?? isInteractive();
+			let allowed = options.allowDownload ?? downloadAllowedByEnv();
+			if (!allowed && interactive) {
+				log(what);
+				const confirm =
+					options.confirm ??
+					((question: string) => /^y(es)?$/i.test(ask(question) ?? ""));
+				allowed = confirm("Download it now? [y/N]");
+				if (!allowed) {
+					return {
+						ok: false,
+						model,
+						reason: `${model.id} was not downloaded, so only wording was compared. To download it without this question, pass --download-model or set BOOKKIT_DOWNLOAD_MODEL=1; to skip the meaning pass, pass --quick (bookkit check) or --no-semantic (check:corpus).`,
+					};
+				}
+			} else if (!allowed) {
+				return {
+					ok: false,
+					model,
+					reason: `${what} Nothing is downloaded without a terminal to confirm it: pass --download-model or set BOOKKIT_DOWNLOAD_MODEL=1 to allow it, or pass --quick (bookkit check) or --no-semantic (check:corpus) to compare wording only.`,
+				};
+			}
+			log(
+				`Downloading ${model.id} (about ${model.download}) into ${cacheDir}. Later runs reuse it.`,
+			);
+		}
+
 		const extract = await transformers.pipeline(
 			"feature-extraction",
 			model.id,

@@ -1,6 +1,10 @@
 import { createSlugger } from "../utils/markdown";
-import { extractConceptFlags } from "./concept-triage";
-import { normalizeText } from "./tokenize";
+import {
+	type ConceptExample,
+	type ConceptFlag,
+	classifyConcept,
+	findRecurringTerms,
+} from "./concept-triage";
 import type { ContentSuggestion } from "./types";
 
 export type MechanismProposalOptions = {
@@ -9,72 +13,78 @@ export type MechanismProposalOptions = {
 	chapterBodies: Array<{ file: string; body: string }>;
 	/** Terms already registered as mechanisms or glossary entries. */
 	vocabulary?: string[];
-	/** Frames how the mechanism drafts express is/isNot. */
-	causalStance?: string;
 	/** Maximum candidate mechanisms to propose. */
 	maxCandidates?: number;
 };
 
 const DEFAULT_MAX_CANDIDATES = 5;
 
+/**
+ * A mechanism the prose seems to use without registering it. Only the name
+ * and the evidence come from the text: the definition and is/isNot
+ * boundaries are the author's to write, so a draft never carries them.
+ */
 export type MechanismDraft = {
 	slug: string;
 	title: string;
-	definition: string;
-	is: string[];
-	isNot: string[];
-};
-
-const buildDraft = (term: string, causalStance?: string): MechanismDraft => {
-	const stance = causalStance?.trim();
-	return {
-		slug: createSlugger()(term),
-		title: term,
-		definition: stance
-			? `${term}: ${stance.replace(/\.$/, "")}, applied as a repeatable pattern instead of one-off heroics.`
-			: `${term}: a repeatable pattern that converts a sticky situation into a bounded, deliberate next step.`,
-		is: [
-			stance
-				? `${stance.replace(/\.$/, "")} as a named, repeatable process`
-				: (term as string),
-		],
-		isNot: [
-			"a one-off intervention performed under pressure with no structure",
-		],
+	status: "draft";
+	evidence: {
+		term: string;
+		occurrences: number;
+		files: string[];
+		example?: ConceptExample;
 	};
 };
+
+/** "context debt" → title "Context debt", slug "context-debt". */
+export const mechanismDraftFor = (flag: ConceptFlag): MechanismDraft => {
+	const title = flag.term.charAt(0).toUpperCase() + flag.term.slice(1);
+	return {
+		slug: createSlugger()(flag.term),
+		title,
+		status: "draft",
+		evidence: {
+			term: flag.term,
+			occurrences: flag.occurrences,
+			files: flag.files,
+			example: flag.example,
+		},
+	};
+};
+
+/**
+ * Recurring unregistered terms used often enough to register (three or more
+ * uses across two or more files), as mechanism drafts.
+ */
+export const mechanismCandidates = (flags: ConceptFlag[]): ConceptFlag[] =>
+	flags.filter((flag) => classifyConcept(flag).classification === "register");
 
 export const proposeMechanismCandidates = (
 	options: MechanismProposalOptions,
 ): ContentSuggestion[] => {
 	const maxCandidates = options.maxCandidates ?? DEFAULT_MAX_CANDIDATES;
-	const vocabulary = new Set(
-		(options.vocabulary ?? []).map((term) => normalizeText(term)),
-	);
-
-	const flags = extractConceptFlags(options.chapterBodies).filter(
-		(flag) =>
-			!vocabulary.has(normalizeText(flag.term)) &&
-			flag.occurrences >= 2 &&
-			flag.files.length >= 2,
-	);
-
-	return flags.slice(0, maxCandidates).map((flag) => {
-		const draft = buildDraft(flag.term, options.causalStance);
-		return {
-			category: "mechanism-proposal",
-			severity: "advisory",
-			book: options.book,
-			file: flag.files[0],
-			message: `"${flag.term}" recurs ${flag.occurrences} times across ${flag.files.length} files and is not a registered mechanism. Draft candidate ready for review.`,
-			nextAction:
-				"Review the proposed definition and is/isNot boundaries. If it is a named concept the book teaches, register it as a mechanism; otherwise remove or adopt it as glossary vocabulary.",
-			evidence: {
-				term: flag.term,
-				occurrences: flag.occurrences,
-				files: flag.files,
-				draft,
-			} satisfies Record<string, unknown>,
-		};
+	const { candidates } = findRecurringTerms(options.chapterBodies, {
+		vocabulary: options.vocabulary,
 	});
+
+	return mechanismCandidates(candidates)
+		.slice(0, maxCandidates)
+		.map((flag) => {
+			const draft = mechanismDraftFor(flag);
+			return {
+				category: "mechanism-proposal",
+				severity: "advisory",
+				book: options.book,
+				file: flag.example?.file ?? flag.files[0],
+				message: `"${flag.term}" recurs ${flag.occurrences} times across ${flag.files.length} files and is not a registered mechanism or glossary term. Draft: ${draft.slug} (definition and boundaries left for you).`,
+				nextAction: `If the book names an idea with it, register it: bun run bookkit propose ${options.book} --apply mechanisms --id mechanism:${draft.slug} writes a draft with the evidence, and you write the definition. If it is ordinary wording, leave it.`,
+				evidence: {
+					term: flag.term,
+					occurrences: flag.occurrences,
+					files: flag.files,
+					example: flag.example,
+					draft,
+				} satisfies Record<string, unknown>,
+			};
+		});
 };

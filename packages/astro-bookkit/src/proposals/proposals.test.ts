@@ -17,6 +17,39 @@ const mechanism = (
 	...overrides,
 });
 
+/** Notes that keep using "context debt" in lowercase, as imported notes do. */
+const handoffBodies = [
+	{
+		file: "/book/chapters/01-why-handoffs-fail.mdx",
+		body: "Every undocumented assumption is a loan. Context debt compounds.",
+	},
+	{
+		file: "/book/chapters/02-shift-rhythm.mdx",
+		body: "Context debt piles up when the hand-off beat is skipped.",
+	},
+	{
+		file: "/book/chapters/03-handoff-checklist.mdx",
+		body: "A checklist. Context debt is paid down here.",
+	},
+	{
+		file: "/book/chapters/05-retro-notes.mdx",
+		body: "The note said looking into it: more context debt.",
+	},
+];
+
+const bundleFor = (
+	overrides: Partial<Parameters<typeof buildProposalBundle>[0]> = {},
+) =>
+	buildProposalBundle({
+		book: "handoffs",
+		chapters: [],
+		chapterBodies: handoffBodies,
+		mechanisms: [],
+		tools: [],
+		glossaryTerms: [],
+		...overrides,
+	});
+
 const tool = (overrides: Partial<ToolRecord> = {}): ToolRecord => ({
 	slug: "incident-triage--classify-severity",
 	mechanism: "incident-triage",
@@ -64,65 +97,79 @@ describe("frame detection", () => {
 });
 
 describe("proposal bundle", () => {
-	it("proposes a mechanism draft for a recurring unregistered concept", () => {
-		const bundle = buildProposalBundle({
-			book: "test",
-			chapters: [
-				{
-					slug: "ch1",
-					title: "One",
-					mechanisms: [],
-					prerequisites: [],
-				},
-			],
-			chapterBodies: [
-				{
-					file: "ch1.mdx",
-					body: "The Sticky Decision Loop keeps repeating here.",
-				},
-				{
-					file: "ch2.mdx",
-					body: "Avoiding the Sticky Decision Loop takes practice.",
-				},
-			],
-			mechanisms: [],
-			tools: [],
-			glossaryTerms: [],
+	it("proposes a draft for a recurring lowercase term, with evidence and no written definition", () => {
+		const bundle = bundleFor({
 			causalStance: "Stuck situations resolve through bounded ownership",
 		});
 
-		expect(bundle.mechanisms.length).toBeGreaterThan(0);
-		const proposal = bundle.mechanisms[0];
-		expect(proposal.id).toMatch(/^mechanism:/);
-		expect(proposal.title).toBe("Sticky Decision Loop");
-		expect(proposal.is.length).toBeGreaterThan(0);
-		expect(bundle.mechanisms.every((m) => m.evidence.occurrences >= 2)).toBe(
-			true,
-		);
+		expect(bundle.mechanisms).toEqual([
+			{
+				id: "mechanism:context-debt",
+				slug: "context-debt",
+				title: "Context debt",
+				status: "draft",
+				evidence: {
+					term: "context debt",
+					occurrences: 4,
+					files: handoffBodies.map((body) => body.file),
+					example: {
+						file: "/book/chapters/01-why-handoffs-fail.mdx",
+						sentence: "Context debt compounds.",
+					},
+				},
+			},
+		]);
 	});
 
 	it("does not re-propose registered vocabulary", () => {
-		const bundle = buildProposalBundle({
-			book: "test",
-			chapters: [],
-			chapterBodies: [
-				{
-					file: "ch1.mdx",
-					body: "The Sticky Decision Loop keeps repeating here.",
-				},
-				{
-					file: "ch2.mdx",
-					body: "Avoiding the Sticky Decision Loop takes practice.",
-				},
-			],
-			mechanisms: [],
-			tools: [],
-			glossaryTerms: ["Sticky Decision Loop"],
+		const bundle = bundleFor({ glossaryTerms: ["Context debt"] });
+
+		expect(bundle.mechanisms).toEqual([]);
+		expect(bundle.analysis.registered).toEqual([
+			{ term: "context debt", registeredAs: "Context debt", occurrences: 4 },
+		]);
+	});
+
+	it("tells nothing analyzed apart from nothing found", () => {
+		expect(bundleFor({ chapterBodies: [] }).analysis).toEqual({
+			chaptersRead: 0,
+			wordsRead: 0,
+			registered: [],
+			belowThreshold: [],
 		});
 
-		expect(
-			bundle.mechanisms.some((m) => m.title === "Sticky Decision Loop"),
-		).toBe(false);
+		const quiet = bundleFor({
+			chapterBodies: [
+				{ file: "a.mdx", body: "The hand-off note matters." },
+				{ file: "b.mdx", body: "Write the hand-off note first." },
+			],
+		});
+		expect(quiet.mechanisms).toEqual([]);
+		expect(quiet.analysis.chaptersRead).toBe(2);
+		expect(quiet.analysis.belowThreshold).toEqual([
+			{ term: "hand-off note", occurrences: 2, files: 2 },
+		]);
+	});
+
+	it("names a proposed tool <mechanism>--starter-tool, without repeating the mechanism", () => {
+		const bundle = bundleFor({
+			mechanisms: [mechanism()],
+			existingFrame: "runbook",
+		});
+
+		expect(bundle.tools.map((t) => [t.slug, t.mechanism, t.name])).toEqual([
+			[
+				"incident-triage--starter-tool",
+				"incident-triage",
+				"Starter tool for Incident Triage",
+			],
+			[
+				"context-debt--starter-tool",
+				"context-debt",
+				"Starter tool for Context debt",
+			],
+		]);
+		expect(bundle.tools[0].id).toBe("tool:incident-triage--starter-tool");
 	});
 
 	it("proposes toolkit bindings for uncovered mechanisms under a runbook frame", () => {
@@ -217,35 +264,31 @@ describe("config draft", () => {
 });
 
 describe("materializers", () => {
-	it("renders an accepted mechanism into valid frontmatter text", () => {
-		const source = mechanismFrontmatter({
-			id: "mechanism:incident-triage",
-			slug: "incident-triage",
-			title: "Incident Triage",
-			definition: "Classify an alert's severity under a time budget.",
-			is: ["severity classification"],
-			isNot: ["waiting for full context"],
-			evidence: { term: "Incident Triage", occurrences: 3, files: ["a"] },
-		});
+	it("writes a draft mechanism with empty fields to fill and the evidence, not invented prose", () => {
+		const [proposal] = bundleFor().mechanisms;
+		const source = mechanismFrontmatter(proposal);
 
-		expect(source).toContain("slug: incident-triage");
-		expect(source).toContain(
-			'definition: "Classify an alert\'s severity under a time budget."',
+		expect(source).toStartWith(
+			'---\nslug: context-debt\ntitle: "Context debt"\ndefinition: "" # One or two sentences',
 		);
-		expect(source).toContain("is:");
-		expect(source).toContain('  - "severity classification"');
-		expect(source).toContain("Accepted from proposal");
+		expect(source).toContain("\nis: [] # Observable patterns");
+		expect(source).toContain("\nisNot: [] # Nearby things it is not");
+		expect(source).toContain("\nstatus: draft\n");
+		expect(source).toContain(
+			'"context debt" is used 4 times in 01-why-handoffs-fail.mdx, 02-shift-rhythm.mdx, 03-handoff-checklist.mdx, 05-retro-notes.mdx. For example, 01-why-handoffs-fail.mdx: "Context debt compounds."',
+		);
+		expect(source).not.toContain("repeatable pattern");
 	});
 
 	it("renders a bound tool into frontmatter text", () => {
 		const source = toolFrontmatter({
-			id: "tool:incident-triage--incident-triage",
+			id: "tool:incident-triage--starter-tool",
 			mechanism: "incident-triage",
 			name: "Incident Triage",
-			slug: "incident-triage--incident-triage",
+			slug: "incident-triage--starter-tool",
 		});
 
-		expect(source).toContain("slug: incident-triage--incident-triage");
+		expect(source).toContain("slug: incident-triage--starter-tool");
 		expect(source).toContain("mechanism: incident-triage");
 		expect(source).toContain("timeboxMinutes: 10");
 	});

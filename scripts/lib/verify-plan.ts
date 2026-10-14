@@ -30,7 +30,7 @@ export type Gate = {
 	parse?: "findings-json";
 };
 
-/** The book `verify` builds when engine code changes: small, and published. */
+/** The book `verify` builds when engine code changes: small, and published. Without it, the first book. */
 export const REPRESENTATIVE_BOOK = "on-call";
 
 const FORMATTABLE = /\.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css|astro)$/;
@@ -267,16 +267,13 @@ export const planGates = (
 	for (const book of buildBooks) {
 		add(buildGate(book, "its content or app changed"));
 	}
-	if (
-		engine &&
-		!buildBooks.includes(REPRESENTATIVE_BOOK) &&
-		books.includes(REPRESENTATIVE_BOOK)
-	) {
+	// A fork or standalone project may not have the representative book.
+	const representative = books.includes(REPRESENTATIVE_BOOK)
+		? REPRESENTATIVE_BOOK
+		: [...books].sort()[0];
+	if (engine && representative && !buildBooks.includes(representative)) {
 		add(
-			buildGate(
-				REPRESENTATIVE_BOOK,
-				"engine changed; one book stands in for all",
-			),
+			buildGate(representative, "engine changed; one book stands in for all"),
 		);
 	}
 

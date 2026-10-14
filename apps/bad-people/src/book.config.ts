@@ -126,6 +126,21 @@ export const bookConfig = {
 		"recourse cost",
 		"volatility allocation",
 	],
+	// Linked from the home page under "Other books".
+	relatedBooks: [
+		{
+			title: "On-Call Runbook",
+			description:
+				"Classify alerts, pick a safe first action, escalate with a named target, and verify recovery.",
+			href: "https://on-call.book",
+		},
+		{
+			title: "Don't Turn People Into Infrastructure",
+			description:
+				"Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
+			href: "https://running-hot.book",
+		},
+	],
 } as const;
 
 export default bookConfig;

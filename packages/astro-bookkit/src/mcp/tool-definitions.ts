@@ -27,7 +27,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.create_book",
 		description:
-			"Scaffold a new book app in apps/<book> using the workspace template command.",
+			"Scaffold a new book app in apps/<book> from the engine's starter template (bun run new:book).",
 		safety: "requires_guard",
 		rateLimit: {
 			maxPerMinute: 5,
@@ -56,16 +56,11 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				book: {
 					type: "string",
 					description:
-						"Required slug for the new book (for example, running-hot).",
+						"Required slug for the new book (for example, field-notes).",
 				},
 				title: {
 					type: "string",
 					description: "Optional display title for the generated book config.",
-				},
-				template: {
-					type: "string",
-					description:
-						"Optional template book slug to copy from. Defaults to running-hot.",
 				},
 			},
 			required: ["book"],

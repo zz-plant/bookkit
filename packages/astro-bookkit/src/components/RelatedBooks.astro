@@ -1,0 +1,24 @@
+---
+import type { RelatedBook } from "../book/config";
+
+/** The home page's "Other books" section: `relatedBooks` from book.config.ts. Renders nothing when empty. */
+type Props = {
+	books?: readonly RelatedBook[];
+	heading?: string;
+};
+
+const { books = [], heading = "Other books" } = Astro.props;
+---
+{books.length > 0 && (
+  <section class="content-block">
+    <h2>{heading}</h2>
+    <div class="card-grid">
+      {books.map((book) => (
+        <a class="card" href={book.href} target="_blank" rel="noreferrer">
+          <h3>{book.title} <span aria-hidden="true">↗</span></h3>
+          {book.description && <p class="meta">{book.description}</p>}
+        </a>
+      ))}
+    </div>
+  </section>
+)}

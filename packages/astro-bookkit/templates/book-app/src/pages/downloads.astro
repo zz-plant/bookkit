@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ExportPanel from "@bookkit/astro-bookkit/components/ExportPanel.astro";
+import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
+import { getBookExportLinks, getChapterExportLinks } from "../lib/exports";
+import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../lib/book-entrypoints";
+import { readItemPath } from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+
+const modules = bookEntryPoints.contentModules.chapters;
+const { items: chapterItems } = createLocalizedContentList(modules, {
+	defaultLocale: "en",
+	locale: Astro.locals?.locale,
+	mapEntry: ({ slug, module }) => ({
+		slug,
+		href: readItemPath("chapters", slug),
+		title: module.frontmatter?.title ?? "Untitled chapter",
+	}),
+});
+
+const bookExportLinks = getBookExportLinks();
+const allChapterExportLinks = chapterItems.flatMap((chapter) =>
+	getChapterExportLinks(chapter.slug, chapter.title),
+);
+---
+<BaseLayout title={`Downloads • ${bookConfig.title}`}>
+  <div class="section-header">
+    <h1>Downloads</h1>
+    <p class="lede">The whole book or single chapters. PDF is best for printing and annotating; EPUB reflows to fit phones and e-readers.</p>
+  </div>
+
+  <ExportPanel title="Whole book" links={bookExportLinks} />
+
+  <ExportPanel title="Single chapters" links={allChapterExportLinks} />
+</BaseLayout>

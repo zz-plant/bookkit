@@ -35,6 +35,14 @@ describe("planGates", () => {
 		]);
 	});
 
+	it("builds another book for engine code when the representative book is gone", () => {
+		expect(
+			planGates(["packages/astro-bookkit/src/seo/book.ts"], ["my-book"]).map(
+				(gate) => gate.id,
+			),
+		).toContain("build:my-book");
+	});
+
 	it("skips the slow .astro pass for scripts-only changes", () => {
 		const gates = planGates(["scripts/bookkit.ts"], books);
 		expect(gates.map((gate) => gate.id)).toEqual(["biome", "types", "test"]);

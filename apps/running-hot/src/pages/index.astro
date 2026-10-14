@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import RelatedBooks from "@bookkit/astro-bookkit/components/RelatedBooks.astro";
 import {
 	buildLocalizedContentIndex,
 	resolveLocalizedContent,
@@ -99,29 +100,6 @@ const startLinks = [
 		href: readRoutes.root,
 	},
 ];
-const otherBooks = [
-	{
-		slug: "on-call",
-		title: "On-Call Runbook",
-		description:
-			"Classify alerts, pick a safe first action, escalate with a named target, and verify recovery.",
-		href: "https://on-call.book",
-	},
-	{
-		slug: "bad-people",
-		title: "Bad People",
-		description:
-			"How systems normalize harm and how to respond with small, reversible actions.",
-		href: "https://bad-people.book",
-	},
-	{
-		slug: "running-hot",
-		title: "Don't Turn People Into Infrastructure",
-		description:
-			"Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
-		href: "https://running-hot.book",
-	},
-].filter((book) => book.slug !== bookConfig.slug);
 ---
 <BaseLayout title={bookConfig.title}>
   <div class="hero-shell">
@@ -164,19 +142,7 @@ const otherBooks = [
     </div>
   </section>
 
-  {otherBooks.length > 0 && (
-    <section class="content-block">
-      <h2>Other books</h2>
-      <div class="card-grid">
-        {otherBooks.map((book) => (
-          <a class="card" href={book.href} target="_blank" rel="noreferrer">
-            <h3>{book.title} <span aria-hidden="true">↗</span></h3>
-            <p class="meta">{book.description}</p>
-          </a>
-        ))}
-      </div>
-    </section>
-  )}
+  <RelatedBooks books={bookConfig.relatedBooks} />
   <script>
     // Empty on a static build, which has no analytics handler.
     const analyticsEndpoint = document.body.dataset.analyticsEndpoint;

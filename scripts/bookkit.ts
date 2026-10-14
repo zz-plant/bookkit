@@ -22,6 +22,7 @@ import {
 	nextChapterFileName,
 	similarForMechanismFile,
 	summarizeBook,
+	withCorpusScope,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
 import {
@@ -32,6 +33,7 @@ import {
 	writeFocusBook,
 } from "./lib/cli";
 import { domainNotice } from "./lib/deploy-domain";
+import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
 	isBookContentPath,
 	printFolderCheck,
@@ -221,7 +223,9 @@ switch (command) {
 		const corpus = runScript("check-corpus.ts", [
 			"--mode",
 			"error",
+			...(book ? ["--book", book] : []),
 			...(quick ? ["--no-semantic"] : []),
+			...(args.includes("--download-model") ? ["--download-model"] : []),
 		]);
 		console.log(
 			`\n${structure === 0 ? "✓" : "✗"} structure  ${corpus === 0 ? "✓" : "✗"} mechanisms across books`,
@@ -307,33 +311,35 @@ switch (command) {
 			console.error("No books found in apps/*");
 			process.exit(1);
 		}
-		// Under an AI agent, astro dev runs in the background and says to use
-		// `astro dev stop`, which only works inside the app; these forward it there.
+		// `bookkit dev` stays in the foreground. These control a server that
+		// `astro dev` moved to the background itself (it does under an AI agent);
+		// Astro's own `astro dev stop` only works inside the app.
 		const control = ["stop", "status", "logs"].includes(args[1] ?? "")
 			? args[1]
 			: undefined;
+		const usage = "bun run bookkit dev [book] [--port <n>]";
 		const named = control ? args[2] : args[1];
 		const targetBook =
 			named && !named.startsWith("--")
-				? requireBook(named, "bun run bookkit dev [stop|status|logs] [book]")
+				? requireBook(named, usage)
 				: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
-		const appDir = join(repoRoot(), "apps", targetBook);
 		if (control) {
 			const result = spawnSync("bunx", ["astro", "dev", control], {
-				cwd: appDir,
+				cwd: join(repoRoot(), "apps", targetBook),
 				stdio: "inherit",
 			});
 			process.exit(result.status ?? 0);
 		}
+		const portArg = flagValue(args, "--port");
+		const port = args.includes("--port") ? Number(portArg) : DEFAULT_DEV_PORT;
+		if (!Number.isInteger(port) || port < 1 || port > 65535) {
+			console.error(
+				`--port needs a whole number from 1 to 65535${portArg ? `, not "${portArg}"` : ""}.\nUsage: ${usage}`,
+			);
+			process.exit(1);
+		}
 		console.log(`\n🚀 Starting dev server for ${targetBook}...\n`);
-		// Run in the app itself, not through --filter, so Astro's output streams
-		// in full (the filter view keeps only the last few lines) and Ctrl-C
-		// reaches it directly.
-		const result = spawnSync("bun", ["run", "dev"], {
-			cwd: appDir,
-			stdio: "inherit",
-		});
-		process.exit(result.status ?? 0);
+		process.exit(await runDevServer(targetBook, port));
 		break;
 	}
 
@@ -838,10 +844,12 @@ function createNew(kind: string | undefined, rest: string[]) {
 				);
 				process.exit(1);
 			}
-			const similar = findSimilarMechanisms({
-				title,
-				definition: flag("--definition"),
-			});
+			// Only mechanisms in the book's own corpus can make this one a duplicate.
+			const similar = withCorpusScope(
+				findSimilarMechanisms({ title, definition: flag("--definition") }),
+				book,
+				books,
+			).filter((match) => match.sameCorpus);
 			if (similar.length > 0 && !rest.includes("--force")) {
 				console.log(
 					`Before naming a new mechanism, check whether one of these already covers it:\n`,
@@ -1020,7 +1028,9 @@ function checkOneFile(path: string, asJson: boolean) {
 	const { book, section, result } = checked;
 	// A mechanism file also gets the duplicate check `new mechanism` runs.
 	const similar =
-		section === "mechanism" ? similarForMechanismFile(result.frontmatter) : [];
+		section === "mechanism"
+			? similarForMechanismFile(result.frontmatter, book)
+			: [];
 	if (asJson) {
 		console.log(
 			JSON.stringify(
@@ -1046,16 +1056,22 @@ function checkOneFile(path: string, asJson: boolean) {
 		if (finding.fix)
 			console.log(`    fix: ${finding.fix.replace(/\n/g, "\n    ")}`);
 	}
-	if (similar.length > 0) {
+	const describe = (match: (typeof similar)[number]) =>
+		`    ${match.slug} (${match.books.join(", ")}) ${match.score}${match.ruledDistinct ? ` — ruled distinct: ${match.ruledDistinct}` : ""}`;
+	const ownCorpus = similar.filter((match) => match.sameCorpus);
+	const elsewhere = similar.filter((match) => !match.sameCorpus);
+	if (ownCorpus.length > 0) {
 		console.log("  may duplicate (by wording):");
-		for (const match of similar) {
-			console.log(
-				`    ${match.slug} (${match.books.join(", ")}) ${match.score}${match.ruledDistinct ? ` — ruled distinct: ${match.ruledDistinct}` : ""}`,
-			);
-		}
+		for (const match of ownCorpus) console.log(describe(match));
 		console.log(
 			"    Same idea: bind that slug instead. Different: rule the pair distinct in corpus.json.",
 		);
+	}
+	if (elsewhere.length > 0) {
+		console.log(
+			`  similar wording in books outside ${book}'s corpus (for information; nothing to change):`,
+		);
+		for (const match of elsewhere) console.log(describe(match));
 	}
 	process.exit(result.ok ? 0 : 1);
 }
@@ -1081,7 +1097,10 @@ Write
 
 Check
   status [--json]                           chapters, stubs, mechanisms, and tools per book
-  check [book] [--quick]                    structure, plus mechanisms that overlap across books
+  check [book] [--quick] [--download-model]
+                                            structure, plus mechanisms that overlap across books; the
+                                            meaning pass needs a 550 MB model, downloaded once with
+                                            consent (--quick compares wording only)
   check <file.mdx> [--json]                 one content file: each finding with its field and fix
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame
@@ -1093,8 +1112,8 @@ Check
   validate [book]                           structure only
 
 Preview and publish
-  dev [book]                                local preview with live reload
-  dev stop|status|logs [book]               control a dev server running in the background (agents)
+  dev [book] [--port <n>]                   local preview with live reload; runs until stopped
+  dev stop|status|logs [book]               control a dev server astro dev left in the background
   build [book] [--all]                      build one book (no book: the current one, or all)
   deploy [book] [--all] [--dry-run] [--no-build]
                                             check content, build, verify dist/, publish to Cloudflare;

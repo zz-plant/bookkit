@@ -87,10 +87,17 @@ export type DiscoveryQueryPattern = {
 	sequence: string[];
 };
 
+/** Whether this endpoint answers JSON-RPC tool calls, and where else to go. */
+export type ToolCallTransport = {
+	served: boolean;
+	note: string;
+};
+
 export type DiscoveryResponse = {
 	ok: true;
 	bookTitle: string;
 	description: string | null;
+	toolCalls: ToolCallTransport;
 	resourceCount: number;
 	resourceKinds: ResourceKind[];
 	resourceSections: ContentTypeKey[];

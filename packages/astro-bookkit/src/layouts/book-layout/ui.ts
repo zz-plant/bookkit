@@ -9,7 +9,12 @@ import { getSharedIndexStore } from "./shared-index";
 import { deferredLocalStorage as storage } from "./storage";
 
 const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
-const qaEnabled = document.body?.dataset?.qaEnabled === "true";
+// Set by the bookkit() integration from site.runtime. Without request
+// handlers there is no Q&A endpoint, so the Ask island, and the in-browser
+// models it loads, are compiled out of the bundle.
+const hasServerRuntime = import.meta.env.BOOKKIT_SERVER_RUNTIME === true;
+const qaEnabled =
+	hasServerRuntime && document.body?.dataset?.qaEnabled === "true";
 const qaEndpoint = document.body?.dataset?.qaEndpoint;
 
 const headerRoot = queryElement(document, ".site-header", HTMLElement);
@@ -86,7 +91,7 @@ let qaController: ReturnType<
 	typeof import("./qa-controller").initializeQaController
 > | null = null;
 
-if (qaPanelRoot && qaToggle) {
+if (hasServerRuntime && qaPanelRoot && qaToggle) {
 	const recordQaEvent = createBufferedTracker(
 		storage,
 		`${analyticsKeyPrefix}.qa.analytics`,

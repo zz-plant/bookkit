@@ -153,6 +153,23 @@ export const inspectBuildOutput = ({
 		}
 	}
 
+	// A host serves .json files as application/json, so one holding a page (a
+	// route that rendered the 404 page) breaks every client that parses it.
+	for (const file of files) {
+		if (extname(file) !== ".json") continue;
+		try {
+			JSON.parse(readFileSync(file, "utf8"));
+		} catch {
+			const head = readHead(file, 64).trimStart().toLowerCase();
+			error(
+				head.startsWith("<")
+					? "Holds an HTML page, not JSON. Its route rendered a page (usually the 404 page) instead of returning JSON; fix the route, or keep it out of a static build."
+					: "Is not valid JSON. Fix the route that writes it.",
+				relative(distDir, file),
+			);
+		}
+	}
+
 	const indexPath = join(distDir, "index.html");
 	if (existsSync(indexPath)) {
 		const html = readFileSync(indexPath, "utf8");

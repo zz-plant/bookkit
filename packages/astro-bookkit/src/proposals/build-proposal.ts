@@ -1,8 +1,9 @@
 import {
 	type ChapterRecord,
-	type MechanismDraft,
+	findRecurringTerms,
 	type MechanismRecord,
-	proposeMechanismCandidates,
+	mechanismCandidates,
+	mechanismDraftFor,
 	suggestPrerequisiteEdges,
 	type ToolRecord,
 } from "../suggestions";
@@ -16,6 +17,7 @@ import type {
 	ConfigDraft,
 	EdgeProposal,
 	MechanismProposal,
+	ProposalAnalysis,
 	ProposalBundle,
 	ToolProposal,
 } from "./types";
@@ -30,15 +32,28 @@ export type BuildProposalBundleOptions = {
 	/** Author-declared frame from an existing book.config.ts; wins over detection. */
 	existingFrame?: string;
 	title?: string;
+	/** Used by the config draft only; mechanism drafts carry no prose. */
 	causalStance?: string;
 	maxMechanismProposals?: number;
 };
 
-const toolNameFromMechanism = (mechanism: MechanismRecord): string =>
-	mechanism.title || mechanism.slug;
+const DEFAULT_MAX_MECHANISM_PROPOSALS = 5;
 
-const toolSlugForMechanism = (mechanism: MechanismRecord): string =>
-	createSlugger()(`${mechanism.slug} ${toolNameFromMechanism(mechanism)}`);
+/**
+ * A tool proposal names the mechanism it serves and nothing more: the slug
+ * follows the toolkit's `<mechanism>--<tool>` convention with a placeholder
+ * tool part (as `new book`'s `starter-mechanism--starter-tool` does), so the
+ * author renames it once the tool's move is known.
+ */
+const toolProposalFor = (mechanism: MechanismRecord): ToolProposal => {
+	const slug = `${createSlugger()(mechanism.slug)}--starter-tool`;
+	return {
+		id: `tool:${slug}`,
+		mechanism: mechanism.slug,
+		name: `Starter tool for ${mechanism.title || mechanism.slug}`,
+		slug,
+	};
+};
 
 export const buildProposalBundle = (
 	options: BuildProposalBundleOptions,
@@ -52,29 +67,30 @@ export const buildProposalBundle = (
 		...options.tools.map((t) => t.name ?? t.title ?? t.slug),
 	].filter(Boolean);
 
-	const mechanismSuggestions = proposeMechanismCandidates({
-		book,
-		chapterBodies,
-		vocabulary,
-		causalStance: options.causalStance,
-		maxCandidates: options.maxMechanismProposals,
-	});
-
-	const proposedMechanisms: MechanismProposal[] = mechanismSuggestions.map(
-		(suggestion) => {
-			const draft = suggestion.evidence.draft as MechanismDraft;
-			const evidence = suggestion.evidence as unknown as {
-				term: string;
-				occurrences: number;
-				files: string[];
-			};
-			return {
-				id: `mechanism:${draft.slug}`,
-				...draft,
-				evidence,
-			};
-		},
-	);
+	const recurring = findRecurringTerms(chapterBodies, { vocabulary });
+	const proposable = mechanismCandidates(recurring.candidates);
+	const proposedMechanisms: MechanismProposal[] = proposable
+		.slice(0, options.maxMechanismProposals ?? DEFAULT_MAX_MECHANISM_PROPOSALS)
+		.map((flag) => {
+			const draft = mechanismDraftFor(flag);
+			return { id: `mechanism:${draft.slug}`, ...draft };
+		});
+	const analysis: ProposalAnalysis = {
+		chaptersRead: recurring.filesRead,
+		wordsRead: recurring.wordsRead,
+		registered: recurring.registered.map((flag) => ({
+			term: flag.term,
+			registeredAs: flag.registeredAs,
+			occurrences: flag.occurrences,
+		})),
+		belowThreshold: recurring.candidates
+			.filter((flag) => !proposable.includes(flag))
+			.map((flag) => ({
+				term: flag.term,
+				occurrences: flag.occurrences,
+				files: flag.files.length,
+			})),
+	};
 
 	const detection = detectFrameFromBodies(chapterBodies);
 	const frame = options.existingFrame
@@ -133,22 +149,19 @@ export const buildProposalBundle = (
 		toolMechanisms.push({
 			slug: draft.slug,
 			title: draft.title,
-			definition: draft.definition,
-			is: draft.is,
-			isNot: draft.isNot,
+			definition: "",
+			is: [],
+			isNot: [],
 			predictions: [],
 			tests: [],
 		});
 	}
 
-	const seenToolSlugs = new Set<string>();
 	const tools: ToolProposal[] = [];
 	for (const mechanism of toolMechanisms) {
-		const name = toolNameFromMechanism(mechanism);
-		const slug = toolSlugForMechanism(mechanism);
-		if (seenToolSlugs.has(slug)) continue;
-		seenToolSlugs.add(slug);
-		tools.push({ id: `tool:${slug}`, mechanism: mechanism.slug, name, slug });
+		const proposal = toolProposalFor(mechanism);
+		if (tools.some((tool) => tool.slug === proposal.slug)) continue;
+		tools.push(proposal);
 	}
 
 	const configOptions: ConfigProposalOptions = {
@@ -163,6 +176,7 @@ export const buildProposalBundle = (
 		book,
 		generatedAt: new Date().toISOString(),
 		frame,
+		analysis,
 		mechanisms: proposedMechanisms,
 		edges,
 		tools,

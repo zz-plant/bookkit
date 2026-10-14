@@ -1,3 +1,5 @@
+import { sendJsonBeacon } from "../../layouts/book-layout/analytics-buffer";
+
 const safeGet = (key: string): string | null => {
 	try {
 		return localStorage.getItem(key);
@@ -179,7 +181,8 @@ const setupAnalyticsFunnel = (): void => {
 				return;
 			}
 			markReadHubStarted();
-			const payload = JSON.stringify({
+			// Empty on a static build, which has no analytics handler.
+			sendJsonBeacon(document.body.dataset.analyticsEndpoint, {
 				type: "engagement",
 				title: `funnel:${step}`,
 				path: window.location.pathname,
@@ -187,19 +190,6 @@ const setupAnalyticsFunnel = (): void => {
 				scrollDepth: 0,
 				timestamp: Date.now(),
 			});
-			if (navigator.sendBeacon) {
-				navigator.sendBeacon(
-					"/api/analytics.json",
-					new Blob([payload], { type: "application/json" }),
-				);
-				return;
-			}
-			fetch("/api/analytics.json", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: payload,
-				keepalive: true,
-			}).catch(() => undefined);
 		});
 	});
 };

@@ -54,6 +54,21 @@ export type SeoProps = SeoInput & {
 export const hasServerRuntime = (site?: BookSeoConfig): boolean =>
 	site?.runtime === "server";
 
+/**
+ * The reader features a page may offer where the book is served: analytics
+ * and feedback need request handlers, and Ask needs them and `features.aiQa`.
+ */
+export const runtimeFeatures = (book: {
+	site?: BookSeoConfig;
+	features?: { aiQa?: boolean };
+}): { hasServerRuntime: boolean; aiQaEnabled: boolean } => {
+	const server = hasServerRuntime(book.site);
+	return {
+		hasServerRuntime: server,
+		aiQaEnabled: server && (book.features?.aiQa ?? true),
+	};
+};
+
 const isAbsoluteUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 
 const resolveOgImage = (

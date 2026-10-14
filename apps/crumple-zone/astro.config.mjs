@@ -8,8 +8,9 @@ import { bookConfig } from "./src/book.config";
 export default defineConfig({
 	site: bookConfig.site.url,
 	// Headings get Astro's GitHub-style ids; the search index matches them.
-	// bookkit() bundles the engine for SSR and, after a build, draws the site's
+	// bookkit() bundles the engine for SSR, runs the API routes on demand in dev
+	// and when site.runtime is "server", and after a build draws the site's
 	// icons and each page's link-preview image.
-	integrations: [mdx(), bookkit()],
+	integrations: [mdx(), bookkit({ runtime: bookConfig.site.runtime })],
 	devToolbar: { enabled: false },
 });

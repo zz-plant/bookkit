@@ -568,4 +568,56 @@ describe("createBookMcpEndpoint", () => {
 			)?.sequence[0],
 		).toContain("resources/list?kind=governance");
 	});
+
+	it("says in the discovery manifest whether this URL answers tool calls", async () => {
+		const endpoint = createFixtureEndpoint();
+		const onDemand = (await endpoint.GET().json()) as {
+			toolCalls: { served: boolean; note: string };
+		};
+		const prerendered = (await endpoint
+			.GET({ isPrerendered: true })
+			.json()) as { toolCalls: { served: boolean; note: string } };
+
+		expect(onDemand.toolCalls.served).toBe(true);
+		expect(prerendered.toolCalls.served).toBe(false);
+		expect(prerendered.toolCalls.note).toContain("static build");
+		expect(prerendered.toolCalls.note).toContain("bun run mcp");
+		expect(prerendered.toolCalls.note).toContain("bun run bookkit dev");
+	});
+
+	it("explains a tool call sent to a prerendered copy instead of reporting a parse error", async () => {
+		const endpoint = createFixtureEndpoint();
+		const response = await endpoint.POST({
+			// Astro drops the body of a request to a prerendered route.
+			request: new Request("http://localhost/api/mcp.json", { method: "POST" }),
+			isPrerendered: true,
+		});
+		const body = (await response.json()) as {
+			error: { code: number; message: string };
+		};
+
+		expect(response.status).toBe(405);
+		expect(body.error.code).toBe(-32000);
+		expect(body.error.message).toContain("prerendered as a static file");
+		expect(body.error.message).toContain("bun run mcp");
+	});
+
+	it("names the JSON problem and the expected body on a parse error", async () => {
+		const endpoint = createFixtureEndpoint();
+		const response = await endpoint.POST({
+			request: new Request("http://localhost/api/mcp.json", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: "{not json",
+			}),
+		});
+		const body = (await response.json()) as {
+			error: { code: number; message: string };
+		};
+
+		expect(response.status).toBe(400);
+		expect(body.error.code).toBe(-32700);
+		expect(body.error.message).toContain("not valid JSON");
+		expect(body.error.message).toContain("JSON-RPC 2.0 request object");
+	});
 });

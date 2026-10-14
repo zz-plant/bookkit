@@ -6,6 +6,7 @@ import {
 	classifyConcept,
 	type ExampleRecord,
 	extractConceptFlags,
+	findRecurringTerms,
 	type MechanismRecord,
 	proposeMechanismCandidates,
 	runBookSuggestions,
@@ -82,51 +83,166 @@ describe("tokenize + overlap", () => {
 	});
 });
 
-describe("concept triage", () => {
-	it("extracts multi-word concepts and counts across files", () => {
-		const flags = extractConceptFlags([
-			{
-				file: "ch1.mdx",
-				body: "The Shiny Object Trap keeps pulling attention away.",
-			},
-			{ file: "ch2.mdx", body: "Another chapter about the Shiny Object Trap." },
-		]);
+/** Four notes that keep using "context debt", in lowercase and at sentence starts. */
+const handoffNotes = [
+	{
+		file: "chapters/01-why-handoffs-fail.mdx",
+		body: "## Context debt\n\nEvery undocumented assumption is a loan against the next shift. Context debt compounds:\n\n- the first shift knows *why*\n- the third shift knows nothing",
+	},
+	{
+		file: "chapters/02-shift-rhythm.mdx",
+		body: "A shift has three beats. Context debt piles up when the hand-off beat is skipped.\n\n```bash\noncall handoff --context-debt\n```",
+	},
+	{
+		file: "chapters/03-handoff-checklist.mdx",
+		body: "A 10-minute checklist. Context debt is paid down here. See [the glossary](04-glossary.md#context-debt).",
+	},
+	{
+		file: "chapters/05-retro-notes.mdx",
+		body: "We lost two hours because the handoff note said looking into it. More context debt, again.",
+	},
+];
 
-		expect(
-			flags.some((f) => f.term === "Shiny Object Trap" && f.files.length === 2),
-		).toBe(true);
+describe("recurring-term detection", () => {
+	it("finds a recurring lowercase term, with its count, files, and an example sentence", () => {
+		const [first] = extractConceptFlags(handoffNotes);
+
+		expect(first.term).toBe("context debt");
+		expect(first.occurrences).toBe(4);
+		expect(first.files).toEqual([
+			"chapters/01-why-handoffs-fail.mdx",
+			"chapters/02-shift-rhythm.mdx",
+			"chapters/03-handoff-checklist.mdx",
+			"chapters/05-retro-notes.mdx",
+		]);
+		expect(first.example).toEqual({
+			file: "chapters/01-why-handoffs-fail.mdx",
+			sentence: "Context debt compounds:",
+		});
 	});
 
-	it("classifies recurring concepts as register candidates", () => {
-		const { classification } = classifyConcept(
-			{ term: "Shiny Object Trap", occurrences: 4, files: ["a", "b"] },
-			new Set(),
+	it("leaves out terms registered by slug, title, or a parenthetical alias", () => {
+		const bodies = [
+			{
+				file: "a.mdx",
+				body: "Virtue extraction hides here. So does context debt.",
+			},
+			{
+				file: "b.mdx",
+				body: "Then virtue extraction again, and context debt too.",
+			},
+			{
+				file: "c.mdx",
+				body: "Virtue extraction, once more. Context debt, once more.",
+			},
+		];
+		const report = findRecurringTerms(bodies, {
+			vocabulary: ["context-debt", "Sanctiphagy (Virtue Extraction)"],
+		});
+
+		expect(report.candidates).toEqual([]);
+		expect(
+			report.registered.map(({ term, registeredAs }) => [term, registeredAs]),
+		).toEqual([
+			["context debt", "context-debt"],
+			["virtue extraction", "Sanctiphagy (Virtue Extraction)"],
+		]);
+	});
+
+	it("says how much it read, so finding nothing differs from reading nothing", () => {
+		expect(findRecurringTerms([], {})).toMatchObject({
+			filesRead: 0,
+			wordsRead: 0,
+			candidates: [],
+		});
+		const plain = findRecurringTerms(
+			[{ file: "a.mdx", body: "One sentence with nothing that recurs." }],
+			{},
 		);
+		expect(plain.filesRead).toBe(1);
+		expect(plain.wordsRead).toBe(6);
+		expect(plain.candidates).toEqual([]);
+	});
+
+	it("folds plurals, keeps the longer name, and skips code, headings, and template sentences", () => {
+		const flags = extractConceptFlags([
+			{
+				file: "a.mdx",
+				body: "# Sticky decision loops\n\nSticky decision loops repeat.\n\n`sticky decision loop`\n\nDraft chapter, to be written from source posts.",
+			},
+			{
+				file: "b.mdx",
+				body: "Avoiding the sticky decision loop takes practice.\n\nDraft chapter, to be written from source posts.",
+			},
+			{
+				file: "c.mdx",
+				body: "Each sticky decision loop ends somewhere.\n\nDraft chapter, to be written from source posts.",
+			},
+		]);
+
+		expect(flags.map((flag) => [flag.term, flag.occurrences])).toEqual([
+			["sticky decision loop", 3],
+		]);
+	});
+
+	it("gives the same list in the same order every time, whatever the file order", () => {
+		const once = findRecurringTerms(handoffNotes, {});
+		expect(findRecurringTerms(handoffNotes, {})).toEqual(once);
+		expect(findRecurringTerms([...handoffNotes].reverse(), {})).toEqual(once);
+	});
+});
+
+describe("concept triage", () => {
+	it("classifies recurring concepts as register candidates", () => {
+		const { classification } = classifyConcept({
+			term: "shiny object trap",
+			occurrences: 4,
+			files: ["a", "b"],
+		});
 		expect(classification).toBe("register");
 	});
 
-	it("classifies proper nouns and throwaways", () => {
+	it("classifies proper nouns, and terms used twice as review", () => {
 		expect(
-			classifyConcept(
-				{ term: "Acme Corporation", occurrences: 1, files: ["a"] },
-				new Set(),
-			).classification,
+			classifyConcept({
+				term: "Acme Corporation",
+				occurrences: 3,
+				files: ["a", "b"],
+			}).classification,
 		).toBe("proper-noun");
 		expect(
-			classifyConcept(
-				{ term: "Dingle Bop", occurrences: 1, files: ["a"] },
-				new Set(),
-			).classification,
-		).toBe("throwaway");
+			classifyConcept({ term: "dingle bop", occurrences: 2, files: ["a", "b"] })
+				.classification,
+		).toBe("review");
 	});
 
-	it("emits register severity advisory and skips nothing", () => {
-		const suggestions = triageConcepts(
-			[{ term: "Shiny Object Trap", occurrences: 4, files: ["a", "b"] }],
-			{ book: "test", vocabulary: [] },
-		);
-		expect(suggestions[0].severity).toBe("advisory");
-		expect(suggestions[0].nextAction).toContain("Register");
+	it("reports an unregistered term with its evidence", () => {
+		const suggestions = triageConcepts(extractConceptFlags(handoffNotes), {
+			book: "handoffs",
+			vocabulary: [],
+		});
+		expect(suggestions[0]).toMatchObject({
+			severity: "advisory",
+			file: "chapters/01-why-handoffs-fail.mdx",
+			message:
+				'"context debt" recurs 4 times across 4 files and is not registered.',
+			evidence: {
+				term: "context debt",
+				occurrences: 4,
+				example: { sentence: "Context debt compounds:" },
+				classification: "register",
+			},
+		});
+		expect(suggestions[0].nextAction).toContain("register it");
+	});
+
+	it("drops terms the vocabulary already registers", () => {
+		expect(
+			triageConcepts(extractConceptFlags(handoffNotes), {
+				book: "handoffs",
+				vocabulary: ["Context debt"],
+			}).filter((s) => s.evidence.term === "context debt"),
+		).toEqual([]);
 	});
 });
 
@@ -260,41 +376,56 @@ describe("prerequisite edge suggestions", () => {
 });
 
 describe("mechanism proposals", () => {
-	it("proposes candidates from recurring concepts with a draft skeleton", () => {
+	it("proposes a draft for a recurring term: name and evidence, no written definition", () => {
 		const suggestions = proposeMechanismCandidates({
-			book: "test",
-			chapterBodies: [
-				{ file: "a.mdx", body: "The Sticky Decision Loop repeats." },
-				{
-					file: "b.mdx",
-					body: "Avoiding the Sticky Decision Loop takes practice.",
-				},
-			],
+			book: "handoffs",
+			chapterBodies: handoffNotes,
 			vocabulary: [],
-			causalStance: "Stuck situations resolve through bounded ownership",
 		});
 
-		expect(suggestions.length).toBeGreaterThan(0);
-		const proposal = suggestions[0];
+		expect(suggestions).toHaveLength(1);
+		const [proposal] = suggestions;
 		expect(proposal.category).toBe("mechanism-proposal");
-		expect(proposal.evidence.draft).toMatchObject({
-			title: "Sticky Decision Loop",
+		expect(proposal.evidence.draft).toEqual({
+			slug: "context-debt",
+			title: "Context debt",
+			status: "draft",
+			evidence: {
+				term: "context debt",
+				occurrences: 4,
+				files: handoffNotes.map((note) => note.file),
+				example: {
+					file: "chapters/01-why-handoffs-fail.mdx",
+					sentence: "Context debt compounds:",
+				},
+			},
 		});
+		expect(proposal.message).toContain(
+			"definition and boundaries left for you",
+		);
 	});
 
 	it("skips terms already in the vocabulary", () => {
 		const suggestions = proposeMechanismCandidates({
-			book: "test",
-			chapterBodies: [
-				{ file: "a.mdx", body: "The Sticky Decision Loop repeats." },
-				{
-					file: "b.mdx",
-					body: "Avoiding the Sticky Decision Loop takes practice.",
-				},
-			],
-			vocabulary: ["Sticky Decision Loop"],
+			book: "handoffs",
+			chapterBodies: handoffNotes,
+			vocabulary: ["Context Debt"],
 		});
 		expect(suggestions).toHaveLength(0);
+	});
+
+	it("reports a term once when it gets a draft", () => {
+		const suggestions = runBookSuggestions({
+			book: "handoffs",
+			mechanisms: [],
+			chapters: [],
+			examples: [],
+			chapterBodies: handoffNotes,
+			conceptFlags: extractConceptFlags(handoffNotes),
+		});
+		expect(
+			suggestions.filter((s) => s.evidence.term === "context debt"),
+		).toHaveLength(1);
 	});
 });
 

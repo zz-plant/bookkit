@@ -98,7 +98,7 @@ This separation means engine upgrades (new export formats, AI features, MCP tool
 - **Zod schemas** for structured content entities
 - **Frame validator** with registered frame definitions
 - **Graph engine** with cycle detection, topological sort, and pathway derivation
-- **PDF/EPUB export** with heading structure, callout boxes, and formatted text
+- **PDF/EPUB export** of the whole book (chapters, then each mechanism followed by its toolkit actions, then the glossary and examples), with a contents page and bookmarks; metadata comes from `book.config.ts` and the latest release note, so rebuilding unchanged content gives identical files
 - **MCP endpoint** for AI-agent integration (validate, read, list, compile)
 - **Astro integration** (`bookkit()`) for zero-config setup
 - **Search index** generation and query engine

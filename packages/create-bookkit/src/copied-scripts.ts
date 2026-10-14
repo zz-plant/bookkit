@@ -7,8 +7,11 @@
  */
 export const COPIED_SCRIPTS = [
 	"_lib.ts",
+	"lib/book-args.ts",
+	"lib/cli.ts",
 	"lib/compile-mdx.ts",
 	"lib/content-frontmatter.ts",
+	"lib/corpus-scope.ts",
 	"lib/import-markdown.ts",
 	"lib/import-report.ts",
 	"lib/load-book.ts",

@@ -26,6 +26,10 @@ export type Props = {
 	canonicalPath?: string;
 	canonicalUrl?: string;
 	robots?: string;
+	/** `site.runtime === "server"`; see `runtimeFeatures`. Default false. */
+	hasServerRuntime?: boolean;
+	/** Ask the book, when the runtime has its endpoint. Default false. */
+	aiQaEnabled?: boolean;
 };
 
 const {
@@ -51,6 +55,8 @@ const {
 	canonicalPath,
 	canonicalUrl,
 	robots,
+	hasServerRuntime = false,
+	aiQaEnabled = false,
 } = Astro.props;
 
 const renderState = createBookLayoutRenderState({
@@ -94,6 +100,8 @@ const entries = versions.map((entry) => ({
   bookTitle={bookTitle}
   bookVersion={bookVersion}
   bookKey={bookKey}
+  hasServerRuntime={hasServerRuntime}
+  aiQaEnabled={aiQaEnabled}
   versions={versions}
   versionPrefix={prefixSegment}
   siteUrl={siteUrl}

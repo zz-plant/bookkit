@@ -1,1 +1,3 @@
-export { releaseAnalyticsApiPost as POST } from "../../lib/book-runtime";
+import { releaseAnalyticsApiHandlers } from "../../lib/book-runtime";
+
+export const { GET, POST } = releaseAnalyticsApiHandlers;

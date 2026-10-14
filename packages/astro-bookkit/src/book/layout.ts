@@ -17,11 +17,7 @@ import {
 	extractVersionFromPath,
 	stripVersionFromPath,
 } from "../releases/versions";
-import {
-	buildSeoProps,
-	type SeoProps,
-	hasServerRuntime as siteHasServerRuntime,
-} from "../seo/config";
+import { buildSeoProps, runtimeFeatures, type SeoProps } from "../seo/config";
 import { canonicalPathname } from "../seo/urls";
 
 type BookLayoutAstroProps = {
@@ -493,11 +489,10 @@ export const createBookLayoutState = (
 	const currentLocale = locals?.locale as string | undefined;
 	const bookTitle = bookConfig.title;
 	const bookKey = bookConfig.slug ?? "book";
-	const hasServerRuntime = siteHasServerRuntime(bookConfig.site);
 	// Without a server, Ask has no endpoint to call, and only the default
 	// locale and latest version exist as built pages; locale and version paths
 	// are rewritten per request.
-	const aiQaEnabled = hasServerRuntime && (bookConfig.features?.aiQa ?? true);
+	const { hasServerRuntime, aiQaEnabled } = runtimeFeatures(bookConfig);
 	const reachableLocales = hasServerRuntime
 		? resolvedLocales
 		: resolvedLocales.filter((entry) => entry.code === defaultLocale);

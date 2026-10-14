@@ -34,25 +34,17 @@ const {
 	aiQaProviders,
 	renderState,
 } = layoutState;
-// A static deploy has no endpoints to receive analytics; send no beacons.
-const runtimeEndpoints = hasServerRuntime
-	? {}
-	: {
-			analyticsEndpoint: "",
-			exportAnalyticsEndpoint: "",
-			previewAnalyticsEndpoint: "",
-		};
 ---
 <BookLayout
   bookTitle={bookTitle}
   bookVersion={resolvedVersion}
   bookKey={bookKey}
+  hasServerRuntime={hasServerRuntime}
   aiQaEnabled={aiQaEnabled}
   aiQaProvider={aiQaProvider}
   aiQaProviders={aiQaProviders}
   renderState={renderState}
   bookDescription={bookConfig.site?.defaultMeta?.description}
-  {...runtimeEndpoints}
   {...seoProps}
 >
   <slot />

@@ -13,6 +13,7 @@ import {
 	scaffoldSource,
 } from "../../packages/astro-bookkit/src/validators/content-check";
 import { listBookDirs, repoRoot, slugify } from "../_lib";
+import { corpusScope, readCorpusBooks } from "./corpus-scope";
 import { embedTexts } from "./embed-text";
 import { loadBookContent } from "./load-book";
 
@@ -399,15 +400,36 @@ export const checkContentFile = (
 export type SimilarForFile = MechanismMatch & {
 	/** The reason, when corpus.json already rules the pair distinct. */
 	ruledDistinct?: string;
+	/**
+	 * Whether the match is in the book's own corpus (see corpus-scope), where
+	 * two mechanisms for one idea are a problem. Matches outside it are shown
+	 * for information only.
+	 */
+	sameCorpus: boolean;
+};
+
+/** Marks each match as inside or outside `book`'s corpus. */
+export const withCorpusScope = <T extends MechanismMatch>(
+	matches: T[],
+	book: string,
+	books: string[] = listBookDirs(),
+): Array<T & { sameCorpus: boolean }> => {
+	const { corpusOf } = corpusScope(books, readCorpusBooks());
+	return matches.map((match) => ({
+		...match,
+		sameCorpus: match.books.some((other) => corpusOf(other) === corpusOf(book)),
+	}));
 };
 
 /**
- * Existing mechanisms that a mechanism file may duplicate, across every book,
- * by wording. Leaves out the file's own slug (and its copies in other books),
- * and notes pairs corpus.json already rules distinct.
+ * Existing mechanisms that a mechanism file in `book` may duplicate, across
+ * every book, by wording, each marked as inside or outside the book's corpus.
+ * Leaves out the file's own slug (and its copies in other books), and notes
+ * pairs corpus.json already rules distinct.
  */
 export const similarForMechanismFile = (
 	frontmatter: Record<string, unknown> | null,
+	book: string,
 	minimumScore = 0.3,
 ): SimilarForFile[] => {
 	const title = typeof frontmatter?.title === "string" ? frontmatter.title : "";
@@ -426,7 +448,11 @@ export const similarForMechanismFile = (
 	} catch {
 		distinct = [];
 	}
-	return findSimilarMechanisms({ title, definition }, listBookDirs(), 4)
+	const matches = findSimilarMechanisms(
+		{ title, definition },
+		listBookDirs(),
+		4,
+	)
 		.filter((match) => match.slug !== slug && match.score >= minimumScore)
 		.slice(0, 3)
 		.map((match) => ({
@@ -435,4 +461,5 @@ export const similarForMechanismFile = (
 				({ pair }) => pair.includes(slug) && pair.includes(match.slug),
 			)?.reason,
 		}));
+	return withCorpusScope(matches, book);
 };

@@ -322,17 +322,18 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.check_corpus",
 		description:
-			"Compare mechanisms across the corpus books (corpus.json): clusters of overlapping mechanisms, shared slugs whose contracts drifted, and stale rulings. Use before naming or editing a mechanism.",
+			"Compare mechanisms across the corpus books (corpus.json): clusters of overlapping mechanisms, shared slugs whose contracts drifted, and stale rulings. Use before naming or editing a mechanism. semantic: true also compares meaning, but only when the embedding model (~520 MB) is already downloaded or the server's environment sets BOOKKIT_DOWNLOAD_MODEL=1; otherwise the result compares wording only and its summary says so.",
 		safety: "read_only",
-		expectedRuntime: "<30s (semantic: first run downloads a ~520 MB model)",
+		expectedRuntime:
+			"<30s (semantic with BOOKKIT_DOWNLOAD_MODEL=1: the first run downloads a ~520 MB model)",
 		expectedRuntimeClass: "moderate",
 		sideEffectLevel: "local-read/compute",
 		idempotent: true,
 		idempotencyGuarantee: "idempotent-safe-retry",
 		retryGuidance:
-			"Safe to retry; pass semantic: false if the model cannot load.",
+			"Safe to retry. A wording-only result for semantic: true will repeat until the model is downloaded (BOOKKIT_DOWNLOAD_MODEL=1).",
 		retryPolicyGuidance:
-			"Retry once on transient command failure; repeat with semantic: false when the embedding model is unavailable.",
+			"Retry once on transient command failure; when the summary says it compared wording only, retrying does not help until the model is downloaded.",
 		failureClassTaxonomy: [
 			"validation",
 			"configuration",
@@ -346,7 +347,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				semantic: {
 					type: "boolean",
 					description:
-						"Compare meaning with the local embedding model as well as wording. Default false (wording only, fast).",
+						"Compare meaning with the local embedding model as well as wording. Runs only if the model is already downloaded or BOOKKIT_DOWNLOAD_MODEL=1 is set where the server runs; otherwise falls back to wording and says so. Default false (wording only, fast).",
 				},
 			},
 			additionalProperties: false,
@@ -358,7 +359,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 			"Before coining a mechanism, list existing ones in any book that it may duplicate, and whether its slug already exists. Bind an existing slug when one fits. Pass semantic: true to rank by meaning, which finds the same idea in different words.",
 		safety: "read_only",
 		expectedRuntime:
-			"<5s by wording; ~10s by meaning (first run downloads a ~520 MB model)",
+			"<5s by wording; ~10s by meaning (with BOOKKIT_DOWNLOAD_MODEL=1, the first run downloads a ~520 MB model)",
 		expectedRuntimeClass: "short",
 		sideEffectLevel: "read-only",
 		idempotent: true,
@@ -382,7 +383,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				semantic: {
 					type: "boolean",
 					description:
-						"Rank by meaning with the local embedding model (falls back to wording if it cannot load). Default false.",
+						"Rank by meaning with the local embedding model. Runs only if the model is already downloaded or BOOKKIT_DOWNLOAD_MODEL=1 is set where the server runs; otherwise ranks by wording, and result.note says why. Default false.",
 				},
 			},
 			required: ["title"],

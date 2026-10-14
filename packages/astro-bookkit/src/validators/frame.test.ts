@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
-import { validateFrameDefinition, validateFrameSteps } from "./frame";
+import {
+	frameStepsInHeadings,
+	validateFrameDefinition,
+	validateFrameSteps,
+} from "./frame";
 
 describe("frame validator normalized errors", () => {
 	it("returns snapshot-friendly payload for missing required steps", () => {
@@ -70,5 +74,37 @@ describe("frame validator normalized errors", () => {
         ],
       }
     `);
+	});
+});
+
+describe("frameStepsInHeadings", () => {
+	const runbook = {
+		slug: "runbook",
+		name: "Runbook",
+		steps: [
+			{ id: "ownership", label: "Ownership", required: true },
+			{ id: "trigger", label: "Trigger", required: true },
+			{ id: "steps", label: "Steps", required: true },
+			{ id: "escalation", label: "Escalation", required: true },
+			{ id: "verification", label: "Verification", required: true },
+		],
+	};
+
+	it("credits the words runbooks actually use", () => {
+		expect(
+			frameStepsInHeadings(runbook, [
+				"Owner",
+				"Triggers and alerts",
+				"Step 1: drain the node",
+				"Escalation path",
+				"Verify recovery",
+			]),
+		).toEqual(["ownership", "trigger", "steps", "escalation", "verification"]);
+	});
+
+	it("reports what no heading covers", () => {
+		expect(
+			frameStepsInHeadings(runbook, ["Overview", "Procedure", "Notes"]),
+		).toEqual([]);
 	});
 });

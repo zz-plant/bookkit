@@ -71,3 +71,36 @@ export const validateFrameDefinition = (
 
 	return { duplicateStepIds, errors };
 };
+
+/** The prefix a heading word must start with to count as a step: the id's first word, cut to five letters. */
+const stepStem = (stepId: string): string => {
+	const word = stepId.split("-")[0] ?? stepId;
+	return word.length > 5 ? word.slice(0, 5) : word.replace(/s$/, "");
+};
+
+/**
+ * The frame steps a document's headings cover. A heading covers a step when
+ * one of its words starts with the step's stem, so "Owner" covers ownership,
+ * "Verify" covers verification, and "Step 3" covers steps. Used where a frame
+ * applies to each document of a folder (`bookkit try`, `bookkit check <dir>`);
+ * a book's overview chapter is still checked by `validateBook`.
+ */
+export const frameStepsInHeadings = (
+	frame: FrameDefinition,
+	headings: string[],
+): string[] => {
+	const words = new Set(
+		headings.flatMap((heading) =>
+			heading
+				.toLowerCase()
+				.split(/[^a-z0-9]+/)
+				.filter(Boolean),
+		),
+	);
+	return frame.steps
+		.filter((step) => {
+			const stem = stepStem(step.id);
+			return [...words].some((word) => word.startsWith(stem));
+		})
+		.map((step) => step.id);
+};

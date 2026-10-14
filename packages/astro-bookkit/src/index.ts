@@ -230,6 +230,11 @@ export type {
 	ConfigDraft,
 	ConfigProposalOptions,
 	EdgeProposal,
+	FolderDocument,
+	FolderFinding,
+	FolderPreview,
+	FolderPreviewOptions,
+	FolderSourceFile,
 	FrameDetection,
 	MechanismProposal,
 	ProposalBundle,
@@ -239,6 +244,7 @@ export {
 	buildProposalBundle,
 	detectFrameFromBodies,
 	mechanismFrontmatter,
+	previewFolder,
 	proposeConfigDraft,
 	toolFrontmatter,
 } from "./proposals";
@@ -439,6 +445,7 @@ export {
 	SECTION_DIRECTORIES,
 } from "./validators/content-check";
 export {
+	frameStepsInHeadings,
 	validateFrameDefinition,
 	validateFrameSteps,
 } from "./validators/frame";

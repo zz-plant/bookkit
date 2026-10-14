@@ -34,10 +34,38 @@ bun run bookkit use running-hot          # pick your book once; commands default
 bun run bookkit new chapter "Repair has a clock"
 bun run bookkit dev                      # preview in the browser, live reload
 bun run bookkit check <file.mdx>         # what a file still needs, field by field, with fixes
+bun run bookkit try <folder>             # what your existing docs would become; writes nothing
 bun run verify                           # the checks your change needs, before you commit
 ```
 
 You don't have to memorize arguments. `bun run bookkit new` asks what to start (chapter, mechanism, tool, example) and anything else it needs, offering the book's mechanisms to pick from. A mistyped command, book, or mechanism gets the closest match suggested. `bun run bookkit help` lists every command.
+
+### Already have documents? See what they would become
+
+`bun run bookkit try <folder>` reads any folder of Markdown (a wiki export, a runbook repo, a blog archive) and writes nothing. It shows the shape Bookkit would hold the folder to and how much of it each document already has, the named ideas that recur across documents, and the commands that turn the folder into a book. Real output on three runbooks exported from a team wiki, trimmed to the analysis:
+
+```txt
+$ bun run bookkit try runbooks
+  3 files, 150 words: 3 prose documents
+
+Shape: Runbook (detected from the wording, 100% of the signals)
+  Every document needs a section for each step: a heading or a "Label:" line whose words start like the step.
+    ✓ Ownership     2 of 3
+    ✓ Trigger       1 of 3
+    ✓ Steps         2 of 3
+    ✓ Escalation    2 of 3
+    ✓ Verification  1 of 3
+  2 of 3 would fail a runbook check today.
+
+Ideas that recur (named across documents; register each once, then every document binds to it)
+  Incident Commander  3 times in 3 documents
+  Ledger Service      3 times in 2 documents
+  Refund Worker       2 times in 2 documents
+
+1 document uses {braces}, <tags>, HTML comments, or <autolinks>; import converts them so they compile as MDX.
+```
+
+The same analysis is a gate. `bun run bookkit check <folder> --frame runbook` exits 1 when a document is missing a section or a contract file breaks its contract, so a folder can be checked in CI where it lives, without converting it first. `--json` hands the whole result to a pipeline or an agent. To make the folder a book, `bun run bookkit new-book --book <slug>`, then `bun run bookkit import <slug> --dir <folder>` and `bun run bookkit propose <slug>`.
 
 ### Example: the On-Call Runbook
 
@@ -320,7 +348,9 @@ GitHub Actions runs on every push and PR to `main`:
 | sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
 | find mechanisms that name the same idea in different books | `bun run check:corpus -- --books <a>,<b>` | Semantic and lexical overlap across a body of work |
 | get AI-style editing suggestions | `bun run check:suggestions -- --book bad-people` | Flags overlaps, example restatement, and missing graph edges |
-| turn raw markdown into structured content | `bun run bookkit import --book <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
+| see what an existing folder of docs would become | `bun run bookkit try ./docs` | Read-only: shape, gaps per document, recurring ideas, and the commands to convert it |
+| gate any Markdown folder in CI, without converting it | `bun run bookkit check ./runbooks --frame runbook [--json]` | Exits 1 on a missing section or a broken contract file |
+| turn raw markdown into structured content | `bun run bookkit import <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
 | test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
 | rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
 | run all quality gates | `bun run verify -- --all` (or `bun run qa`) | Exactly what CI runs, including the builds and `dist/` verification |
@@ -377,10 +407,11 @@ Do not fork the engine to customize one book.
 To pull prose in from a folder of existing `.md`/`.mdx` files (chapter layer only):
 
 ```bash
-bun run bookkit import --book <new-book> --dir /path/to/markdown
+bun run bookkit try /path/to/markdown                    # first, if you want to see what you'd get
+bun run bookkit import <new-book> --dir /path/to/markdown
 ```
 
-Import writes chapters and never touches mechanisms, toolkit, or glossary — those stay author-gated so the compiler's separation invariants hold. Follow the printed next steps: register recurring patterns as mechanisms, bind tools, then run `check:suggestions` to let the analyzer propose drafts of both.
+Import writes chapters and never touches mechanisms, toolkit, or glossary — those stay author-gated so the compiler's separation invariants hold. It takes exports as they come: a source's own frontmatter becomes the chapter's (its `title`, and `summary` or `description`), a leading `# Title` becomes the title instead of repeating on the page, and text MDX cannot compile is converted (HTML comments to MDX comments, `<https://…>` autolinks to links, `{braces}` and tag-like `<placeholders>` escaped so they render as written). Code is left exactly as it was. Then follow the printed next steps: `propose` drafts mechanisms and tools from the ideas that recur.
 
 To remove a scaffolded book app:
 

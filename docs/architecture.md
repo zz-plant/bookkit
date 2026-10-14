@@ -158,7 +158,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `search/` | 2 | search index construction and querying |
 | `seo/` | 2 | sitemap, metadata, indexability rules, link-preview images, site icons |
 | `mcp/` | 2 | JSON-RPC router, workspace reader, and deterministic tool handlers |
-| `proposals/` | 2 | turns analyzer output into reviewable drafts; frame detection; guarded materialization |
+| `proposals/` | 2 | turns analyzer output into reviewable drafts; frame detection; guarded materialization; a read-only preview of any folder of Markdown (`bookkit try`, `bookkit check <dir>`) |
 | `app-wrappers/` | 3 | route-handler factories the book apps re-export as API endpoints |
 | `book/` | 4 | runtime assembly, entrypoints, reading graph, ordering, read routes, layout state |
 | `components/` | 4 | shared Astro components and page-level compositions |

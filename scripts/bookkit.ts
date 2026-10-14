@@ -31,6 +31,14 @@ import {
 	writeFocusBook,
 } from "./lib/cli";
 import { domainNotice } from "./lib/deploy-domain";
+import {
+	isBookContentPath,
+	printFolderCheck,
+	printTry,
+	readFolder,
+	resolveFromCaller,
+	runPreview,
+} from "./lib/folder-report";
 import { loadBookContent } from "./lib/load-book";
 
 const args = process.argv.slice(2);
@@ -184,8 +192,19 @@ switch (command) {
 	}
 
 	case "check": {
-		if (args[1] && /\.mdx?$/.test(args[1])) {
+		if (args[1] && /\.mdx?$/.test(args[1]) && isBookContentPath(args[1])) {
 			checkOneFile(args[1], args.includes("--json"));
+			break;
+		}
+		// Any other file or folder: check it where it is, without a book app.
+		// A bare name that is no path stays a book name, so typos get suggestions.
+		const target = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+		if (
+			target &&
+			!books.includes(target) &&
+			(existsSync(resolveFromCaller(target)) || /[\\/]|\.mdx?$/.test(target))
+		) {
+			checkFolder(target, args.slice(2));
 			break;
 		}
 		const book = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
@@ -217,6 +236,35 @@ switch (command) {
 
 	case "new": {
 		createNew(args[1], args.slice(2));
+		break;
+	}
+
+	case "try": {
+		// The folder may come before or after the flags.
+		const target = args
+			.slice(1)
+			.find(
+				(arg, index, list) =>
+					!arg.startsWith("--") && list[index - 1] !== "--frame",
+			);
+		if (!target) {
+			console.error(
+				"Usage: bun run bookkit try <folder> [--frame <slug>] [--json]\nShows what Bookkit would make of any folder of Markdown. Reads only; writes nothing.",
+			);
+			process.exit(1);
+		}
+		const folder = readFolder(target);
+		if ("error" in folder) {
+			console.error(folder.error);
+			process.exit(1);
+		}
+		const preview = runPreview(folder.files, {
+			frame: flagValue(args, "--frame"),
+			name: slugify(target.split(/[\\/]/).filter(Boolean).pop() ?? "folder"),
+		});
+		if (args.includes("--json")) console.log(JSON.stringify(preview, null, 2));
+		else printTry(target, preview);
+		process.exit(0);
 		break;
 	}
 
@@ -371,7 +419,7 @@ switch (command) {
 	case "import":
 	case "import-book":
 	case "book:import": {
-		const passthrough = args.slice(1);
+		const passthrough = withBookFlag(args.slice(1));
 		const scriptPath = join(
 			process.cwd(),
 			"scripts",
@@ -391,7 +439,7 @@ switch (command) {
 	case "propose":
 	case "proposal":
 	case "propose-book": {
-		const passthrough = args.slice(1);
+		const passthrough = withBookFlag(args.slice(1));
 		const scriptPath = join(process.cwd(), "scripts", "propose-book.ts");
 		const result = spawnSync(
 			process.execPath,
@@ -509,6 +557,7 @@ switch (command) {
 			"status",
 			"use",
 			"new",
+			"try",
 			"check",
 			"contract",
 			"verify",
@@ -606,6 +655,10 @@ async function printStatus() {
 					"start a chapter, mechanism, tool, or example (asks what it needs)",
 				],
 				["bun run bookkit check [book]", "find what to fix before sharing"],
+				[
+					"bun run bookkit try <folder>",
+					"see what Bookkit would make of your own docs (writes nothing)",
+				],
 				["bun run bookkit help", "every command"],
 			];
 	if (focus) console.log(`\nCurrent book: ${focus.book}`);
@@ -855,6 +908,48 @@ function createNew(kind: string | undefined, rest: string[]) {
 	}
 }
 
+/**
+ * Scripts that take `--book <slug>` also accept the book first (`propose
+ * running-hot`), or default to the current book (`bookkit use`).
+ */
+function withBookFlag(rest: string[]): string[] {
+	if (rest.includes("--book")) return rest;
+	if (rest[0] && !rest[0].startsWith("--")) {
+		return ["--book", rest[0], ...rest.slice(1)];
+	}
+	return focusBook ? ["--book", focusBook, ...rest] : rest;
+}
+
+/** The value after a flag (`--frame runbook`), if given. */
+function flagValue(list: string[], name: string): string | undefined {
+	const index = list.indexOf(name);
+	const value = index >= 0 ? list[index + 1] : undefined;
+	return value && !value.startsWith("--") ? value : undefined;
+}
+
+/** `check <folder|file>` outside a book app: the folder preview as a gate. */
+function checkFolder(target: string, rest: string[]) {
+	const folder = readFolder(target);
+	if ("error" in folder) {
+		console.error(folder.error);
+		process.exit(1);
+	}
+	const frame = flagValue(rest, "--frame");
+	const preview = runPreview(folder.files, {
+		frame,
+		requireFrameSteps: Boolean(frame),
+		releaseMode: rest.includes("--release"),
+	});
+	if (rest.includes("--json")) {
+		console.log(
+			JSON.stringify({ ok: preview.errors === 0, ...preview }, null, 2),
+		);
+	} else {
+		printFolderCheck(target, preview);
+	}
+	process.exit(preview.errors === 0 ? 0 : 1);
+}
+
 function checkOneFile(path: string, asJson: boolean) {
 	const checked = checkContentFile(path);
 	if ("error" in checked) {
@@ -910,6 +1005,7 @@ function printHelp() {
 Usage: bun run bookkit <command>       (no command: where each book stands, and what to do next)
 
 Start
+  try <folder> [--frame <slug>] [--json]    what Bookkit would make of any folder of Markdown (writes nothing)
   use [book]                                pick the book you're working on; [book] below defaults to it
   new                                       asks what to start, then anything it needs
 
@@ -919,13 +1015,16 @@ Write
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
   new book <slug>                           a new book app
-  import --book <slug> --dir <path>         bring markdown chapters into a book
-  propose --book <slug> [--apply …]         draft mechanisms, tools, and config from a book's text
+  import [book] --dir <path>                bring markdown chapters into a book (converted to compile as MDX)
+  propose [book] [--apply …]                draft mechanisms, tools, and config from a book's text
 
 Check
   status [--json]                           chapters, stubs, mechanisms, and tools per book
   check [book] [--quick]                    structure, plus mechanisms that overlap across books
   check <file.mdx> [--json]                 one content file: each finding with its field and fix
+  check <folder|file> [--frame <slug>] [--json] [--release]
+                                            any Markdown, where it is: the content contract, plus each frame
+                                            section once --frame is given; exits 1 on an error (for CI)
   contract [section] [--json]               the fields a mechanism, tool, example, chapter, or glossary entry needs
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
   similar "<title>" [--definition "…"] [--semantic]
@@ -945,6 +1044,8 @@ Mistype a command, book, or mechanism and bookkit suggests the closest one.
 
 Examples
   bun run bookkit
+  bun run bookkit try ~/notes/runbooks
+  bun run bookkit check ./docs/runbooks --frame runbook
   bun run bookkit use running-hot
   bun run bookkit new chapter "Repair has a clock"
   bun run bookkit new mechanism bad-people "Waiting as leverage"

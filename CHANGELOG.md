@@ -3,6 +3,15 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — Bookkit on folders it doesn't own
+
+- **`bookkit try <folder>`** shows what any folder of Markdown would become, and writes nothing: the frame it fits (detected, or `--frame`), how many documents already carry each of the frame's sections, named ideas that recur across documents, files that break the content contract, text MDX could not compile, and the commands that turn the folder into a book. `--json` returns the same as data.
+- **`bookkit check <folder|file>`** runs the same analysis as a gate on Markdown wherever it is, with no book app: contract files (in a section folder, or marked by their frontmatter) are checked field by field, and `--frame <slug>` requires the frame's sections. It exits 1 on an error, so a runbook folder can be gated in CI where it lives. Inside `apps/<book>/`, `check <file.mdx>` and `check <book>` are unchanged; a bare name is still a book, so a mistyped one still gets a suggestion.
+- **A frame's sections in a loose folder.** For the runbook and field-guide frames, each loose document must carry every required step; for the others, and for any folder that is already book content (it has `chapters/`), the folder as a whole must, as `validate` requires of a book. A section counts when a heading, or a field line such as `**Owner:** Payments`, has a word that starts like the step (`frameStepsInHeadings`: "Owner" covers ownership, "Verify" verification). This is a new, opt-in rule for folders; book validation is unchanged.
+- **`bookkit import` takes real exports.** A source's frontmatter no longer produces a second YAML block: its `title`, and `summary` or `description`, carry into the chapter's. A leading `# Title` becomes the title instead of repeating on the page. Titles are quoted safely (a colon or quote in a title broke the YAML before). Text MDX cannot compile is converted (`toMdxBody`): HTML comments to MDX comments, autolinks to links, and braces and tag-like `<placeholders>` escaped, leaving code untouched. Before, a runbook with `{env}` or `<service>` in its prose imported fine and then failed the build.
+- **`import` and `propose` take the book first** (`bookkit propose running-hot`), or default to the current book. Before, they required `--book`, and the README's own recipe (`propose <slug>`) failed.
+- **Migration:** none. Engine additions: `previewFolder` (proposals), `frameStepsInHeadings` (validators), `toMdxBody` (utils).
+
 ## 2026-10-14 — README images show real output
 
 - **The README's images are new.** The 2.9 MB GIF of a generic open book is replaced by screenshots of two built On-Call Runbook pages, in a light and a dark version. "How a book compiles" gets a diagram of the inputs, the gates, and the artifacts, and the line "AI may propose; the compiler decides." gets the real output of `bookkit check` rejecting a toolkit action broken on purpose. Both are SVG in light and dark versions, with the books' typefaces embedded as subsets, so the text stays text.

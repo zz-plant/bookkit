@@ -17,26 +17,13 @@ export const handleCreateBook: ToolHandler = ({ options, args }) => {
 		};
 	}
 
-	const rawTemplate = args?.template;
-	const template =
-		typeof rawTemplate === "string" && rawTemplate.trim().length
-			? rawTemplate.trim()
-			: "running-hot";
 	const rawTitle = args?.title;
 	const title =
 		typeof rawTitle === "string" && rawTitle.trim().length
 			? rawTitle.trim()
 			: null;
 
-	const commandArgs = [
-		"run",
-		"new:book",
-		"--",
-		"--book",
-		book,
-		"--template",
-		template,
-	];
+	const commandArgs = ["run", "new:book", "--", "--book", book];
 	if (title) commandArgs.push("--title", title);
 
 	const command = runWorkspaceCommand(options.workspaceRoot, commandArgs);
@@ -48,7 +35,6 @@ export const handleCreateBook: ToolHandler = ({ options, args }) => {
 			: `Failed to create book ${book}.`,
 		payload: {
 			book,
-			template,
 			title,
 			command: command.command,
 			exitCode: command.exitCode,

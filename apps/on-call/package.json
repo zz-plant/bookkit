@@ -7,7 +7,7 @@
 		"dev": "astro dev",
 		"build": "astro build",
 		"validate": "bun run ../../scripts/validate-book.ts --book on-call",
-		"deploy": "wrangler deploy"
+		"deploy": "bun run --cwd ../.. bookkit deploy on-call"
 	},
 	"dependencies": {
 		"@astrojs/mdx": "^6.0.1",

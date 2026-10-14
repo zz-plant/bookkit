@@ -92,6 +92,21 @@ export const bookConfig = {
 		"escalation ramp",
 		"pager queue",
 	],
+	// Linked from the home page under "Other books".
+	relatedBooks: [
+		{
+			title: "Bad People",
+			description:
+				"How systems normalize harm and how to respond with small, reversible actions.",
+			href: "https://bad-people.book",
+		},
+		{
+			title: "Don't Turn People Into Infrastructure",
+			description:
+				"Where institutional heat gets dumped, who absorbs it, and how to cool it down.",
+			href: "https://running-hot.book",
+		},
+	],
 } as const;
 
 export default bookConfig;

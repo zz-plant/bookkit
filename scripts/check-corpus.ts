@@ -109,8 +109,20 @@ const explicitBooks = booksArg
 	: null;
 const books = explicitBooks ?? workspaceBooks;
 const scope = corpusScope(books, explicitBooks ?? corpusFile.books);
+// corpus.json may name books a fork or a standalone project does not have.
+// They are left out with a note; a book named with --books must exist.
+const missingCorpusBooks = explicitBooks
+	? []
+	: (corpusFile.books ?? []).filter((book) => !workspaceBooks.includes(book));
+const presentCorpusBooks = corpusFile.books?.filter((book) =>
+	workspaceBooks.includes(book),
+);
 // --eval measures models against the author's rulings, made on the shared corpus.
-const evalBooks = explicitBooks ?? corpusFile.books ?? workspaceBooks;
+const evalBooks =
+	explicitBooks ??
+	(presentCorpusBooks && presentCorpusBooks.length > 0
+		? presentCorpusBooks
+		: workspaceBooks);
 
 const unknown = [...books, ...(bookArg ? [bookArg] : [])].filter(
 	(book) => !workspaceBooks.includes(book),
@@ -125,6 +137,11 @@ if (bookArg && !books.includes(bookArg)) {
 	console.error(`--book ${bookArg} is not among --books ${books.join(",")}.`);
 	process.exit(1);
 }
+if (missingCorpusBooks.length > 0) {
+	console.warn(
+		`corpus.json lists book(s) not in apps/: ${missingCorpusBooks.join(", ")}. They are left out, with their rulings. Remove them from "books" in corpus.json.`,
+	);
+}
 
 const semanticThreshold = thresholdArg ? Number(thresholdArg) : model.threshold;
 if (Number.isNaN(semanticThreshold)) {
@@ -132,8 +149,22 @@ if (Number.isNaN(semanticThreshold)) {
 	process.exit(1);
 }
 
-const mechanisms: CorpusMechanism[] = books.flatMap((book) =>
+const loaded: CorpusMechanism[] = books.flatMap((book) =>
 	loadBookContent(book).mechanisms.map((mechanism) => ({ ...mechanism, book })),
+);
+// A mechanism with no definition in any book has nothing to compare yet: by
+// title alone, every new book's placeholder would match every other's.
+const undefinedSlugs = new Set(
+	loaded
+		.filter((mechanism) =>
+			loaded.every(
+				(other) => other.slug !== mechanism.slug || !other.definition.trim(),
+			),
+		)
+		.map((mechanism) => mechanism.slug),
+);
+const mechanisms = loaded.filter(
+	(mechanism) => !undefinedSlugs.has(mechanism.slug),
 );
 
 if (evalRequested) {
@@ -157,15 +188,19 @@ if (semanticRequested && mechanisms.length > 1) {
 	}
 }
 
-// An explicit --books subset leaves other books' mechanisms out; rulings that
-// name them are out of scope for this run, not stale.
+// A subset of books (--books, or corpus.json naming books that are not here)
+// leaves other books' mechanisms out; rulings that name them are out of scope
+// for this run, not stale. So are rulings on a mechanism with no definition.
 const loadedSlugs = new Set(mechanisms.map((m) => m.slug));
-const rulings = corpusFile.distinct ?? [];
-const distinct = booksArg
-	? rulings.filter((ruling) =>
-			ruling.pair.every((slug) => loadedSlugs.has(slug)),
-		)
-	: rulings;
+const rulings = (corpusFile.distinct ?? []).filter(
+	(ruling) => !ruling.pair.some((slug) => undefinedSlugs.has(slug)),
+);
+const distinct =
+	booksArg || missingCorpusBooks.length > 0
+		? rulings.filter((ruling) =>
+				ruling.pair.every((slug) => loadedSlugs.has(slug)),
+			)
+		: rulings;
 
 const fullReport = analyzeCorpusOverlap(mechanisms, {
 	vectors,
@@ -242,6 +277,11 @@ if (asJson) {
 		);
 	}
 	console.log(`  ${semanticNote}`);
+	if (undefinedSlugs.size > 0) {
+		console.log(
+			`  not compared until they have a definition: ${[...undefinedSlugs].join(", ")}`,
+		);
+	}
 	if (report.shared.length > 0) {
 		console.log(
 			`  shared across books: ${report.shared.map((record) => `${record.slug} (${record.books.join(", ")})`).join("; ")}`,

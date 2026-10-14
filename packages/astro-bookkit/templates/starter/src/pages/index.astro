@@ -1,0 +1,179 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import RelatedBooks from "@bookkit/astro-bookkit/components/RelatedBooks.astro";
+import {
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
+} from "@bookkit/astro-bookkit/localization";
+import { bookEntryPoints } from "../lib/book-entrypoints";
+import {
+	type BookConfig,
+	formatTranslationCompleteness,
+	readRoutes,
+} from "@bookkit/astro-bookkit";
+import bookConfig from "../book.config";
+
+// Read optional fields (author, relatedBooks) through BookConfig, so leaving
+// them out of book.config.ts still type-checks.
+const config: BookConfig = bookConfig;
+
+const chapterIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.chapters,
+	{
+		defaultLocale: "en",
+	},
+);
+const mechanismIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.mechanisms,
+	{
+		defaultLocale: "en",
+	},
+);
+const toolkitIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.toolkit,
+	{
+		defaultLocale: "en",
+	},
+);
+const glossaryIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.glossary,
+	{
+		defaultLocale: "en",
+	},
+);
+const exampleIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.examples,
+	{
+		defaultLocale: "en",
+	},
+);
+const localeKey = Astro.locals?.locale;
+const chapters = resolveLocalizedContent(chapterIndex, { locale: localeKey });
+const mechanisms = resolveLocalizedContent(mechanismIndex, {
+	locale: localeKey,
+});
+const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
+const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
+const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
+const metaDescription = config.site.defaultMeta?.description;
+const stats = [
+	{
+		label: "Chapters",
+		href: readRoutes.chapters,
+		count: chapters.entries.length,
+		completeness: chapters.completeness,
+	},
+	{
+		label: "Mechanisms",
+		href: readRoutes.mechanisms,
+		count: mechanisms.entries.length,
+		completeness: mechanisms.completeness,
+	},
+	{
+		label: "Toolkit actions",
+		href: readRoutes.toolkit,
+		count: toolkit.entries.length,
+		completeness: toolkit.completeness,
+	},
+	{
+		label: "Glossary terms",
+		href: readRoutes.glossary,
+		count: glossary.entries.length,
+		completeness: glossary.completeness,
+	},
+	{
+		label: "Examples",
+		href: readRoutes.examples,
+		count: examples.entries.length,
+		completeness: examples.completeness,
+	},
+];
+const startLinks = [
+	{
+		title: "Read the overview",
+		description: "What the book covers and how it’s organized.",
+		href: readRoutes.overview,
+	},
+	{
+		title: "Browse the mechanisms",
+		description: "The named patterns this book explains.",
+		href: readRoutes.mechanisms,
+	},
+	{
+		title: "Browse everything",
+		description: "Chapters, toolkit, glossary, and examples.",
+		href: readRoutes.root,
+	},
+];
+---
+<BaseLayout title={bookConfig.title}>
+  <div class="hero-shell">
+    <div class="section-header hero-shell__header">
+      <h1>{bookConfig.title}</h1>
+      {config.author && <p class="hero-byline">by {config.author.name}</p>}
+      {metaDescription && <p class="lede">{metaDescription}</p>}
+    </div>
+  </div>
+
+  <section class="content-block">
+    <h2>Where to start</h2>
+    <div class="card-grid" data-funnel-group="home-start">
+      {startLinks.map((link, index) => (
+        <a
+          class="card"
+          href={link.href}
+          data-funnel-step={`home_quickstart_step_${index + 1}`}
+        >
+          <h3>{link.title}</h3>
+          <p class="meta">{link.description}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="content-block">
+    <h2>What’s inside</h2>
+    <div class="stats-grid">
+      {stats.map((stat) => (
+        <a class="stat-card" href={stat.href}>
+          <div class="stat-value">{stat.count}</div>
+          <div class="stat-label">{stat.label}</div>
+          {formatTranslationCompleteness(stat.completeness) && (
+            <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
+          )}
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <RelatedBooks books={config.relatedBooks} />
+  <script>
+    const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const funnelLinks = document.querySelectorAll("[data-funnel-step]");
+    funnelLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        if (isDevHost) return;
+        const step = link.getAttribute("data-funnel-step");
+        if (!step) return;
+        const payload = JSON.stringify({
+          type: "engagement",
+          title: `funnel:${step}`,
+          path: window.location.pathname,
+          durationSeconds: 0,
+          scrollDepth: 0,
+          timestamp: Date.now(),
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          return;
+        }
+        fetch("/api/analytics.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => undefined);
+      });
+    });
+  </script>
+</BaseLayout>

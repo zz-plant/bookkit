@@ -13,7 +13,7 @@ import {
 	type ToolRecord,
 } from "../packages/astro-bookkit/src/suggestions";
 import { extractFrameConfigFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
-import { listBookDirs, optionalArg } from "./_lib";
+import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import {
 	arrayValue,
 	listContentFiles,
@@ -25,7 +25,7 @@ const requestedBook = optionalArg("--book");
 const mode = optionalArg("--mode") ?? "warn";
 const exportFile = optionalArg("--export");
 
-const workspaceRoot = join(import.meta.dir, "..");
+const workspaceRoot = repoRoot();
 
 const exportComplianceTo = (
 	book: string,
@@ -61,12 +61,21 @@ const checkBook = (book: string): number => {
 		console.log(`\nSKIP ${book} — no book.config.ts`);
 		return 0;
 	}
-	const frame = extractFrameConfigFromSource(
-		readFileSync(configPath, "utf8"),
-	)?.slug;
+	const configSource = readFileSync(configPath, "utf8");
+	const frame = extractFrameConfigFromSource(configSource)?.slug;
 	if (frame !== "runbook") {
 		console.log(`\nSKIP ${book} — frame "${frame ?? "none"}" is not runbook`);
 		return 0;
+	}
+	// An example book's review dates are fixtures; it names the day to judge
+	// them on, so they do not go overdue as time passes. Real books leave it out.
+	const asOf = configSource.match(
+		/\breviewsAsOf\s*:\s*["'`](\d{4}-\d{2}-\d{2})["'`]/,
+	)?.[1];
+	if (asOf) {
+		console.log(
+			`\nREVIEW DATES ${book}: judged as of ${asOf} (reviewsAsOf in book.config.ts), not today`,
+		);
 	}
 
 	const bookRoot = join(workspaceRoot, "apps", book, "src", "content", "book");
@@ -143,9 +152,9 @@ const checkBook = (book: string): number => {
 		tools,
 	});
 
-	const rows = deriveComplianceMatrix(mechanisms, tools, { releases });
+	const rows = deriveComplianceMatrix(mechanisms, tools, { releases, asOf });
 	const drift = auditReleaseControlDrift(rows, releases, book);
-	const cadence = auditReviewCadence(book, tools, releases);
+	const cadence = auditReviewCadence(book, tools, releases, asOf);
 
 	const all = [...suggestions, ...drift, ...cadence];
 	const warnings = all.filter((s) => s.severity === "warning");

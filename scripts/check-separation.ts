@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
-import { listBookDirs } from "./_lib";
+import { listBookDirs, repoRoot } from "./_lib";
 
 const allowedExtensions = new Set([
 	".md",
@@ -14,19 +14,15 @@ const allowedExtensions = new Set([
 const allowedFilenames = new Set([".gitkeep"]);
 
 const errors: string[] = [];
+const books = listBookDirs();
+let scanned = 0;
 
-for (const book of listBookDirs()) {
-	const contentRoot = join(
-		process.cwd(),
-		"apps",
-		book,
-		"src",
-		"content",
-		"book",
-	);
+for (const book of books) {
+	const contentRoot = join(repoRoot(), "apps", book, "src", "content", "book");
 	if (!existsSync(contentRoot)) continue;
 
 	for (const file of listFiles(contentRoot)) {
+		scanned += 1;
 		const baseName = basename(file);
 		if (allowedFilenames.has(baseName)) continue;
 
@@ -86,8 +82,16 @@ if (errors.length > 0) {
 	process.exit(1);
 }
 
+// Passing after reading nothing would hide a wrong directory or a missing book.
+if (scanned === 0) {
+	console.error(
+		`Separation check read no content files: no apps/<book>/src/content/book/ under ${repoRoot()}.`,
+	);
+	process.exit(1);
+}
+
 console.log(
-	"Separation checks passed (file boundaries and data-only content invariants verified).",
+	`Separation checks passed: ${scanned} content files in ${books.length} book${books.length === 1 ? "" : "s"} are data only.`,
 );
 
 function listFiles(dir: string): string[] {

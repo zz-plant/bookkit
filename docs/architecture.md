@@ -90,8 +90,7 @@ The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` 
 | `apps/` | one directory per book — config, content bindings, routes, thin runtime wiring |
 | `packages/astro-bookkit` | the engine: schemas, frames, validators, graph, analyzers, MCP, exports, UI |
 | `packages/create-bookkit` | standalone project generator; vendors the engine so output needs no registry |
-| `scripts/` | CLI entrypoints — governance gates, scaffolds, compile/export tasks |
-| `tests/` | workspace-level suites; module tests live beside their source as `*.test.ts` |
+| `scripts/` | CLI entrypoints — governance gates, scaffolds, compile/export tasks; tests live beside their source as `*.test.ts`, here and in the packages |
 | `docs/` | this document, design notes, authorship model, bets, debt register |
 | `.github/workflows/` | CI quality gate |
 

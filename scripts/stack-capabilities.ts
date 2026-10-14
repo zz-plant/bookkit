@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { listBookDirs, repoRoot } from "./_lib";
 
 type PackageManifest = {
 	name?: string;
@@ -33,7 +34,7 @@ const WATCHLIST = [
 	"pdf-lib",
 ] as const;
 
-const root = process.cwd();
+const root = repoRoot();
 const reportPath = argValue("--write") ?? null;
 
 main().catch((err) => {
@@ -42,17 +43,14 @@ main().catch((err) => {
 });
 
 async function main() {
+	// The workspace, every book app, and the engine: whichever exist.
 	const manifests = [
-		["package.json", readManifest("package.json")],
-		[
-			"apps/bad-people/package.json",
-			readManifest("apps/bad-people/package.json"),
-		],
-		[
-			"packages/astro-bookkit/package.json",
-			readManifest("packages/astro-bookkit/package.json"),
-		],
-	] as const;
+		"package.json",
+		...listBookDirs().map((book) => `apps/${book}/package.json`),
+		"packages/astro-bookkit/package.json",
+	]
+		.filter((path) => existsSync(join(root, path)))
+		.map((path) => [path, readManifest(path)] as const);
 
 	const versions = collectWatchedVersions(manifests);
 	const insights = await Promise.all(

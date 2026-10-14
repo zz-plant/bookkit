@@ -59,4 +59,11 @@ export type BookConfig = BookLayoutConfig &
 		glossaryFocus: readonly string[];
 		/** Books listed under "Other books" on the home page. Leave empty for none. */
 		relatedBooks?: readonly RelatedBook[];
+		/**
+		 * For a runbook book whose content is an example: the day (YYYY-MM-DD)
+		 * `check:runbooks` judges review cadence on, instead of today, so its
+		 * fixture dates never fall overdue. The check prints the date it used.
+		 * Leave it out for real runbooks.
+		 */
+		reviewsAsOf?: string;
 	};

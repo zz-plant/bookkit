@@ -5,10 +5,27 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 
+/**
+ * The Bookkit workspace these scripts act on: the nearest directory, from the
+ * current one up, that is a workspace root (it keeps books in apps/, or has
+ * the tsconfig.base.json every workspace starts with). `bun run` keeps the
+ * caller's directory, so a check started from apps/<book>/, docs/, or
+ * scripts/ still sees every book instead of none. Outside any workspace it is
+ * the current directory, so a script never reaches into one it was not run in.
+ */
 export function repoRoot(): string {
-	return process.cwd();
+	const cwd = process.cwd();
+	for (let dir = cwd; ; dir = dirname(dir)) {
+		if (
+			existsSync(join(dir, "apps")) ||
+			existsSync(join(dir, "tsconfig.base.json"))
+		) {
+			return dir;
+		}
+		if (dirname(dir) === dir) return cwd;
+	}
 }
 
 export function listBookDirs(): string[] {

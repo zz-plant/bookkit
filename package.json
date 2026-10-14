@@ -44,7 +44,6 @@
 		"check:runbooks:error": "bun run scripts/check-runbooks.ts --mode error",
 		"propose": "bun run scripts/propose-book.ts",
 		"audit:unused": "bun run scripts/audit-unused.ts",
-		"fix:frontmatter": "bun run scripts/fix-frontmatter.ts",
 		"export:gitbook": "bun run scripts/export-gitbook.ts",
 		"export:smoke": "bun run scripts/export-smoke.ts",
 		"check:separation": "bun run scripts/check-separation.ts",
@@ -56,7 +55,6 @@
 		"check:shims": "bun run scripts/check-shims.ts",
 		"sync:shims": "bun run scripts/check-shims.ts --write",
 		"test": "bun test",
-		"test:vitest": "vitest run",
 		"setup": "mise trust && bun install",
 		"check": "bun run bookkit check"
 	},
@@ -70,7 +68,6 @@
 		"lint-staged": "^17.0.5",
 		"typescript": "^5.9.3",
 		"typescript-native": "npm:typescript@7.0.2",
-		"vitest": "^4.1.10",
 		"wrangler": "^4.131.2"
 	}
 }

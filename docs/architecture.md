@@ -92,7 +92,7 @@ The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` 
 | `packages/create-bookkit` | standalone project generator; vendors the engine so output needs no registry |
 | `scripts/` | CLI entrypoints — governance gates, scaffolds, compile/export tasks |
 | `tests/` | workspace-level suites; module tests live beside their source as `*.test.ts` |
-| `docs/` | this document, design notes, roadmaps, research, review archives |
+| `docs/` | this document, design notes, authorship model, bets, debt register |
 | `.github/workflows/` | CI quality gate |
 
 <!-- architecture:workspace:end -->

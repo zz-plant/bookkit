@@ -10,5 +10,5 @@ Metadata format: `[owner: <role>] [milestone: <target>] [debt: <ID?>]`
 ## P1 — Runbook coverage follow-through
 - [ ] Add a second release note so `auditReleaseControlDrift` is exercised against real history rather than a single initial draft. `[owner: book maintainers] [milestone: 2026-10 runbook hardening] [debt: ]`
 
-## P2 — Wedge sequencing (bet B2, parked in `docs/bets.md`)
+## P2 — Distribution (bet B2, parked in `docs/bets.md`)
 - [ ] Resolve the registry namespace/publish decision for `create-bookkit` and `@bookkit/astro-bookkit`; the standalone generator this book demos works vendored, but publishing is still open. `[owner: platform maintainers] [milestone: 2026-10 distribution] [debt: ]`

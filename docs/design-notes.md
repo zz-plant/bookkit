@@ -40,20 +40,20 @@ Toolkit primitives must be ≤10 minutes, failure-resilient, and non-heroic — 
 
 The suggestion layer (`packages/astro-bookkit/src/suggestions/`) is deterministic: it proposes candidate mechanisms, prerequisite edges, example swaps, and runbook coverage findings. **Nothing AI-generated may bypass a validator** — a proposed mechanism is a draft until a human author records it and triggers recompilation.
 
-**Why this ordering:** putting AI in the propose-position keeps a human + determinism in the decide-position. This is what makes the repo safe to recommend for "governance-grade authoring": the compiler's guarantees do not depend on the model being right.
+**Why this ordering:** putting AI in the propose-position keeps a human + determinism in the decide-position, so the compiler's guarantees do not depend on the model being right.
 
 ## Error philosophy
 
-Errors are `NormalizedErrorPayload`s with five parts: `machineCode`, `humanSummary`, `location`, `failingRule`, `nextAction`. The `nextAction` is mandatory.
+Errors are `NormalizedErrorPayload`s with five parts: `machineCode`, `humanSummary`, `location`, `failingRule`, `nextAction`. The `nextAction` is mandatory. Each payload also carries a `severity` (`error` or `warning`) and a `gateLevel` (`blocking` or `advisory`), and MCP tool failures use the same shape.
 
 **Why:** "validation failed" is torture. "Frame runbook is missing required step ownership; add the Ownership heading to chapters/00-overview.mdx before validating again" is a reviewable instruction. Everything else is decoration.
 
-## The runbook wedge (2026-09-04)
+## The runbook frame (2026-09-04)
 
 The runbook frame + runbook schema fields (owner, reviewEveryDays, drills, escalation, satisfies, runbookSteps) extend the same five invariants to operating procedures. `satisfies` is machine-checkable coverage but **not evidence**; `drills` are the evidence. The compliance matrix is therefore "coverage," never "certification," and the drill-coverage analyzer is a governance gate, not a compliance stamp.
 
 Boundaries kept:
-- One `runbook` frame in the engine registry — never a per-customer frame.
+- One `runbook` frame in the engine registry — never a per-team frame.
 - Runbook fields are optional with defaults; teaching books are untouched.
 - Release-diff checks are computable at HEAD; they never reconstruct past state.
 

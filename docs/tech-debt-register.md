@@ -30,7 +30,7 @@ Use this register as the single prioritized queue for cross-cutting debt remedia
 
 ## Consolidated open work snapshot
 
-- **What gets worked on next:** `docs/bets.md` (B1 active, B2 parked). Roadmap tracks 2–4 are parked there.
+- **What gets worked on next:** `docs/bets.md` (B1 active, B2 parked). MCP and governance-API hardening and reader forking are parked there.
 - **Per-book open work:**
   - `apps/bad-people/TODOS.md`
   - `apps/crumple-zone/TODOS.md`

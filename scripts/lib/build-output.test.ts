@@ -110,27 +110,65 @@ describe("inspectBuildOutput", () => {
 		expect(result.findings[0]?.message).toContain("bad-people.book");
 	});
 
-	it("treats noindex as a warning for drafts and an error for published books", () => {
-		write(
-			dist,
-			"index.html",
-			HEALTHY_INDEX.replace(
-				"</head>",
-				'<meta name="robots" content="noindex, nofollow"></head>',
-			),
-		);
-
-		const draft = inspectBuildOutput({ book: "on-call", distDir: dist });
-		expect(draft.ok).toBe(true);
-		expect(draft.findings[0]?.level).toBe("warning");
-
-		const published = inspectBuildOutput({
+	it("requires noindex on an unreleased book and indexing on a released one", () => {
+		// writeHealthyDist builds a draft by default: noindex.
+		expect(
+			inspectBuildOutput({ book: "on-call", distDir: dist, published: false })
+				.findings,
+		).toEqual([]);
+		const noindexed = inspectBuildOutput({
 			book: "on-call",
 			distDir: dist,
 			published: true,
 		});
-		expect(published.ok).toBe(false);
-		expect(published.findings[0]?.message).toContain('"published"');
+		expect(noindexed.ok).toBe(false);
+		expect(noindexed.findings[0]?.message).toContain("published or stable");
+
+		writeHealthyDist(dist, { published: true });
+		expect(
+			inspectBuildOutput({ book: "on-call", distDir: dist, published: true })
+				.findings,
+		).toEqual([]);
+		const indexable = inspectBuildOutput({
+			book: "on-call",
+			distDir: dist,
+			published: false,
+		});
+		expect(indexable.ok).toBe(false);
+		expect(indexable.findings[0]?.message).toContain("not published or stable");
+	});
+
+	it("refuses preview access on a static build, since nothing enforces it", () => {
+		const result = inspectBuildOutput({
+			book: "bad-people",
+			distDir: dist,
+			previewAccessOnStaticSite: true,
+		});
+		expect(result.ok).toBe(false);
+		expect(result.findings[0]?.message).toContain("every page here is public");
+	});
+
+	it("requires a chapter page once the book is past draft", () => {
+		const empty = inspectBuildOutput({
+			book: "on-call",
+			distDir: dist,
+			requireChapters: true,
+		});
+		expect(empty.ok).toBe(false);
+		expect(empty.findings[0]).toMatchObject({ file: "read/chapters/" });
+
+		write(
+			dist,
+			"read/chapters/overview/index.html",
+			'<html><head><link rel="canonical" href="https://on-call.book/read/chapters/overview"></head></html>',
+		);
+		expect(
+			inspectBuildOutput({
+				book: "on-call",
+				distDir: dist,
+				requireChapters: true,
+			}).ok,
+		).toBe(true);
 	});
 
 	it("flags client code shipped as raw TypeScript", () => {

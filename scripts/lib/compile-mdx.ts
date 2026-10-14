@@ -103,3 +103,36 @@ export const compileMdx = async (
 		return { ok: false, ...positionOf(failure, reason), reason };
 	}
 };
+
+/**
+ * A compile result as a validation finding: an error naming the line and
+ * column the build would stop at, a warning when the compiler is not
+ * installed (so nothing was compiled), or null when the file compiles.
+ */
+export const compileFinding = (
+	result: MdxCompileResult,
+): {
+	level: "error" | "warning";
+	code: "MDX_COMPILE" | "MDX_NOT_COMPILED";
+	message: string;
+	fix: string;
+} | null => {
+	if (result.ok === true) return null;
+	if (result.ok === null) {
+		return {
+			level: "warning",
+			code: "MDX_NOT_COMPILED",
+			message: `MDX was not compiled: ${result.reason}`,
+			fix: "Run bun install, then check again.",
+		};
+	}
+	const where = result.line
+		? ` at line ${result.line}${result.column ? `, column ${result.column}` : ""}`
+		: "";
+	return {
+		level: "error",
+		code: "MDX_COMPILE",
+		message: `MDX does not compile${where}: ${result.reason}`,
+		fix: "The build stops on this file. Usual causes: a literal { or < in prose (write \\{ or &lt;), a tag that is never closed, or an HTML comment (write {/* … */}).",
+	};
+};

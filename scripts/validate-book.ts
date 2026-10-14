@@ -1,62 +1,98 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
-import { optionalArg, requireArg } from "./_lib";
+import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
+import { parseScriptArgs, requireExistingBook } from "./lib/cli";
+import { compileFinding, compileMdx } from "./lib/compile-mdx";
 import { extractSiteConfig } from "./lib/site-config";
 
-const book = requireArg("--book");
-const mode = optionalArg("--mode") ?? "warn";
-const noDrafts = process.argv.includes("--no-drafts");
+const args = parseScriptArgs(
+	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
 
-const workspaceRoot = join(import.meta.dir, "..");
+Usage:
+  bun run validate:book -- --book <book> [--json]
+
+Options:
+  --book <book>   The book app to validate
+  --json          One JSON object: { book, status, releaseRules, ok, findings }
+  -h, --help      Show this help
+
+The book's status in book.config.ts decides the rules. A published or stable
+book gets release rules: no draft records, broken links and prerequisites are
+errors, and the site must be indexable at a public URL. Any other book is
+checked as a draft. Errors exit 1; warnings never do. (--mode and --no-drafts
+are accepted for older callers and ignored.)`,
+	{ book: "string", json: "boolean", mode: "string", "no-drafts": "boolean" },
+	["book"],
+);
+
+const { book } = args;
+requireExistingBook(book, listBookDirs());
+const workspaceRoot = repoRoot();
 
 const findings: Finding[] = [];
-const error = (message: string, code: string) =>
-	findings.push({ level: "error", code, message });
+const error = (message: string, code: string, fix: string) =>
+	findings.push({ level: "error", code, message, fix });
 
 // Content and frame findings come from the engine (validators/book-validator.ts),
 // the same function MCP and generated projects call.
-for (const finding of checkBookContent({
-	workspaceRoot,
-	bookSlug: book,
-	releaseMode: noDrafts,
-}).findings) {
+const content = checkBookContent({ workspaceRoot, bookSlug: book });
+for (const finding of content.findings) {
 	findings.push({
 		...finding,
 		file: finding.file ? relative(workspaceRoot, finding.file) : undefined,
 	});
 }
 
-const bookConfigPath = join(
-	workspaceRoot,
-	"apps",
-	book,
-	"src",
-	"book.config.ts",
+// Every MDX file goes through the compiler the build uses, so a syntax error
+// is reported here, with its line, instead of stopping the build. A file
+// already reported for an HTML comment is skipped: that is the same failure.
+const contentDir = join("apps", book, "src", "content", "book");
+const reportedComment = new Set(
+	findings
+		.filter((finding) => finding.code === "MDX_HTML_COMMENT")
+		.map((finding) => finding.file),
 );
-if (existsSync(bookConfigPath)) {
-	const configSource = readFileSync(bookConfigPath, "utf8");
-	const siteConfig = extractSiteConfig(configSource);
-	const indexableFalse = siteConfig?.indexable === false;
+const mdxFiles = existsSync(join(workspaceRoot, contentDir))
+	? listFilesRecursive(join(workspaceRoot, contentDir))
+			.filter((file) => file.endsWith(".mdx"))
+			.map((file) => join(contentDir, file))
+			.filter((file) => !reportedComment.has(file))
+	: [];
+const compiled = await Promise.all(
+	mdxFiles.map(async (file) => ({
+		file,
+		finding: compileFinding(
+			await compileMdx(
+				readFileSync(join(workspaceRoot, file), "utf8"),
+				join(workspaceRoot, "apps", book),
+			),
+		),
+	})),
+);
+for (const { file, finding } of compiled) {
+	if (finding) findings.push({ ...finding, file });
+}
+
+const configFile = join("apps", book, "src", "book.config.ts");
+if (content.releaseMode && existsSync(join(workspaceRoot, configFile))) {
+	const siteConfig = extractSiteConfig(
+		readFileSync(join(workspaceRoot, configFile), "utf8"),
+	);
 	const siteUrl = siteConfig?.url?.trim();
-	const localSiteUrl =
-		!!siteUrl && /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(siteUrl);
-
-	const requireProdSeo =
-		noDrafts && process.env.BOOKKIT_REQUIRE_INDEXABLE_PROD === "true";
-
-	if (requireProdSeo && indexableFalse) {
+	if (siteConfig?.indexable === false) {
 		error(
-			`Release validation failed: apps/${book}/src/book.config.ts has site.indexable set to false. Set indexable: true for production.`,
+			`${configFile} sets site.indexable to false, but a ${content.status} book is meant to be found`,
 			"RELEASE_NOT_INDEXABLE",
+			'Remove indexable: false (or set it to true), or set status: "draft" until the book should be found.',
 		);
 	}
-
-	if (requireProdSeo && (!siteUrl || localSiteUrl)) {
+	if (!siteUrl || /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(siteUrl)) {
 		error(
-			`Release validation failed: apps/${book}/src/book.config.ts must define a public site.url for production builds.`,
+			`${configFile} has ${siteUrl ? `a local site.url (${siteUrl})` : "no site.url"}, so canonical links, the sitemap, and link previews would not point at the published site`,
 			"RELEASE_SITE_URL",
+			'Set site.url to the public address readers will use, e.g. url: "https://example.com".',
 		);
 	}
 }
@@ -64,33 +100,50 @@ if (existsSync(bookConfigPath)) {
 const errors = findings.filter((finding) => finding.level === "error");
 const warnings = findings.filter((finding) => finding.level === "warning");
 
-if (process.argv.includes("--json")) {
+if (args.json) {
 	// One object per finding: `code` is stable, `file` is repo-relative, and
 	// content findings carry the `field` and a `fix`.
 	console.log(
 		JSON.stringify(
-			{ book, ok: errors.length === 0, findings: [...errors, ...warnings] },
+			{
+				book,
+				status: content.status ?? "draft",
+				releaseRules: content.releaseMode,
+				ok: errors.length === 0,
+				findings: [...errors, ...warnings],
+			},
 			null,
 			2,
 		),
 	);
 } else {
-	report("warning", warnings);
-	report("error", errors);
-}
-
-const shouldFail = mode === "error" && errors.length > 0;
-
-process.exit(shouldFail ? 1 : 0);
-
-function report(label: "warning" | "error", items: Finding[]) {
-	if (items.length === 0) return;
-	console.log(`\n${label.toUpperCase()}S (${items.length})`);
-	// One line per file, so a tool missing five fields reads as one gap.
-	const lines = items.map((item) =>
-		item.file
-			? `${item.message}: ${join(workspaceRoot, item.file)}`
-			: item.message,
+	const status = content.status ?? "draft";
+	console.log(
+		`\nVALIDATE ${book} (${status}${content.releaseMode ? ", so release rules apply: no drafts, and broken links are errors" : ""})`,
 	);
-	for (const line of groupFindingsByFile(lines)) console.log(`- ${line}`);
+	if (warnings.length > 0) {
+		console.log(`\nWARNINGS (${warnings.length})`);
+		// One line per file, so a tool missing five fields reads as one gap.
+		const lines = warnings.map((item) =>
+			item.file
+				? `${item.message}: ${join(workspaceRoot, item.file)}`
+				: item.message,
+		);
+		for (const line of groupFindingsByFile(lines)) console.log(`- ${line}`);
+	}
+	if (errors.length > 0) {
+		// Every error on its own line, with what to change.
+		console.log(`\nERRORS (${errors.length})`);
+		for (const item of errors) {
+			console.log(`- ${item.file ? `${item.file}: ` : ""}${item.message}`);
+			if (item.fix) console.log(`  fix: ${item.fix.replace(/\n/g, "\n  ")}`);
+		}
+	}
+	console.log(
+		errors.length > 0
+			? `\n✗ ${book}: ${errors.length} error${errors.length === 1 ? "" : "s"}, ${warnings.length} warning${warnings.length === 1 ? "" : "s"}`
+			: `\n✓ ${book}: no errors, ${warnings.length} warning${warnings.length === 1 ? "" : "s"}`,
+	);
 }
+
+process.exit(errors.length > 0 ? 1 : 0);

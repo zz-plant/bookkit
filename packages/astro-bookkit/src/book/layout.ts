@@ -17,7 +17,12 @@ import {
 	extractVersionFromPath,
 	stripVersionFromPath,
 } from "../releases/versions";
-import { buildSeoProps, runtimeFeatures, type SeoProps } from "../seo/config";
+import {
+	buildSeoProps,
+	resolveBookSite,
+	runtimeFeatures,
+	type SeoProps,
+} from "../seo/config";
 import { canonicalPathname } from "../seo/urls";
 
 type BookLayoutAstroProps = {
@@ -454,7 +459,8 @@ export const createBookLayoutState = (
 			? stripVersionFromPath(requestPathname, { prefixSegment: versionPrefix })
 			: requestPathname);
 	const seoProps = buildSeoProps({
-		site: bookConfig.site,
+		// An unreleased book's pages are noindex whatever site.indexable says.
+		site: resolveBookSite(bookConfig),
 		requestUrl,
 		description: props.description,
 		ogTitle: props.ogTitle,

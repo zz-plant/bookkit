@@ -1,3 +1,8 @@
+/**
+ * Author decisions read from a book.config.ts source without running it.
+ * Dependency-free: the engine must not require `typescript`.
+ */
+
 export type FrameConfigFromSource = {
 	slug: string;
 	steps: string[];
@@ -83,4 +88,39 @@ export function extractFrameConfigFromSource(
 		.filter((value) => value.length > 0);
 
 	return { slug: slugMatch[1] ?? slugMatch[2] ?? slugMatch[3], steps };
+}
+
+const BOOK_STATUS_KEY = /status\s*:\s*(["'`])([^"'`\n]*)\1/y;
+
+/**
+ * The book's `status` from a book.config.ts source: the first `status:` key
+ * one level inside an object literal, which is where `export const
+ * bookConfig = { status: "draft", ... }` puts it. Strings and comments are
+ * skipped, so a nested `status` (or one in prose) is never read. Undefined
+ * when absent or not a string literal.
+ */
+export function extractBookStatusFromSource(
+	source: string,
+): string | undefined {
+	let depth = 0;
+	for (let i = 0; i < source.length; i++) {
+		const ch = source[i];
+		if (STRING_START.test(ch)) {
+			i = readStringAt(source, i) - 1;
+		} else if (ch === "/" && source[i + 1] === "/") {
+			while (i < source.length && source[i] !== "\n") i++;
+		} else if (ch === "/" && source[i + 1] === "*") {
+			const end = source.indexOf("*/", i + 2);
+			i = end === -1 ? source.length : end + 1;
+		} else if (ch === "{") {
+			depth++;
+		} else if (ch === "}") {
+			depth--;
+		} else if (depth === 1 && !/[\w$]/.test(source[i - 1] ?? "")) {
+			BOOK_STATUS_KEY.lastIndex = i;
+			const match = BOOK_STATUS_KEY.exec(source);
+			if (match) return match[2];
+		}
+	}
+	return undefined;
 }

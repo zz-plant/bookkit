@@ -232,4 +232,25 @@ describe("book layout state", () => {
 		expect(page.author?.name).toBe("Kanav Jain");
 		expect(page.isPartOf?.author?.name).toBe("Kanav Jain");
 	});
+
+	it("builds every page of an unreleased book noindex, even when site.indexable is true", () => {
+		const state = (status?: string) =>
+			createBookLayoutState({
+				astro: {
+					props: { title: "Overview" },
+					url: new URL("https://bad-people.book/read/chapters/overview"),
+				},
+				bookConfig: {
+					site: { url: "https://bad-people.book", indexable: true },
+					title: "Bad People",
+					status,
+				},
+				versionEntries: [],
+				localizedContentModules: [],
+			});
+
+		expect(state("draft").seoProps.robots).toBe("noindex, nofollow");
+		expect(state(undefined).seoProps.robots).toBe("noindex, nofollow");
+		expect(state("published").seoProps.robots).toBeUndefined();
+	});
 });

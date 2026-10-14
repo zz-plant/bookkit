@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { defaultFrames } from "../frames/defaults";
-import { extractFrameConfigFromSource } from "./frame-config";
+import {
+	extractBookStatusFromSource,
+	extractFrameConfigFromSource,
+} from "./frame-config";
 
 describe("extractFrameConfigFromSource", () => {
 	test("parses slug and steps from a frame property", () => {
@@ -71,5 +74,28 @@ describe("defaultFrames runbook", () => {
 			"verification",
 		]);
 		expect(frame?.steps.every((s) => s.required)).toBe(true);
+	});
+});
+
+describe("extractBookStatusFromSource", () => {
+	test("reads the book's own status, not a nested one or one in a string", () => {
+		expect(
+			extractBookStatusFromSource(`
+				// status: "stable" in a comment is not read
+				const note = "status: 'in-review'";
+				export const bookConfig = {
+					slug: "on-call",
+					previewAccess: { tokens: [{ status: "revoked" }] },
+					status: "published",
+				} as const;`),
+		).toBe("published");
+	});
+
+	test("is undefined when the config sets no status", () => {
+		expect(
+			extractBookStatusFromSource(
+				`export const bookConfig = { slug: "x", site: { status: "draft" } };`,
+			),
+		).toBeUndefined();
 	});
 });

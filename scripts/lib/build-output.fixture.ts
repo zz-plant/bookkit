@@ -7,6 +7,9 @@ import { LOCKOUT_MARKER } from "./build-output";
 
 export const HEALTHY_INDEX = `<!doctype html><html><head><title>On-Call Runbook</title><link rel="canonical" href="https://on-call.book/"></head><body>ok</body></html>`;
 
+/** What a build adds to every page of a book that is not published or stable. */
+export const NOINDEX_META = '<meta name="robots" content="noindex, nofollow">';
+
 export const write = (
 	dist: string,
 	rel: string,
@@ -17,8 +20,22 @@ export const write = (
 	writeFileSync(path, content);
 };
 
-export const writeHealthyDist = (dist: string) => {
-	write(dist, "index.html", HEALTHY_INDEX);
+/**
+ * `published`: the build of a published or stable book, whose pages are
+ * indexable. Otherwise (the default, like a new book) it is a draft's build,
+ * which is noindex.
+ */
+export const writeHealthyDist = (
+	dist: string,
+	{ published = false }: { published?: boolean } = {},
+) => {
+	write(
+		dist,
+		"index.html",
+		published
+			? HEALTHY_INDEX
+			: HEALTHY_INDEX.replace("</head>", `${NOINDEX_META}</head>`),
+	);
 	write(dist, "404.html", "<title>Page not found</title>");
 	write(
 		dist,

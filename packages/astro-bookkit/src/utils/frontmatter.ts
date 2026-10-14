@@ -20,7 +20,8 @@ export type ParsedFrontmatter =
 	  };
 
 // An optional BOM, an opening --- line, the YAML (possibly empty), a closing --- line.
-const FRONTMATTER = /^﻿?---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/;
+export const FRONTMATTER =
+	/^﻿?---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/;
 
 export const parseFrontmatter = (raw: string): ParsedFrontmatter => {
 	const match = raw.match(FRONTMATTER);
@@ -77,3 +78,10 @@ export const frontmatterTextFields = (
 	}
 	return fields;
 };
+
+/**
+ * A frontmatter block for `data`, written by js-yaml so any title or summary
+ * (quotes, colons, `#`, leading dashes) reads back as the same string.
+ */
+export const formatFrontmatter = (data: Record<string, unknown>): string =>
+	`---\n${yaml.dump(data, { lineWidth: -1 })}---\n`;

@@ -1076,7 +1076,7 @@ Write
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
   new book <slug>                           a new book app
-  import [book] --dir <path>                bring markdown chapters into a book (converted to compile as MDX)
+  import [book] --dir <path> [--dry-run]    turn a folder of Markdown notes into chapters; --dry-run shows the plan
   propose [book] [--apply …]                draft mechanisms, tools, and config from a book's text
 
 Check

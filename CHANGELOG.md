@@ -3,6 +3,10 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — Reader search reports its real backend
+
+- **Fixed: semantic search said "Model loaded (WebGPU)." while running on WebAssembly.** `createEmbeddingEngine` passed WebGPU options that `@xenova/transformers` v2 does not support and silently ignores, so the WebGPU branch always "succeeded". It now loads once and reports "Model loaded."; the "GPU acceleration unavailable." message is gone too. Search results are unchanged. **Migration:** none.
+
 ## 2026-10-09 — Book sites get icons
 
 - **`BookLayout` links a favicon and a touch icon.** Every page's head now carries `/favicon.ico`, `/favicon.svg` and `/apple-touch-icon.png`. Before, no book had any, so tabs, bookmarks and home-screen shortcuts showed the browser's blank page.

@@ -28,21 +28,12 @@ export const createEmbeddingEngine = async (
 ): Promise<EmbeddingEngine | null> => {
 	if (typeof window === "undefined") return null;
 
-	const hasWebGPU =
-		"gpu" in navigator &&
-		!!(
-			navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }
-		).gpu?.requestAdapter;
-	if (!hasWebGPU) {
-		onProgress?.("GPU acceleration unavailable.");
-	}
-
 	try {
 		onProgress?.("Loading embedding model…");
 
 		// Dynamic import so transformers.js remains optional at build time
 		// biome-ignore lint/suspicious/noTsIgnore: the optional dependency may be absent, so the import may or may not type-check
-		// @ts-ignore — optional dependency, loaded only when WebGPU is enabled
+		// @ts-ignore — optional dependency, loaded only when semantic search is enabled
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const transformers: any = await import("@xenova/transformers");
 		const { pipeline } = transformers;
@@ -51,12 +42,12 @@ export const createEmbeddingEngine = async (
 		env.useBrowserCache = true;
 		env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency ?? 4;
 
-		// Prefer WebGPU with fp16, fallback to wasm
-		let extractor: (...args: unknown[]) => Promise<unknown>;
-		try {
-			extractor = await pipeline("feature-extraction", DEFAULT_MODEL, {
-				device: "webgpu",
-				dtype: "fp16",
+		// @xenova/transformers v2 runs on WebAssembly only: it has no WebGPU
+		// backend and ignores device/dtype options, so none are passed.
+		const extractor: (...args: unknown[]) => Promise<unknown> = await pipeline(
+			"feature-extraction",
+			DEFAULT_MODEL,
+			{
 				progress_callback: (p: {
 					status: string;
 					file?: string;
@@ -72,29 +63,9 @@ export const createEmbeddingEngine = async (
 						onProgress?.(`Downloading model… ${pct}%`);
 					}
 				},
-			});
-			onProgress?.("Model loaded (WebGPU).");
-		} catch {
-			extractor = await pipeline("feature-extraction", DEFAULT_MODEL, {
-				device: "cpu",
-				progress_callback: (p: {
-					status: string;
-					file?: string;
-					loaded?: number;
-					total?: number;
-				}) => {
-					if (
-						p.status === "progress" &&
-						p.total &&
-						typeof p.loaded === "number"
-					) {
-						const pct = Math.round((p.loaded / p.total) * 100);
-						onProgress?.(`Downloading model… ${pct}%`);
-					}
-				},
-			});
-			onProgress?.("Model loaded (CPU).");
-		}
+			},
+		);
+		onProgress?.("Model loaded.");
 
 		const encode = async (texts: string[]): Promise<EmbeddingVector[]> => {
 			const batches = chunk(texts, BATCH_SIZE);

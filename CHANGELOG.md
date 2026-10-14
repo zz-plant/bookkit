@@ -18,6 +18,15 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 
 - **Fixed: semantic search said "Model loaded (WebGPU)." while running on WebAssembly.** `createEmbeddingEngine` passed WebGPU options that `@xenova/transformers` v2 does not support and silently ignores, so the WebGPU branch always "succeeded". It now loads once and reports "Model loaded."; the "GPU acceleration unavailable." message is gone too. Search results are unchanged. **Migration:** none.
 
+## 2026-10-14 — Book sites draw their icons at build
+
+- **The Bookkit integration draws each book's favicon and touch icon after a build**, beside the link-preview images, from the home page's `og:site_name`: the short title's initial (after a leading "The", "A" or "An"). Before, each app committed its three files and `new:book` and `create-bookkit` copied Bad People's, so every new book shipped its "B".
+- **Files in a book's `public/` still win.** Running Hot keeps its committed "R", since its title starts "Don't Turn People…". Bad People, The Crumple Zone and On-Call drop theirs; the drawn icons match them.
+- **`bookkit()` loses its unused `injectRoutes` option.** Nothing read it.
+- **An icon never fails a build.** A title Newsreader can't draw (Greek, CJK, or no letter at all) logs a warning and ships without icons; before, it drew the font's empty box. Latin Extended and Vietnamese initials now draw.
+- **Fixed: a book scaffolded with `new:book` or `create-bookkit` failed to build.** The home page it copies from Bad People read `bookConfig.author.name`, and scaffolded configs have no `author`. The byline now shows only when there is one.
+- **Migration:** none for existing books. `astro dev` serves no icons unless they're in `public/`, as with link-preview images.
+
 ## 2026-10-09 — Book sites get icons
 
 - **`BookLayout` links a favicon and a touch icon.** Every page's head now carries `/favicon.ico`, `/favicon.svg` and `/apple-touch-icon.png`. Before, no book had any, so tabs, bookmarks and home-screen shortcuts showed the browser's blank page.

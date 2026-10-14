@@ -74,7 +74,7 @@ const decodeEntities = (value: string): string =>
 		.replace(/&gt;/g, ">")
 		.replace(/&amp;/g, "&");
 
-const metaContent = (html: string, key: string): string | undefined => {
+export const metaContent = (html: string, key: string): string | undefined => {
 	const tag = html.match(
 		new RegExp(`<meta[^>]+(?:property|name)="${key}"[^>]*>`, "i"),
 	)?.[0];

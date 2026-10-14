@@ -1,23 +1,15 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { readdir } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
-import { parseArgs } from "node:util";
+import { listBookDirs, optionalArg } from "./_lib";
+import { booksFromArgv } from "./lib/book-args";
 import { parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
 
-const { values } = parseArgs({
-	args: Bun.argv,
-	options: {
-		book: { type: "string" },
-		mode: { type: "string", default: "warn" },
-		json: { type: "boolean", default: false },
-	},
-	strict: false,
-	allowPositionals: true,
+const { books: selectedBooks } = booksFromArgv(listBookDirs(), {
+	usage: "bun run check:concepts [book] [--mode error] [--json]",
+	valueFlags: ["--mode"],
 });
-
-// With strict: false, a flag given without a value parses as `true`.
-const mode = typeof values.mode === "string" ? values.mode : "warn";
-const asJson = values.json === true;
+const mode = optionalArg("--mode") ?? "warn";
+const asJson = process.argv.includes("--json");
 const log = (...args: unknown[]) => {
 	if (!asJson) console.log(...args);
 };
@@ -154,34 +146,22 @@ function loadRegisteredVocabulary(bookRoot: string): Set<string> {
 	return vocabulary;
 }
 
-async function discoverBooks(): Promise<string[]> {
-	if (typeof values.book === "string") {
-		return [values.book];
-	}
-
-	const appsDir = join(process.cwd(), "apps");
-	try {
-		const entries = await readdir(appsDir, { withFileTypes: true });
-		return entries
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => entry.name);
-	} catch {
-		console.error("❌ Fatal: Could not find the 'apps' directory.");
-		process.exit(1);
-	}
-}
-
 const jsonHits: Array<{ book: string; file: string; term: string }> = [];
+let filesRead = 0;
 
 async function checkConceptsForBook(book: string): Promise<number> {
 	const base = join(process.cwd(), "apps", book, "src", "content", "book");
 	if (!existsSync(base)) {
-		throw new Error(`Missing content directory for ${book} at ${base}`);
+		throw new Error(
+			`no content directory at ${relative(process.cwd(), base)}, so nothing was checked`,
+		);
 	}
 
 	const vocabulary = loadRegisteredVocabulary(base);
 	const registeredTerms = [...vocabulary];
 	const files = walk(base);
+	filesRead += files.length;
+	log(`   ${files.length} file(s) read`);
 	const hits: Record<string, Set<string>> = {};
 
 	for (const file of files) {
@@ -235,24 +215,24 @@ async function checkConceptsForBook(book: string): Promise<number> {
 }
 
 async function main() {
-	const books = await discoverBooks();
-
-	if (books.length === 0) {
-		console.error(
-			"No books found under apps/. Pass --book <slug> to target a specific book.",
-		);
-		process.exit(1);
-	}
-
+	const books = selectedBooks;
 	let totalCount = 0;
+	const unreadable: string[] = [];
 
 	for (const book of books) {
 		log(`\n🔍 Checking concept registry: ${book}`);
 		try {
 			totalCount += await checkConceptsForBook(book);
 		} catch (error) {
-			console.error(`❌ Issues found in ${book}: ${(error as Error).message}`);
+			unreadable.push(book);
+			console.error(`❌ ${book}: ${(error as Error).message}`);
 		}
+	}
+	if (unreadable.length > 0 || filesRead === 0) {
+		console.error(
+			`\nNothing was checked for ${unreadable.length > 0 ? unreadable.join(", ") : books.join(", ")}: no content files were read.`,
+		);
+		process.exit(1);
 	}
 
 	if (asJson) {
@@ -277,7 +257,9 @@ async function main() {
 	}
 
 	if (totalCount === 0) {
-		console.log("\n✅ All multi-word concepts are registered or in allowlist.");
+		console.log(
+			`\n✅ ${filesRead} file(s) in ${books.length} book(s) read; every multi-word concept is registered or in the allowlist.`,
+		);
 		process.exit(0);
 	}
 

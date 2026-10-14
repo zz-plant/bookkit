@@ -1,9 +1,21 @@
 export type { ExportAnalyticsEvent } from "./analytics";
 export { recordExportEvent } from "./analytics";
-export { buildExportChapters, parseFrontmatter } from "./content-parsing";
+export type { ExportReadingOrderOptions } from "./content-parsing";
+export {
+	buildExportChapters,
+	buildExportParts,
+	parseFrontmatter,
+} from "./content-parsing";
 export type { ExportAnalyticsEndpointOptions } from "./endpoint";
 export { createExportAnalyticsEndpoint } from "./endpoint";
 export { createEpubExport } from "./epub-generator";
+export type { PdfTextRun } from "./inspect";
+export {
+	extractPdfText,
+	inspectEpub,
+	inspectPdf,
+	xmlWellFormednessProblems,
+} from "./inspect";
 export {
 	buildExportLinks,
 	buildExportMetadata,
@@ -19,9 +31,12 @@ export type {
 	BookExportHelperOptions,
 	BookExportInfo,
 	ExportBundle,
-	ExportChapter,
+	ExportEntry,
+	ExportEntryKind,
 	ExportFormat,
 	ExportLink,
 	ExportLinkOptions,
 	ExportMetadata,
+	ExportPart,
+	ExportRawModules,
 } from "./types";

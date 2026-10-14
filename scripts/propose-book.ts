@@ -1,15 +1,30 @@
 import { existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import {
 	buildProposalBundle,
+	describeExample,
 	mechanismFrontmatter,
 	type ProposalBundle,
 	toolFrontmatter,
 } from "../packages/astro-bookkit/src";
-import { ensureDir, optionalArg, requireArg, slugify } from "./_lib";
+import { ensureDir, listBookDirs, optionalArg, repoRoot } from "./_lib";
+import { booksFromArgv } from "./lib/book-args";
 import { loadBookContent } from "./lib/load-book";
 
-const book = requireArg("--book");
+const {
+	books: [book],
+} = booksFromArgv(listBookDirs(), {
+	usage:
+		"bun run bookkit propose <book> [--write] [--apply mechanisms|tools|config] [--id <proposal>] [--detect-frame]",
+	valueFlags: [
+		"--title",
+		"--causal-stance",
+		"--max-proposals",
+		"--id",
+		"--apply",
+	],
+	requireOne: true,
+});
 const title = optionalArg("--title") ?? undefined;
 const causalStance = optionalArg("--causal-stance") ?? undefined;
 const maxProposals = Number(optionalArg("--max-proposals") ?? "5");
@@ -41,12 +56,7 @@ for (let index = 0; index < process.argv.length; index += 1) {
 	}
 }
 
-const workspaceRoot = join(import.meta.dir, "..");
-
-const bookSlugged = slugify(book);
-if (bookSlugged !== book) {
-	console.warn(`⚠️ Normalizing book slug from "${book}" to "${bookSlugged}".`);
-}
+const workspaceRoot = repoRoot();
 
 const content = loadBookContent(book);
 if (!existsSync(content.bookRoot)) {
@@ -120,12 +130,35 @@ function printBundle(bundleToPrint: ProposalBundle): void {
 		`frame: ${bundleToPrint.frame.frameSlug} (${confidenceLabel}) · runbook signals ${bundleToPrint.frame.runbookHits} · teaching signals ${bundleToPrint.frame.teachingHits}`,
 	);
 
+	const { analysis } = bundleToPrint;
+	console.log(
+		`read: ${analysis.chaptersRead} chapter(s), ${analysis.wordsRead} words of prose`,
+	);
+
 	console.log(`\nmechanisms (${acceptedMechanisms.length})`);
 	for (const m of acceptedMechanisms) {
-		console.log(`  - [${m.id}] "${m.title}" — ${m.definition}`);
+		console.log(
+			`  - [${m.id}] "${m.title}": used ${m.evidence.occurrences} times in ${m.evidence.files.length} chapters (draft; you write the definition and boundaries)`,
+		);
+		if (m.evidence.example) {
+			console.log(
+				`      e.g. ${describeExample(m.evidence.example, `${content.bookRoot}/chapters`)}`,
+			);
+		}
 	}
 	if (acceptedMechanisms.length === 0) {
-		console.log("  (none — every recurring concept is already registered)");
+		console.log(`  (none) ${mechanismsSummary(bundleToPrint)}`);
+	}
+	if (analysis.registered.length > 0) {
+		console.log(
+			`  recurring and already registered: ${analysis.registered.map((r) => (r.term.toLowerCase() === r.registeredAs.toLowerCase() ? r.term : `${r.term} (as ${r.registeredAs})`)).join("; ")}`,
+		);
+	}
+	if (analysis.belowThreshold.length > 0) {
+		const shown = analysis.belowThreshold.slice(0, 8);
+		console.log(
+			`  recurring but under 3 uses in 2+ chapters, not proposed: ${shown.map((t) => `${t.term} (${t.occurrences}×)`).join(", ")}${analysis.belowThreshold.length > shown.length ? `, and ${analysis.belowThreshold.length - shown.length} more` : ""}`,
+		);
 	}
 
 	console.log(`\nedges (${acceptedEdges.length})`);
@@ -154,6 +187,18 @@ function printBundle(bundleToPrint: ProposalBundle): void {
 	);
 }
 
+/** Why there are no mechanism proposals: nothing read, or nothing recurring. */
+function mechanismsSummary(bundleToSummarize: ProposalBundle): string {
+	const { analysis } = bundleToSummarize;
+	if (analysis.chaptersRead === 0) {
+		return `nothing analyzed: no chapter prose in ${relative(workspaceRoot, join(content.bookRoot, "chapters"))}. Add chapters (bun run bookkit import ${book} --dir <folder>) and run this again.`;
+	}
+	if (analysis.registered.length > 0 && analysis.belowThreshold.length === 0) {
+		return `every term that recurs across chapters is already registered (${analysis.chaptersRead} chapter(s) read).`;
+	}
+	return `no unregistered term is used 3 or more times across 2 or more of the ${analysis.chaptersRead} chapter(s) read.`;
+}
+
 function applyMechanisms(
 	mechanismsToWrite: ProposalBundle["mechanisms"],
 ): Set<string> {
@@ -172,7 +217,9 @@ function applyMechanisms(
 					continue;
 				}
 				writeFileSync(outPath, mechanismFrontmatter(m), "utf8");
-				console.log(`  + wrote ${outPath}`);
+				console.log(
+					`  + wrote ${relative(workspaceRoot, outPath)} (draft: name and evidence only; write its definition, is, and isNot)`,
+				);
 				written.add(m.slug);
 			}
 		}
@@ -208,7 +255,9 @@ function applyTools(
 			continue;
 		}
 		writeFileSync(outPath, toolFrontmatter(t), "utf8");
-		console.log(`  + wrote ${outPath}`);
+		console.log(
+			`  + wrote ${relative(workspaceRoot, outPath)} (draft: rename it after the move it makes, then fill its steps)`,
+		);
 	}
 }
 
@@ -254,19 +303,25 @@ function renderMarkdown(bundleToRender: ProposalBundle): string {
 		"## Mechanism proposals",
 		"",
 	];
+	lines.push(
+		`Read ${bundleToRender.analysis.chaptersRead} chapter(s), ${bundleToRender.analysis.wordsRead} words of prose. Each proposal is a draft: the name and the evidence come from the text, and the definition and boundaries are yours to write.`,
+		"",
+	);
 	if (bundleToRender.mechanisms.length === 0) {
-		lines.push("_None — every recurring concept is already registered._");
+		lines.push(`_None: ${mechanismsSummary(bundleToRender)}_`);
 	}
 	for (const m of bundleToRender.mechanisms) {
 		lines.push(`### ${m.id}`);
 		lines.push("");
-		lines.push(`- Title: ${m.title}`);
-		lines.push(`- Definition: ${m.definition}`);
-		lines.push(`- Is: ${m.is.join("; ")}`);
-		lines.push(`- IsNot: ${m.isNot.join("; ")}`);
+		lines.push(`- Title: ${m.title} (status: draft)`);
 		lines.push(
-			`- Evidence: "${m.evidence.term}" x${m.evidence.occurrences} across ${m.evidence.files.length} files`,
+			`- Evidence: "${m.evidence.term}" used ${m.evidence.occurrences} times in ${m.evidence.files.map((file) => relative(content.bookRoot, file)).join(", ")}`,
 		);
+		if (m.evidence.example) {
+			lines.push(
+				`- Example: ${describeExample(m.evidence.example, content.bookRoot)}`,
+			);
+		}
 		lines.push("");
 	}
 	lines.push("## Prerequisite edges", "");

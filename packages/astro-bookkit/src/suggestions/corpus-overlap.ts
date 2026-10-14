@@ -17,6 +17,10 @@ import type { ContentSuggestion } from "./types";
  * carry a copy under the same slug; copies must keep the same contract, and a
  * copy that drifts is reported. Pairs the author has reviewed and judged
  * distinct are passed in as decisions and stop being flagged.
+ *
+ * Books need not all belong to one corpus (`corpusOf`). Slugs and clusters
+ * are then per corpus, and a flagged pair from two corpora is listed under
+ * `related`: worth a look, but not something either book has to resolve.
  */
 
 export type CorpusMechanism = MechanismRecord & { book: string };
@@ -31,6 +35,9 @@ export type CorpusPair = {
 	/** Slugs of each side. */
 	a: string;
 	b: string;
+	/** Books carrying each side. */
+	aBooks: string[];
+	bBooks: string[];
 	crossBook: boolean;
 	lexical: number;
 	semantic: number | null;
@@ -63,6 +70,11 @@ export type CorpusOverlapOptions = {
 	lexicalThreshold?: number;
 	/** Pairs the author reviewed and ruled distinct; they are not flagged. */
 	distinct?: CorpusDistinctDecision[];
+	/**
+	 * The corpus a book belongs to; one corpus for every book when omitted.
+	 * Slug identity, drift, and clusters apply within a corpus only.
+	 */
+	corpusOf?: (book: string) => string;
 };
 
 export type CorpusOverlapReport = {
@@ -72,6 +84,8 @@ export type CorpusOverlapReport = {
 	semantic: boolean;
 	pairs: CorpusPair[];
 	clusters: CorpusCluster[];
+	/** Flagged pairs whose sides belong to different corpora; informational. */
+	related: CorpusPair[];
 	/** Mechanism count if every cluster were folded into one mechanism. */
 	countIfMerged: number;
 	shared: CorpusSharedMechanism[];
@@ -127,6 +141,10 @@ const pairStrength = (pair: CorpusPair): number =>
 
 const pairKey = (a: string, b: string): string => [a, b].sort().join("\u0000");
 
+/** A mechanism's identity: its slug within its corpus. */
+const entryKey = (corpus: string, slug: string): string =>
+	`${corpus}\u0000${slug}`;
+
 const driftedFields = (a: MechanismRecord, b: MechanismRecord): string[] =>
 	CONTRACT_FIELDS.filter(
 		(field) =>
@@ -158,25 +176,32 @@ export const analyzeCorpusOverlap = (
 	const lexicalThreshold =
 		options.lexicalThreshold ?? DEFAULT_LEXICAL_OVERLAP_THRESHOLD;
 
-	// One entry per slug; the first copy stands for the mechanism.
+	const corpusOf = options.corpusOf ?? (() => "");
+	// One entry per slug within a corpus; the first copy stands for the mechanism.
 	const entries: Array<{
+		key: string;
+		corpus: string;
 		index: number;
 		mechanism: CorpusMechanism;
 		books: string[];
 	}> = [];
-	const entryBySlug = new Map<string, (typeof entries)[number]>();
+	const entryByKey = new Map<string, (typeof entries)[number]>();
+	const knownSlugs = new Set<string>();
 	const shared = new Map<string, CorpusSharedMechanism>();
 	mechanisms.forEach((mechanism, index) => {
-		const existing = entryBySlug.get(mechanism.slug);
+		const corpus = corpusOf(mechanism.book);
+		const key = entryKey(corpus, mechanism.slug);
+		knownSlugs.add(mechanism.slug);
+		const existing = entryByKey.get(key);
 		if (!existing) {
-			const entry = { index, mechanism, books: [mechanism.book] };
+			const entry = { key, corpus, index, mechanism, books: [mechanism.book] };
 			entries.push(entry);
-			entryBySlug.set(mechanism.slug, entry);
+			entryByKey.set(key, entry);
 			return;
 		}
 		if (!existing.books.includes(mechanism.book))
 			existing.books.push(mechanism.book);
-		const record = shared.get(mechanism.slug) ?? {
+		const record = shared.get(key) ?? {
 			slug: mechanism.slug,
 			books: existing.books,
 			driftedFields: [],
@@ -185,7 +210,7 @@ export const analyzeCorpusOverlap = (
 			if (!record.driftedFields.includes(field))
 				record.driftedFields.push(field);
 		}
-		shared.set(mechanism.slug, record);
+		shared.set(key, record);
 	});
 
 	const decisions = options.distinct ?? [];
@@ -193,11 +218,12 @@ export const analyzeCorpusOverlap = (
 		decisions.map((decision) => [pairKey(...decision.pair), decision]),
 	);
 	const staleDecisions = decisions.filter(
-		(decision) => !decision.pair.every((slug) => entryBySlug.has(slug)),
+		(decision) => !decision.pair.every((slug) => knownSlugs.has(slug)),
 	);
 	const reviewedDistinct: CorpusDistinctDecision[] = [];
 
 	const pairs: CorpusPair[] = [];
+	const related: CorpusPair[] = [];
 	for (let i = 0; i < entries.length; i += 1) {
 		for (let j = i + 1; j < entries.length; j += 1) {
 			const left = entries[i];
@@ -227,9 +253,11 @@ export const analyzeCorpusOverlap = (
 				reviewedDistinct.push(decision);
 				continue;
 			}
-			pairs.push({
+			(left.corpus === right.corpus ? pairs : related).push({
 				a: left.mechanism.slug,
 				b: right.mechanism.slug,
+				aBooks: left.books,
+				bBooks: right.books,
 				crossBook: !left.books.some((book) => right.books.includes(book)),
 				lexical: round(lexical.combined),
 				semantic: semantic === null ? null : round(semantic),
@@ -239,36 +267,53 @@ export const analyzeCorpusOverlap = (
 		}
 	}
 	pairs.sort((x, y) => pairStrength(y) - pairStrength(x));
+	related.sort((x, y) => pairStrength(y) - pairStrength(x));
+
+	// Pairs stay within one corpus, so a side is found by its slug and books.
+	const entryOf = (slug: string, books: string[]) =>
+		entryByKey.get(entryKey(corpusOf(books[0]), slug));
+	const nodeOf = (slug: string, books: string[]) =>
+		entryOf(slug, books)?.key ?? slug;
 
 	// Union-find over flagged pairs: each connected group is one candidate idea.
-	const parent = new Map(
-		entries.map((entry) => [entry.mechanism.slug, entry.mechanism.slug]),
-	);
+	const parent = new Map(entries.map((entry) => [entry.key, entry.key]));
 	const find = (slug: string): string => {
 		let root = slug;
 		while (parent.get(root) !== root) root = parent.get(root) ?? root;
 		parent.set(slug, root);
 		return root;
 	};
-	for (const pair of pairs) parent.set(find(pair.a), find(pair.b));
+	for (const pair of pairs) {
+		parent.set(
+			find(nodeOf(pair.a, pair.aBooks)),
+			find(nodeOf(pair.b, pair.bBooks)),
+		);
+	}
 
 	const groups = new Map<string, CorpusPair[]>();
 	for (const pair of pairs) {
-		const root = find(pair.a);
+		const root = find(nodeOf(pair.a, pair.aBooks));
 		groups.set(root, [...(groups.get(root) ?? []), pair]);
 	}
 
 	const clusters: CorpusCluster[] = [...groups.values()].map((clusterPairs) => {
 		const members: string[] = [];
+		const books = new Set<string>();
 		for (const pair of clusterPairs) {
-			for (const slug of [pair.a, pair.b]) {
+			for (const [slug, sideBooks] of [
+				[pair.a, pair.aBooks],
+				[pair.b, pair.bBooks],
+			] as const) {
 				if (!members.includes(slug)) members.push(slug);
+				for (const book of sideBooks) books.add(book);
 			}
 		}
-		const books = [
-			...new Set(members.flatMap((slug) => entryBySlug.get(slug)?.books ?? [])),
-		];
-		return { members, books, pairs: clusterPairs, strongest: clusterPairs[0] };
+		return {
+			members,
+			books: [...books],
+			pairs: clusterPairs,
+			strongest: clusterPairs[0],
+		};
 	});
 	clusters.sort(
 		(x, y) =>
@@ -276,8 +321,8 @@ export const analyzeCorpusOverlap = (
 			pairStrength(y.strongest) - pairStrength(x.strongest),
 	);
 
-	const label = (slug: string): string => {
-		const entry = entryBySlug.get(slug);
+	const label = (slug: string, books: string[]): string => {
+		const entry = entryOf(slug, books);
 		return `${entry?.mechanism.title ?? slug} (${slug}, ${entry?.books.join("+") ?? "?"})`;
 	};
 
@@ -286,8 +331,9 @@ export const analyzeCorpusOverlap = (
 		severity: "advisory",
 		book: cluster.books.join("+"),
 		file:
-			entryBySlug.get(cluster.members[0])?.mechanism.file ?? cluster.members[0],
-		message: `${cluster.members.length} mechanisms ${cluster.books.length > 1 ? `across ${cluster.books.join(", ")}` : `in ${cluster.books[0]}`} may name one idea: ${cluster.members.map(label).join(", ")}.`,
+			entryOf(cluster.strongest.a, cluster.strongest.aBooks)?.mechanism.file ??
+			cluster.members[0],
+		message: `${cluster.members.length} mechanisms ${cluster.books.length > 1 ? `across ${cluster.books.join(", ")}` : `in ${cluster.books[0]}`} may name one idea: ${cluster.members.map((slug) => label(slug, cluster.books)).join(", ")}.`,
 		nextAction:
 			"Decide whether these are one mechanism. If one, give every book that uses it the same slug and contract, and repoint chapters, tools, examples, and glossary entries (a breaking change for books that used the other slug). If distinct, record the pair as distinct with a reason, and sharpen each is/isNot if the boundary is unclear.",
 		evidence: {
@@ -304,7 +350,7 @@ export const analyzeCorpusOverlap = (
 			category: "corpus-overlap",
 			severity: "warning",
 			book: record.books.join("+"),
-			file: entryBySlug.get(record.slug)?.mechanism.file ?? record.slug,
+			file: entryOf(record.slug, record.books)?.mechanism.file ?? record.slug,
 			message: `Mechanism "${record.slug}" is shared by ${record.books.join(", ")} but its copies differ in: ${record.driftedFields.join(", ")}.`,
 			nextAction:
 				"A slug names one mechanism across the corpus. Make the copies' contracts identical, or give the books different slugs if they mean different things.",
@@ -329,6 +375,7 @@ export const analyzeCorpusOverlap = (
 		semantic: vectors !== null,
 		pairs,
 		clusters,
+		related,
 		countIfMerged: entries.length - clusteredCount + clusters.length,
 		shared: sharedList,
 		reviewedDistinct,

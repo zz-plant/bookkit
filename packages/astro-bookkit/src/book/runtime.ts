@@ -28,11 +28,15 @@ type BookRuntimeConfig = {
 	slug: string;
 	title: string;
 	status?: string;
+	author?: { name: string };
 	site?: {
+		url?: string;
 		defaultMeta?: {
 			description?: string;
 		};
 	};
+	localization?: { defaultLocale?: string };
+	mechanisms?: ReadonlyArray<{ slug: string }>;
 	features?: {
 		aiQa?: boolean;
 		aiQaProvider?: import("../qa").AiQaProviderConfig;
@@ -56,9 +60,11 @@ export const createBookRuntime = ({
 		bookEntryPoints.releaseModules,
 		releaseNotes,
 	);
+	// Exports carry every record type and describe the latest release.
 	const exportHelpers = createBookExportHelpersFromConfig({
 		bookConfig,
-		modules: bookEntryPoints.contentRawModules.chapters,
+		release: releaseHelpers.getReleaseNotes()[0],
+		modules: bookEntryPoints.contentRawModules,
 	});
 	const chapterExportSlugs = createChapterExportSlugs(
 		bookEntryPoints.contentModules.chapters,

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
-import { type BookkitIntegrationOptions, bookkit } from "./integration";
+import {
+	type BookkitIntegrationOptions,
+	bookkit,
+	optionalDependencies,
+} from "./integration";
 
 type Command = "dev" | "build";
 
@@ -98,5 +102,35 @@ describe("bookkit() integration", () => {
 		onwarn(other, (warning) => shown.push(warning));
 
 		expect(shown).toEqual([other]);
+	});
+});
+
+describe("optionalDependencies", () => {
+	const plugin = optionalDependencies();
+	const context = (installed: boolean) => ({
+		resolve: async (source: string) =>
+			installed ? { id: `/node_modules/${source}/index.js` } : null,
+	});
+
+	it("leaves an installed optional dependency and other imports to Vite", async () => {
+		expect(
+			await plugin.resolveId.call(context(true), "@mlc-ai/web-llm", "/a.ts"),
+		).toEqual({ id: "/node_modules/@mlc-ai/web-llm/index.js" });
+		expect(
+			await plugin.resolveId.call(context(false), "zod", "/a.ts"),
+		).toBeNull();
+		expect(plugin.load("/a.ts")).toBeNull();
+	});
+
+	it("turns a missing one into a module that throws a message naming it", async () => {
+		const id = await plugin.resolveId.call(
+			context(false),
+			"@xenova/transformers",
+			"/a.ts",
+		);
+		expect(typeof id).toBe("string");
+		const code = plugin.load(id as string);
+		expect(code).toStartWith("throw new Error(");
+		expect(code).toContain("@xenova/transformers is not installed");
 	});
 });

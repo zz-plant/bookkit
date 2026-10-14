@@ -43,6 +43,23 @@ describe("planGates", () => {
 		).toContain("build:my-book");
 	});
 
+	it("leaves out what a standalone project has no inputs for", () => {
+		const project = planGates(null, ["my-book"], () => true, "project").map(
+			(gate) => gate.id,
+		);
+		expect(project).not.toContain("biome");
+		expect(project).not.toContain("test");
+		expect(project).not.toContain("architecture");
+		expect(project).toEqual(
+			expect.arrayContaining([
+				"types",
+				"shims",
+				"validate:my-book",
+				"build:all",
+			]),
+		);
+	});
+
 	it("skips the slow .astro pass for scripts-only changes", () => {
 		const gates = planGates(["scripts/bookkit.ts"], books);
 		expect(gates.map((gate) => gate.id)).toEqual(["biome", "types", "test"]);

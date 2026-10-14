@@ -12,9 +12,54 @@ export type BookkitIntegrationOptions = {
 	runtime?: BookSeoConfig["runtime"];
 };
 
+/** Packages the engine imports lazily and can run without (local model, embeddings). */
+export const OPTIONAL_DEPENDENCIES = [
+	"@mlc-ai/web-llm",
+	"@xenova/transformers",
+];
+
+const MISSING_PREFIX = "\0bookkit-missing:";
+
+type ResolveContext = {
+	resolve: (
+		source: string,
+		importer: string | undefined,
+		options: { skipSelf: boolean },
+	) => Promise<{ id: string } | null>;
+};
+
+/**
+ * Lets a book build when an optional dependency is not installed (for
+ * example `bun install --omit=optional`). An import of a missing one resolves
+ * to a module that throws when loaded, so the lazy `import()` that asked for
+ * it rejects with that message and the feature stays off, where Vite would
+ * otherwise fail the build on an unresolved import.
+ */
+export const optionalDependencies = () => ({
+	name: "bookkit:optional-dependencies",
+	enforce: "pre" as const,
+	async resolveId(
+		this: ResolveContext,
+		source: string,
+		importer: string | undefined,
+	) {
+		if (!OPTIONAL_DEPENDENCIES.includes(source)) return null;
+		const resolved = await this.resolve(source, importer, { skipSelf: true });
+		return resolved ?? `${MISSING_PREFIX}${source}`;
+	},
+	load(id: string) {
+		if (!id.startsWith(MISSING_PREFIX)) return null;
+		const name = id.slice(MISSING_PREFIX.length);
+		return `throw new Error(${JSON.stringify(
+			`${name} is not installed, so the feature that needs it is off. It is an optional dependency of @bookkit/astro-bookkit; run bun install without --omit=optional to add it.`,
+		)});`;
+	},
+});
+
 /**
  * Astro integration for Bookkit book applications.
- * Configures Vite SSR bundling, decides which API routes run on demand, and
+ * Configures Vite SSR bundling and the optional dependencies, decides which
+ * API routes run on demand, and
  * after a build writes the site's icons (see `seo/book-icons.ts`) and each
  * page's link-preview image (see `seo/og-image.ts`).
  *
@@ -47,6 +92,7 @@ export function bookkit(
 				).replaceAll("\\", "/")}/`;
 				updateConfig({
 					vite: {
+						plugins: [optionalDependencies()],
 						// Read by the reader UI: without request handlers the Ask
 						// island and the in-browser models it loads are compiled out.
 						define: {

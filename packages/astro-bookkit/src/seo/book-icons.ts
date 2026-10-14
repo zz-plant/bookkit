@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join } from "node:path";
+import { engineRequire } from "../utils/engine-require";
 import { metaContent } from "./og-image";
 import { shortBookTitle } from "./page-meta";
 
@@ -24,7 +24,8 @@ const RULE = "#3e3c37";
 const ICO_SIZES = [16, 32, 48];
 const TOUCH_SIZE = 180;
 
-const require = createRequire(import.meta.url);
+// From the engine's folder, not the bundle's: see utils/engine-require.ts.
+const require = engineRequire();
 
 /** The letter a title is known by: its first, after a leading article. */
 export const bookInitial = (title: string): string => {
@@ -44,36 +45,53 @@ export const bookInitial = (title: string): string => {
 
 type Glyph = { d: string; x: number; y: number; width: number; height: number };
 
-/** Newsreader's Latin, Latin Extended and Vietnamese cuts, at the weight the icon uses. */
-const ICON_FONTS = ["latin", "latin-ext", "vietnamese"].map((subset) => ({
-	// Satori uses one font per name, so each cut needs its own.
-	name: `Newsreader ${subset}`,
-	weight: 600 as const,
-	style: "normal" as const,
-	data: readFileSync(
-		require.resolve(
-			`@fontsource/newsreader/files/newsreader-${subset}-600-normal.woff`,
+/**
+ * Newsreader's Latin, Latin Extended and Vietnamese cuts, at the weight the
+ * icon uses. Read on first use, not at import: the engine's entry point
+ * re-exports the integration, so this module is bundled into every page, and
+ * no page draws an icon.
+ */
+let iconFonts:
+	| Array<{
+			name: string;
+			weight: 600;
+			style: "normal";
+			data: Buffer;
+	  }>
+	| undefined;
+const loadIconFonts = () => {
+	iconFonts ??= ["latin", "latin-ext", "vietnamese"].map((subset) => ({
+		// Satori uses one font per name, so each cut needs its own.
+		name: `Newsreader ${subset}`,
+		weight: 600 as const,
+		style: "normal" as const,
+		data: readFileSync(
+			require.resolve(
+				`@fontsource/newsreader/files/newsreader-${subset}-600-normal.woff`,
+			),
 		),
-	),
-}));
+	}));
+	return iconFonts;
+};
 
 /** Lays out one character at 1000px and returns satori's SVG of it. */
 const outlineSvg = async (text: string): Promise<string> => {
 	const satoriModule = require("satori");
 	const satori = satoriModule.default ?? satoriModule;
+	const fonts = loadIconFonts();
 	return satori(
 		{
 			type: "div",
 			props: {
 				style: {
 					display: "flex",
-					fontFamily: ICON_FONTS.map((font) => `"${font.name}"`).join(", "),
+					fontFamily: fonts.map((font) => `"${font.name}"`).join(", "),
 					fontSize: 1000,
 				},
 				children: text,
 			},
 		},
-		{ width: 1500, height: 1500, fonts: ICON_FONTS },
+		{ width: 1500, height: 1500, fonts },
 	);
 };
 

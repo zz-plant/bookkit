@@ -63,3 +63,31 @@ export const domainNotice = ({
 		`to apps/${book}/wrangler.jsonc. The domain's zone must be on your Cloudflare account; deploy attaches it.`,
 	].join("\n");
 };
+
+/**
+ * Where the book's live sitemap is, when that is known before publishing: at
+ * site.url, if the Worker serves that host as a custom domain or route. A
+ * *.workers.dev address depends on the Cloudflare account, which is not in
+ * the repository, so then the reason is returned instead.
+ */
+export const liveSitemapUrl = ({
+	siteUrl,
+	wranglerJsonc,
+}: {
+	siteUrl: string | undefined;
+	wranglerJsonc: string;
+}): { url: string } | { unknown: string } => {
+	let origin: string;
+	let host: string;
+	try {
+		({ origin, host } = new URL(siteUrl ?? ""));
+	} catch {
+		return { unknown: "site.url is not a URL" };
+	}
+	if (!wranglerHosts(wranglerJsonc).includes(host)) {
+		return {
+			unknown: `the Worker does not serve site.url's host (${host}), and its *.workers.dev address depends on the Cloudflare account`,
+		};
+	}
+	return { url: `${origin}/sitemap.xml` };
+};

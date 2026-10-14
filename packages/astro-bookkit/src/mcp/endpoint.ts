@@ -10,13 +10,33 @@ import {
 	type McpEndpointOptions,
 	type McpResourceInput,
 	RESOURCE_CATEGORIES,
+	type ToolCallTransport,
 } from "./types";
+
+const ELSEWHERE =
+	"To call tools, run bun run bookkit dev <book> and POST to /api/mcp.json there, or use the stdio MCP server: bun run mcp";
+
+/**
+ * A prerendered copy of this endpoint is a file on a static host: it serves the
+ * discovery manifest and nothing answers POST.
+ */
+const toolCallTransport = (isPrerendered: boolean): ToolCallTransport =>
+	isPrerendered
+		? {
+				served: false,
+				note: `This is a static build: this file is the discovery manifest, and nothing here answers POST. ${ELSEWHERE}`,
+			}
+		: {
+				served: true,
+				note: "POST JSON-RPC 2.0 requests (one object or an array) to this URL with Content-Type: application/json. The same tools run over stdio with bun run mcp.",
+			};
 
 export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 	const resourcePrefix = options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX;
 
 	return {
-		GET: () => {
+		// Astro passes `isPrerendered`; other callers may leave it out.
+		GET: ({ isPrerendered = false }: { isPrerendered?: boolean } = {}) => {
 			const resources = listResources(
 				options.contentRawModules,
 				resourcePrefix,
@@ -36,6 +56,7 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 				ok: true,
 				bookTitle: options.bookTitle,
 				description: options.bookDescription ?? null,
+				toolCalls: toolCallTransport(isPrerendered),
 				resourceCount: resources.length,
 				resourceKinds,
 				resourceSections,
@@ -141,18 +162,44 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 
 			return jsonResponse(discoveryResponse);
 		},
-		POST: async ({ request }: { request: Request }) => {
+		POST: async ({
+			request,
+			isPrerendered = false,
+		}: {
+			request: Request;
+			isPrerendered?: boolean;
+		}) => {
+			// Astro hands a prerendered route a request without its body, which
+			// would otherwise read as a parse error.
+			if (isPrerendered)
+				return jsonResponse(
+					createJsonRpcError(
+						null,
+						-32000,
+						`Tool calls are not served here: this route is prerendered as a static file. ${ELSEWHERE}`,
+					),
+					405,
+				);
+
 			const parsed = await tryParseJsonBody(request);
 			if (!parsed.ok)
 				return jsonResponse(
-					createJsonRpcError(null, -32700, "Invalid JSON payload."),
+					createJsonRpcError(
+						null,
+						-32700,
+						`Parse error: the request body is not valid JSON (${parsed.error}). Send a JSON-RPC 2.0 request object, or an array of them, with Content-Type: application/json.`,
+					),
 					400,
 				);
 
 			const payload = parsed.value;
 			if (!payload)
 				return jsonResponse(
-					createJsonRpcError(null, -32600, "Missing JSON-RPC payload."),
+					createJsonRpcError(
+						null,
+						-32600,
+						'Invalid request: the body holds no JSON-RPC request. Send one such as {"jsonrpc":"2.0","id":1,"method":"tools/list"}.',
+					),
 					400,
 				);
 

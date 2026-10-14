@@ -107,15 +107,6 @@ export const {
 	chapterEpubExportRoute,
 } = createBookAppShims(bookRuntime);
 
-export const analyticsApiGet = analyticsApiHandlers.GET;
-export const analyticsApiPost = analyticsApiHandlers.POST;
-export const exportAnalyticsApiPost = exportAnalyticsApiHandlers.POST;
-export const feedbackApiPost = feedbackApiHandlers.POST;
-export const previewAnalyticsApiGet = previewAnalyticsApiHandlers.GET;
-export const previewAnalyticsApiPost = previewAnalyticsApiHandlers.POST;
-export const releaseAnalyticsApiPost = releaseAnalyticsApiHandlers.POST;
-export const releaseWebhookApiPost = releaseWebhookApiHandlers.POST;
-export const releaseEmailApiPost = releaseEmailApiHandlers.POST;
 export const bookPdfExportGet = bookPdfExportRoute.GET;
 export const bookEpubExportGet = bookEpubExportRoute.GET;
 export const chapterPdfExportGet = chapterPdfExportRoute.GET;

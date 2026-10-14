@@ -1,5 +1,5 @@
 ---
-import { readRoutes } from "@bookkit/astro-bookkit";
+import { readRoutes, runtimeFeatures } from "@bookkit/astro-bookkit";
 import ToolsPage from "@bookkit/astro-bookkit/components/ToolsPage.astro";
 import bookConfig from "../../book.config";
 import { getVersionEntries } from "../../lib/versions";
@@ -33,4 +33,5 @@ const currentVersion =
   bookKey={bookConfig.slug ?? "book"}
   backHref={readRoutes.root}
   links={toolLinks}
+  {...runtimeFeatures(bookConfig)}
 />

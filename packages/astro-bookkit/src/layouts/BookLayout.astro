@@ -20,6 +20,7 @@ const {
 	bookTitle = "Book",
 	bookVersion = "draft",
 	bookKey = "book",
+	hasServerRuntime = false,
 	analyticsEndpoint = "/api/analytics.json",
 	exportAnalyticsEndpoint = "/api/export-analytics.json",
 	previewAnalyticsEndpoint = "/api/preview-analytics.json",
@@ -114,6 +115,17 @@ const renderState: BookLayoutRenderState =
 	});
 
 const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
+// Analytics beacons and Ask call request handlers. A static build has none
+// (`site.runtime`), so unless the caller says the book has a server, pages
+// leave them out instead of shipping features that fail.
+const endpoints = hasServerRuntime
+	? { analyticsEndpoint, exportAnalyticsEndpoint, previewAnalyticsEndpoint }
+	: {
+			analyticsEndpoint: "",
+			exportAnalyticsEndpoint: "",
+			previewAnalyticsEndpoint: "",
+		};
+const qaEnabled = hasServerRuntime && aiQaEnabled;
 ---
 <!doctype html>
 <html lang={renderState.lang}>
@@ -155,12 +167,12 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
   <body
     data-book-version={renderState.version.resolvedVersion ?? bookVersion}
     data-analytics-key={bookKey}
-    data-analytics-endpoint={analyticsEndpoint}
-    data-export-analytics-endpoint={exportAnalyticsEndpoint}
-    data-preview-analytics-endpoint={previewAnalyticsEndpoint}
+    data-analytics-endpoint={endpoints.analyticsEndpoint}
+    data-export-analytics-endpoint={endpoints.exportAnalyticsEndpoint}
+    data-preview-analytics-endpoint={endpoints.previewAnalyticsEndpoint}
     data-locale={renderState.locale.activeLocale}
-    data-qa-enabled={aiQaEnabled ? "true" : "false"}
-    data-qa-endpoint={aiQaEnabled ? "/api/qa.json" : undefined}
+    data-qa-enabled={qaEnabled ? "true" : "false"}
+    data-qa-endpoint={qaEnabled ? "/api/qa.json" : undefined}
     data-qa-providers={JSON.stringify(aiQaProvider ? [aiQaProvider] : undefined)}
     data-preview={renderState.preview.isPreview ? "true" : "false"}
     data-preview-hint={renderState.preview.tokenHint}
@@ -190,7 +202,7 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
         resolvedDefaultLocale={renderState.locale.defaultLocale}
         includeDefaultLocalePrefix={renderState.locale.includeDefaultLocalePrefix}
         localeLabel={renderState.locale.label}
-        aiQaEnabled={aiQaEnabled}
+        aiQaEnabled={qaEnabled}
         enableAuthorTools={enableAuthorTools ?? renderState.preview.isPreview}
       />
       {renderState.translationNotice.show && (
@@ -244,7 +256,7 @@ const shouldLoadMermaidRuntime = hasMermaid ?? renderState.hasMermaid;
       </footer>
       <MobileCta isReadRoute={renderState.routes.isReadRoute} />
       <SearchPanel />
-      {aiQaEnabled && <QaPanel aiQaSamples={aiQaSamples} />}
+      {qaEnabled && <QaPanel aiQaSamples={aiQaSamples} />}
       <KeyboardHelp />
     </div>
     <script>

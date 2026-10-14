@@ -28,6 +28,7 @@ export const handleFindSimilarMechanisms: ToolHandler = ({ options, args }) => {
 	let result: {
 		existingSlug?: string[];
 		method?: string;
+		note?: string;
 		similar?: Array<{ slug: string; books: string[] }>;
 	} | null = null;
 	try {
@@ -37,16 +38,22 @@ export const handleFindSimilarMechanisms: ToolHandler = ({ options, args }) => {
 	}
 	const existing = result?.existingSlug ?? [];
 	const similar = result?.similar ?? [];
+	const wordingOnly =
+		args?.semantic === true && result && result.method !== "meaning"
+			? ` Ranked by wording only: ${result.note ?? "the embedding model did not load."} Set BOOKKIT_DOWNLOAD_MODEL=1 in the MCP server's environment to allow the ~520 MB model download.`
+			: "";
 
 	return {
 		ok: command.ok && result !== null,
 		summary: !result
 			? "Could not run the similarity check."
-			: existing.length > 0
-				? `Its slug already exists in ${existing.join(", ")}; share that mechanism instead of creating one.`
-				: similar.length > 0
-					? `Closest by ${result.method ?? "wording"}: ${similar.map((match) => match.slug).join(", ")}. Bind one if it is the same idea.`
-					: "No existing mechanism shares its wording.",
+			: `${
+					existing.length > 0
+						? `Its slug already exists in ${existing.join(", ")}; share that mechanism instead of creating one.`
+						: similar.length > 0
+							? `Closest by ${result.method ?? "wording"}: ${similar.map((match) => match.slug).join(", ")}. Bind one if it is the same idea.`
+							: "No existing mechanism shares its wording."
+				}${wordingOnly}`,
 		payload: {
 			result,
 			command: command.command,

@@ -1,4 +1,3 @@
-export {
-	analyticsApiGet as GET,
-	analyticsApiPost as POST,
-} from "../../lib/book-runtime";
+import { analyticsApiHandlers } from "../../lib/book-runtime";
+
+export const { GET, POST } = analyticsApiHandlers;

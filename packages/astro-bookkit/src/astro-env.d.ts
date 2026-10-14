@@ -18,5 +18,7 @@ declare global {
 
 	interface ImportMetaEnv {
 		readonly SITE_URL?: string;
+		/** `site.runtime === "server"`, set by the bookkit() integration. */
+		readonly BOOKKIT_SERVER_RUNTIME?: boolean;
 	}
 }

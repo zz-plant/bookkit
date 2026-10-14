@@ -23,7 +23,7 @@ import type {
 } from "../seo/book";
 import { createBookSitemapEntries } from "../seo/book";
 import type { BookSeoConfig } from "../seo/config";
-import { buildSeoProps } from "../seo/config";
+import { buildSeoProps, runtimeFeatures } from "../seo/config";
 import { createSitemapXml } from "../seo/sitemap";
 import type { BookAuthor } from "../seo/structured-data";
 
@@ -150,6 +150,7 @@ export const buildVersionArchivePageProps = (options: {
 		slug?: string;
 		site?: BookSeoConfig;
 		author?: BookAuthor;
+		features?: { aiQa?: boolean };
 	};
 	versionEntries: BookVersionEntry[];
 	requestUrl: string;
@@ -176,6 +177,7 @@ export const buildVersionArchivePageProps = (options: {
 		bookKey: options.book.slug ?? "book",
 		versions: options.versionEntries,
 		description: seoProps.metaDescription,
+		...runtimeFeatures(options.book),
 		...seoProps,
 	};
 };
@@ -187,6 +189,7 @@ export const buildReleaseNotesPageProps = (options: {
 		slug?: string;
 		site?: BookSeoConfig;
 		author?: BookAuthor;
+		features?: { aiQa?: boolean };
 	};
 	releases: ReleaseNote[];
 	versionEntries: BookVersionEntry[];
@@ -221,6 +224,7 @@ export const buildReleaseNotesPageProps = (options: {
 		subscribeLabel: "RSS feed",
 		subscribeAnalyticsUrl:
 			options.subscribeAnalyticsUrl ?? "/api/release-analytics.json",
+		...runtimeFeatures(options.book),
 		...seoProps,
 	};
 };

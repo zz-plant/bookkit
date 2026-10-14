@@ -216,6 +216,8 @@ if (asJson) {
 		JSON.stringify(
 			{
 				...report,
+				// Why "semantic" is false when the meaning pass was asked for.
+				semanticNote,
 				scope: { shared: scope.shared, separate: scope.separate },
 			},
 			null,

@@ -18,6 +18,10 @@ export type Props = {
 	heading?: string;
 	lede?: string;
 	eyebrow?: string;
+	/** `site.runtime === "server"`; see `runtimeFeatures`. Default false. */
+	hasServerRuntime?: boolean;
+	/** Ask the book, when the runtime has its endpoint. Default false. */
+	aiQaEnabled?: boolean;
 };
 
 const {
@@ -30,6 +34,8 @@ const {
 	heading = "Author tools",
 	lede = "Analytics, release notes, and downloads for this book.",
 	eyebrow,
+	hasServerRuntime = false,
+	aiQaEnabled = false,
 } = Astro.props;
 
 const renderState = createBookLayoutRenderState({
@@ -47,7 +53,15 @@ const renderState = createBookLayoutRenderState({
 	isPreview: false,
 });
 ---
-<BookLayout title={title} bookTitle={bookTitle} bookVersion={bookVersion} bookKey={bookKey} renderState={renderState}>
+<BookLayout
+  title={title}
+  bookTitle={bookTitle}
+  bookVersion={bookVersion}
+  bookKey={bookKey}
+  hasServerRuntime={hasServerRuntime}
+  aiQaEnabled={aiQaEnabled}
+  renderState={renderState}
+>
   <a class="back-link" href={backHref}>← Reading hub</a>
   <div class="section-header">
     {eyebrow && <div class="eyebrow">{eyebrow}</div>}

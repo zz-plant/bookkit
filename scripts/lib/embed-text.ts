@@ -1,5 +1,6 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { ask, isInteractive } from "./cli";
 
 /**
@@ -12,6 +13,10 @@ import { ask, isInteractive } from "./cli";
  * BOOKKIT_DOWNLOAD_MODEL=1, or `allowDownload`. Without a terminal and without
  * either opt-in nothing is downloaded and the caller falls back to wording.
  * Nothing here runs in CI or at build time.
+ *
+ * Vectors are stored beside the model, one file per model and text, and a
+ * text embedded before is not embedded again. When no mechanism changed, a
+ * run loads no model at all.
  */
 
 /**
@@ -96,6 +101,8 @@ export type TransformersModule = {
 	) => Promise<FeatureExtractor>;
 	env: {
 		cacheDir: string;
+		/** The library's version; vectors from another version are not reused. */
+		version?: string;
 		allowLocalModels: boolean;
 		backends: { onnx: { wasm: { numThreads: number } } };
 	};
@@ -115,6 +122,11 @@ export type EmbedOptions = {
 	confirm?: (question: string) => boolean;
 	/** Where notices go. Default: stderr, so --json output stays parseable. */
 	log?: (line: string) => void;
+	/**
+	 * Folder for stored vectors; null stores none. Default: `bookkit-vectors`
+	 * in the model cache.
+	 */
+	vectorCache?: string | null;
 };
 
 /** Where the model's weights land once downloaded. */
@@ -125,6 +137,42 @@ const modelWeightsPath = (cacheDir: string, model: EmbeddingModel): string =>
 		"onnx",
 		model.quantized ? "model_quantized.onnx" : "model.onnx",
 	);
+
+/**
+ * A text's stored vector. Each text is embedded on its own (see below), so its
+ * vector depends only on the model, the library, and the text.
+ */
+const vectorPath = (
+	dir: string,
+	model: EmbeddingModel,
+	version: string,
+	text: string,
+): string =>
+	join(
+		dir,
+		model.key,
+		`${createHash("sha256")
+			.update(
+				JSON.stringify([
+					model.id,
+					model.prefix,
+					model.pooling,
+					model.quantized,
+					version,
+					text,
+				]),
+			)
+			.digest("hex")}.f32`,
+	);
+
+const readVector = (path: string): Float32Array | null => {
+	if (!existsSync(path)) return null;
+	const bytes = readFileSync(path);
+	if (bytes.byteLength === 0 || bytes.byteLength % 4 !== 0) return null;
+	return new Float32Array(
+		bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+	);
+};
 
 const downloadAllowedByEnv = (): boolean =>
 	/^(1|true|yes)$/i.test(process.env.BOOKKIT_DOWNLOAD_MODEL ?? "");
@@ -161,6 +209,25 @@ export const embedTexts = async (
 		transformers.env.backends.onnx.wasm.numThreads = 1;
 
 		const cacheDir = transformers.env.cacheDir;
+		const store =
+			options.vectorCache === undefined
+				? cacheDir
+					? join(cacheDir, "bookkit-vectors")
+					: null
+				: options.vectorCache;
+		const paths = texts.map((text) =>
+			store
+				? vectorPath(store, model, transformers.env.version ?? "", text)
+				: null,
+		);
+		const vectors = paths.map((path) => (path ? readVector(path) : null));
+		const missing = texts
+			.map((_, index) => index)
+			.filter((index) => vectors[index] === null);
+		if (missing.length === 0) {
+			return { ok: true, model, vectors: vectors as Float32Array[] };
+		}
+
 		if (!existsSync(modelWeightsPath(cacheDir, model))) {
 			const where = process.env.BOOKKIT_MODEL_CACHE
 				? cacheDir
@@ -203,15 +270,20 @@ export const embedTexts = async (
 		// One text per call: batched calls pad to the longest text, which shifts
 		// every vector in the batch, so a mechanism's score would depend on which
 		// other mechanisms happened to be loaded alongside it.
-		const vectors: Float32Array[] = [];
-		for (const text of texts) {
-			const output = await extract([`${model.prefix}${text}`], {
+		for (const index of missing) {
+			const output = await extract([`${model.prefix}${texts[index]}`], {
 				pooling: model.pooling,
 				normalize: true,
 			});
-			vectors.push(Float32Array.from(output.data));
+			const vector = Float32Array.from(output.data);
+			vectors[index] = vector;
+			const path = paths[index];
+			if (path) {
+				mkdirSync(dirname(path), { recursive: true });
+				writeFileSync(path, new Uint8Array(vector.buffer));
+			}
 		}
-		return { ok: true, model, vectors };
+		return { ok: true, model, vectors: vectors as Float32Array[] };
 	} catch (error) {
 		return {
 			ok: false,

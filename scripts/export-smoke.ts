@@ -6,22 +6,39 @@ import {
 
 const sampleBundle: ExportBundle = {
 	title: "Bookkit Export Smoke Test",
-	version: "smoke",
-	updatedAt: new Date().toISOString(),
-	chapters: [
+	author: "Bookkit",
+	version: "0.0.0",
+	updatedAt: "2026-01-01",
+	parts: [
 		{
-			slug: "intro",
-			title: "Introduction",
-			body: "Welcome to the export smoke test.\n\n- Validate EPUB\n- Validate PDF",
-			description: "Smoke test chapter",
-			locale: "en",
+			title: "Chapters",
+			entries: [
+				{
+					kind: "chapter",
+					slug: "intro",
+					title: "Introduction",
+					body: "Welcome to the export smoke test.\n\n- Validate EPUB\n- Validate PDF",
+				},
+			],
 		},
 		{
-			slug: "next-steps",
-			title: "Next Steps",
-			body: "This is a second chapter to verify multi-chapter exports.",
-			description: "Another chapter",
-			locale: "en",
+			title: "Mechanisms and actions",
+			entries: [
+				{
+					kind: "mechanism",
+					slug: "smoke",
+					title: "Smoke",
+					body: "A mechanism with one action under it.",
+					children: [
+						{
+							kind: "tool",
+							slug: "check-exports",
+							title: "Check the exports",
+							body: "10 minutes\n\n## Steps\n\n1. Build.\n2. Open both files.",
+						},
+					],
+				},
+			],
 		},
 	],
 };

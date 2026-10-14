@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — README images show real output
+
+- **The README's images are new.** The 2.9 MB GIF of a generic open book is replaced by screenshots of two built On-Call Runbook pages, in a light and a dark version. "How a book compiles" gets a diagram of the inputs, the gates, and the artifacts, and the line "AI may propose; the compiler decides." gets the real output of `bookkit check` rejecting a toolkit action broken on purpose. Both are SVG in light and dark versions, with the books' typefaces embedded as subsets, so the text stays text.
+- **`docs/assets/social-preview.png`** (1280×640) is the repository's link card. GitHub only takes it through Settings → General → Social preview.
+- **Removed: the template scene generator.** `scripts/generate-scenes.ts`, `scripts/check-assets.ts`, the `assets:generate` and `assets:check` scripts, `docs/assets/source.svg`, and the 20 PNGs in `docs/assets` that no page or doc used. `docs/assets` went from 3,502,984 to 233,647 bytes.
+- **README corrections.** Step 3 of "How a book compiles" listed ordering constraints as a gate, but no gate checks chapter order (`check:suggestions` proposes missing prerequisite edges instead). It now names the gates `verify` runs and says the frame check is a warning. Step 1 names the explainer frame.
+- **Migration:** none. Drop `bun run assets:check` or `assets:generate` from any local script that called them.
+
 ## 2026-10-14 — Commercial roadmap removed
 
 - **`docs/commercial-roadmap.md` is gone.** Bookkit is a CC0 project with nothing to sell, and `docs/bets.md` already decided what gets worked on. Its engineering facts moved: what MCP and governance-API hardening has and lacks, and what reader forking would be, are under parked work in `docs/bets.md`; the error payload's `severity` and `gateLevel` are in `docs/design-notes.md`. Recover the file with `git show 0014496:docs/commercial-roadmap.md`.

@@ -3,6 +3,12 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — Commercial roadmap removed
+
+- **`docs/commercial-roadmap.md` is gone.** Bookkit is a CC0 project with nothing to sell, and `docs/bets.md` already decided what gets worked on. Its engineering facts moved: what MCP and governance-API hardening has and lacks, and what reader forking would be, are under parked work in `docs/bets.md`; the error payload's `severity` and `gateLevel` are in `docs/design-notes.md`. Recover the file with `git show 0014496:docs/commercial-roadmap.md`.
+- **Pitch wording replaced** in the README, design notes, bets, debt register, architecture doc, and the on-call TODO list: "wedge" and "per-customer" are gone, and the design notes no longer call the repo "safe to recommend". Dated entries below keep their original wording.
+- **Migration:** none.
+
 ## 2026-10-14 — Release SEO gate reads real configs; reader UI survives blocked storage
 
 - **Fixed: `validate:release:seo` failed every book with `RELEASE_SITE_URL`.** The `book.config.ts` reader skipped `bookConfig = { ... } as const`, the form every app uses, so it never saw `site.url`. It now looks through `as const` and `satisfies`, and follows a shorthand `{ site }` to its binding. `on-call` and `bad-people` now pass the gate; `crumple-zone` and `running-hot` report `RELEASE_NOT_INDEXABLE` for their literal `indexable: false`, which the gate had been missing. The reader moved to `scripts/lib/site-config.ts`. **Migration:** none.

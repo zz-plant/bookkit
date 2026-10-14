@@ -80,9 +80,8 @@ For how the whole system fits together, see [`docs/architecture.md`](./docs/arch
 | [`AGENTS.md`](./AGENTS.md) | Architectural invariants + risk boundaries | Agents + reviewers |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow + lanes | Human + AI contributors |
 | [`docs/design-notes.md`](./docs/design-notes.md) | Why the invariants exist + error philosophy | Reviewers + new contributors |
-| [`docs/authorship-model.md`](./docs/authorship-model.md) | "Book as Software" philosophy + three-pillar model | Authors + strategists |
+| [`docs/authorship-model.md`](./docs/authorship-model.md) | "Book as Software" philosophy + three-pillar model | Authors + contributors |
 | [`docs/bets.md`](./docs/bets.md) | What gets worked on next and why: anchor, active bets, parked work | Maintainers + agents |
-| [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md) | Productization scope (sequencing lives in `docs/bets.md`) | Maintainers + operators |
 | [`docs/tech-debt-register.md`](./docs/tech-debt-register.md) | The queue of cross-cutting debt | Maintainers |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Dated behavior changes and migration notes | Everyone |
 | [`.codex/skills/`](./.codex/skills/README.md) | Lane checklists for agents (content, engine, release, reader typography) | Agents |
@@ -94,7 +93,7 @@ Prefer linking to canonical docs over duplicating policy text.
 
 ## Direction
 
-What gets built next is decided in [`docs/bets.md`](./docs/bets.md); the active bet is B1, keeping one author's books one argument with stable, non-overlapping mechanisms. Productization scope (hosted compile, MCP workflows, governance APIs) is in [`docs/commercial-roadmap.md`](./docs/commercial-roadmap.md).
+What gets built next is decided in [`docs/bets.md`](./docs/bets.md); the active bet is B1, keeping one author's books one argument with stable, non-overlapping mechanisms. Work that waits until a bet needs it, such as MCP and governance-API hardening and reader forking, is listed there too.
 
 ---
 
@@ -107,7 +106,7 @@ Bookkit treats a book as an **executable specification**, not a static document;
 ├─ apps/       # one directory per book: config, content, routes, thin runtime wiring
 ├─ packages/   # astro-bookkit (the engine) + create-bookkit (project generator)
 ├─ scripts/    # CLI entrypoints: governance gates, scaffolds, compile/export tasks
-└─ docs/       # architecture, bets, design notes, roadmap, debt register
+└─ docs/       # architecture, bets, design notes, authorship model, debt register
 ```
 
 **[`docs/architecture.md`](./docs/architecture.md) is canonical for the rest**: the engine module map, the tier rules that govern which module may import which, the two pipelines (Astro render vs. Bun governance CLI), the content-section contract, and the extension points for adding a frame, a schema field, a gate, or an agent tool.

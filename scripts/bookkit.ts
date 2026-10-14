@@ -22,6 +22,7 @@ import {
 	nextChapterFileName,
 	similarForMechanismFile,
 	summarizeBook,
+	withCorpusScope,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
 import {
@@ -221,7 +222,9 @@ switch (command) {
 		const corpus = runScript("check-corpus.ts", [
 			"--mode",
 			"error",
+			...(book ? ["--book", book] : []),
 			...(quick ? ["--no-semantic"] : []),
+			...(args.includes("--download-model") ? ["--download-model"] : []),
 		]);
 		console.log(
 			`\n${structure === 0 ? "✓" : "✗"} structure  ${corpus === 0 ? "✓" : "✗"} mechanisms across books`,
@@ -838,10 +841,12 @@ function createNew(kind: string | undefined, rest: string[]) {
 				);
 				process.exit(1);
 			}
-			const similar = findSimilarMechanisms({
-				title,
-				definition: flag("--definition"),
-			});
+			// Only mechanisms in the book's own corpus can make this one a duplicate.
+			const similar = withCorpusScope(
+				findSimilarMechanisms({ title, definition: flag("--definition") }),
+				book,
+				books,
+			).filter((match) => match.sameCorpus);
 			if (similar.length > 0 && !rest.includes("--force")) {
 				console.log(
 					`Before naming a new mechanism, check whether one of these already covers it:\n`,
@@ -1020,7 +1025,9 @@ function checkOneFile(path: string, asJson: boolean) {
 	const { book, section, result } = checked;
 	// A mechanism file also gets the duplicate check `new mechanism` runs.
 	const similar =
-		section === "mechanism" ? similarForMechanismFile(result.frontmatter) : [];
+		section === "mechanism"
+			? similarForMechanismFile(result.frontmatter, book)
+			: [];
 	if (asJson) {
 		console.log(
 			JSON.stringify(
@@ -1046,16 +1053,22 @@ function checkOneFile(path: string, asJson: boolean) {
 		if (finding.fix)
 			console.log(`    fix: ${finding.fix.replace(/\n/g, "\n    ")}`);
 	}
-	if (similar.length > 0) {
+	const describe = (match: (typeof similar)[number]) =>
+		`    ${match.slug} (${match.books.join(", ")}) ${match.score}${match.ruledDistinct ? ` — ruled distinct: ${match.ruledDistinct}` : ""}`;
+	const ownCorpus = similar.filter((match) => match.sameCorpus);
+	const elsewhere = similar.filter((match) => !match.sameCorpus);
+	if (ownCorpus.length > 0) {
 		console.log("  may duplicate (by wording):");
-		for (const match of similar) {
-			console.log(
-				`    ${match.slug} (${match.books.join(", ")}) ${match.score}${match.ruledDistinct ? ` — ruled distinct: ${match.ruledDistinct}` : ""}`,
-			);
-		}
+		for (const match of ownCorpus) console.log(describe(match));
 		console.log(
 			"    Same idea: bind that slug instead. Different: rule the pair distinct in corpus.json.",
 		);
+	}
+	if (elsewhere.length > 0) {
+		console.log(
+			`  similar wording in books outside ${book}'s corpus (for information; nothing to change):`,
+		);
+		for (const match of elsewhere) console.log(describe(match));
 	}
 	process.exit(result.ok ? 0 : 1);
 }
@@ -1081,7 +1094,10 @@ Write
 
 Check
   status [--json]                           chapters, stubs, mechanisms, and tools per book
-  check [book] [--quick]                    structure, plus mechanisms that overlap across books
+  check [book] [--quick] [--download-model]
+                                            structure, plus mechanisms that overlap across books; the
+                                            meaning pass needs a 550 MB model, downloaded once with
+                                            consent (--quick compares wording only)
   check <file.mdx> [--json]                 one content file: each finding with its field and fix
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame

@@ -17,6 +17,7 @@ export type {
 	EdgeProposal,
 	FrameDetection,
 	MechanismProposal,
+	ProposalAnalysis,
 	ProposalBundle,
 	ToolProposal,
 } from "./types";

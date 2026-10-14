@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 import { repoRoot } from "../_lib";
 
 /**
@@ -133,4 +134,130 @@ export const choose = (
 	}
 	const values = choices.map((choice) => choice.value);
 	return values.includes(answer) ? answer : closest(answer, values);
+};
+
+type ArgKind = "string" | "boolean";
+type ArgValue<K extends ArgKind> = K extends "string" ? string : boolean;
+
+export type ParsedScriptArgs<
+	S extends Record<string, ArgKind>,
+	R extends keyof S,
+> = { [K in R]: ArgValue<S[K]> } & {
+	[K in Exclude<keyof S, R>]?: ArgValue<S[K]>;
+};
+
+/**
+ * Reads a script's `--flag value` arguments. `--help`/`-h` prints `usage` and
+ * exits 0. An unknown flag, a flag missing its value, a stray positional, or a
+ * missing required flag prints what is wrong and the usage, and exits 1.
+ */
+export const parseScriptArgs = <
+	S extends Record<string, ArgKind>,
+	R extends keyof S & string = never,
+>(
+	usage: string,
+	spec: S,
+	required: readonly R[] = [],
+	argv: string[] = process.argv.slice(2),
+): ParsedScriptArgs<S, R> => {
+	const result = readScriptArgs(spec, required, argv);
+	if ("help" in result) {
+		console.log(usage);
+		process.exit(0);
+	}
+	if ("error" in result) {
+		console.error(`${result.error}\n\n${usage}`);
+		process.exit(1);
+	}
+	return result.values;
+};
+
+/** `parseScriptArgs` without the printing and exiting, for tests. */
+export const readScriptArgs = <
+	S extends Record<string, ArgKind>,
+	R extends keyof S & string = never,
+>(
+	spec: S,
+	required: readonly R[],
+	argv: string[],
+): { values: ParsedScriptArgs<S, R> } | { error: string } | { help: true } => {
+	const flags = Object.keys(spec).map((name) => `--${name}`);
+	let values: Record<string, string | boolean | undefined>;
+	try {
+		values = parseArgs({
+			args: argv,
+			options: {
+				...Object.fromEntries(
+					Object.entries(spec).map(([name, type]) => [name, { type }]),
+				),
+				help: { type: "boolean", short: "h" },
+			},
+			strict: true,
+			allowPositionals: false,
+		}).values;
+	} catch (error) {
+		const code = (error as { code?: string }).code;
+		const token =
+			(error instanceof Error ? error.message : "").match(
+				/'(-[^' ]+|[^']+)'/,
+			)?.[1] ?? "";
+		if (code === "ERR_PARSE_ARGS_UNKNOWN_OPTION") {
+			const flag = token.split("=")[0];
+			return {
+				error: `Unknown option ${flag}.${didYouMean(flag, flags)}`,
+			};
+		}
+		if (code === "ERR_PARSE_ARGS_INVALID_OPTION_VALUE") {
+			const flag = token.split(" ")[0];
+			return {
+				error: /does not take an argument/.test(String(error))
+					? `${flag} takes no value.`
+					: `${flag} needs a value.`,
+			};
+		}
+		if (code === "ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL") {
+			return {
+				error: `Unexpected argument "${token}". A value goes right after its flag: --name value.`,
+			};
+		}
+		return { error: error instanceof Error ? error.message : String(error) };
+	}
+	if (values.help) return { help: true };
+	const missing = required.filter((name) => values[name] === undefined);
+	if (missing.length > 0) {
+		return {
+			error: `Missing ${missing.map((name) => `--${name} <${name}>`).join(", ")}.`,
+		};
+	}
+	const empty = Object.entries(values).find(
+		([name, value]) => spec[name] === "string" && value === "",
+	);
+	if (empty) return { error: `--${empty[0]} needs a value.` };
+	delete values.help;
+	return { values: values as ParsedScriptArgs<S, R> };
+};
+
+/** Exits with the available books (and the closest one) unless `book` is an app in apps/. */
+export const requireExistingBook = (
+	book: string,
+	books: readonly string[],
+): void => {
+	if (books.includes(book)) return;
+	console.error(
+		`No book "${book}" in apps/.${didYouMean(book, books)} Books: ${books.join(", ") || "none yet (create one with bun run new:book -- --book <slug>)"}.`,
+	);
+	process.exit(1);
+};
+
+/** Exits naming the book's mechanisms unless `mechanism` is one of them. */
+export const requireExistingMechanism = (
+	book: string,
+	mechanism: string,
+	mechanisms: readonly string[],
+): void => {
+	if (mechanisms.includes(mechanism)) return;
+	console.error(
+		`${book} has no mechanism "${mechanism}".${didYouMean(mechanism, mechanisms)} Its mechanisms: ${mechanisms.join(", ") || "none yet"}. To add one: bun run new:mechanism -- --book ${book} --slug <slug>.`,
+	);
+	process.exit(1);
 };

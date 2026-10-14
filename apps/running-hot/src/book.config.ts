@@ -112,6 +112,21 @@ export const bookConfig = {
 		"attrition by queue",
 		"engineered dissipation",
 	],
+	// Linked from the home page under "Other books".
+	relatedBooks: [
+		{
+			title: "On-Call Runbook",
+			description:
+				"Classify alerts, pick a safe first action, escalate with a named target, and verify recovery.",
+			href: "https://on-call.book",
+		},
+		{
+			title: "Bad People",
+			description:
+				"How systems normalize harm and how to respond with small, reversible actions.",
+			href: "https://bad-people.book",
+		},
+	],
 } as const;
 
 export default bookConfig;

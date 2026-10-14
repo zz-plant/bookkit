@@ -23,6 +23,8 @@ export {
 } from "./app-wrappers";
 export type {
 	BookAppShims,
+	BookConfig,
+	BookConfigMechanism,
 	BookContentModules,
 	BookContentRawModules,
 	BookEntryPoints,
@@ -72,6 +74,7 @@ export type {
 	ReadHubUtilityCard,
 	ReadHubUtilityLink,
 	ReadIndexKey,
+	RelatedBook,
 	ToolkitModule,
 } from "./book";
 export {

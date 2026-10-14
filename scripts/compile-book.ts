@@ -15,7 +15,6 @@ const skipValidate = process.argv.includes("--skip-validate");
 const exportTarget = optionalArg("--export");
 const createIfMissing = process.argv.includes("--create-if-missing");
 const titleArg = optionalArg("--title");
-const template = optionalArg("--template");
 
 const books = listBookDirs();
 const hasBook = books.includes(book);
@@ -46,7 +45,6 @@ if (!hasBook && createIfMissing) {
 		book,
 		"--title",
 		inferredTitle,
-		...(template ? ["--template", template] : []),
 	]);
 }
 
@@ -96,7 +94,6 @@ Options:
   --export <target>     Optional export target (gitbook)
   --create-if-missing   Scaffold the book if it does not exist
   --title <value>       Title for --create-if-missing (defaults from slug)
-  --template <book>     Template book for --create-if-missing
   -h, --help            Show this help message
 `);
 }

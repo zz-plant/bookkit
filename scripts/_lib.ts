@@ -5,7 +5,7 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 export function repoRoot(): string {
 	return process.cwd();
@@ -17,6 +17,16 @@ export function listBookDirs(): string[] {
 	return readdirSync(appsDir, { withFileTypes: true })
 		.filter((d) => d.isDirectory())
 		.map((d) => d.name);
+}
+
+/** Every file under `dir`, as sorted `/`-separated paths relative to it. */
+export function listFilesRecursive(dir: string): string[] {
+	return readdirSync(dir, { recursive: true, withFileTypes: true })
+		.filter((entry) => entry.isFile())
+		.map((entry) =>
+			relative(dir, join(entry.parentPath, entry.name)).split(sep).join("/"),
+		)
+		.sort();
 }
 
 export function listPackageDirs(): string[] {

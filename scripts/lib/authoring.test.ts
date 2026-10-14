@@ -1,4 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "../_lib";
 import {
@@ -78,11 +80,67 @@ describe("groupFindingsByFile", () => {
 	});
 });
 
+/** A mechanism file, for a fixture book. */
+const mechanism = (slug: string, title: string, definition: string) => `---
+slug: ${slug}
+title: "${title}"
+definition: "${definition}"
+is:
+  - "${definition}"
+---
+`;
+
 describe("findSimilarMechanisms", () => {
+	// A workspace of fixture books, so the ranking does not depend on which
+	// books this repository happens to hold.
+	const cwd = process.cwd();
+	let workspace: string;
+	const writeMechanisms = (book: string, files: Record<string, string>) => {
+		const dir = join(workspace, "apps", book, "src", "content", "book");
+		mkdirSync(join(dir, "mechanisms"), { recursive: true });
+		for (const [slug, source] of Object.entries(files)) {
+			writeFileSync(join(dir, "mechanisms", `${slug}.mdx`), source);
+		}
+	};
+
+	beforeAll(() => {
+		workspace = mkdtempSync(join(tmpdir(), "bookkit-similar-"));
+		const delay = mechanism(
+			"delay-as-force",
+			"Delay as force",
+			"Waiting is used to exhaust options and coerce agreement.",
+		);
+		writeMechanisms("first-book", {
+			"delay-as-force": delay,
+			"compliance-trap": mechanism(
+				"compliance-trap",
+				"Compliance trap",
+				"Warmth is leveraged to secure compliance and block refusal.",
+			),
+		});
+		writeMechanisms("second-book", {
+			"delay-as-force": delay,
+			"buffer-loss": mechanism(
+				"buffer-loss",
+				"Buffer loss",
+				"Less buffer means less room to recover from a mistake.",
+			),
+		});
+		process.chdir(workspace);
+	});
+
+	afterAll(() => {
+		process.chdir(cwd);
+		rmSync(workspace, { recursive: true, force: true });
+	});
+
 	it("ranks a mechanism above others when its own words are proposed", () => {
 		const [first] = findSimilarMechanisms({ title: "Delay as force" });
 		expect(first?.slug).toBe("delay-as-force");
-		expect(first?.books).toEqual(["bad-people", "running-hot"]);
+		expect([...(first?.books ?? [])].sort()).toEqual([
+			"first-book",
+			"second-book",
+		]);
 	});
 
 	it("does not stem 'less' to 'les'", () => {

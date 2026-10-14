@@ -1,0 +1,17 @@
+{
+	"name": "@books/__BOOK_SLUG__",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"validate": "bun run ../../scripts/validate-book.ts --book __BOOK_SLUG__",
+		"deploy": "bun run --cwd ../.. bookkit deploy __BOOK_SLUG__"
+	},
+	"dependencies": {
+		"@astrojs/mdx": "^6.0.1",
+		"@bookkit/astro-bookkit": "workspace:*",
+		"astro": "^7.2.2"
+	}
+}

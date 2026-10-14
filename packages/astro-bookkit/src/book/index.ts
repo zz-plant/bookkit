@@ -13,6 +13,11 @@ export {
 export type { ChapterPageCopy } from "./chapter-copy";
 export { defaultChapterPageCopy } from "./chapter-copy";
 export type {
+	BookConfig,
+	BookConfigMechanism,
+	RelatedBook,
+} from "./config";
+export type {
 	BookContentModules,
 	BookContentRawModules,
 	BookEntryPoints,

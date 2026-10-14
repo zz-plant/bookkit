@@ -2,9 +2,15 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import bookConfig from "../../book.config";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
-import { readItemPath, readRoutes } from "@bookkit/astro-bookkit";
+import {
+	type BookConfig,
+	readItemPath,
+	readRoutes,
+} from "@bookkit/astro-bookkit";
 
-const { objectives, frame, causalStance, constraints, mechanisms } = bookConfig;
+// Read through BookConfig: under `as const`, an empty `mechanisms: []` has no element type.
+const config: BookConfig = bookConfig;
+const { objectives, frame, causalStance, constraints, mechanisms } = config;
 const mechanismTitles = new Map(
 	Object.values(bookEntryPoints.contentModules.mechanisms)
 		.filter(

@@ -20,7 +20,7 @@ import { loadBookContent } from "./lib/load-book";
 /**
  * check:corpus — mechanism overlap across books.
  *
- *   bun run check:corpus                                   # corpus.json books, else every book
+ *   bun run check:corpus                                   # corpus.json books that exist, else every book
  *   bun run check:corpus -- --books bad-people,running-hot  # a chosen corpus
  *   bun run check:corpus -- --no-semantic                  # lexical only, no model
  *   bun run check:corpus -- --model minilm                 # another model (see EMBEDDING_MODELS)
@@ -89,19 +89,35 @@ const model = resolveEmbeddingModel(
 	modelKeys[0] ?? DEFAULT_EMBEDDING_MODEL_KEY,
 ) as EmbeddingModel;
 
+const available = listBookDirs();
+// corpus.json may name books a fork or a standalone project does not have.
+// Those are left out with a note; a book named with --books must exist.
+const missingCorpusBooks = booksArg
+	? []
+	: (corpusFile.books ?? []).filter((book) => !available.includes(book));
+const presentCorpusBooks = (corpusFile.books ?? []).filter((book) =>
+	available.includes(book),
+);
 const books = booksArg
 	? booksArg
 			.split(",")
 			.map((book) => book.trim())
 			.filter(Boolean)
-	: (corpusFile.books ?? listBookDirs());
+	: presentCorpusBooks.length > 0
+		? presentCorpusBooks
+		: available;
 
-const unknown = books.filter((book) => !listBookDirs().includes(book));
+const unknown = books.filter((book) => !available.includes(book));
 if (unknown.length > 0) {
 	console.error(
 		`Unknown book(s): ${unknown.join(", ")}. Run bun run list:books for the available slugs.`,
 	);
 	process.exit(1);
+}
+if (missingCorpusBooks.length > 0) {
+	console.warn(
+		`corpus.json lists book(s) not in apps/: ${missingCorpusBooks.join(", ")}. Checking ${presentCorpusBooks.length > 0 ? books.join(", ") : `every book in apps/ instead (${books.join(", ") || "none"})`}. Remove the missing ones from "books" in corpus.json.`,
+	);
 }
 
 const semanticThreshold = thresholdArg ? Number(thresholdArg) : model.threshold;
@@ -110,8 +126,22 @@ if (Number.isNaN(semanticThreshold)) {
 	process.exit(1);
 }
 
-const mechanisms: CorpusMechanism[] = books.flatMap((book) =>
+const loaded: CorpusMechanism[] = books.flatMap((book) =>
 	loadBookContent(book).mechanisms.map((mechanism) => ({ ...mechanism, book })),
+);
+// A mechanism with no definition in any book has nothing to compare yet: by
+// title alone, every new book's placeholder would match every other's.
+const undefinedSlugs = new Set(
+	loaded
+		.filter((mechanism) =>
+			loaded.every(
+				(other) => other.slug !== mechanism.slug || !other.definition.trim(),
+			),
+		)
+		.map((mechanism) => mechanism.slug),
+);
+const mechanisms = loaded.filter(
+	(mechanism) => !undefinedSlugs.has(mechanism.slug),
 );
 
 if (evalRequested) {
@@ -131,15 +161,19 @@ if (semanticRequested && mechanisms.length > 1) {
 	}
 }
 
-// An explicit --books subset leaves other books' mechanisms out; rulings that
-// name them are out of scope for this run, not stale.
+// A subset of books (--books, or corpus.json naming books that are not here)
+// leaves other books' mechanisms out; rulings that name them are out of scope
+// for this run, not stale. So are rulings on a mechanism with no definition.
 const loadedSlugs = new Set(mechanisms.map((m) => m.slug));
-const rulings = corpusFile.distinct ?? [];
-const distinct = booksArg
-	? rulings.filter((ruling) =>
-			ruling.pair.every((slug) => loadedSlugs.has(slug)),
-		)
-	: rulings;
+const rulings = (corpusFile.distinct ?? []).filter(
+	(ruling) => !ruling.pair.some((slug) => undefinedSlugs.has(slug)),
+);
+const distinct =
+	booksArg || missingCorpusBooks.length > 0
+		? rulings.filter((ruling) =>
+				ruling.pair.every((slug) => loadedSlugs.has(slug)),
+			)
+		: rulings;
 
 const report = analyzeCorpusOverlap(mechanisms, {
 	vectors,
@@ -179,6 +213,11 @@ if (asJson) {
 		`CORPUS OVERLAP (${report.books.length} book(s), ${report.mechanismCount} mechanisms)`,
 	);
 	console.log(`  ${semanticNote}`);
+	if (undefinedSlugs.size > 0) {
+		console.log(
+			`  not compared until they have a definition: ${[...undefinedSlugs].join(", ")}`,
+		);
+	}
 	if (report.shared.length > 0) {
 		console.log(
 			`  shared across books: ${report.shared.map((record) => `${record.slug} (${record.books.join(", ")})`).join("; ")}`,

@@ -1,16 +1,36 @@
 import { join } from "node:path";
 import { scaffoldSource } from "../packages/astro-bookkit/src/validators/content-check";
+import { ensureDir, listBookDirs, slugify, writeFileSafe } from "./_lib";
 import {
-	ensureDir,
-	optionalArg,
-	requireArg,
-	slugify,
-	writeFileSafe,
-} from "./_lib";
+	parseScriptArgs,
+	requireExistingBook,
+	requireExistingMechanism,
+} from "./lib/cli";
+import { loadBookContent } from "./lib/load-book";
 
-const book = requireArg("--book");
-const mechanism = requireArg("--mechanism");
-const nameRaw = optionalArg("--name") ?? "New tool";
+const args = parseScriptArgs(
+	`Create a draft toolkit action in apps/<book>/src/content/book/toolkit/.
+
+Usage:
+  bun run new:tool -- --book <book> --mechanism <mechanism-slug> [--name "<name>"]
+
+Options:
+  --book <book>             The book app to add it to
+  --mechanism <slug>        The mechanism the action responds to
+  --name "<name>"           The action's name (default: "New tool")
+  -h, --help                Show this help`,
+	{ book: "string", mechanism: "string", name: "string" },
+	["book", "mechanism"],
+);
+
+const { book, mechanism } = args;
+requireExistingBook(book, listBookDirs());
+requireExistingMechanism(
+	book,
+	mechanism,
+	loadBookContent(book).mechanisms.map((record) => record.slug),
+);
+const nameRaw = args.name ?? "New tool";
 const toolSlug = slugify(`${mechanism}--${nameRaw}`);
 
 const outDir = join(

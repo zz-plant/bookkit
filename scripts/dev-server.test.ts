@@ -12,7 +12,9 @@ import { isPortInUse } from "./lib/dev-server";
  * endpoint's tool calls, and give the port back when it is stopped.
  */
 
-const BOOK = "on-call";
+// Not on-call: static-build.test.ts builds that app, and test files run in
+// parallel, so two Astro processes would share its .astro/ folder.
+const BOOK = "running-hot";
 const AGENT_ENV = { ...process.env, CLAUDECODE: "1", NO_COLOR: "1" };
 
 const freePort = (): Promise<number> =>

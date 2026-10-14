@@ -54,7 +54,7 @@
 		"check:todos": "bun run scripts/check-todos.ts",
 		"check:shims": "bun run scripts/check-shims.ts",
 		"sync:shims": "bun run scripts/check-shims.ts --write",
-		"test": "bun test",
+		"test": "bun test --parallel",
 		"setup": "mise trust && bun install",
 		"check": "bun run bookkit check"
 	},

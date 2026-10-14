@@ -3,6 +3,16 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — Judges in check:corpus, and faster builds and checks
+
+- **`check:corpus` reads judges' verdicts** (bet B1). `corpus-judgments.json` holds answers to the author's merge rule (same lever, same evidence, and which relation holds), asked blind of an LLM or a person who sees only the two texts. A pair any judge calls the same idea is now flagged even when its wording differs, and joins the clusters `--mode error` fails on until the author rules. Every flagged pair shows the judges' call: likely one mechanism, a split for the author to settle, or not the same idea with a draft reason for the `corpus.json` ruling. Verdicts carry a hash of both texts and stop applying when either changes; the report lists those pairs. `--judge-prompt <dir>` writes the blind question for the pairs worth asking, and `--judge-record <dir>` reads the answers back. Engine: `decidePair`, `evaluateJudgments` (suggestions), and a `judgments` option and `"judged"` flag on `analyzeCorpusOverlap`.
+- **`check:corpus --eval` scores the judges** against the rulings: the decision table gets 17 of 18 right, 0 wrong, and leaves 1 to the author; the same judges' lever-times-evidence score with a leave-one-out cutoff gets 2 wrong. `--eval --json` now returns `{ models, judges }` instead of the models array.
+- **Stored vectors.** The meaning pass keeps each mechanism's vector beside the model and embeds only texts it has not seen: `check:corpus` 5.6 s, then 0.2 s on later runs, with the same report.
+- **Link previews rasterize in parallel** (resvg on the thread pool): a cold image pass 2.2× faster, the PNGs byte-identical. CI and deploy keep the image cache between runs.
+- **`check:types` runs TypeScript and `astro check` on one queue**, the longest job first: 27 s against 32–36 s on four cores. **`bun run test` runs test files in parallel**: 20 s against 43 s.
+- **Fixed:** the MCP command runner loaded `node:child_process` with a top-level await, and under Bun 1.3 a tool call could run before it settled ("Cannot access 'runWorkspaceCommand' before initialization"); it also did not pass changes to `process.env` on to the child. Both only showed when its test file ran first.
+- **Migration:** none for content. A pair now flagged by judges needs a ruling like any other flagged pair; none is flagged today. A consumer of `check:corpus --eval --json` reads `.models` for what it used to get.
+
 ## 2026-10-14 — Ease-of-use pass
 
 - **Fixed: a standalone project from `create-bookkit` could not import or suggest.** It copied scripts that import files it did not copy: `lib/import-markdown.ts` (added with `bookkit try`, in the entry below) and `lib/load-book.ts` (older, so `bun run suggest` had been failing). The copy list is now one module, and a test fails when a copied script imports something a standalone project does not have.

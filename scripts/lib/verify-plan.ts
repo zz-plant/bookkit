@@ -11,7 +11,7 @@
  * | packages/create-bookkit/**           | types, tests                                        |
  * | scripts/**                           | types (.ts only), tests                             |
  * | apps/<book>/src/content/**           | validate that book, separation, concepts, build it  |
- * | apps/<book>/src/content/.../mechanisms, corpus.json | mechanisms across books (wording)    |
+ * | apps/<book>/src/content/.../mechanisms, corpus.json, corpus-judgments.json | mechanisms across books |
  * | apps/<book>/** (config, pages, lib)  | types, shims, validate, build that book             |
  * | docs/architecture.md                 | architecture                                        |
  * | TODOS.md                             | todos                                               |
@@ -250,8 +250,12 @@ const planWorkspaceGates = (
 	if (contentBooks.length > 0) {
 		add(conceptsGate(contentBooks, "names in new prose"));
 	}
-	if (any(MECHANISMS) || changed.includes("corpus.json")) {
-		add(corpusGate("mechanisms or corpus.json changed"));
+	if (
+		any(MECHANISMS) ||
+		changed.includes("corpus.json") ||
+		changed.includes("corpus-judgments.json")
+	) {
+		add(corpusGate("mechanisms, corpus.json, or judges' verdicts changed"));
 	}
 
 	if (engine || appCode.length > 0) {

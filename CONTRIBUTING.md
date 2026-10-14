@@ -117,7 +117,7 @@ Requirements:
 | `packages/astro-bookkit/**` | types, tests, shims, architecture doc, build `on-call` |
 | `packages/create-bookkit/**`, `scripts/**` | types (`.ts` only), tests |
 | `apps/<book>/src/content/**` | validate that book, separation, named concepts (warnings only), build that book |
-| a mechanism file, `corpus.json` | mechanisms across books (wording) |
+| a mechanism file, `corpus.json`, `corpus-judgments.json` | mechanisms across books (wording, and judges' verdicts) |
 | `apps/<book>/**` (config, pages, lib) | types, shims, validate, build that book |
 | `docs/architecture.md` | architecture doc |
 | `TODOS.md` | todos |

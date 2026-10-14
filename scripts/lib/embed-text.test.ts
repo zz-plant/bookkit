@@ -68,7 +68,7 @@ describe("embedTexts model download", () => {
 		const transformers = fakeTransformers();
 		const log: string[] = [];
 
-		const result = await embedTexts(["text"], model, {
+		const result = await embedTexts(["no terminal"], model, {
 			loadTransformers: transformers.load,
 			interactive: false,
 			log: (line) => log.push(line),
@@ -92,7 +92,7 @@ describe("embedTexts model download", () => {
 		const transformers = fakeTransformers();
 		const log: string[] = [];
 
-		const result = await embedTexts(["text"], model, {
+		const result = await embedTexts(["opted in"], model, {
 			loadTransformers: transformers.load,
 			interactive: false,
 			log: (line) => log.push(line),
@@ -110,7 +110,7 @@ describe("embedTexts model download", () => {
 		const questions: string[] = [];
 		const transformers = fakeTransformers();
 
-		const declined = await embedTexts(["text"], model, {
+		const declined = await embedTexts(["asked"], model, {
 			loadTransformers: transformers.load,
 			interactive: true,
 			confirm: (question) => {
@@ -123,7 +123,7 @@ describe("embedTexts model download", () => {
 		expect(transformers.calls).toEqual([]);
 		expect(questions).toEqual(["Download it now? [y/N]"]);
 
-		const accepted = await embedTexts(["text"], model, {
+		const accepted = await embedTexts(["asked"], model, {
 			loadTransformers: transformers.load,
 			interactive: true,
 			confirm: () => true,
@@ -141,7 +141,7 @@ describe("embedTexts model download", () => {
 		const transformers = fakeTransformers();
 		const log: string[] = [];
 
-		const result = await embedTexts(["text"], model, {
+		const result = await embedTexts(["cached model"], model, {
 			loadTransformers: transformers.load,
 			interactive: false,
 			log: (line) => log.push(line),
@@ -151,5 +151,102 @@ describe("embedTexts model download", () => {
 		expect(transformers.calls).toEqual([model.id]);
 		expect(log).toEqual([]);
 		rmSync(join(cacheDir, model.id), { recursive: true, force: true });
+	});
+});
+
+describe("embedTexts stored vectors", () => {
+	// A stand-in model whose vector encodes the text, so a reused vector can
+	// be told apart from a fresh one.
+	const textModel = () => {
+		const embedded: string[] = [];
+		const module: TransformersModule = {
+			env: {
+				cacheDir: "",
+				version: "test",
+				allowLocalModels: true,
+				backends: { onnx: { wasm: { numThreads: 4 } } },
+			},
+			pipeline: async () => async (texts) => {
+				embedded.push(...texts);
+				return {
+					dims: [1, 2],
+					data: Float32Array.from([texts[0].length, 1]),
+				};
+			},
+		};
+		return { embedded, load: async () => module };
+	};
+
+	it("embeds a text once; a later run loads no model for it", async () => {
+		const store = mkdtempSync(join(tmpdir(), "bookkit-vectors-"));
+		process.env.BOOKKIT_MODEL_CACHE = cacheDir;
+		process.env.BOOKKIT_DOWNLOAD_MODEL = "1";
+		const first = textModel();
+		const one = await embedTexts(["alpha", "be"], model, {
+			loadTransformers: first.load,
+			log: () => {},
+			vectorCache: store,
+		});
+		expect(first.embedded).toEqual([
+			`${model.prefix}alpha`,
+			`${model.prefix}be`,
+		]);
+
+		// No download allowed, and no model: every vector comes from the store.
+		delete process.env.BOOKKIT_DOWNLOAD_MODEL;
+		const second = textModel();
+		const two = await embedTexts(["be", "alpha"], model, {
+			loadTransformers: second.load,
+			interactive: false,
+			log: () => {},
+			vectorCache: store,
+		});
+		expect(second.embedded).toEqual([]);
+		expect(two.ok && one.ok).toBe(true);
+		if (two.ok && one.ok) {
+			expect([...two.vectors[0]]).toEqual([...one.vectors[1]]);
+			expect([...two.vectors[1]]).toEqual([...one.vectors[0]]);
+		}
+		rmSync(store, { recursive: true, force: true });
+	});
+
+	it("embeds only the texts it has not seen, in their places", async () => {
+		const store = mkdtempSync(join(tmpdir(), "bookkit-vectors-"));
+		process.env.BOOKKIT_MODEL_CACHE = cacheDir;
+		process.env.BOOKKIT_DOWNLOAD_MODEL = "1";
+		await embedTexts(["old"], model, {
+			loadTransformers: textModel().load,
+			log: () => {},
+			vectorCache: store,
+		});
+		const run = textModel();
+		const result = await embedTexts(["new text", "old"], model, {
+			loadTransformers: run.load,
+			log: () => {},
+			vectorCache: store,
+		});
+		expect(run.embedded).toEqual([`${model.prefix}new text`]);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.vectors.map((vector) => vector[0])).toEqual([
+				`${model.prefix}new text`.length,
+				`${model.prefix}old`.length,
+			]);
+		}
+		rmSync(store, { recursive: true, force: true });
+	});
+
+	it("keeps no vectors with vectorCache: null", async () => {
+		process.env.BOOKKIT_MODEL_CACHE = cacheDir;
+		process.env.BOOKKIT_DOWNLOAD_MODEL = "1";
+		for (let run = 0; run < 2; run++) {
+			const once = textModel();
+			await embedTexts(["unstored"], model, {
+				loadTransformers: once.load,
+				log: () => {},
+				vectorCache: null,
+			});
+			expect(once.embedded).toEqual([`${model.prefix}unstored`]);
+		}
 	});
 });

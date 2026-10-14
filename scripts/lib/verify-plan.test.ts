@@ -22,6 +22,7 @@ describe("planGates", () => {
 			ids(["apps/bad-people/src/content/book/mechanisms/delay-as-force.mdx"]),
 		).toContain("corpus");
 		expect(ids(["corpus.json"])).toEqual(["biome", "corpus"]);
+		expect(ids(["corpus-judgments.json"])).toEqual(["biome", "corpus"]);
 	});
 
 	it("runs types, tests, shims, architecture, and one build for engine code", () => {

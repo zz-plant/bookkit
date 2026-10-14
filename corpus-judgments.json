@@ -1,0 +1,1355 @@
+{
+	"$comment": "Judges' verdicts on pairs of mechanisms, read by check:corpus (bet B1, docs/bets.md). Each record holds hashes of both texts as judged; when a text changes, its verdicts stop applying. Written by check:corpus --judge-record; edit by hand only to remove a record.",
+	"judgments": [
+		{
+			"pair": ["pyrrhic-condition", "transfer-success"],
+			"texts": ["fc67d86a2cc6c787", "12d08b80ec8c902d"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.07,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.07,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.07,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["attrition-by-queue", "delay-as-force"],
+			"texts": ["667bf386edd3521b", "cf9cbc2e72bb057b"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.22,
+					"sameEvidence": 0.25,
+					"relationP": 0.55
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.3,
+					"sameEvidence": 0.35,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.35,
+					"sameEvidence": 0.35,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["delay-as-force", "temporal-capture"],
+			"texts": ["cf9cbc2e72bb057b", "1a68b30a2ed15c6e"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.45,
+					"sameEvidence": 0.3,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.35,
+					"sameEvidence": 0.25,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.45,
+					"sameEvidence": 0.35,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["delay-as-force", "coercive-waiting"],
+			"texts": ["25b087992114e439", "2a018363e3c39cdc"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.87,
+					"sameEvidence": 0.78,
+					"relationP": 0.78
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.8,
+					"sameEvidence": 0.65,
+					"relationP": 0.7
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.85,
+					"sameEvidence": 0.75,
+					"relationP": 0.75
+				}
+			]
+		},
+		{
+			"pair": ["credibility-access-control", "reputation-membrane"],
+			"texts": ["f29064b5d214d818", "b19259735fb1934e"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.07,
+					"sameEvidence": 0.06,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.08,
+					"sameEvidence": 0.06,
+					"relationP": 0.55
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.55
+				}
+			]
+		},
+		{
+			"pair": ["refusability-gap", "coercion-by-design"],
+			"texts": ["91455578790692d7", "530958eff7264d8e"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.6,
+					"sameEvidence": 0.55,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.6,
+					"sameEvidence": 0.55,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.7,
+					"sameEvidence": 0.65,
+					"relationP": 0.55
+				}
+			]
+		},
+		{
+			"pair": ["compliance-trap", "bureaucracy-moral-technology"],
+			"texts": ["725e748ac3ab3be2", "e458db3e46160237"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.04,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.06,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["reputation-membrane", "bureaucracy-moral-technology"],
+			"texts": ["b19259735fb1934e", "e458db3e46160237"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.2,
+					"relationP": 0.65
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.15,
+					"relationP": 0.65
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.2,
+					"relationP": 0.65
+				}
+			]
+		},
+		{
+			"pair": ["attrition-by-queue", "death-of-slack"],
+			"texts": ["667bf386edd3521b", "c2973d29f2eb68fa"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.1,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.08,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.12,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["delay-as-force", "reversibility-gap"],
+			"texts": ["cf9cbc2e72bb057b", "246e0df62d10ea89"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.18,
+					"relationP": 0.55
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.25,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.25,
+					"sameEvidence": 0.25,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["transfer-success", "crumple-zone"],
+			"texts": ["12d08b80ec8c902d", "57c3e5e48717a0d3"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.3,
+					"sameEvidence": 0.2,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.3,
+					"sameEvidence": 0.25,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.45,
+					"sameEvidence": 0.35,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["reversibility-gap", "transfer-success"],
+			"texts": ["246e0df62d10ea89", "12d08b80ec8c902d"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.07,
+					"sameEvidence": 0.07,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.12,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["cowardice-of-inference", "pyrrhic-condition"],
+			"texts": ["90172bc2208bc870", "fc67d86a2cc6c787"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.03,
+					"sameEvidence": 0.03,
+					"relationP": 0.7
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.04,
+					"sameEvidence": 0.04,
+					"relationP": 0.6
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.04,
+					"sameEvidence": 0.05,
+					"relationP": 0.6
+				}
+			]
+		},
+		{
+			"pair": ["governance-by-caricature", "sanctiphagy"],
+			"texts": ["e59b97df1f1ff3a6", "4e358d5dcdb0cc6d"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.15,
+					"relationP": 0.55
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.55
+				}
+			]
+		},
+		{
+			"pair": ["sanctiphagy", "bureaucracy-moral-technology"],
+			"texts": ["4e358d5dcdb0cc6d", "e458db3e46160237"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.6
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.12,
+					"relationP": 0.55
+				}
+			]
+		},
+		{
+			"pair": ["human-heat-sink", "crumple-zone"],
+			"texts": ["3156a5df2bf0bcfb", "218f1e39354afef9"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.85,
+					"sameEvidence": 0.75,
+					"relationP": 0.8
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.9,
+					"sameEvidence": 0.85,
+					"relationP": 0.85
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.9,
+					"sameEvidence": 0.85,
+					"relationP": 0.85
+				}
+			]
+		},
+		{
+			"pair": ["volatocracy", "governance-by-caricature"],
+			"texts": ["5c8ff007e23e8542", "e59b97df1f1ff3a6"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.04,
+					"sameEvidence": 0.04,
+					"relationP": 0.6
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.04,
+					"sameEvidence": 0.05,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.07,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["transfer-success", "reversal-capacity"],
+			"texts": ["12d08b80ec8c902d", "a5c7ea9bf07177a5"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.06,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.05,
+					"sameEvidence": 0.07,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["bureaucracy-moral-technology", "clearance-culture"],
+			"texts": ["e458db3e46160237", "8a48346d672e7a13"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.15,
+					"sameEvidence": 0.1,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.12,
+					"sameEvidence": 0.08,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["volatocracy", "crumple-zone"],
+			"texts": ["5c8ff007e23e8542", "57c3e5e48717a0d3"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.55
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.2,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["vibe-legitimacy", "compliance-trap"],
+			"texts": ["05f38a442d11a906", "725e748ac3ab3be2"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.2,
+					"sameEvidence": 0.12,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.15,
+					"sameEvidence": 0.08,
+					"relationP": 0.35
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.1,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["vibe-legitimacy", "governance-by-caricature"],
+			"texts": ["05f38a442d11a906", "e59b97df1f1ff3a6"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.25,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.15,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.15,
+					"relationP": 0.55
+				}
+			]
+		},
+		{
+			"pair": ["death-of-slack", "crumple-zone"],
+			"texts": ["c2973d29f2eb68fa", "57c3e5e48717a0d3"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.5,
+					"sameEvidence": 0.5,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.5,
+					"sameEvidence": 0.5,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_idea",
+					"sameLever": 0.55,
+					"sameEvidence": 0.6,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["obligation-without-custody", "bureaucracy-moral-technology"],
+			"texts": ["62287e30c62d8137", "e458db3e46160237"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.07,
+					"relationP": 0.35
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["compliance-trap", "refusability-gap"],
+			"texts": ["725e748ac3ab3be2", "a4b06d5f59b28498"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.15,
+					"relationP": 0.6
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.12,
+					"relationP": 0.65
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.2,
+					"relationP": 0.6
+				}
+			]
+		},
+		{
+			"pair": ["reversibility-gap", "refusability-gap"],
+			"texts": ["246e0df62d10ea89", "a4b06d5f59b28498"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.1,
+					"sameEvidence": 0.1,
+					"relationP": 0.7
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.75
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.1,
+					"sameEvidence": 0.1,
+					"relationP": 0.75
+				}
+			]
+		},
+		{
+			"pair": ["credibility-access-control", "discretion-as-gate"],
+			"texts": ["f29064b5d214d818", "d780ad62e050ac16"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.4,
+					"sameEvidence": 0.35,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.4,
+					"sameEvidence": 0.35,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.4,
+					"sameEvidence": 0.35,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["reversibility-gap", "reversal-capacity"],
+			"texts": ["246e0df62d10ea89", "a5c7ea9bf07177a5"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.2,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.5
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.25,
+					"sameEvidence": 0.25,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["reputation-membrane", "sanctiphagy"],
+			"texts": ["b19259735fb1934e", "4e358d5dcdb0cc6d"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.3,
+					"sameEvidence": 0.25,
+					"relationP": 0.55
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.25,
+					"sameEvidence": 0.2,
+					"relationP": 0.6
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.3,
+					"sameEvidence": 0.25,
+					"relationP": 0.6
+				}
+			]
+		},
+		{
+			"pair": ["reputation-membrane", "discretion-as-gate"],
+			"texts": ["b19259735fb1934e", "d780ad62e050ac16"],
+			"votes": [
+				{
+					"judge": "scratch/blind-judge judge 1",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.07,
+					"sameEvidence": 0.07,
+					"relationP": 0.4
+				},
+				{
+					"judge": "scratch/blind-judge judge 2",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.05,
+					"sameEvidence": 0.07,
+					"relationP": 0.45
+				},
+				{
+					"judge": "scratch/blind-judge judge 3",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.08,
+					"sameEvidence": 0.1,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["transfer-success", "obligation-without-custody"],
+			"texts": ["12d08b80ec8c902d", "62287e30c62d8137"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.55,
+					"sameEvidence": 0.5,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.55,
+					"sameEvidence": 0.5,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.5,
+					"sameEvidence": 0.5,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["credibility-access-control", "vibe-legitimacy"],
+			"texts": ["f29064b5d214d818", "05f38a442d11a906"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.25,
+					"sameEvidence": 0.2,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.2,
+					"sameEvidence": 0.15,
+					"relationP": 0.62
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "different_target",
+					"sameLever": 0.2,
+					"sameEvidence": 0.15,
+					"relationP": 0.6
+				}
+			]
+		},
+		{
+			"pair": ["clearance-culture", "consent-maintenance-pressure"],
+			"texts": ["8a48346d672e7a13", "62ecb5ce370e2b7c"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.06,
+					"sameEvidence": 0.05,
+					"relationP": 0.42
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["reversal-capacity", "documentation-tollbooth"],
+			"texts": ["a5c7ea9bf07177a5", "72967a1993930661"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.4
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.12,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["obligation-without-custody", "delay-as-force"],
+			"texts": ["62287e30c62d8137", "cf9cbc2e72bb057b"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.08,
+					"relationP": 0.6
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.06,
+					"sameEvidence": 0.06,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["reversibility-gap", "crumple-zone"],
+			"texts": ["246e0df62d10ea89", "57c3e5e48717a0d3"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "cause_effect",
+					"sameLever": 0.2,
+					"sameEvidence": 0.2,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["clearance-culture", "obligation-without-custody"],
+			"texts": ["8a48346d672e7a13", "62287e30c62d8137"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.06,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.55
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.1,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["obligation-without-custody", "reversal-capacity"],
+			"texts": ["62287e30c62d8137", "a5c7ea9bf07177a5"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.06,
+					"sameEvidence": 0.07,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.42
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["consent-maintenance-pressure", "reversal-capacity"],
+			"texts": ["62ecb5ce370e2b7c", "a5c7ea9bf07177a5"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.4
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.08,
+					"sameEvidence": 0.07,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.1,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["compliance-trap", "consent-maintenance-pressure"],
+			"texts": ["725e748ac3ab3be2", "62ecb5ce370e2b7c"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.15,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.55
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.2,
+					"sameEvidence": 0.15,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["delay-as-force", "consent-maintenance-pressure"],
+			"texts": ["cf9cbc2e72bb057b", "62ecb5ce370e2b7c"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.08,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.06,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.5
+				}
+			]
+		},
+		{
+			"pair": ["delay-as-force", "reversal-capacity"],
+			"texts": ["cf9cbc2e72bb057b", "a5c7ea9bf07177a5"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.1,
+					"relationP": 0.4
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.07,
+					"sameEvidence": 0.07,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.1,
+					"relationP": 0.45
+				}
+			]
+		},
+		{
+			"pair": ["refusability-gap", "reversal-capacity"],
+			"texts": ["a4b06d5f59b28498", "a5c7ea9bf07177a5"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.07,
+					"sameEvidence": 0.06,
+					"relationP": 0.75
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.08,
+					"sameEvidence": 0.07,
+					"relationP": 0.75
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "before_after",
+					"sameLever": 0.1,
+					"sameEvidence": 0.08,
+					"relationP": 0.75
+				}
+			]
+		},
+		{
+			"pair": ["compliance-trap", "clearance-culture"],
+			"texts": ["725e748ac3ab3be2", "8a48346d672e7a13"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "unrelated",
+					"sameLever": 0.04,
+					"sameEvidence": 0.04,
+					"relationP": 0.5
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.06,
+					"sameEvidence": 0.06,
+					"relationP": 0.4
+				}
+			]
+		},
+		{
+			"pair": ["crumple-zone", "attrition-by-queue"],
+			"texts": ["57c3e5e48717a0d3", "667bf386edd3521b"],
+			"votes": [
+				{
+					"judge": "claude-blind-2026-10-14/answer-1.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-2.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.45
+				},
+				{
+					"judge": "claude-blind-2026-10-14/answer-3.json",
+					"date": "2026-10-14",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.45
+				}
+			]
+		}
+	]
+}

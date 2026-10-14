@@ -92,6 +92,16 @@ jobs:
         if: steps.current.outputs.skip != 'true'
         run: bun install --frozen-lockfile
 
+      # The same link-preview cache as CI (see ci.yml). Restored from main's
+      # own runs only: caches saved by pull requests are not visible here.
+      - name: Cache link-preview images
+        if: steps.current.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: apps/*/node_modules/.cache/bookkit-og
+          key: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-${{ github.run_id }}
+          restore-keys: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-
+
       # Everything that runs dependency code happens here, without the token:
       # verify --all, each book's build, check:build, and wrangler's dry run.
       # Each book that passes is stamped with this commit.

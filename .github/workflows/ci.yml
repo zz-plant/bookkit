@@ -25,6 +25,16 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Link-preview images are cached by content (seo/og-render.ts), so a
+      # build re-renders only the cards whose page changed. The key changes
+      # with the renderer and its fonts, which start a fresh cache.
+      - name: Cache link-preview images
+        uses: actions/cache@v4
+        with:
+          path: apps/*/node_modules/.cache/bookkit-og
+          key: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-${{ github.run_id }}
+          restore-keys: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-
+
       # One list of checks for CI and contributors: scripts/lib/verify-plan.ts.
       # Findings with a file also annotate the PR (see scripts/verify.ts).
       - name: Verify (every gate)

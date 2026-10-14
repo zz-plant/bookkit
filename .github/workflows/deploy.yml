@@ -44,6 +44,15 @@ jobs:
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: bun install --frozen-lockfile
 
+      # The same link-preview cache as CI (see ci.yml).
+      - name: Cache link-preview images
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: actions/cache@v4
+        with:
+          path: apps/*/node_modules/.cache/bookkit-og
+          key: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-${{ github.run_id }}
+          restore-keys: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-
+
       - name: Build, verify, and deploy every book
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: bun run bookkit deploy --all

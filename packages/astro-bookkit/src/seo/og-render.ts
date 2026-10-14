@@ -6,6 +6,7 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
+import { availableParallelism } from "node:os";
 import { dirname, join } from "node:path";
 import { engineRequire } from "../utils/engine-require";
 import {
@@ -65,21 +66,35 @@ type ResvgModule = typeof import("@resvg/resvg-js");
  * Loaded with `require`, not `import()`: Astro evaluates integrations through
  * Vite's module runner, which has closed by the time `astro:build:done` runs.
  */
-const loadRenderer = (): { satori: Satori; Resvg: ResvgModule["Resvg"] } => {
+const loadRenderer = (): {
+	satori: Satori;
+	renderAsync: ResvgModule["renderAsync"];
+} => {
 	const satoriModule = require("satori") as Satori | { default: Satori };
 	return {
 		satori:
 			typeof satoriModule === "function" ? satoriModule : satoriModule.default,
-		Resvg: (require("@resvg/resvg-js") as ResvgModule).Resvg,
+		renderAsync: (require("@resvg/resvg-js") as ResvgModule).renderAsync,
 	};
 };
 
-export const renderOgImage = async (
-	card: OgCard,
-	fonts: OgFonts,
-): Promise<Uint8Array> => {
-	const { satori, Resvg } = loadRenderer();
-	const svg = await satori(ogCardTree(card) as never, {
+/**
+ * Rasterizing is about five sixths of a render. resvg's `renderAsync` runs it
+ * on libuv's thread pool, so a book's cards rasterize side by side while the
+ * next card is laid out here.
+ */
+const rasterize = async (svg: string): Promise<Uint8Array> => {
+	const { renderAsync } = loadRenderer();
+	const image = await renderAsync(svg, {
+		fitTo: { mode: "width", value: OG_IMAGE_WIDTH },
+	});
+	return image.asPng();
+};
+
+/** Lays a card out as SVG (satori, on this thread). */
+const layoutOgCard = (card: OgCard, fonts: OgFonts): Promise<string> => {
+	const { satori } = loadRenderer();
+	return satori(ogCardTree(card) as never, {
 		width: OG_IMAGE_WIDTH,
 		height: OG_IMAGE_HEIGHT,
 		fonts: [
@@ -104,12 +119,12 @@ export const renderOgImage = async (
 			},
 		],
 	});
-	return new Resvg(svg, {
-		fitTo: { mode: "width", value: OG_IMAGE_WIDTH },
-	})
-		.render()
-		.asPng();
 };
+
+export const renderOgImage = async (
+	card: OgCard,
+	fonts: OgFonts,
+): Promise<Uint8Array> => rasterize(await layoutOgCard(card, fonts));
 
 /**
  * Renders are cached by content: the card, the fonts, and this renderer's own
@@ -153,6 +168,15 @@ export const writeOgImages = async (
 	if (cacheDir) mkdirSync(cacheDir, { recursive: true });
 	let written = 0;
 	let rendered = 0;
+	const write = (imagePath: string, png: Uint8Array) => {
+		const target = join(outDir, imagePath);
+		mkdirSync(dirname(target), { recursive: true });
+		writeFileSync(target, png);
+		written += 1;
+	};
+	// One rasterization per core in flight; each holds a laid-out SVG.
+	const limit = availableParallelism();
+	const inFlight = new Set<Promise<void>>();
 	for (const [imagePath, card] of cards) {
 		if (existing.has(imagePath)) continue;
 		const cached = cacheDir
@@ -161,18 +185,23 @@ export const writeOgImages = async (
 					`${createHash("sha256").update(digest).update(JSON.stringify(card)).digest("hex")}.png`,
 				)
 			: null;
-		let png: Uint8Array;
 		if (cached && existsSync(cached)) {
-			png = readFileSync(cached);
-		} else {
-			png = await renderOgImage(card, fonts);
+			write(imagePath, readFileSync(cached));
+			continue;
+		}
+		const svg = await layoutOgCard(card, fonts);
+		const task = rasterize(svg).then((png) => {
 			rendered += 1;
 			if (cached) writeFileSync(cached, png);
-		}
-		const target = join(outDir, imagePath);
-		mkdirSync(dirname(target), { recursive: true });
-		writeFileSync(target, png);
-		written += 1;
+			write(imagePath, png);
+		});
+		inFlight.add(task);
+		task.then(
+			() => inFlight.delete(task),
+			() => inFlight.delete(task),
+		);
+		if (inFlight.size >= limit) await Promise.race(inFlight);
 	}
+	await Promise.all(inFlight);
 	return { written, rendered };
 };

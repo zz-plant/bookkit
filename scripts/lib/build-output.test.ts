@@ -67,6 +67,22 @@ describe("inspectBuildOutput", () => {
 		]);
 	});
 
+	it("flags .json files that hold a page or do not parse", () => {
+		write(dist, "api/feedback.json", "<!DOCTYPE html><title>Not found</title>");
+		write(dist, "api/broken.json", '{"ok": tru');
+		write(dist, "api/mcp.json", '{"ok":true}');
+
+		const result = inspectBuildOutput({ book: "on-call", distDir: dist });
+
+		expect(result.ok).toBe(false);
+		expect(
+			result.findings.map((f) => [f.file, f.message.split(".")[0]]).sort(),
+		).toEqual([
+			["api/broken.json", "Is not valid JSON"],
+			["api/feedback.json", "Holds an HTML page, not JSON"],
+		]);
+	});
+
 	it("reports missing required artifacts", () => {
 		rmSync(join(dist, "404.html"));
 		rmSync(join(dist, "sitemap.xml"));

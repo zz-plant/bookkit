@@ -1,1 +1,3 @@
-export { feedbackApiPost as POST } from "../../lib/book-runtime";
+import { feedbackApiHandlers } from "../../lib/book-runtime";
+
+export const { GET, POST } = feedbackApiHandlers;

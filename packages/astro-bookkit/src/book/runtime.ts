@@ -14,6 +14,7 @@ import {
 import { createBookMcpEndpointFromWorkspace } from "../mcp";
 import { createReleaseEmailEndpoint } from "../releases/endpoint";
 import type { ReleaseModule, ReleaseNote } from "../releases/notes";
+import { requestHandlers } from "../utils/http";
 import {
 	type BookEntrypointModules,
 	createBookEntryPointsFromModules,
@@ -82,26 +83,33 @@ export const createBookRuntime = ({
 		getChapterExportBundle: exportHelpers.getChapterExportBundle,
 		getBookExportLinks: exportHelpers.getBookExportLinks,
 		getChapterExportLinks: exportHelpers.getChapterExportLinks,
+		// Everything but MCP needs a request handler; see `requestHandlers`.
 		api: {
-			analytics: createAnalyticsApiHandlers(),
-			feedback: createFeedbackApiHandlers(),
-			exportAnalytics: createExportAnalyticsApiHandlers(),
-			previewAnalytics: createPreviewAnalyticsApiHandlers(),
-			releaseAnalytics: {
+			analytics: requestHandlers(createAnalyticsApiHandlers()),
+			feedback: requestHandlers(createFeedbackApiHandlers()),
+			exportAnalytics: requestHandlers(createExportAnalyticsApiHandlers()),
+			previewAnalytics: requestHandlers(createPreviewAnalyticsApiHandlers()),
+			releaseAnalytics: requestHandlers({
 				POST: createReleaseAnalyticsApiPostHandler(),
-			},
-			releaseWebhook: createReleaseWebhookApiHandlers({
-				modules: releaseHelpers.releaseModules,
-				book: { slug: bookConfig.slug, title: bookConfig.title },
 			}),
-			releaseEmail: createReleaseEmailEndpoint({
-				modules: releaseHelpers.releaseModules,
-				book: { slug: bookConfig.slug, title: bookConfig.title },
-			}),
-			qa: createQaApiHandlers({
-				provider: bookConfig.features?.aiQaProvider,
-				providers: bookConfig.features?.aiQaProviders,
-			}),
+			releaseWebhook: requestHandlers(
+				createReleaseWebhookApiHandlers({
+					modules: releaseHelpers.releaseModules,
+					book: { slug: bookConfig.slug, title: bookConfig.title },
+				}),
+			),
+			releaseEmail: requestHandlers(
+				createReleaseEmailEndpoint({
+					modules: releaseHelpers.releaseModules,
+					book: { slug: bookConfig.slug, title: bookConfig.title },
+				}),
+			),
+			qa: requestHandlers(
+				createQaApiHandlers({
+					provider: bookConfig.features?.aiQaProvider,
+					providers: bookConfig.features?.aiQaProviders,
+				}),
+			),
 			createMcpHandlers: (startDir: string) =>
 				createBookMcpEndpointFromWorkspace({
 					startDir,

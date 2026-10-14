@@ -1,46 +1,82 @@
+import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
 import { writeBookIcons } from "./seo/book-icons";
+import type { BookSeoConfig } from "./seo/config";
 import { writeOgImages } from "./seo/og-render";
 
 export type BookkitIntegrationOptions = {
 	/** Render a PNG link preview for every built page (default true). */
 	ogImages?: boolean;
+	/** `site.runtime` from book.config.ts: where the built book is served. */
+	runtime?: BookSeoConfig["runtime"];
 };
 
 /**
  * Astro integration for Bookkit book applications.
- * Configures Vite SSR bundling, and after a build writes the site's icons
- * (see `seo/book-icons.ts`) and each page's link-preview image
- * (see `seo/og-image.ts`).
+ * Configures Vite SSR bundling, decides which API routes run on demand, and
+ * after a build writes the site's icons (see `seo/book-icons.ts`) and each
+ * page's link-preview image (see `seo/og-image.ts`).
+ *
+ * API routes (`src/pages/api/**`) run on demand in `astro dev`, so POST works
+ * there (MCP tool calls, feedback), and in a build when `runtime` is "server".
+ * A static build prerenders them: the MCP discovery manifest is written, and
+ * the request handlers answer the prerender with no body, which leaves them
+ * out of `dist/` (see `utils/http.ts`).
  */
 export function bookkit(
 	options: BookkitIntegrationOptions = {},
 ): AstroIntegration {
+	const serverRuntime = options.runtime === "server";
+	let apiRoutesOnDemand = false;
+	let apiRouteDir = "src/pages/api/";
+
 	return {
 		name: "@bookkit/astro-bookkit",
 		hooks: {
-			"astro:config:setup": ({ updateConfig }) => {
+			"astro:config:setup": ({ command, config, updateConfig }) => {
+				if (command === "build" && serverRuntime && !config.adapter) {
+					throw new Error(
+						'site.runtime is "server" in src/book.config.ts, so the API routes run on demand, which needs an adapter. Add one to astro.config.mjs (for example @astrojs/node), or remove site.runtime to build a static site.',
+					);
+				}
+				apiRoutesOnDemand = command === "dev" || serverRuntime;
+				apiRouteDir = `${relative(
+					fileURLToPath(config.root),
+					fileURLToPath(new URL("pages/api/", config.srcDir)),
+				).replaceAll("\\", "/")}/`;
 				updateConfig({
 					vite: {
+						// Read by the reader UI: without request handlers the Ask
+						// island and the in-browser models it loads are compiled out.
+						define: {
+							"import.meta.env.BOOKKIT_SERVER_RUNTIME":
+								JSON.stringify(serverRuntime),
+						},
 						ssr: {
 							noExternal: ["@bookkit/astro-bookkit"],
 						},
 						build: {
 							rollupOptions: {
-								onwarn(
-									warning: { message?: string; [key: string]: any },
-									warn: (w: any) => void,
+								// A dependency's "use client" (web-haptics) matters to React
+								// server bundlers, not to a browser bundle. Matched by code:
+								// Rollup and Rolldown word the message differently.
+								onwarn<W extends { code?: string }>(
+									warning: W,
+									warn: (warning: W) => void,
 								) {
-									const message = warning.message ?? "";
-									if (message.includes("Module level directives cause errors"))
-										return;
+									if (warning.code === "MODULE_LEVEL_DIRECTIVE") return;
 									warn(warning);
 								},
 							},
 						},
 					},
 				});
+			},
+			"astro:route:setup": ({ route }) => {
+				if (apiRoutesOnDemand && route.component.startsWith(apiRouteDir)) {
+					route.prerender = false;
+				}
 			},
 			"astro:build:done": async ({ dir, logger }) => {
 				const icons = await writeBookIcons(fileURLToPath(dir));

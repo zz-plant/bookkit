@@ -360,6 +360,7 @@ export {
 	buildSeoProps,
 	hasServerRuntime,
 	resolveSiteUrl,
+	runtimeFeatures,
 } from "./seo/config";
 export {
 	bookPageTitle,

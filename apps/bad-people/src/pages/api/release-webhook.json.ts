@@ -1,1 +1,3 @@
-export { releaseWebhookApiPost as POST } from "../../lib/book-runtime";
+import { releaseWebhookApiHandlers } from "../../lib/book-runtime";
+
+export const { GET, POST } = releaseWebhookApiHandlers;

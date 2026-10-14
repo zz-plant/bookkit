@@ -178,9 +178,12 @@ const otherBooks = [
     </section>
   )}
   <script>
+    // Empty on a static build, which has no analytics handler.
+    const analyticsEndpoint = document.body.dataset.analyticsEndpoint;
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
     funnelLinks.forEach((link) => {
       link.addEventListener("click", () => {
+        if (!analyticsEndpoint) return;
         const step = link.getAttribute("data-funnel-step");
         if (!step) return;
         const payload = JSON.stringify({
@@ -192,10 +195,10 @@ const otherBooks = [
           timestamp: Date.now(),
         });
         if (navigator.sendBeacon) {
-          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          navigator.sendBeacon(analyticsEndpoint, new Blob([payload], { type: "application/json" }));
           return;
         }
-        fetch("/api/analytics.json", {
+        fetch(analyticsEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: payload,

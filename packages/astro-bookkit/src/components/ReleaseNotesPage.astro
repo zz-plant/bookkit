@@ -32,6 +32,10 @@ export type Props = {
 	canonicalPath?: string;
 	canonicalUrl?: string;
 	robots?: string;
+	/** `site.runtime === "server"`; see `runtimeFeatures`. Default false. */
+	hasServerRuntime?: boolean;
+	/** Ask the book, when the runtime has its endpoint. Default false. */
+	aiQaEnabled?: boolean;
 };
 
 const {
@@ -62,7 +66,12 @@ const {
 	canonicalPath,
 	canonicalUrl,
 	robots,
+	hasServerRuntime = false,
+	aiQaEnabled = false,
 } = Astro.props;
+
+// Counting RSS clicks needs the release-analytics handler.
+const subscribeUrl = hasServerRuntime ? subscribeAnalyticsUrl : null;
 
 const renderState = createBookLayoutRenderState({
 	title,
@@ -101,6 +110,8 @@ const renderState = createBookLayoutRenderState({
   bookTitle={bookTitle}
   bookVersion={bookVersion}
   bookKey={bookKey}
+  hasServerRuntime={hasServerRuntime}
+  aiQaEnabled={aiQaEnabled}
   versions={versions}
   versionPrefix={versionPrefix}
   versionArchivePath={versionArchivePath}
@@ -179,8 +190,8 @@ const renderState = createBookLayoutRenderState({
       );
     })}
   </div>
-  {(subscribeAnalyticsUrl || releases.length > 0) && (
-    <script define:vars={{ subscribeAnalyticsUrl, releases, bookKey }}>
+  {(subscribeUrl || releases.length > 0) && (
+    <script define:vars={{ subscribeAnalyticsUrl: subscribeUrl, releases, bookKey }}>
       const subscribeButton = document.querySelector("[data-release-subscribe]");
       subscribeButton?.addEventListener("click", () => {
         if (!subscribeAnalyticsUrl) return;

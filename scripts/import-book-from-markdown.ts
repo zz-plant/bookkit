@@ -126,15 +126,31 @@ if (skipped.length > 0) {
 }
 
 console.log("\nNext steps:");
-console.log(
-	`  1. bun run bookkit propose --book ${book}   — draft mechanisms and tools from ideas that recur`,
-);
-console.log(
-	`  2. bun run bookkit check ${book} --quick    — what each file still needs, with fixes`,
-);
-console.log(
-	`  3. bun run bookkit dev ${book}              — read it as a book`,
-);
+// A standalone project (create-bookkit) has its own scripts, not the bookkit CLI.
+const steps = existsSync(join(workspaceRoot, "scripts", "bookkit.ts"))
+	? [
+			[
+				`bun run bookkit propose ${book}`,
+				"draft mechanisms and tools from ideas that recur",
+			],
+			[
+				`bun run bookkit check ${book} --quick`,
+				"what each file still needs, with fixes",
+			],
+			[`bun run bookkit dev ${book}`, "read it as a book"],
+		]
+	: [
+			[
+				`bun run suggest -- --book ${book}`,
+				"drafts for mechanisms and tools from ideas that recur",
+			],
+			["bun run validate", "what each file still needs"],
+			["bun run dev", "read it as a book"],
+		];
+const width = Math.max(...steps.map(([command]) => command.length));
+steps.forEach(([command, what], index) => {
+	console.log(`  ${index + 1}. ${command.padEnd(width)}   ${what}`);
+});
 console.log(
 	"\nImport writes only the chapter (prose) layer. Mechanisms, toolkit, and glossary stay ",
 );

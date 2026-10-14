@@ -18,7 +18,7 @@
 		"qa": "bun run verify -- --all",
 		"verify": "bun run scripts/verify.ts",
 		"mcp": "bun run scripts/mcp-server.ts",
-		"deploy": "bun run bookkit deploy",
+		"deploy": "bun run bookkit deploy --all",
 		"lint": "biome lint .",
 		"check:types": "bun run scripts/typecheck.ts",
 		"check:upgrade": "bun run scripts/upgrade-check.ts",

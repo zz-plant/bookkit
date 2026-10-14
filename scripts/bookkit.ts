@@ -307,26 +307,41 @@ switch (command) {
 			console.error("No books found in apps/*");
 			process.exit(1);
 		}
-		const targetBook = args[1]
-			? requireBook(args[1], "bun run bookkit dev [book]")
-			: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
-		console.log(`\n🚀 Starting dev server for @books/${targetBook}...\n`);
-		const result = spawnSync(
-			"bun",
-			["run", "--filter", `@books/${targetBook}`, "dev"],
-			{
+		// Under an AI agent, astro dev runs in the background and says to use
+		// `astro dev stop`, which only works inside the app; these forward it there.
+		const control = ["stop", "status", "logs"].includes(args[1] ?? "")
+			? args[1]
+			: undefined;
+		const named = control ? args[2] : args[1];
+		const targetBook =
+			named && !named.startsWith("--")
+				? requireBook(named, "bun run bookkit dev [stop|status|logs] [book]")
+				: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
+		const appDir = join(repoRoot(), "apps", targetBook);
+		if (control) {
+			const result = spawnSync("bunx", ["astro", "dev", control], {
+				cwd: appDir,
 				stdio: "inherit",
-			},
-		);
+			});
+			process.exit(result.status ?? 0);
+		}
+		console.log(`\n🚀 Starting dev server for ${targetBook}...\n`);
+		// Run in the app itself, not through --filter, so Astro's output streams
+		// in full (the filter view keeps only the last few lines) and Ctrl-C
+		// reaches it directly.
+		const result = spawnSync("bun", ["run", "dev"], {
+			cwd: appDir,
+			stdio: "inherit",
+		});
 		process.exit(result.status ?? 0);
 		break;
 	}
 
 	case "build": {
-		const targetBook = args[1]
-			? requireBook(args[1], "bun run bookkit build [book]")
-			: undefined;
+		const target = targetBooks(args, "bun run bookkit build [book] [--all]");
+		const targetBook = target.books.length === 1 ? target.books[0] : undefined;
 		if (targetBook) {
+			if (target.note) console.log(target.note);
 			console.log(`\n📦 Building @books/${targetBook}...\n`);
 			const result = spawnSync(
 				"bun",
@@ -454,17 +469,15 @@ switch (command) {
 	}
 
 	case "deploy": {
-		const targetBook =
-			args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+		const target = targetBooks(
+			args,
+			"bun run bookkit deploy [book] [--all] [--dry-run]",
+		);
 		const dryRun = args.includes("--dry-run");
 		const skipBuild = args.includes("--no-build");
-
-		if (targetBook && !books.includes(targetBook)) {
-			console.error(
-				`Book "${targetBook}" not found. Available books: ${books.join(", ")}`,
-			);
-			process.exit(1);
-		}
+		console.log(
+			`${dryRun ? "Dry run for" : "Deploying"} ${target.books.join(", ")}.${target.note ? ` ${target.note}` : ""}`,
+		);
 
 		const wranglerBin = join(process.cwd(), "node_modules", ".bin", "wrangler");
 		if (!existsSync(wranglerBin)) {
@@ -474,7 +487,7 @@ switch (command) {
 			process.exit(1);
 		}
 
-		for (const book of targetBook ? [targetBook] : books) {
+		for (const book of target.books) {
 			const appDir = join(process.cwd(), "apps", book);
 
 			// The content check verify runs per book. A build renders invalid
@@ -937,6 +950,26 @@ function createNew(kind: string | undefined, rest: string[]) {
 }
 
 /**
+ * The books build and deploy act on: the one named, else the current book
+ * (`bookkit use`), else every book. `--all` always means every book, which is
+ * what CI and `bun run deploy` ask for.
+ */
+function targetBooks(
+	list: string[],
+	usage: string,
+): { books: string[]; note?: string } {
+	const named = list[1] && !list[1].startsWith("--") ? list[1] : undefined;
+	if (named) return { books: [requireBook(named, usage)] };
+	if (focusBook && !list.includes("--all")) {
+		return {
+			books: [focusBook],
+			note: `(${focusBook} is the current book; add --all for every book.)`,
+		};
+	}
+	return { books };
+}
+
+/**
  * Scripts that take `--book <slug>` also accept the book first (`propose
  * running-hot`), or default to the current book (`bookkit use`).
  */
@@ -1061,8 +1094,11 @@ Check
 
 Preview and publish
   dev [book]                                local preview with live reload
-  build [book]                              build one book or all of them
-  deploy [book] [--dry-run] [--no-build]    check content, build, verify dist/, publish to Cloudflare
+  dev stop|status|logs [book]               control a dev server running in the background (agents)
+  build [book] [--all]                      build one book (no book: the current one, or all)
+  deploy [book] [--all] [--dry-run] [--no-build]
+                                            check content, build, verify dist/, publish to Cloudflare;
+                                            no book: the current one, or all; --all for every book
 
 Other
   list                                      list the books

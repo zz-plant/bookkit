@@ -3,6 +3,16 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-14 — Ease-of-use pass
+
+- **Fixed: a standalone project from `create-bookkit` could not import or suggest.** It copied scripts that import files it did not copy: `lib/import-markdown.ts` (added with `bookkit try`, in the entry below) and `lib/load-book.ts` (older, so `bun run suggest` had been failing). The copy list is now one module, and a test fails when a copied script imports something a standalone project does not have.
+- **`create-bookkit --dir` installs before it imports**, since import now reads frontmatter with the project's own dependencies (without it, Bun fetched an incompatible js-yaml), and it resolves `--dir` where you typed it. Before, a relative `--dir ./notes` was looked up inside the new project.
+- **Import's next steps name commands that exist**: the `bookkit` commands in this repo, and `suggest`, `validate`, and `dev` in a standalone project.
+- **`deploy` and `build` follow the current book.** With no book named, they act on the book set with `bookkit use`, as the help always said, instead of every book; `--all` means every book. `bun run deploy` and the deploy workflow pass `--all`, so what they publish is unchanged. A mistyped book now gets a suggestion from `deploy` too, and `deploy` says which books it is about to publish.
+- **`bookkit dev` streams Astro's own output.** It runs in the book's folder instead of through `bun --filter`, whose view kept only the last few lines, so a later error could scroll out of sight. `bookkit dev stop|status|logs [book]` controls a server Astro put in the background (it does that under an AI agent, and its own `astro dev stop` only works inside the app).
+- **The meaning check says when it downloads its model.** The first semantic run of `check`, `similar --semantic`, or `check:corpus` fetches about 520 MB without a word; it now says so on stderr, once.
+- **Migration:** if a script relied on `bookkit deploy` or `bookkit build` with no book meaning every book while a current book is set, add `--all`.
+
 ## 2026-10-14 — Bookkit on folders it doesn't own
 
 - **`bookkit try <folder>`** shows what any folder of Markdown would become, and writes nothing: the frame it fits (detected, or `--frame`), how many documents already carry each of the frame's sections, named ideas that recur across documents, files that break the content contract, text MDX could not compile, and the commands that turn the folder into a book. `--json` returns the same as data.

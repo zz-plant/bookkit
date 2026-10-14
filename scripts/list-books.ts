@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { listBookDirs } from "./_lib";
+import { listBookDirs, repoRoot } from "./_lib";
 
 // Rows sorted so the flagship runbook demo leads; the underlying dir order
 // (listBookDirs) is untouched so `bookkit dev` keeps its own default.
@@ -19,7 +19,7 @@ if (books.length === 0) {
 }
 
 for (const book of books) {
-	const pkgPath = join(process.cwd(), "apps", book, "package.json");
+	const pkgPath = join(repoRoot(), "apps", book, "package.json");
 	let name = `@books/${book}`;
 	if (existsSync(pkgPath)) {
 		try {

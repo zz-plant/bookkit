@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { listBookDirs, optionalArg } from "./_lib";
+import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { booksFromArgv } from "./lib/book-args";
 import { parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
 
@@ -150,10 +150,10 @@ const jsonHits: Array<{ book: string; file: string; term: string }> = [];
 let filesRead = 0;
 
 async function checkConceptsForBook(book: string): Promise<number> {
-	const base = join(process.cwd(), "apps", book, "src", "content", "book");
+	const base = join(repoRoot(), "apps", book, "src", "content", "book");
 	if (!existsSync(base)) {
 		throw new Error(
-			`no content directory at ${relative(process.cwd(), base)}, so nothing was checked`,
+			`no content directory at ${relative(repoRoot(), base)}, so nothing was checked`,
 		);
 	}
 
@@ -207,7 +207,7 @@ async function checkConceptsForBook(book: string): Promise<number> {
 		log(`\n[${book}] ${file}`);
 		for (const term of [...terms].sort()) {
 			log(`  - "${term}" (unregistered concept)`);
-			jsonHits.push({ book, file: relative(process.cwd(), file), term });
+			jsonHits.push({ book, file: relative(repoRoot(), file), term });
 		}
 	}
 

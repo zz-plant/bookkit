@@ -1,10 +1,14 @@
 import { describe, expect, it } from "bun:test";
 
+import { join } from "node:path";
 import { createGovernanceResourcesFromFiles } from "./governance";
 
 describe("createGovernanceResourcesFromFiles", () => {
 	it("includes command reference generated from root package scripts metadata", () => {
-		const resources = createGovernanceResourcesFromFiles(process.cwd());
+		// The workspace root, wherever the test runner was started.
+		const resources = createGovernanceResourcesFromFiles(
+			join(import.meta.dir, "..", "..", "..", ".."),
+		);
 		const commandReference = resources.find(
 			(resource) =>
 				resource.uri === "bookkit://governance/commands/root-scripts",

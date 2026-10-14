@@ -1,14 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import ts from "typescript";
 import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
 import { optionalArg, requireArg } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
-
-type SeoSiteConfig = {
-	url?: string;
-	indexable?: boolean;
-};
+import { extractSiteConfig } from "./lib/site-config";
 
 const book = requireArg("--book");
 const mode = optionalArg("--mode") ?? "warn";
@@ -64,141 +59,6 @@ if (existsSync(bookConfigPath)) {
 			"RELEASE_SITE_URL",
 		);
 	}
-}
-
-function extractSiteConfig(source: string): SeoSiteConfig | null {
-	const sourceFile = ts.createSourceFile(
-		"book.config.ts",
-		source,
-		ts.ScriptTarget.Latest,
-		true,
-		ts.ScriptKind.TS,
-	);
-	const objectBindings = new Map<string, ts.ObjectLiteralExpression>();
-	let bookConfigObject: ts.ObjectLiteralExpression | null = null;
-
-	for (const statement of sourceFile.statements) {
-		if (!ts.isVariableStatement(statement)) continue;
-		for (const declaration of statement.declarationList.declarations) {
-			if (!ts.isIdentifier(declaration.name) || !declaration.initializer)
-				continue;
-			if (ts.isObjectLiteralExpression(declaration.initializer)) {
-				objectBindings.set(declaration.name.text, declaration.initializer);
-			}
-			if (
-				declaration.name.text === "bookConfig" &&
-				ts.isObjectLiteralExpression(declaration.initializer)
-			) {
-				bookConfigObject = declaration.initializer;
-			}
-		}
-	}
-
-	if (!bookConfigObject) return null;
-
-	const siteNode = readObjectProperty(bookConfigObject, "site");
-	if (!siteNode) return null;
-
-	return evaluateSiteNode(siteNode, objectBindings, new Set());
-}
-
-function evaluateSiteNode(
-	node: ts.Expression,
-	objectBindings: Map<string, ts.ObjectLiteralExpression>,
-	seen: Set<string>,
-): SeoSiteConfig | null {
-	if (
-		ts.isParenthesizedExpression(node) ||
-		ts.isAsExpression(node) ||
-		ts.isSatisfiesExpression(node)
-	) {
-		return evaluateSiteNode(node.expression, objectBindings, seen);
-	}
-
-	if (ts.isObjectLiteralExpression(node)) {
-		return evaluateSiteObject(node, objectBindings, seen);
-	}
-
-	if (ts.isIdentifier(node)) {
-		if (seen.has(node.text)) return null;
-		const boundObject = objectBindings.get(node.text);
-		if (!boundObject) return null;
-		seen.add(node.text);
-		const evaluated = evaluateSiteObject(boundObject, objectBindings, seen);
-		seen.delete(node.text);
-		return evaluated;
-	}
-
-	return null;
-}
-
-function evaluateSiteObject(
-	objectNode: ts.ObjectLiteralExpression,
-	objectBindings: Map<string, ts.ObjectLiteralExpression>,
-	seen: Set<string>,
-): SeoSiteConfig {
-	const result: SeoSiteConfig = {};
-
-	for (const property of objectNode.properties) {
-		if (ts.isSpreadAssignment(property)) {
-			const spreadValue = evaluateSiteNode(
-				property.expression,
-				objectBindings,
-				seen,
-			);
-			if (spreadValue) Object.assign(result, spreadValue);
-			continue;
-		}
-
-		if (!ts.isPropertyAssignment(property)) continue;
-		const key = getPropertyName(property.name);
-		if (!key) continue;
-		if (key === "url") {
-			const value = readStringLiteral(property.initializer);
-			if (value) result.url = value;
-		}
-		if (key === "indexable") {
-			const value = readBooleanLiteral(property.initializer);
-			if (value !== null) result.indexable = value;
-		}
-	}
-
-	return result;
-}
-
-function readObjectProperty(
-	node: ts.ObjectLiteralExpression,
-	key: string,
-): ts.Expression | null {
-	for (const property of node.properties) {
-		if (!ts.isPropertyAssignment(property)) continue;
-		if (getPropertyName(property.name) === key) return property.initializer;
-	}
-	return null;
-}
-
-function getPropertyName(name: ts.PropertyName): string | null {
-	if (
-		ts.isIdentifier(name) ||
-		ts.isStringLiteral(name) ||
-		ts.isNoSubstitutionTemplateLiteral(name)
-	) {
-		return name.text;
-	}
-	return null;
-}
-
-function readStringLiteral(node: ts.Expression): string | null {
-	if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-		return node.text;
-	}
-	return null;
-}
-
-function readBooleanLiteral(node: ts.Expression): boolean | null {
-	if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
-	if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
-	return null;
 }
 
 const errors = findings.filter((finding) => finding.level === "error");

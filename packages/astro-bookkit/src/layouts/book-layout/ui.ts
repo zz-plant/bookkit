@@ -6,11 +6,11 @@
 import { createBufferedTracker } from "./analytics-buffer";
 import { initializeHeadingAnchors, queryElement } from "./dom";
 import { getSharedIndexStore } from "./shared-index";
+import { deferredLocalStorage as storage } from "./storage";
 
 const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
 const qaEnabled = document.body?.dataset?.qaEnabled === "true";
 const qaEndpoint = document.body?.dataset?.qaEndpoint;
-const storage = window.localStorage;
 
 const headerRoot = queryElement(document, ".site-header", HTMLElement);
 const searchPanelRoot = queryElement(

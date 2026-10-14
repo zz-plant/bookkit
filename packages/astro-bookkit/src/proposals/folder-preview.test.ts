@@ -90,6 +90,8 @@ describe("previewFolder on plain runbooks", () => {
 			braces: 2,
 			autolinks: 0,
 			tags: 1,
+			html: 0,
+			esm: 0,
 		});
 	});
 });

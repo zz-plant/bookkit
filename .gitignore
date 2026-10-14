@@ -32,3 +32,6 @@ opencode.json
 
 # Per-author CLI state (bookkit use)
 .bookkit/
+
+# Scratch books that tests build inside the repo
+.test-workspaces/

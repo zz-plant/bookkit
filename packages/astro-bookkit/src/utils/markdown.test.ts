@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { compile } from "@mdx-js/mdx";
 
-import { toMdxBody } from "./markdown";
+import { splitFencedCode, toMdxBody } from "./markdown";
 
 // Markdown as real exports write it: placeholders, raw HTML, comments, autolinks.
 const HAZARDS = [
@@ -52,7 +52,81 @@ describe("toMdxBody", () => {
 		const plain = "# Title\n\nSome *prose* with a [link](https://x.y).\n";
 		expect(toMdxBody(plain)).toEqual({
 			body: plain,
-			changes: { htmlComments: 0, braces: 0, autolinks: 0, tags: 0 },
+			changes: {
+				htmlComments: 0,
+				braces: 0,
+				autolinks: 0,
+				tags: 0,
+				html: 0,
+				esm: 0,
+			},
 		});
+	});
+
+	it("escapes every < that MDX would read as a tag, and import/export lines", async () => {
+		const prose =
+			"Latency <200ms, a <= b, x <- y, a <3 b, and a < b.\nexport the data first\n";
+		await expect(compile(prose)).rejects.toThrow();
+		const { body, changes } = toMdxBody(prose);
+		await expect(compile(body)).resolves.toBeDefined();
+		expect(body).toContain(
+			"Latency \\<200ms, a \\<= b, x \\<- y, a \\<3 b, and a < b.",
+		);
+		expect(body).toContain("&#101;xport the data first");
+		expect(changes).toMatchObject({ tags: 4, esm: 1 });
+	});
+});
+
+// A collapsible section as GitHub renders it, with code inside.
+const DETAILS = [
+	"<details><summary>Timeline</summary>",
+	"",
+	"- 02:10 pager",
+	"- 04:15 resolved",
+	"",
+	"```",
+	"grep {id} <log>",
+	"```",
+	"</details>",
+	"",
+	"Press <KBD>Ctrl</KBD>, see <img src=board.png width=300> and <a href='x' onclick='y()'>this</a>.",
+	"A stray </div> and an unclosed <p> stay text.",
+].join("\n");
+
+describe("toMdxBody with html: jsx", () => {
+	it("keeps common HTML in the form MDX accepts", async () => {
+		await expect(compile(DETAILS)).rejects.toThrow();
+		const { body, changes } = toMdxBody(DETAILS, { html: "jsx" });
+		await expect(compile(body)).resolves.toBeDefined();
+		expect(body).toStartWith("<details>\n<summary>Timeline</summary>\n");
+		expect(body).toContain("grep {id} <log>");
+		expect(body).toContain("<kbd>Ctrl</kbd>");
+		expect(body).toContain('<img src="board.png" width="300" />');
+		expect(changes.html).toBe(7);
+	});
+
+	it("escapes event handlers and tags it cannot pair", () => {
+		const { body } = toMdxBody(DETAILS, { html: "jsx" });
+		expect(body).toContain("\\<a href='x' onclick='y()'>this\\</a>");
+		expect(body).toContain("A stray \\</div> and an unclosed \\<p> stay text.");
+	});
+
+	it("shows the same HTML as text by default", async () => {
+		const { body, changes } = toMdxBody(DETAILS);
+		await expect(compile(body)).resolves.toBeDefined();
+		expect(body).toStartWith("\\<details>\\<summary>Timeline\\</summary>");
+		expect(changes.html).toBe(0);
+	});
+});
+
+describe("splitFencedCode", () => {
+	it("separates prose from fenced code and says where each starts", () => {
+		const segments = splitFencedCode("a\n```\nb\n```\n~~~\nc\n~~~\nd");
+		expect(segments).toEqual([
+			{ code: false, text: "a", line: 0 },
+			{ code: true, text: "```\nb\n```", line: 1 },
+			{ code: true, text: "~~~\nc\n~~~", line: 4 },
+			{ code: false, text: "d", line: 7 },
+		]);
 	});
 });

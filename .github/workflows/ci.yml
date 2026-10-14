@@ -15,7 +15,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version-file: package.json
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,6 +30,71 @@ jobs:
       - name: Verify (every gate)
         run: bun run verify -- --all
 
+      # The deploy path end to end, publishing nothing: deploy runs verify
+      # --all itself, builds and checks every book, then runs wrangler's dry
+      # run. The guard put in wrangler's place fails any call without
+      # --dry-run and records each call, so the step can check that every
+      # book reached wrangler with this commit as its version message.
+      - name: Deploy every book (dry run)
+        run: |
+          bin=node_modules/.bin
+          mv "$bin/wrangler" "$bin/wrangler-real"
+          cat > "$bin/wrangler" <<'GUARD'
+          #!/bin/sh
+          case " $* " in
+            *" --dry-run "*) ;;
+            *) echo "wrangler guard: refusing \"wrangler $*\" without --dry-run" >&2; exit 1 ;;
+          esac
+          echo "$(basename "$PWD") $*" >> "$RUNNER_TEMP/wrangler-calls"
+          exec "$(dirname "$0")/wrangler-real" "$@"
+          GUARD
+          chmod +x "$bin/wrangler"
+          bun run bookkit deploy --all --dry-run
+          books=$(($(ls apps/*/wrangler.jsonc | wc -l)))
+          tagged=$(($(grep -c -- "deploy --dry-run --message $(git rev-parse --short=12 HEAD) " "$RUNNER_TEMP/wrangler-calls")))
+          echo "Books that reached wrangler with this commit's version message: $tagged of $books"
+          test "$tagged" -eq "$books"
+
+  # The meaning pass of check:corpus, which verify leaves out (it compares
+  # wording only): mechanisms in different books that say the same thing in
+  # other words. The embedding model (about 550 MB) is cached between runs.
+  semantic-corpus:
+    runs-on: ubuntu-latest
+    env:
+      BOOKKIT_MODEL_CACHE: ${{ github.workspace }}/../bookkit-models
+      BOOKKIT_DOWNLOAD_MODEL: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Name the embedding model
+        id: model
+        run: |
+          id="$(bun -e 'import { DEFAULT_EMBEDDING_MODEL_KEY, EMBEDDING_MODELS } from "./scripts/lib/embed-text.ts"; console.log(EMBEDDING_MODELS[DEFAULT_EMBEDDING_MODEL_KEY].id)')"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.BOOKKIT_MODEL_CACHE }}
+          key: embedding-model-${{ steps.model.outputs.id }}
+
+      # check:corpus falls back to wording when the model cannot load, so the
+      # step also fails unless the meaning pass ran.
+      - name: Mechanisms across books, by meaning
+        run: |
+          bun run check:corpus -- --mode error | tee "$RUNNER_TEMP/corpus.txt"
+          if ! grep -q "semantic pass: " "$RUNNER_TEMP/corpus.txt"; then
+            echo "::error title=Meaning pass did not run::check:corpus compared wording only; the reason is in its output above."
+            exit 1
+          fi
+
   # A project made the way packages/create-bookkit/README.md says, outside the
   # repository, must install, build, pass its own verify, and reach the
   # publish step of its deploy.
@@ -41,7 +106,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version-file: package.json
 
       - name: Setup Node
         uses: actions/setup-node@v4

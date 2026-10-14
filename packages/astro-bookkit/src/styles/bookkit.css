@@ -238,7 +238,11 @@ a,
 	color: var(--color-on-accent);
 	border-radius: var(--radius-control);
 	font-size: var(--text-sm);
-	z-index: 10;
+	/*
+	 * Above the sticky .site-header (12), which it overlaps when focused. Open
+	 * dialogs share 20 and come later in the DOM, so they still cover it.
+	 */
+	z-index: 20;
 	transform: translateY(-200%);
 	transition: transform 0.2s ease;
 }

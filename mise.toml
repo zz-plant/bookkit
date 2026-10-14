@@ -1,3 +1,5 @@
 [tools]
-bun = "latest"
+# Keep in step with package.json: bun = "packageManager", node = the major of
+# "engines.node". scripts/toolchain-pins.test.ts fails when they disagree.
+bun = "1.3.14"
 node = "22"

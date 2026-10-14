@@ -1,0 +1,4 @@
+[install]
+# node_modules is hoisted (one shared tree), as it has always been installed.
+# Without this, a regenerated bun.lock switches to the isolated linker.
+linker = "hoisted"

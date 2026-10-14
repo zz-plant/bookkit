@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MIN_BUN_VERSION="1.2.14"
-MIN_NODE_VERSION="20.11.0"
 SKILL_SET_NAME="bookkit"
 
 usage() {
@@ -70,8 +68,15 @@ cd "${REPO_ROOT}"
 log "Repository root: ${REPO_ROOT}"
 
 command -v git >/dev/null 2>&1 || fail "git is required"
-command -v node >/dev/null 2>&1 || fail "node is required (>= ${MIN_NODE_VERSION})"
-command -v bun >/dev/null 2>&1 || fail "bun is required (>= ${MIN_BUN_VERSION})"
+command -v node >/dev/null 2>&1 || fail "node is required (see engines.node in package.json)"
+command -v bun >/dev/null 2>&1 || fail "bun is required (see engines.bun in package.json)"
+
+# The minimums are set once, in package.json "engines".
+engine_minimum() {
+  node -p "require('./package.json').engines['$1'].replace(/^>=/, '')"
+}
+MIN_NODE_VERSION="$(engine_minimum node)"
+MIN_BUN_VERSION="$(engine_minimum bun)"
 
 NODE_VERSION_RAW="$(node -v | sed 's/^v//')"
 BUN_VERSION_RAW="$(bun --version)"
@@ -120,7 +125,7 @@ cat <<DONE
 [bookkit-codex-setup] Setup complete.
 
 Next steps:
-  1) Start an app: bun run dev:bad-people
+  1) Start an app: bun run bookkit dev bad-people
   2) Run upgrade safety net before larger changes: bun run check:upgrade
   3) Review lane skills under: ${CODEX_SKILLS_DIR}
 DONE

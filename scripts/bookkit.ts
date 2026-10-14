@@ -3,7 +3,6 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
-import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
 import {
 	CONTENT_SECTIONS,
 	type ContentSection,
@@ -18,7 +17,6 @@ import {
 	findSimilarMechanisms,
 	findSimilarMechanismsByMeaning,
 	listChapterFiles,
-	loadBookConfigSummary,
 	nextChapterFileName,
 	similarForMechanismFile,
 	summarizeBook,
@@ -32,7 +30,6 @@ import {
 	readFocusBook,
 	writeFocusBook,
 } from "./lib/cli";
-import { domainNotice } from "./lib/deploy-domain";
 import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
 	isBookContentPath,
@@ -475,102 +472,8 @@ switch (command) {
 	}
 
 	case "deploy": {
-		const target = targetBooks(
-			args,
-			"bun run bookkit deploy [book] [--all] [--dry-run]",
-		);
-		const dryRun = args.includes("--dry-run");
-		const skipBuild = args.includes("--no-build");
-		console.log(
-			`${dryRun ? "Dry run for" : "Deploying"} ${target.books.join(", ")}.${target.note ? ` ${target.note}` : ""}`,
-		);
-
-		const wranglerBin = join(process.cwd(), "node_modules", ".bin", "wrangler");
-		if (!existsSync(wranglerBin)) {
-			console.error(
-				"wrangler is not installed. Run `bun install`; it is a workspace devDependency.",
-			);
-			process.exit(1);
-		}
-
-		for (const book of target.books) {
-			const appDir = join(process.cwd(), "apps", book);
-
-			// The content check verify runs per book. A build renders invalid
-			// content without complaint, so this is what keeps it off the host.
-			const content = checkBookContent({
-				workspaceRoot: process.cwd(),
-				bookSlug: book,
-			});
-			const contentErrors = content.findings.filter(
-				(finding) => finding.level === "error",
-			);
-			console.log(
-				`\nCONTENT ${book}: ${content.ok ? "ok" : "failed"} (${contentErrors.length} error(s), ${content.findings.length - contentErrors.length} warning(s))`,
-			);
-			for (const finding of contentErrors) {
-				const where = finding.file
-					? `${relative(process.cwd(), finding.file)}: `
-					: "";
-				console.log(`- [error] ${where}${finding.message}`);
-				if (finding.fix)
-					console.log(`  fix: ${finding.fix.replace(/\n/g, "\n  ")}`);
-			}
-			if (!content.ok) {
-				console.error(
-					`\nRefusing to deploy ${book}: its content failed validation.`,
-				);
-				process.exit(1);
-			}
-
-			if (!skipBuild) {
-				console.log(`\n📦 Building @books/${book}...\n`);
-				const build = spawnSync(
-					"bun",
-					["run", "--filter", `@books/${book}`, "build"],
-					{ stdio: "inherit" },
-				);
-				if (build.status !== 0) process.exit(build.status ?? 1);
-			}
-
-			const check = spawnSync(
-				process.execPath,
-				[
-					"run",
-					join(process.cwd(), "scripts", "check-build.ts"),
-					"--book",
-					book,
-				],
-				{ stdio: "inherit" },
-			);
-			if (check.status !== 0) {
-				console.error(
-					`\nRefusing to deploy ${book}: its build output failed verification.`,
-				);
-				process.exit(check.status ?? 1);
-			}
-
-			const wranglerConfig = join(appDir, "wrangler.jsonc");
-			const notice = existsSync(wranglerConfig)
-				? domainNotice({
-						book,
-						siteUrl: (await loadBookConfigSummary(book)).site?.url,
-						wranglerJsonc: readFileSync(wranglerConfig, "utf8"),
-					})
-				: null;
-			if (notice) console.log(`\nNote for ${book}: ${notice}`);
-
-			console.log(
-				`\n🚀 Deploying @books/${book} to Cloudflare${dryRun ? " (dry run)" : ""}...\n`,
-			);
-			const deploy = spawnSync(
-				wranglerBin,
-				["deploy", ...(dryRun ? ["--dry-run"] : [])],
-				{ cwd: appDir, stdio: "inherit" },
-			);
-			if (deploy.status !== 0) process.exit(deploy.status ?? 1);
-		}
-		process.exit(0);
+		// Verifies and checks every book, then publishes all or none: scripts/deploy.ts.
+		process.exit(runScript("deploy.ts", args.slice(1)));
 		break;
 	}
 
@@ -1115,9 +1018,10 @@ Preview and publish
   dev [book] [--port <n>]                   local preview with live reload; runs until stopped
   dev stop|status|logs [book]               control a dev server astro dev left in the background
   build [book] [--all]                      build one book (no book: the current one, or all)
-  deploy [book] [--all] [--dry-run] [--no-build]
-                                            check content, build, verify dist/, publish to Cloudflare;
+  deploy [book...] [--all] [--dry-run] [--no-build]
+                                            verify, build, and check each book, then publish all or none;
                                             no book: the current one, or all; --all for every book
+                                            (bun run bookkit deploy --help for every option)
 
 Other
   list                                      list the books

@@ -28,7 +28,9 @@ export type RelatedBook = {
  *   export const bookConfig = { ... } as const satisfies BookConfig;
  */
 export type BookConfig = BookLayoutConfig &
-	BookRuntimeConfig & {
+	// The runtime reads only each mechanism's slug; the full entry is below.
+	// Intersecting both array types would type every element as `{ slug }`.
+	Omit<BookRuntimeConfig, "mechanisms"> & {
 		slug: string;
 		status: string;
 		site: BookSeoConfig & { url: string };

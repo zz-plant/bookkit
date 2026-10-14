@@ -33,6 +33,7 @@ import {
 	writeFocusBook,
 } from "./lib/cli";
 import { domainNotice } from "./lib/deploy-domain";
+import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
 	isBookContentPath,
 	printFolderCheck,
@@ -310,33 +311,35 @@ switch (command) {
 			console.error("No books found in apps/*");
 			process.exit(1);
 		}
-		// Under an AI agent, astro dev runs in the background and says to use
-		// `astro dev stop`, which only works inside the app; these forward it there.
+		// `bookkit dev` stays in the foreground. These control a server that
+		// `astro dev` moved to the background itself (it does under an AI agent);
+		// Astro's own `astro dev stop` only works inside the app.
 		const control = ["stop", "status", "logs"].includes(args[1] ?? "")
 			? args[1]
 			: undefined;
+		const usage = "bun run bookkit dev [book] [--port <n>]";
 		const named = control ? args[2] : args[1];
 		const targetBook =
 			named && !named.startsWith("--")
-				? requireBook(named, "bun run bookkit dev [stop|status|logs] [book]")
+				? requireBook(named, usage)
 				: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
-		const appDir = join(repoRoot(), "apps", targetBook);
 		if (control) {
 			const result = spawnSync("bunx", ["astro", "dev", control], {
-				cwd: appDir,
+				cwd: join(repoRoot(), "apps", targetBook),
 				stdio: "inherit",
 			});
 			process.exit(result.status ?? 0);
 		}
+		const portArg = flagValue(args, "--port");
+		const port = args.includes("--port") ? Number(portArg) : DEFAULT_DEV_PORT;
+		if (!Number.isInteger(port) || port < 1 || port > 65535) {
+			console.error(
+				`--port needs a whole number from 1 to 65535${portArg ? `, not "${portArg}"` : ""}.\nUsage: ${usage}`,
+			);
+			process.exit(1);
+		}
 		console.log(`\n🚀 Starting dev server for ${targetBook}...\n`);
-		// Run in the app itself, not through --filter, so Astro's output streams
-		// in full (the filter view keeps only the last few lines) and Ctrl-C
-		// reaches it directly.
-		const result = spawnSync("bun", ["run", "dev"], {
-			cwd: appDir,
-			stdio: "inherit",
-		});
-		process.exit(result.status ?? 0);
+		process.exit(await runDevServer(targetBook, port));
 		break;
 	}
 
@@ -1109,8 +1112,8 @@ Check
   validate [book]                           structure only
 
 Preview and publish
-  dev [book]                                local preview with live reload
-  dev stop|status|logs [book]               control a dev server running in the background (agents)
+  dev [book] [--port <n>]                   local preview with live reload; runs until stopped
+  dev stop|status|logs [book]               control a dev server astro dev left in the background
   build [book] [--all]                      build one book (no book: the current one, or all)
   deploy [book] [--all] [--dry-run] [--no-build]
                                             check content, build, verify dist/, publish to Cloudflare;

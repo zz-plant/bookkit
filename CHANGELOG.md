@@ -3,9 +3,10 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
-## 2026-10-14 — Release SEO gate reads real configs
+## 2026-10-14 — Release SEO gate reads real configs; reader UI survives blocked storage
 
 - **Fixed: `validate:release:seo` failed every book with `RELEASE_SITE_URL`.** The `book.config.ts` reader skipped `bookConfig = { ... } as const`, the form every app uses, so it never saw `site.url`. It now looks through `as const` and `satisfies`, and follows a shorthand `{ site }` to its binding. `on-call` and `bad-people` now pass the gate; `crumple-zone` and `running-hot` report `RELEASE_NOT_INDEXABLE` for their literal `indexable: false`, which the gate had been missing. The reader moved to `scripts/lib/site-config.ts`. **Migration:** none.
+- **Fixed: with storage blocked, the book layout's script failed to load.** Browsers that block site data throw a SecurityError on any read of `window.localStorage`, and `ui.ts` read it at load, so search, Q&A, keyboard shortcuts, reader settings, the mobile menu, analytics and Mermaid diagrams never started. Storage is now looked up on use, and a blocked read or write is skipped. **Migration:** none.
 
 ## 2026-10-14 — Reader search reports its real backend
 

@@ -1,5 +1,15 @@
 export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
+/**
+ * `window.localStorage`, looked up on each call. When the browser blocks
+ * storage, reading that property throws a SecurityError; deferring it to here
+ * lets the helpers below catch it instead of the importing module failing.
+ */
+export const deferredLocalStorage: StorageLike = {
+	getItem: (key) => window.localStorage.getItem(key),
+	setItem: (key, value) => window.localStorage.setItem(key, value),
+};
+
 export const readStoredValue = (
 	storage: StorageLike,
 	key: string,

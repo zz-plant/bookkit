@@ -1,0 +1,212 @@
+[
+	{
+		"id": "P01",
+		"label": "unruled",
+		"a": "transfer-success",
+		"b": "pyrrhic-condition",
+		"nomic": 0.780469954244146
+	},
+	{
+		"id": "P02",
+		"label": "distinct",
+		"a": "attrition-by-queue",
+		"b": "delay-as-force",
+		"nomic": null
+	},
+	{
+		"id": "P03",
+		"label": "distinct",
+		"a": "delay-as-force",
+		"b": "temporal-capture",
+		"nomic": null
+	},
+	{
+		"id": "P04",
+		"label": "merge",
+		"a": "coercive-waiting",
+		"b": "delay-as-force",
+		"nomic": null
+	},
+	{
+		"id": "P05",
+		"label": "distinct",
+		"a": "credibility-access-control",
+		"b": "reputation-membrane",
+		"nomic": null
+	},
+	{
+		"id": "P06",
+		"label": "merge",
+		"a": "refusability-gap",
+		"b": "coercion-by-design",
+		"nomic": null
+	},
+	{
+		"id": "P07",
+		"label": "distinct",
+		"a": "bureaucracy-moral-technology",
+		"b": "compliance-trap",
+		"nomic": null
+	},
+	{
+		"id": "P08",
+		"label": "unruled",
+		"a": "reputation-membrane",
+		"b": "bureaucracy-moral-technology",
+		"nomic": 0.7822645402958548
+	},
+	{
+		"id": "P09",
+		"label": "unruled",
+		"a": "attrition-by-queue",
+		"b": "death-of-slack",
+		"nomic": 0.7687888588004385
+	},
+	{
+		"id": "P10",
+		"label": "unruled",
+		"a": "delay-as-force",
+		"b": "reversibility-gap",
+		"nomic": 0.7796915150149997
+	},
+	{
+		"id": "P11",
+		"label": "distinct",
+		"a": "crumple-zone",
+		"b": "transfer-success",
+		"nomic": null
+	},
+	{
+		"id": "P12",
+		"label": "unruled",
+		"a": "transfer-success",
+		"b": "reversibility-gap",
+		"nomic": 0.772376704467323
+	},
+	{
+		"id": "P13",
+		"label": "distinct",
+		"a": "cowardice-of-inference",
+		"b": "pyrrhic-condition",
+		"nomic": null
+	},
+	{
+		"id": "P14",
+		"label": "distinct",
+		"a": "governance-by-caricature",
+		"b": "sanctiphagy",
+		"nomic": null
+	},
+	{
+		"id": "P15",
+		"label": "unruled",
+		"a": "bureaucracy-moral-technology",
+		"b": "sanctiphagy",
+		"nomic": 0.7882726531659209
+	},
+	{
+		"id": "P16",
+		"label": "merge",
+		"a": "human-heat-sink",
+		"b": "crumple-zone",
+		"nomic": null
+	},
+	{
+		"id": "P17",
+		"label": "unruled",
+		"a": "governance-by-caricature",
+		"b": "volatocracy",
+		"nomic": 0.7706229993838112
+	},
+	{
+		"id": "P18",
+		"label": "unruled",
+		"a": "reversal-capacity",
+		"b": "transfer-success",
+		"nomic": 0.7691249172588506
+	},
+	{
+		"id": "P19",
+		"label": "distinct",
+		"a": "bureaucracy-moral-technology",
+		"b": "clearance-culture",
+		"nomic": null
+	},
+	{
+		"id": "P20",
+		"label": "unruled",
+		"a": "crumple-zone",
+		"b": "volatocracy",
+		"nomic": 0.7676996123210943
+	},
+	{
+		"id": "P21",
+		"label": "distinct",
+		"a": "compliance-trap",
+		"b": "vibe-legitimacy",
+		"nomic": null
+	},
+	{
+		"id": "P22",
+		"label": "distinct",
+		"a": "governance-by-caricature",
+		"b": "vibe-legitimacy",
+		"nomic": null
+	},
+	{
+		"id": "P23",
+		"label": "distinct",
+		"a": "crumple-zone",
+		"b": "death-of-slack",
+		"nomic": null
+	},
+	{
+		"id": "P24",
+		"label": "unruled",
+		"a": "bureaucracy-moral-technology",
+		"b": "obligation-without-custody",
+		"nomic": 0.7807342204536613
+	},
+	{
+		"id": "P25",
+		"label": "unruled",
+		"a": "compliance-trap",
+		"b": "refusability-gap",
+		"nomic": 0.7779491433248054
+	},
+	{
+		"id": "P26",
+		"label": "distinct",
+		"a": "refusability-gap",
+		"b": "reversibility-gap",
+		"nomic": null
+	},
+	{
+		"id": "P27",
+		"label": "distinct",
+		"a": "credibility-access-control",
+		"b": "discretion-as-gate",
+		"nomic": null
+	},
+	{
+		"id": "P28",
+		"label": "distinct",
+		"a": "reversal-capacity",
+		"b": "reversibility-gap",
+		"nomic": null
+	},
+	{
+		"id": "P29",
+		"label": "unruled",
+		"a": "reputation-membrane",
+		"b": "sanctiphagy",
+		"nomic": 0.7786419179408444
+	},
+	{
+		"id": "P30",
+		"label": "distinct",
+		"a": "discretion-as-gate",
+		"b": "reputation-membrane",
+		"nomic": null
+	}
+]

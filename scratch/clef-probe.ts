@@ -12,14 +12,16 @@
  *   bun scratch/clef-probe.ts --all              # also every pair in today's corpus (435 more calls, about $0.05 on clef)
  *   bun scratch/clef-probe.ts --model clef-flash # cheaper model (worse at "none of these")
  *
- * Needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (a token with Workers AI
- * permission). Merge sides are compared on the fields corpus.json kept for them
+ * Sends through `scratch/clef.ts`: the Workers AI API when CLOUDFLARE_ACCOUNT_ID
+ * and CLOUDFLARE_API_TOKEN are set, otherwise the signed-in `cf` CLI. Answers
+ * are cached, so reruns are free. Merge sides are compared on the fields corpus.json kept for them
  * (title, definition, is), so today's mechanisms are read the same way.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "../scripts/_lib";
 import { loadBookContent } from "../scripts/lib/load-book";
+import { askClef, CLEF_PRICE, parseClefModel } from "./clef";
 
 type Side = { slug: string; title: string; definition: string; is: string[] };
 type Pair = { a: Side; b: Side; label: "merge" | "distinct" | "unruled" };
@@ -35,14 +37,7 @@ type Verdict = {
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const all = args.includes("--all");
-const modelIndex = args.indexOf("--model");
-const model = modelIndex >= 0 ? args[modelIndex + 1] : "clef";
-if (!["clef", "clef-flash", "clef-omni"].includes(model)) {
-	console.error(
-		`--model takes clef, clef-flash, or clef-omni; got "${model}".`,
-	);
-	process.exit(1);
-}
+const model = parseClefModel(args, "clef");
 
 const corpus = JSON.parse(
 	readFileSync(join(repoRoot(), "corpus.json"), "utf8"),
@@ -126,13 +121,12 @@ const questions = {
 } as const;
 
 const requestBody = (pair: Pair) => ({
-	model,
 	state: `Two mechanisms from a body of nonfiction about institutions.\n\nMechanism A:\n${describe(pair.a)}\n\nMechanism B:\n${describe(pair.b)}`,
 	questions,
 });
 
 if (dryRun) {
-	const body = requestBody(pairs[0]);
+	const body = { model, ...requestBody(pairs[0]) };
 	const tokens = pairs.reduce(
 		(sum, pair) => sum + JSON.stringify(requestBody(pair)).length / 4,
 		0,
@@ -140,49 +134,14 @@ if (dryRun) {
 	const allPairs = (today.size * (today.size - 1)) / 2;
 	console.log(JSON.stringify(body, null, 2));
 	console.log(
-		`\n${pairs.length} requests, about ${Math.round(tokens / 1000)}K input tokens. Prices per 1M input tokens: clef $0.24, clef-flash $0.038, clef-omni $0.15.${all ? "" : ` --all adds the rest of today's ${allPairs} pairs.`}`,
+		`\n${pairs.length} requests, about ${Math.round(tokens / 1000)}K input tokens. About $${((tokens / 1e6) * CLEF_PRICE[model]).toFixed(4)} on ${model}.${all ? "" : ` --all adds the rest of today's ${allPairs} pairs.`}`,
 	);
 	process.exit(0);
 }
 
-const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-const token = process.env.CLOUDFLARE_API_TOKEN;
-if (!accountId || !token) {
-	console.error(
-		"Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (a token with Workers AI permission), or pass --dry-run to see the requests without sending them.",
-	);
-	process.exit(1);
-}
-
-type Answer = {
-	noul?: number;
-	choice?: string;
-	probabilities?: Record<string, number>;
-};
-
 const ask = async (pair: Pair): Promise<Verdict> => {
-	const response = await fetch(
-		`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/cloudflare/${model}`,
-		{
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${token}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(requestBody(pair)),
-		},
-	);
-	const json = (await response.json()) as {
-		result?: { answers?: Record<string, Answer> };
-		answers?: Record<string, Answer>;
-		errors?: unknown;
-	};
-	const answers = json.result?.answers ?? json.answers;
-	if (!response.ok || !answers) {
-		throw new Error(
-			`${pair.a.slug} ~ ${pair.b.slug}: HTTP ${response.status} ${JSON.stringify(json.errors ?? json).slice(0, 300)}`,
-		);
-	}
+	const { state, questions: asked } = requestBody(pair);
+	const { answers } = await askClef(model, { state, questions: asked });
 	const lever = answers.same_lever?.noul ?? Number.NaN;
 	const evidence = answers.same_evidence?.noul ?? Number.NaN;
 	const relation = answers.relation?.choice ?? "?";

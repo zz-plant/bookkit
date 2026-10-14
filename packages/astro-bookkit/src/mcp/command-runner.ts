@@ -1,11 +1,26 @@
-let spawnSyncFn: typeof import("node:child_process").spawnSync | null = null;
+type SpawnSync = typeof import("node:child_process").spawnSync;
 
-try {
-	const mod = await import("node:child_process");
-	spawnSyncFn = mod.spawnSync;
-} catch {
-	spawnSyncFn = null;
-}
+/**
+ * spawnSync where the runtime has child processes, else null. Looked up when a
+ * command runs, not with a top-level `await import()`: under Bun 1.3 a test
+ * could call a handler before that await settled, and fail with "Cannot access
+ * 'runWorkspaceCommand' before initialization" whenever no earlier test file
+ * had loaded this module.
+ */
+const loadSpawnSync = (): SpawnSync | null => {
+	try {
+		const mod = (
+			process as {
+				getBuiltinModule?: (
+					id: string,
+				) => typeof import("node:child_process") | undefined;
+			}
+		).getBuiltinModule?.("node:child_process");
+		return mod?.spawnSync ?? null;
+	} catch {
+		return null;
+	}
+};
 
 export type WorkspaceCommandResult = {
 	ok: boolean;
@@ -28,11 +43,15 @@ export const runWorkspaceCommand = (
 	workspaceRoot: string | undefined,
 	args: string[],
 ): WorkspaceCommandResult => {
+	const spawnSyncFn = loadSpawnSync();
 	if (!spawnSyncFn) return UNSUPPORTED_ERROR;
 
 	const cwd = workspaceRoot ?? process.cwd();
 	const result = spawnSyncFn("bun", args, {
 		cwd,
+		// Explicit: Bun 1.3 hands a child the environment it started with,
+		// not later changes to process.env.
+		env: process.env,
 		encoding: "utf8",
 		timeout: 10 * 60 * 1000,
 	});

@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
@@ -8,7 +8,7 @@ import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
  * check:types — typechecks every app and package, `.ts` and `.astro` alike,
  * plus `scripts/`.
  *
- *   bun run check:types                 # TypeScript 7, then astro check
+ *   bun run check:types                 # TypeScript 7 and astro check
  *   bun run check:types -- --tsc        # TypeScript 5 for the .ts pass (fallback)
  *   bun run check:types -- --no-astro   # .ts only, for a quick local loop
  *
@@ -64,26 +64,13 @@ if (targets.length === 0) {
 	process.exit(1);
 }
 
-let failed = 0;
+type Job = { label: string; kind: "ts" | "astro"; dir: string };
+type JobResult = Job & { status: number; output: string };
 
-for (const target of targets) {
-	console.log(`\nTypechecking ${target.label} (${compiler.label})`);
-	const res = spawnSync(
-		compiler.command,
-		[...compiler.args, "--noEmit", "-p", join(target.dir, "tsconfig.json")],
-		{ stdio: "inherit" },
-	);
-	if (res.error)
-		console.error(`Could not run ${compiler.label}: ${res.error.message}`);
-	if (res.status !== 0) failed++;
-}
-
-type AstroCheckResult = { label: string; status: number; output: string };
-
-const runAstroCheck = (target: { label: string; dir: string }) =>
-	new Promise<AstroCheckResult>((resolve) => {
+const run = (job: Job, command: string, args: string[], cwd?: string) =>
+	new Promise<JobResult>((resolve) => {
 		let output = "";
-		const child = spawn("bunx", ["astro", "check"], { cwd: target.dir });
+		const child = spawn(command, args, { cwd });
 		child.stdout.on("data", (chunk) => {
 			output += chunk;
 		});
@@ -92,42 +79,69 @@ const runAstroCheck = (target: { label: string; dir: string }) =>
 		});
 		child.on("error", (error) =>
 			resolve({
-				label: target.label,
+				...job,
 				status: 1,
-				output: `${output}\nCould not run astro check: ${error.message}`,
+				output: `${output}\nCould not run ${job.kind === "ts" ? compiler.label : "astro check"}: ${error.message}`,
 			}),
 		);
 		child.on("close", (status) =>
-			resolve({ label: target.label, status: status ?? 1, output }),
+			resolve({ ...job, status: status ?? 1, output }),
 		);
 	});
 
-if (!skipAstro) {
-	const astroTargets = targets.filter(
-		(target) =>
-			existsSync(join(target.dir, "astro.config.mjs")) ||
-			hasAstroFiles(join(target.dir, "src")),
-	);
-	console.log(
-		`\nChecking .astro files in ${astroTargets.length} project(s) (astro check)`,
-	);
+const runJob = (job: Job) =>
+	job.kind === "ts"
+		? run(job, compiler.command, [
+				...compiler.args,
+				"--noEmit",
+				"-p",
+				join(job.dir, "tsconfig.json"),
+			])
+		: run(job, "bunx", ["astro", "check"], job.dir);
 
-	// Each project is checked in its own process; run as many as there are cores.
-	const queue = [...astroTargets];
-	const results = new Map<string, AstroCheckResult>();
-	await Promise.all(
-		Array.from(
-			{ length: Math.min(queue.length, availableParallelism()) },
-			async () => {
-				for (let target = queue.shift(); target; target = queue.shift()) {
-					results.set(target.label, await runAstroCheck(target));
-				}
-			},
-		),
-	);
+const astroTargets = skipAstro
+	? []
+	: targets.filter(
+			(target) =>
+				existsSync(join(target.dir, "astro.config.mjs")) ||
+				hasAstroFiles(join(target.dir, "src")),
+		);
 
-	for (const target of astroTargets) {
-		const result = results.get(target.label);
+// One queue, as many processes as cores. astro check takes several times as
+// long as the TypeScript pass, so it starts first and the TypeScript jobs fill
+// the cores it leaves idle. On four cores: 27s, against 32-36s for the TypeScript
+// pass followed by astro check.
+const queue: Job[] = [
+	// Packages first: the engine's own check is the longest single job.
+	...[...astroTargets]
+		.sort(
+			(a, b) =>
+				Number(b.label.startsWith("packages/")) -
+				Number(a.label.startsWith("packages/")),
+		)
+		.map((target) => ({ ...target, kind: "astro" as const })),
+	...targets.map((target) => ({ ...target, kind: "ts" as const })),
+];
+const jobs = [...queue];
+const results = new Map<Job, JobResult>();
+await Promise.all(
+	Array.from(
+		{ length: Math.min(queue.length, availableParallelism()) },
+		async () => {
+			for (let job = queue.shift(); job; job = queue.shift()) {
+				results.set(job, await runJob(job));
+			}
+		},
+	),
+);
+
+let failed = 0;
+const report = (kind: Job["kind"], header: string) => {
+	const ofKind = jobs.filter((job) => job.kind === kind);
+	if (ofKind.length === 0) return;
+	console.log(`\n${header}`);
+	for (const job of ofKind) {
+		const result = results.get(job);
 		if (!result) continue;
 		if (result.status === 0) {
 			console.log(`  ✓ ${result.label}`);
@@ -136,6 +150,11 @@ if (!skipAstro) {
 			console.log(`  ✗ ${result.label}\n${result.output}`);
 		}
 	}
-}
+};
+report("ts", `.ts files in ${targets.length} project(s) (${compiler.label})`);
+report(
+	"astro",
+	`.astro files in ${astroTargets.length} project(s) (astro check)`,
+);
 
 process.exit(failed === 0 ? 0 : 1);

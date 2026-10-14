@@ -261,12 +261,12 @@ Every book builds to a static site and ships to [Cloudflare Workers static asset
 
 ```bash
 bun run qa                                   # every CI gate (same as bun run verify -- --all)
-bun run bookkit deploy on-call --dry-run     # build + verify + wrangler dry run
+bun run bookkit deploy on-call --dry-run     # check content + build + verify dist/ + wrangler dry run
 bun run bookkit deploy on-call               # publish one book
 bun run deploy                               # publish every book
 ```
 
-`deploy` refuses to publish a book whose `dist/` fails `bun run check:build` (see below). To publish on every merge to `main`, add a `CLOUDFLARE_API_TOKEN` secret to the repository (plus `CLOUDFLARE_ACCOUNT_ID` if the token can see more than one account); `.github/workflows/deploy.yml` then runs `bookkit deploy` and does nothing until the secret exists. Before the first real deploy: run `wrangler login` once. The `*.workers.dev` address works immediately and is marked `noindex` by `public/_headers`. To publish on your own domain, set `site.url` in `apps/<book>/src/book.config.ts` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to `apps/<book>/wrangler.jsonc`; the next deploy attaches it (the zone must be on your Cloudflare account). Until then, `deploy` says which domain its canonical links name and that the Worker does not serve it.
+`deploy` checks each book's content before building it, with the per-book check `bun run verify` runs, and refuses to publish a book with a content error or a `dist/` that fails `bun run check:build` (see below). Each error is listed with its file and fix. A refusal exits non-zero and ends the run: books already published stay up, and the rest are not attempted. `bookkit build` does not check content, so a book with errors still builds. To publish on every merge to `main`, add a `CLOUDFLARE_API_TOKEN` secret to the repository (plus `CLOUDFLARE_ACCOUNT_ID` if the token can see more than one account); `.github/workflows/deploy.yml` then runs `bookkit deploy` and does nothing until the secret exists. Before the first real deploy: run `wrangler login` once. The `*.workers.dev` address works immediately and is marked `noindex` by `public/_headers`. To publish on your own domain, set `site.url` in `apps/<book>/src/book.config.ts` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to `apps/<book>/wrangler.jsonc`; the next deploy attaches it (the zone must be on your Cloudflare account). Until then, `deploy` says which domain its canonical links name and that the Worker does not serve it.
 
 What a static deployment serves, and what it cannot:
 

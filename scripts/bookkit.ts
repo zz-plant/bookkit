@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
+import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
 import {
 	CONTENT_SECTIONS,
 	type ContentSection,
@@ -475,6 +476,33 @@ switch (command) {
 
 		for (const book of targetBook ? [targetBook] : books) {
 			const appDir = join(process.cwd(), "apps", book);
+
+			// The content check verify runs per book. A build renders invalid
+			// content without complaint, so this is what keeps it off the host.
+			const content = checkBookContent({
+				workspaceRoot: process.cwd(),
+				bookSlug: book,
+			});
+			const contentErrors = content.findings.filter(
+				(finding) => finding.level === "error",
+			);
+			console.log(
+				`\nCONTENT ${book}: ${content.ok ? "ok" : "failed"} (${contentErrors.length} error(s), ${content.findings.length - contentErrors.length} warning(s))`,
+			);
+			for (const finding of contentErrors) {
+				const where = finding.file
+					? `${relative(process.cwd(), finding.file)}: `
+					: "";
+				console.log(`- [error] ${where}${finding.message}`);
+				if (finding.fix)
+					console.log(`  fix: ${finding.fix.replace(/\n/g, "\n  ")}`);
+			}
+			if (!content.ok) {
+				console.error(
+					`\nRefusing to deploy ${book}: its content failed validation.`,
+				);
+				process.exit(1);
+			}
 
 			if (!skipBuild) {
 				console.log(`\n📦 Building @books/${book}...\n`);
@@ -1034,7 +1062,7 @@ Check
 Preview and publish
   dev [book]                                local preview with live reload
   build [book]                              build one book or all of them
-  deploy [book] [--dry-run] [--no-build]    build, verify dist/, publish to Cloudflare
+  deploy [book] [--dry-run] [--no-build]    check content, build, verify dist/, publish to Cloudflare
 
 Other
   list                                      list the books

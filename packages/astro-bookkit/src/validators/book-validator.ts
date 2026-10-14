@@ -16,9 +16,10 @@ import { extractFrameConfigFromSource } from "./frame-config";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 /**
- * Validates a whole book's content from disk. `bun run validate`, the MCP
- * `validate_book` tool, and the validate script that create-bookkit writes
- * all call this, so a book gets the same findings wherever it is checked.
+ * Validates a whole book's content from disk. `bun run validate`,
+ * `bookkit deploy`, the MCP `validate_book` tool, and the validate script that
+ * create-bookkit writes all call this, so a book gets the same findings
+ * wherever it is checked.
  * Each file goes through `checkContentItem`; the book adds the cross-file
  * context (mechanism slugs, merges recorded in corpus.json) and the frame.
  */

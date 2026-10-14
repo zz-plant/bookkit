@@ -16,7 +16,8 @@ export function listBookDirs(): string[] {
 	if (!existsSync(appsDir)) return [];
 	return readdirSync(appsDir, { withFileTypes: true })
 		.filter((d) => d.isDirectory())
-		.map((d) => d.name);
+		.map((d) => d.name)
+		.sort();
 }
 
 /** Every file under `dir`, as sorted `/`-separated paths relative to it. */

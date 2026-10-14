@@ -186,3 +186,57 @@ describe("new:book", () => {
 		expect(again.output).toContain("apps/second-book already exists");
 	});
 });
+
+describe("new:tool, new:mechanism, new:example", () => {
+	const script = (name: string, ...args: string[]) =>
+		run([process.execPath, join(repo, "scripts", name), ...args]);
+	const content = (...path: string[]) =>
+		join(workspace, "apps", "second-book", "src", "content", "book", ...path);
+
+	it("names a tool <mechanism>--<name>", () => {
+		const mechanism = starterSlugs("second-book").mechanism;
+		const result = script(
+			"scaffold-tool.ts",
+			"--book",
+			"second-book",
+			"--mechanism",
+			mechanism,
+			"--name",
+			"Classify the alert",
+		);
+		expect(result.status).toBe(0);
+		expect(
+			existsSync(content("toolkit", `${mechanism}--classify-the-alert.mdx`)),
+		).toBe(true);
+	});
+
+	it("refuses a book or mechanism that does not exist, creating nothing", () => {
+		const noBook = script(
+			"scaffold-mechanism.ts",
+			"--book",
+			"secnd-book",
+			"--slug",
+			"x",
+		);
+		expect(noBook.status).toBe(1);
+		expect(noBook.output).toContain(
+			'No book "secnd-book" in apps/. Did you mean second-book?',
+		);
+		expect(existsSync(join(workspace, "apps", "secnd-book"))).toBe(false);
+
+		const noMechanism = script(
+			"scaffold-example.ts",
+			"--book",
+			"second-book",
+			"--mechanism",
+			"missing",
+			"--domain",
+			"Housing",
+		);
+		expect(noMechanism.status).toBe(1);
+		expect(noMechanism.output).toContain(
+			'second-book has no mechanism "missing"',
+		);
+		expect(existsSync(content("examples", "missing"))).toBe(false);
+	});
+});

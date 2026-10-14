@@ -31,7 +31,8 @@ requireExistingMechanism(
 	loadBookContent(book).mechanisms.map((record) => record.slug),
 );
 const nameRaw = args.name ?? "New tool";
-const toolSlug = slugify(`${mechanism}--${nameRaw}`);
+// <mechanism>--<name>, the form every tool uses; slugify alone would fold "--" to "-".
+const toolSlug = `${mechanism}--${slugify(nameRaw)}`;
 
 const outDir = join(
 	process.cwd(),

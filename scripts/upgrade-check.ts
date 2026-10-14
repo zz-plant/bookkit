@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
 
-const useReleaseMode = process.argv.includes("--release");
-
+// `--release` is accepted for older callers: each book's status already
+// decides whether release rules apply.
 const steps = [
 	{
-		label: "Lint (Biome/Prettier via scripts/lint.ts)",
+		label: "Lint (Biome)",
 		command: ["bun", "run", "lint"],
 	},
 	{
@@ -12,8 +12,8 @@ const steps = [
 		command: ["bun", "run", "check:types"],
 	},
 	{
-		label: `Validation (${useReleaseMode ? "error" : "warn"} mode)`,
-		command: ["bun", "run", useReleaseMode ? "validate:release" : "validate"],
+		label: "Validation (release rules for published and stable books)",
+		command: ["bun", "run", "validate"],
 	},
 	{
 		label: "Separation check (content vs engine)",

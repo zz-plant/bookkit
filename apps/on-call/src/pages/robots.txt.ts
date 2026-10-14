@@ -1,10 +1,10 @@
-import { createBookRobotsTxt } from "@bookkit/astro-bookkit";
+import { createBookRobotsTxt, resolveBookSite } from "@bookkit/astro-bookkit";
 import type { APIRoute } from "astro";
 import bookConfig from "../book.config";
 
 export const GET: APIRoute = () => {
 	const txt = createBookRobotsTxt({
-		site: bookConfig.site,
+		site: resolveBookSite(bookConfig),
 	});
 
 	return new Response(txt, {

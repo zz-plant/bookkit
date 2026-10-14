@@ -3,15 +3,48 @@ import ts from "typescript";
 export type SeoSiteConfig = {
 	url?: string;
 	indexable?: boolean;
+	runtime?: string;
 };
 
 /**
- * Reads `bookConfig.site.url` and `bookConfig.site.indexable` from a
+ * Reads `bookConfig.site.url`, `.indexable`, and `.runtime` from a
  * book.config.ts source without running it. Follows the shapes authors write:
  * `{ ... } as const`, `site: sharedSite`, `{ site }`, and spreads. Values that
  * are not literals (`indexable: isProduction`) are left unset.
  */
 export function extractSiteConfig(source: string): SeoSiteConfig | null {
+	const parsed = parseBookConfig(source);
+	if (!parsed) return null;
+	const siteNode = readObjectProperty(parsed.bookConfig, "site");
+	if (!siteNode) return null;
+	return evaluateSiteNode(siteNode, parsed.objectBindings, new Set());
+}
+
+/**
+ * Whether `bookConfig.previewAccess.enabled` is the literal `true`. A static
+ * build cannot enforce preview tokens, so check:build refuses that pairing.
+ */
+export function extractPreviewAccessEnabled(source: string): boolean {
+	const parsed = parseBookConfig(source);
+	if (!parsed) return false;
+	const node = readObjectProperty(parsed.bookConfig, "previewAccess");
+	const previewAccess = node ? unwrapExpression(node) : null;
+	if (!previewAccess) return false;
+	const object = ts.isIdentifier(previewAccess)
+		? parsed.objectBindings.get(previewAccess.text)
+		: ts.isObjectLiteralExpression(previewAccess)
+			? previewAccess
+			: undefined;
+	const enabled = object ? readObjectProperty(object, "enabled") : null;
+	return enabled
+		? readBooleanLiteral(unwrapExpression(enabled)) === true
+		: false;
+}
+
+function parseBookConfig(source: string): {
+	bookConfig: ts.ObjectLiteralExpression;
+	objectBindings: Map<string, ts.ObjectLiteralExpression>;
+} | null {
 	const sourceFile = ts.createSourceFile(
 		"book.config.ts",
 		source,
@@ -37,11 +70,7 @@ export function extractSiteConfig(source: string): SeoSiteConfig | null {
 	}
 
 	if (!bookConfigObject) return null;
-
-	const siteNode = readObjectProperty(bookConfigObject, "site");
-	if (!siteNode) return null;
-
-	return evaluateSiteNode(siteNode, objectBindings, new Set());
+	return { bookConfig: bookConfigObject, objectBindings };
 }
 
 /** Strips `( )`, `as`, and `satisfies`, none of which change the value. */
@@ -109,6 +138,10 @@ function evaluateSiteObject(
 		if (key === "indexable") {
 			const value = readBooleanLiteral(property.initializer);
 			if (value !== null) result.indexable = value;
+		}
+		if (key === "runtime") {
+			const value = readStringLiteral(unwrapExpression(property.initializer));
+			if (value) result.runtime = value;
 		}
 	}
 

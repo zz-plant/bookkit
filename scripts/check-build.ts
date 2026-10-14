@@ -1,13 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
+import { extractBookStatusFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { formatInspection, inspectBuildOutput } from "./lib/build-output";
+import {
+	extractPreviewAccessEnabled,
+	extractSiteConfig,
+} from "./lib/site-config";
 
 /**
  * Verifies each book's `dist/` is deployable: real pages (not preview lockouts),
  * real PDF/EPUB exports, the SEO artifacts a public host needs, and one site URL
- * across all of them. Run after `bun run build:all`.
+ * across all of them. The book's status sets the rest: a published or stable
+ * book must be indexable and have chapters; any other book must be noindex.
+ * Preview access is refused, since a static host cannot enforce it. Run after
+ * `bun run build:all`.
  *
  *   bun run check:build            # every book under apps/
  *   bun run check:build --book x   # one book
@@ -32,14 +41,22 @@ for (const book of books) {
 	}
 
 	const configPath = join(appDir, "src", "book.config.ts");
-	const published =
-		existsSync(configPath) &&
-		/status:\s*"published"/.test(readFileSync(configPath, "utf8"));
+	const config = existsSync(configPath)
+		? readFileSync(configPath, "utf8")
+		: undefined;
+	const status = config
+		? (extractBookStatusFromSource(config) ?? "draft")
+		: undefined;
 
 	const result = inspectBuildOutput({
 		book,
 		distDir: join(appDir, "dist"),
-		published,
+		published: status === undefined ? undefined : isReleasedStatus(status),
+		previewAccessOnStaticSite:
+			config !== undefined &&
+			extractPreviewAccessEnabled(config) &&
+			extractSiteConfig(config)?.runtime !== "server",
+		requireChapters: status !== undefined && status !== "draft",
 	});
 
 	for (const line of formatInspection(result)) {

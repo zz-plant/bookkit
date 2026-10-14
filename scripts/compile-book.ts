@@ -1,20 +1,41 @@
 import { spawnSync } from "node:child_process";
-import { listBookDirs, optionalArg, requireArg } from "./_lib";
+import { listBookDirs } from "./_lib";
+import { parseScriptArgs } from "./lib/cli";
 
-const wantsHelp =
-	process.argv.includes("--help") || process.argv.includes("-h");
-if (wantsHelp) {
-	printHelp();
-	process.exit(0);
-}
+const args = parseScriptArgs(
+	`Compile a book: validate it, build it, and optionally export it.
 
-const book = requireArg("--book");
-const mode = optionalArg("--mode") ?? "warn";
-const noDrafts = process.argv.includes("--no-drafts");
-const skipValidate = process.argv.includes("--skip-validate");
-const exportTarget = optionalArg("--export");
-const createIfMissing = process.argv.includes("--create-if-missing");
-const titleArg = optionalArg("--title");
+Usage:
+  bun run compile:book -- --book <slug> [options]
+
+Options:
+  --book <slug>         The book to compile
+  --skip-validate       Skip validation
+  --export <target>     Also export it (gitbook)
+  --create-if-missing   Scaffold the book first if it does not exist
+  --title <value>       Title for --create-if-missing (default: from the slug)
+  -h, --help            Show this help
+
+Validation applies the rules the book's status sets: release rules for a
+published or stable book. Errors stop the compile. (--mode and --no-drafts
+are accepted for older callers and ignored.)`,
+	{
+		book: "string",
+		"skip-validate": "boolean",
+		export: "string",
+		"create-if-missing": "boolean",
+		title: "string",
+		mode: "string",
+		"no-drafts": "boolean",
+	},
+	["book"],
+);
+
+const { book } = args;
+const skipValidate = args["skip-validate"] === true;
+const exportTarget = args.export;
+const createIfMissing = args["create-if-missing"] === true;
+const titleArg = args.title;
 
 const books = listBookDirs();
 const hasBook = books.includes(book);
@@ -49,16 +70,7 @@ if (!hasBook && createIfMissing) {
 }
 
 if (!skipValidate) {
-	runStep("validate", [
-		"run",
-		"--filter",
-		`@books/${book}`,
-		"validate",
-		"--",
-		"--mode",
-		mode,
-		...(noDrafts ? ["--no-drafts"] : []),
-	]);
+	runStep("validate", ["run", "--filter", `@books/${book}`, "validate"]);
 }
 
 runStep("build", ["run", "--filter", `@books/${book}`, "build"]);
@@ -74,26 +86,10 @@ if (exportTarget) {
 
 function runStep(label: string, args: string[]) {
 	console.log(`\n[bookkit] ${label}`);
-	const res = spawnSync("bun", args, { stdio: "inherit" });
+	// This process's own bun, so a missing `bun` on PATH cannot skip a step.
+	const res = spawnSync(process.execPath, args, { stdio: "inherit" });
 	if (res.status !== 0) {
 		console.error(`\n[bookkit] ${label} failed`);
 		process.exit(res.status ?? 1);
 	}
-}
-
-function printHelp() {
-	console.log(`Compile a book (validate + build + optional export).
-
-Usage:
-  bun run compile:book -- --book <slug> [options]
-
-Options:
-  --mode <warn|error>   Validation mode (default: warn)
-  --no-drafts           Disallow draft examples in validation
-  --skip-validate       Skip validation step
-  --export <target>     Optional export target (gitbook)
-  --create-if-missing   Scaffold the book if it does not exist
-  --title <value>       Title for --create-if-missing (defaults from slug)
-  -h, --help            Show this help message
-`);
 }

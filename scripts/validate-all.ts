@@ -1,31 +1,32 @@
 import { spawnSync } from "node:child_process";
-import { listBookDirs, optionalArg } from "./_lib";
+import { join } from "node:path";
+import { listBookDirs, repoRoot } from "./_lib";
 
-const mode = optionalArg("--mode") ?? "warn";
-const noDrafts = process.argv.includes("--no-drafts");
+/**
+ * Validates every book under apps/ with validate-book.ts, each under the rules
+ * its status sets. Exits 1 when any book has an error.
+ */
 
 const books = listBookDirs();
 if (books.length === 0) {
-	console.error("No books found under apps/*");
+	console.error(`No books found under ${join(repoRoot(), "apps")}.`);
 	process.exit(1);
 }
 
-let failed = 0;
-
+const failed: string[] = [];
 for (const book of books) {
-	const args = [
-		"run",
-		"--filter",
-		`@books/${book}`,
-		"validate",
-		"--",
-		"--mode",
-		mode,
-		...(noDrafts ? ["--no-drafts"] : []),
-	];
-
-	const res = spawnSync("bun", args, { stdio: "inherit" });
-	if (res.status !== 0) failed++;
+	// This process's own bun, so a missing `bun` on PATH cannot skip a book.
+	const result = spawnSync(
+		process.execPath,
+		[join(repoRoot(), "scripts", "validate-book.ts"), "--book", book],
+		{ cwd: repoRoot(), stdio: "inherit" },
+	);
+	if (result.status !== 0) failed.push(book);
 }
 
-process.exit(failed === 0 ? 0 : 1);
+console.log(
+	failed.length > 0
+		? `\n✗ ${failed.length} of ${books.length} books failed validation: ${failed.join(", ")}`
+		: `\n✓ ${books.length} books validated with no errors`,
+);
+process.exit(failed.length > 0 ? 1 : 0);

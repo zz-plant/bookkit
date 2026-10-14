@@ -30,6 +30,7 @@ import {
 	readFocusBook,
 	writeFocusBook,
 } from "./lib/cli";
+import { compileFinding, compileMdx } from "./lib/compile-mdx";
 import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
 	isBookContentPath,
@@ -193,7 +194,7 @@ switch (command) {
 
 	case "check": {
 		if (args[1] && /\.mdx?$/.test(args[1]) && isBookContentPath(args[1])) {
-			checkOneFile(args[1], args.includes("--json"));
+			await checkOneFile(args[1], args.includes("--json"));
 			break;
 		}
 		// Any other file or folder: check it where it is, without a book app.
@@ -922,13 +923,36 @@ function checkFolder(target: string, rest: string[]) {
 	process.exit(preview.errors === 0 ? 0 : 1);
 }
 
-function checkOneFile(path: string, asJson: boolean) {
+async function checkOneFile(path: string, asJson: boolean) {
 	const checked = checkContentFile(path);
 	if ("error" in checked) {
 		console.error(checked.error);
 		process.exit(1);
 	}
-	const { book, section, result } = checked;
+	const { book, section, file } = checked;
+	// Then the compiler the build uses, unless an HTML comment already explains
+	// why it would fail.
+	const compiled =
+		file.endsWith(".mdx") &&
+		!checked.result.findings.some(
+			(finding) => finding.code === "MDX_HTML_COMMENT",
+		)
+			? compileFinding(
+					await compileMdx(
+						readFileSync(file, "utf8"),
+						join(repoRoot(), "apps", book),
+					),
+				)
+			: null;
+	const findings = [
+		...checked.result.findings,
+		...(compiled ? [compiled] : []),
+	];
+	const result = {
+		...checked.result,
+		findings,
+		ok: !findings.some((finding) => finding.level === "error"),
+	};
 	// A mechanism file also gets the duplicate check `new mechanism` runs.
 	const similar =
 		section === "mechanism"

@@ -322,8 +322,11 @@ export {
 	exampleSchema,
 	type GlossaryFrontmatter,
 	glossarySchema,
+	isReleasedStatus,
 	type MechanismFrontmatter,
 	mechanismSchema,
+	STATUSES,
+	type Status,
 	type ToolkitFrontmatter,
 	toolkitDisplayName,
 	toolkitSchema,
@@ -362,6 +365,7 @@ export type {
 export {
 	buildSeoProps,
 	hasServerRuntime,
+	resolveBookSite,
 	resolveSiteUrl,
 	runtimeFeatures,
 } from "./seo/config";

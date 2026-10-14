@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { statusSchema } from "./status";
 
 const runbookStepSchema = z.object({
 	when: z.string().optional(),
@@ -20,6 +21,7 @@ export const toolkitSchema = z
 				/^[a-z0-9-]+$/,
 				"Slug must be lowercase alphanumeric with hyphens",
 			),
+		status: statusSchema,
 		mechanism: z
 			.string()
 			.min(1, "Tool must reference an associated mechanism slug"),

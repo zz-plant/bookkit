@@ -1,14 +1,16 @@
-import { buildExportChapters } from "./content-parsing";
+import { buildExportParts } from "./content-parsing";
 import { createEpubExport } from "./epub-generator";
+import { exportIdentifier, exportPublicationName } from "./metadata";
 import { createPdfExport } from "./pdf-generator";
 import type {
 	BookExportHelperOptions,
 	ExportBundle,
-	ExportChapter,
+	ExportEntry,
 	ExportFormat,
 	ExportLink,
 	ExportLinkOptions,
 	ExportMetadata,
+	ExportPart,
 } from "./types";
 
 export const formatBytes = (bytes: number): string => {
@@ -21,17 +23,24 @@ export const formatBytes = (bytes: number): string => {
 export const formatExportUpdatedDate = (updatedAt: string): string =>
 	updatedAt.slice(0, 10);
 
+const textLength = (entries: ExportEntry[]): number =>
+	entries.reduce(
+		(total, entry) =>
+			total + entry.body.length + textLength(entry.children ?? []),
+		0,
+	);
+
 export const estimateExportBytes = (
-	chapters: ExportChapter[],
+	parts: ExportPart[],
 	format: ExportFormat,
 ): number => {
-	const textLength = chapters.reduce(
-		(total, chapter) => total + chapter.body.length,
+	const length = parts.reduce(
+		(total, part) => total + textLength(part.entries),
 		0,
 	);
 	const base = format === "pdf" ? 48_000 : 24_000;
 	const multiplier = format === "pdf" ? 2.4 : 1.4;
-	return Math.round(base + textLength * multiplier);
+	return Math.round(base + length * multiplier);
 };
 
 export const createExportResponse = async (
@@ -39,12 +48,10 @@ export const createExportResponse = async (
 	format: ExportFormat,
 	filename: string,
 ): Promise<Response> => {
-	const updatedAt = bundle.updatedAt ?? new Date().toISOString();
-	const resolved = { ...bundle, updatedAt };
 	const bytes =
 		format === "pdf"
-			? await createPdfExport(resolved)
-			: await createEpubExport(resolved);
+			? await createPdfExport(bundle)
+			: await createEpubExport(bundle);
 	return new Response(Uint8Array.from(bytes), {
 		headers: {
 			"Content-Type":
@@ -62,8 +69,8 @@ export const buildExportMetadata = (
 	slug?: string,
 ): ExportMetadata => ({
 	format,
-	sizeBytes: estimateExportBytes(bundle.chapters, format),
-	updatedAt: bundle.updatedAt ?? new Date().toISOString(),
+	sizeBytes: estimateExportBytes(bundle.parts, format),
+	updatedAt: bundle.updatedAt,
 	scope,
 	slug,
 });
@@ -80,9 +87,9 @@ export const buildExportLinks = ({
 	const normalizedBase = basePath.endsWith("/")
 		? basePath.slice(0, -1)
 		: basePath;
-	const updatedAt = formatExportUpdatedDate(
-		bundle.updatedAt ?? new Date().toISOString(),
-	);
+	const updatedAt = bundle.updatedAt
+		? formatExportUpdatedDate(bundle.updatedAt)
+		: undefined;
 	const label = scope === "book" ? "Full book" : (title ?? "Chapter");
 	return formats.map((format) => {
 		const meta = buildExportMetadata(bundle, format, scope, slug);
@@ -108,19 +115,41 @@ export const createBookExportHelpers = ({
 	basePath,
 	formats,
 }: BookExportHelperOptions) => {
-	const chapters = buildExportChapters(modules);
-	const updatedAt = book.updatedAt ?? new Date().toISOString();
-	const buildBundle = (subset: ExportChapter[]): ExportBundle => ({
-		title: book.title,
-		version: book.version,
-		updatedAt,
-		chapters: subset,
+	const parts = buildExportParts(modules, {
+		defaultLocale: book.language,
+		mechanismOrder: book.mechanismOrder,
 	});
+	const chapters = parts
+		.flatMap((part) => part.entries)
+		.filter((entry) => entry.kind === "chapter");
+	const edition = {
+		title: book.title,
+		author: book.author,
+		language: book.language,
+		version: book.version,
+		updatedAt: book.updatedAt,
+		draft: book.draft,
+		siteUrl: book.siteUrl,
+	};
+	const bookBundle: ExportBundle = {
+		...edition,
+		identifier: exportIdentifier(exportPublicationName(book)),
+		parts,
+	};
 
-	const getBookExportBundle = () => buildBundle(chapters);
+	const getBookExportBundle = () => bookBundle;
+	// A chapter download is its own publication, so it carries its own identifier.
 	const getChapterExportBundle = (slug: string): ExportBundle | null => {
 		const chapter = chapters.find((item) => item.slug === slug);
-		return chapter ? buildBundle([chapter]) : null;
+		return chapter
+			? {
+					...edition,
+					identifier: exportIdentifier(
+						exportPublicationName(book, `/read/chapters/${slug}`),
+					),
+					parts: [{ title: "Chapters", entries: [chapter] }],
+				}
+			: null;
 	};
 
 	return {
@@ -128,7 +157,7 @@ export const createBookExportHelpers = ({
 		getChapterExportBundle,
 		getBookExportLinks: () =>
 			buildExportLinks({
-				bundle: getBookExportBundle(),
+				bundle: bookBundle,
 				scope: "book",
 				basePath,
 				formats,

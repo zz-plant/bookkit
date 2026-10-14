@@ -61,9 +61,7 @@
 		"test": "bun test",
 		"test:vitest": "vitest run",
 		"setup": "mise trust && bun install",
-		"assets:check": "bun run scripts/check-assets.ts",
-		"check": "bun run bookkit check",
-		"assets:generate": "bun run scripts/generate-scenes.ts"
+		"check": "bun run bookkit check"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.10",

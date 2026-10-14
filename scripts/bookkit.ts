@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
@@ -43,7 +43,7 @@ import {
 import { loadBookContent } from "./lib/load-book";
 
 const args = process.argv.slice(2);
-// No command: show where each book stands and what to run next.
+// No command: the books, and the commands to write, check, preview, build, and deploy one.
 const command = args[0] ?? "status";
 
 if (command === "help" || command === "--help" || command === "-h") {
@@ -102,28 +102,61 @@ const takeBook = (
 	return [requireBook(undefined, usage), positional];
 };
 
+/**
+ * A child process's exit code, or 1 when it has none: a command that never
+ * started (not on PATH) or was killed by a signal must not read as success.
+ */
+const exitCodeOf = (
+	result: SpawnSyncReturns<unknown>,
+	what: string,
+): number => {
+	if (result.error) {
+		console.error(`Could not run ${what}: ${result.error.message}`);
+		return 1;
+	}
+	if (result.signal) {
+		console.error(`${what} was stopped by ${result.signal}.`);
+		return 1;
+	}
+	return result.status ?? 1;
+};
+
+/** Runs one of scripts/ with this process's own bun, so PATH does not matter. */
 const runScript = (script: string, scriptArgs: string[]): number =>
-	spawnSync(
-		process.execPath,
-		["run", join(repoRoot(), "scripts", script), ...scriptArgs],
-		{ stdio: "inherit" },
-	).status ?? 1;
+	exitCodeOf(
+		spawnSync(
+			process.execPath,
+			["run", join(repoRoot(), "scripts", script), ...scriptArgs],
+			{ stdio: "inherit" },
+		),
+		`scripts/${script}`,
+	);
 
 switch (command) {
 	case "status": {
 		if (args.includes("--json")) {
 			console.log(
 				JSON.stringify(
-					{
-						books: await Promise.all(books.map(summarizeBook)),
-						b1: await buildB1Report(),
-					},
+					{ books: await Promise.all(books.map(summarizeBook)) },
 					null,
 					2,
 				),
 			);
 		} else {
 			await printStatus();
+		}
+		process.exit(0);
+		break;
+	}
+
+	case "bets": {
+		// The maintainers' own measure of the active bet (docs/bets.md), kept
+		// out of the default output, which is for any author.
+		const report = await buildB1Report();
+		if (args.includes("--json")) {
+			console.log(JSON.stringify({ b1: report }, null, 2));
+		} else {
+			printBets(report);
 		}
 		process.exit(0);
 		break;
@@ -326,7 +359,7 @@ switch (command) {
 				cwd: join(repoRoot(), "apps", targetBook),
 				stdio: "inherit",
 			});
-			process.exit(result.status ?? 0);
+			process.exit(exitCodeOf(result, `astro dev ${control}`));
 		}
 		const portArg = flagValue(args, "--port");
 		const port = args.includes("--port") ? Number(portArg) : DEFAULT_DEV_PORT;
@@ -348,19 +381,19 @@ switch (command) {
 			if (target.note) console.log(target.note);
 			console.log(`\n📦 Building @books/${targetBook}...\n`);
 			const result = spawnSync(
-				"bun",
+				process.execPath,
 				["run", "--filter", `@books/${targetBook}`, "build"],
-				{
-					stdio: "inherit",
-				},
+				{ cwd: repoRoot(), stdio: "inherit" },
 			);
-			process.exit(result.status ?? 0);
+			process.exit(exitCodeOf(result, `the ${targetBook} build`));
 		} else {
 			console.log("\n📦 Building all workspace books...\n");
-			const result = spawnSync("bun", ["run", "--workspaces", "build"], {
-				stdio: "inherit",
-			});
-			process.exit(result.status ?? 0);
+			const result = spawnSync(
+				process.execPath,
+				["run", "--workspaces", "build"],
+				{ cwd: repoRoot(), stdio: "inherit" },
+			);
+			process.exit(exitCodeOf(result, "the build"));
 		}
 		break;
 	}
@@ -370,27 +403,15 @@ switch (command) {
 			args[1] && !args[1].startsWith("--")
 				? requireBook(args[1], "bun run bookkit validate [book]")
 				: undefined;
-		if (targetBook) {
-			const scriptPath = join(process.cwd(), "scripts", "validate-book.ts");
-			const result = spawnSync(
-				process.execPath,
-				["run", scriptPath, "--book", targetBook, ...args.slice(2)],
-				{
-					stdio: "inherit",
-				},
-			);
-			process.exit(result.status ?? 0);
-		} else {
-			const scriptPath = join(process.cwd(), "scripts", "validate-all.ts");
-			const result = spawnSync(
-				process.execPath,
-				["run", scriptPath, ...args.slice(1)],
-				{
-					stdio: "inherit",
-				},
-			);
-			process.exit(result.status ?? 0);
-		}
+		process.exit(
+			targetBook
+				? runScript("validate-book.ts", [
+						"--book",
+						targetBook,
+						...args.slice(2),
+					])
+				: runScript("validate-all.ts", args.slice(1)),
+		);
 		break;
 	}
 
@@ -408,67 +429,29 @@ switch (command) {
 	case "book:new":
 	case "book:add":
 	case "add-book": {
-		const passthrough = args.slice(1);
-		const scriptPath = join(process.cwd(), "scripts", "scaffold-book.ts");
-		const result = spawnSync(
-			process.execPath,
-			["run", scriptPath, ...passthrough],
-			{
-				stdio: "inherit",
-			},
-		);
-		process.exit(result.status ?? 1);
+		process.exit(runScript("scaffold-book.ts", args.slice(1)));
 		break;
 	}
 
 	case "remove-book":
 	case "book:remove": {
-		const passthrough = args.slice(1);
-		const scriptPath = join(process.cwd(), "scripts", "remove-book.ts");
-		const result = spawnSync(
-			process.execPath,
-			["run", scriptPath, ...passthrough],
-			{
-				stdio: "inherit",
-			},
-		);
-		process.exit(result.status ?? 1);
+		process.exit(runScript("remove-book.ts", args.slice(1)));
 		break;
 	}
 
 	case "import":
 	case "import-book":
 	case "book:import": {
-		const passthrough = withBookFlag(args.slice(1));
-		const scriptPath = join(
-			process.cwd(),
-			"scripts",
-			"import-book-from-markdown.ts",
+		process.exit(
+			runScript("import-book-from-markdown.ts", withBookFlag(args.slice(1))),
 		);
-		const result = spawnSync(
-			process.execPath,
-			["run", scriptPath, ...passthrough],
-			{
-				stdio: "inherit",
-			},
-		);
-		process.exit(result.status ?? 1);
 		break;
 	}
 
 	case "propose":
 	case "proposal":
 	case "propose-book": {
-		const passthrough = withBookFlag(args.slice(1));
-		const scriptPath = join(process.cwd(), "scripts", "propose-book.ts");
-		const result = spawnSync(
-			process.execPath,
-			["run", scriptPath, ...passthrough],
-			{
-				stdio: "inherit",
-			},
-		);
-		process.exit(result.status ?? 1);
+		process.exit(runScript("propose-book.ts", withBookFlag(args.slice(1))));
 		break;
 	}
 
@@ -520,6 +503,7 @@ switch (command) {
 			"list",
 			"import",
 			"propose",
+			"bets",
 			"help",
 		];
 		console.error(
@@ -530,6 +514,12 @@ switch (command) {
 }
 
 async function printStatus() {
+	if (books.length === 0) {
+		console.log(
+			"\nBOOKKIT · no books yet\n\nStart one:  bun run bookkit new book <slug>\nOr see what your own notes would become:  bun run bookkit try <folder>\n",
+		);
+		return;
+	}
 	const summaries = await Promise.all(books.map(summarizeBook));
 	const nameWidth = Math.max(...books.map((book) => book.length));
 	const titleWidth = Math.min(
@@ -551,76 +541,88 @@ async function printStatus() {
 			"\n  Stubs are chapters with too little prose to read yet (site.minIndexableWords, default 60 words). They stay out of search until written.",
 		);
 	}
-	const b1 = await buildB1Report();
-	if ("unavailable" in b1) {
-		console.log(`\n  B1: not measured (${b1.unavailable}).`);
-	} else {
-		console.log(
-			`\nB1 · one argument, three drafts · ${b1.verdict}${b1.daysLeft !== undefined ? ` · ${b1.daysLeft} days to ${b1.killBy}` : ""}`,
-		);
-		console.log(`  ${b1.summary}`);
-		console.log(
-			`  Mechanisms across the corpus books: ${b1.mechanisms.before} at the start, ${b1.mechanisms.now} now${b1.mechanisms.added.length ? `; new: ${b1.mechanisms.added.join(", ")}` : ""}${b1.mechanisms.retired.length ? `; merged away: ${b1.mechanisms.retired.join(", ")}` : ""}.`,
-		);
-		for (const chapter of b1.drafted) {
-			console.log(
-				`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : " binds existing mechanisms only"}`,
-			);
-		}
-	}
-	// Next steps name real files: the current book's first stub, if any.
-	const focus = summaries.find((summary) => summary.book === focusBook);
+
+	// The commands for one book, from first chapter to publishing. With no
+	// current book, a single book stands in; otherwise they name <book>.
+	const focus =
+		summaries.find((summary) => summary.book === focusBook) ??
+		(summaries.length === 1 ? summaries[0] : undefined);
+	const book = focus?.book ?? "<book>";
 	const stub = focus?.stubChapters[0];
 	const stubPath = stub
-		? join("apps", focus.book, "src", "content", "book", "chapters", stub)
+		? join("apps", book, "src", "content", "book", "chapters", stub)
 		: undefined;
 	const stubWords = stubPath
 		? extractPageFacts(readFileSync(join(repoRoot(), stubPath), "utf8"))
 				.wordCount
 		: 0;
-	const next: Array<[string, string]> = focus
-		? [
-				...(stubPath
-					? ([
-							[
-								`write ${stubPath}`,
-								`the next stub (${stubWords} words so far)`,
-							],
-							[`bun run bookkit check ${stubPath}`, "what it still needs"],
-						] as Array<[string, string]>)
-					: []),
-				[
-					'bun run bookkit new chapter "<title>"',
-					`start a chapter in ${focus.book}`,
+	const steps: Array<[string, string, string]> = [
+		stubPath
+			? ["write", stubPath, `the next stub (${stubWords} words so far)`]
+			: [
+					"write",
+					`bun run bookkit new chapter ${book} "<title>"`,
+					"start the next chapter",
 				],
-				["bun run bookkit dev", `preview ${focus.book} in the browser`],
-				["bun run verify", "the checks your change needs, before you commit"],
-			]
-		: [
-				[
-					"bun run bookkit use <book>",
-					"pick the book you're working on; commands default to it",
-				],
-				[
-					"bun run bookkit new",
-					"start a chapter, mechanism, tool, or example (asks what it needs)",
-				],
-				["bun run bookkit check [book]", "find what to fix before sharing"],
-				[
-					"bun run bookkit try <folder>",
-					"see what Bookkit would make of your own docs (writes nothing)",
-				],
-				["bun run bookkit help", "every command"],
-			];
-	if (focus) console.log(`\nCurrent book: ${focus.book}`);
+		[
+			"check",
+			`bun run bookkit check ${book}`,
+			"errors to fix before anyone reads it",
+		],
+		[
+			"preview",
+			`bun run bookkit dev ${book}`,
+			"the site in your browser; it updates as you save",
+		],
+		[
+			"build",
+			`bun run bookkit build ${book}`,
+			`the site, PDF, and EPUB, in apps/${book}/dist`,
+		],
+		[
+			"deploy",
+			`bun run bookkit deploy ${book} --dry-run`,
+			"checks, builds, and rehearses; drop --dry-run to publish to Cloudflare",
+		],
+	];
+	console.log(
+		focus
+			? `\nYour book: ${book}${focus.book === focusBook ? "" : " (the only one)"}`
+			: "\nName your book in each command, or set it once with bun run bookkit use <book>:",
+	);
 	// Short commands share a column; a long one puts its note on the next line.
-	const width = Math.min(40, Math.max(...next.map(([cmd]) => cmd.length)));
-	console.log("\nNext");
-	for (const [cmd, what] of next) {
+	const width = Math.min(
+		44,
+		Math.max(...steps.map(([, command]) => command.length)),
+	);
+	for (const [verb, command, what] of steps) {
 		console.log(
-			cmd.length > width
-				? `  ${cmd}\n  ${" ".repeat(width)}   ${what}`
-				: `  ${cmd.padEnd(width)}   ${what}`,
+			command.length > width
+				? `  ${verb.padEnd(9)}${command}\n  ${" ".repeat(9 + width)}   ${what}`
+				: `  ${verb.padEnd(9)}${command.padEnd(width)}   ${what}`,
+		);
+	}
+	console.log(
+		"\n  bun run bookkit try <folder>   what Bookkit would make of your own notes (writes nothing)\n  bun run bookkit help           every command\n",
+	);
+}
+
+/** Bet B1's test as measured from git history (docs/bets.md). */
+function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
+	if ("unavailable" in b1) {
+		console.log(`\nB1: not measured (${b1.unavailable}).\n`);
+		return;
+	}
+	console.log(
+		`\nB1 · one argument, three drafts · ${b1.verdict}${b1.daysLeft !== undefined ? ` · ${b1.daysLeft} days to ${b1.killBy}` : ""}`,
+	);
+	console.log(`  ${b1.summary}`);
+	console.log(
+		`  Mechanisms across the corpus books: ${b1.mechanisms.before} at the start, ${b1.mechanisms.now} now${b1.mechanisms.added.length ? `; new: ${b1.mechanisms.added.join(", ")}` : ""}${b1.mechanisms.retired.length ? `; merged away: ${b1.mechanisms.retired.join(", ")}` : ""}.`,
+	);
+	for (const chapter of b1.drafted) {
+		console.log(
+			`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : " binds existing mechanisms only"}`,
 		);
 	}
 	console.log("");
@@ -1006,7 +1008,8 @@ async function checkOneFile(path: string, asJson: boolean) {
 function printHelp() {
 	console.log(`Bookkit — write, check, preview, and publish books
 
-Usage: bun run bookkit <command>       (no command: where each book stands, and what to do next)
+Usage: bun run bookkit <command>       (no command: your books, and the commands to write, check,
+                                       preview, build, and deploy one)
 
 Start
   try <folder> [--frame <slug>] [--json]    what Bookkit would make of any folder of Markdown (writes nothing)
@@ -1050,6 +1053,7 @@ Preview and publish
 Other
   list                                      list the books
   remove-book --book <slug>                 delete a book app
+  bets [--json]                             the maintainers' active bet (docs/bets.md), measured from git
 
 Mistype a command, book, or mechanism and bookkit suggests the closest one.
 

@@ -52,6 +52,8 @@ export type {
 	ChapterPageCopy,
 	CreateBookLayoutRenderStateOptions,
 	CreateBookRuntimeOptions,
+	CrossLink,
+	CrossLinkEntry,
 	ExampleModule,
 	GlossaryModule,
 	MechanismModule,
@@ -84,8 +86,11 @@ export type {
 	ToolkitModule,
 } from "./book";
 export {
+	actionLinksForMechanisms,
 	buildLocalizedReadRoutePath,
 	buildTranslationLede,
+	chapterLinksForMechanism,
+	chapterReadingOrder,
 	createBookAppShims,
 	createBookEntryPoints,
 	createBookEntryPointsFromModules,
@@ -105,9 +110,13 @@ export {
 	defaultChapterPageCopy,
 	defaultMechanismsIndexCopy,
 	defaultReadHubConfig,
+	exampleLinksForMechanisms,
 	formatTranslationCompleteness,
 	getOgImageForPath,
+	mechanismLinksForTerm,
+	mechanismTitle,
 	normalizeOgPathname,
+	prerequisiteChapterLinks,
 	readItemPath,
 	readRoutePrefixFromPathname,
 	readRoutes,
@@ -115,6 +124,7 @@ export {
 	resolveBookHomeCopy,
 	resolveMechanismsIndexCopy,
 	resolveReadHubConfig,
+	termLinksForMechanism,
 } from "./book";
 export {
 	computeTopologicalOrder,

@@ -10,10 +10,12 @@ import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+	actionLinksForMechanisms,
 	bookPageTitle,
 	buildLocalizedReadRoutePath,
 	createBreadcrumbListStructuredDataFromTrail,
 	firstMetaDescription,
+	mechanismTitle,
 	pageFactsForModule,
 	readItemPath,
 	readRoutes,
@@ -59,6 +61,24 @@ const metaDescription = firstMetaDescription(
 );
 // Examples are keyed by file name; their frontmatter has no slug.
 const isFallback = missingSlugs.includes(slugParam);
+// Readers see the mechanism's name, and the actions for it.
+const { entries: mechanismEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.mechanisms, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const { entries: toolkitEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.toolkit, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const mechanismName = mechanismTitle(frontmatter.mechanism, mechanismEntries);
+const mechanismActions = actionLinksForMechanisms(
+	[frontmatter.mechanism],
+	toolkitEntries,
+);
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(
 	requestPath,
@@ -88,7 +108,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   <div class="eyebrow">Example{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={slugParam.replaceAll("/", "-")}>{frontmatter.title}</h1>
   <p class="lede">
-    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{frontmatter.mechanism}</a>
+    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{mechanismName}</a>
     {frontmatter.domain && <> · {frontmatter.domain}</>}
   </p>
   <section class="content-block">
@@ -116,9 +136,15 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
     <h2>Keep going</h2>
     <div class="next-steps__links">
       <a class="next-steps__link" href={readItemPath("mechanisms", frontmatter.mechanism)}>
-        The {frontmatter.mechanism} mechanism
+        The {mechanismName} mechanism
       </a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit</a>
+      {mechanismActions.length > 0 ? (
+        mechanismActions.map((link) => (
+          <a class="next-steps__link" href={link.href}>{link.label}</a>
+        ))
+      ) : (
+        <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit</a>
+      )}
     </div>
   </section>
 </BaseLayout>

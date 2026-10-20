@@ -203,7 +203,7 @@ describe(`static build of ${BOOK}`, () => {
 			],
 		]);
 		expect(page).toContain(
-			"<h2>Drills</h2><ul><li>Classify three sample alerts to sev-1/2/3 in under 10 minutes as a team.</li></ul>",
+			'<h2 id="drills">Drills</h2><ul><li>Classify three sample alerts to sev-1/2/3 in under 10 minutes as a team.</li></ul>',
 		);
 	});
 });

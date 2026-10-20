@@ -21,6 +21,17 @@ export type {
 	MechanismUrgency,
 	RelatedBook,
 } from "./config";
+export type { CrossLink, CrossLinkEntry } from "./cross-links";
+export {
+	actionLinksForMechanisms,
+	chapterLinksForMechanism,
+	chapterReadingOrder,
+	exampleLinksForMechanisms,
+	mechanismLinksForTerm,
+	mechanismTitle,
+	prerequisiteChapterLinks,
+	termLinksForMechanism,
+} from "./cross-links";
 export type {
 	BookContentModules,
 	BookContentRawModules,

@@ -1,7 +1,7 @@
 import { appendHighlightedText, queryElement, toSafeUrl } from "./dom";
 import { createQueryEngine } from "./query-engine";
 import type { SearchIndexStore } from "./search-index-store";
-import { groupRankedResults, type RankedSearchResult } from "./search-ranking";
+import { type RankedSearchResult, resultPlace } from "./search-ranking";
 
 export type SearchEventPayload = {
 	type: "query" | "zero_results" | "click";
@@ -104,52 +104,35 @@ export const initializeSearchController = ({
 		}
 
 		empty?.setAttribute("hidden", "true");
-		let optionIndex = 0;
-		groupRankedResults(entries).forEach(({ label, items }, groupIndex) => {
-			// A group of options in the listbox, named by its label. The label
-			// keeps its heading style but not the heading role, which a listbox
-			// may not contain.
-			const section = document.createElement("div");
-			section.className = "search-panel__group";
-			section.setAttribute("role", "group");
-			const heading = document.createElement("h3");
-			heading.id = `search-group-${groupIndex}`;
-			heading.setAttribute("role", "presentation");
-			heading.textContent = `${label} (${items.length})`;
-			section.setAttribute("aria-labelledby", heading.id);
-			section.appendChild(heading);
+		// One list in score order, so the best match is the first option
+		// whatever its section; each option names its section instead.
+		entries.forEach((entry, optionIndex) => {
+			const link = document.createElement("a");
+			link.href = toSafeUrl(entry.url);
+			link.className = "search-panel__item";
+			link.id = `search-option-${optionIndex}`;
+			link.dataset.searchId = entry.id;
+			link.setAttribute("role", "option");
 
-			const list = document.createElement("div");
-			list.className = "search-panel__list";
-			items.forEach((entry) => {
-				const link = document.createElement("a");
-				link.href = toSafeUrl(entry.url);
-				link.className = "search-panel__item";
-				link.id = `search-option-${optionIndex++}`;
-				link.dataset.searchId = entry.id;
-				link.setAttribute("role", "option");
+			const title = document.createElement("div");
+			title.className = "search-panel__item-title";
+			appendHighlightedText(title, entry.title, tokens);
 
-				const title = document.createElement("div");
-				title.className = "search-panel__item-title";
-				appendHighlightedText(title, entry.title, tokens);
+			const snippet = document.createElement("div");
+			snippet.className = "search-panel__item-snippet";
+			appendHighlightedText(snippet, entry.snippet, tokens);
 
-				const snippet = document.createElement("div");
-				snippet.className = "search-panel__item-snippet";
-				appendHighlightedText(snippet, entry.snippet, tokens);
+			const place = resultPlace(entry);
+			const meta = document.createElement("div");
+			meta.className = "search-panel__item-meta";
+			const section = document.createElement("span");
+			section.className = "search-panel__item-section";
+			section.textContent = place.section;
+			meta.append(section);
+			if (place.trail) meta.append(` · ${place.trail}`);
 
-				const meta = document.createElement("div");
-				meta.className = "search-panel__item-meta";
-				const breadcrumb = entry.section
-					? `${entry.context} › ${entry.section}`
-					: entry.context;
-				meta.textContent = `${entry.label} • ${breadcrumb}`;
-
-				link.append(title, snippet, meta);
-				list.appendChild(link);
-			});
-
-			section.appendChild(list);
-			results.appendChild(section);
+			link.append(title, snippet, meta);
+			results.appendChild(link);
 		});
 
 		setActiveResult(0);

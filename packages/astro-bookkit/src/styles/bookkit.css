@@ -1917,17 +1917,9 @@ a.card:hover h3 {
 	}
 }
 
+/* One list in score order: the listbox holds its options directly. */
 .search-panel__results {
 	margin-top: var(--space-4);
-	display: grid;
-	gap: var(--space-4);
-}
-
-.search-panel__group h3 {
-	margin-top: 0;
-}
-
-.search-panel__list {
 	display: grid;
 	gap: var(--space-3);
 }
@@ -1963,6 +1955,13 @@ a.card:hover h3 {
 .search-panel__item-meta {
 	font-size: var(--text-sm);
 	color: var(--color-muted);
+}
+
+/* The section a result is from, in the apparatus face the header's section label uses. */
+.search-panel__item-section {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-ink);
 }
 
 .search-panel__item mark {

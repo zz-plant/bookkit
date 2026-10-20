@@ -69,18 +69,22 @@ export const buildRankedResults = (
 };
 
 /**
- * Results grouped by section (Chapters, Toolkit, ...), each group in score
- * order, and the groups in the order of their best result, so the best match
- * is the first result whatever its section. `results` comes from
- * `buildRankedResults`, already sorted by score.
+ * Where a result sits, for the line under its preview: its section (Toolkit,
+ * Chapters, ...) and, for a heading inside a page, the page. A page's own
+ * result names only its section, since its title is already the page's.
+ * Results come in one list in score order, so this line is what tells a
+ * reader which section each one is from.
  */
-export const groupRankedResults = <T extends { label: string; type: string }>(
-	results: readonly T[],
-): Array<{ label: string; items: T[] }> => {
-	const groups = new Map<string, T[]>();
-	for (const result of results) {
-		const key = result.label ?? result.type;
-		groups.set(key, [...(groups.get(key) ?? []), result]);
-	}
-	return Array.from(groups, ([label, items]) => ({ label, items }));
-};
+export const resultPlace = (entry: {
+	label: string;
+	title: string;
+	context: string;
+	section?: string | null;
+}): { section: string; trail: string | null } => ({
+	section: entry.label,
+	trail: entry.section
+		? `${entry.context} › ${entry.section}`
+		: entry.context && entry.context !== entry.title
+			? entry.context
+			: null,
+});

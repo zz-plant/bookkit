@@ -184,6 +184,11 @@ describe("search panel", () => {
 });
 
 const PROCEDURE = "/read/toolkit/classify-alert-severity";
+/** The section each result names, in list order. */
+const sections = () =>
+	page
+		.locator("#search-results [role=option] .search-panel__item-section")
+		.allTextContents();
 const optionPaths = () =>
 	options().evaluateAll((nodes) =>
 		nodes.map((node) => {
@@ -199,12 +204,10 @@ describe("finding a procedure", () => {
 			await search("severity");
 			const paths = await optionPaths();
 			expect(paths[0]).toBe(PROCEDURE);
-			expect(
-				await page
-					.locator("#search-results [role=group] h3")
-					.first()
-					.textContent(),
-			).toBe("Toolkit (1)");
+			expect(await sections()).toEqual(
+				expect.arrayContaining(["Toolkit", "Glossary", "Chapters"]),
+			);
+			expect((await sections())[0]).toBe("Toolkit");
 			await page.close();
 		},
 		CASE_TIMEOUT,
@@ -244,6 +247,43 @@ describe("finding a procedure", () => {
 					section,
 				).toBe(1);
 			}
+			await page.close();
+		},
+		CASE_TIMEOUT,
+	);
+});
+
+describe("one list of results", () => {
+	it(
+		"lists every result in one listbox in score order, each naming its section",
+		async () => {
+			// "rollback" matches a chapter, a mechanism, and an action by
+			// title. Grouped by section, the action came twelfth, after every
+			// chapter section that mentions a rollback.
+			await search("rollback");
+			const paths = await optionPaths();
+			expect(paths.slice(0, 3)).toEqual([
+				"/read/chapters/rollback-first",
+				"/read/mechanisms/rollback-first-change",
+				"/read/toolkit/identify-rollback-candidate",
+			]);
+			expect((await sections()).slice(0, 3)).toEqual([
+				"Chapters",
+				"Mechanisms",
+				"Toolkit",
+			]);
+			// The listbox owns its options directly: no groups, no headings.
+			expect(
+				await page
+					.locator("#search-results")
+					.evaluate((listbox) =>
+						Array.from(listbox.children).map((child) =>
+							child.getAttribute("role"),
+						),
+					),
+			).toEqual(paths.map(() => "option"));
+			expect(await page.locator("#search-results h3").count()).toBe(0);
+			expect(await sections()).toHaveLength(paths.length);
 			await page.close();
 		},
 		CASE_TIMEOUT,

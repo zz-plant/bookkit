@@ -236,6 +236,34 @@ describe("embedTexts stored vectors", () => {
 		rmSync(store, { recursive: true, force: true });
 	});
 
+	it("with storedOnly, uses stored vectors and never loads the model", async () => {
+		const store = mkdtempSync(join(tmpdir(), "bookkit-vectors-"));
+		process.env.BOOKKIT_MODEL_CACHE = cacheDir;
+		process.env.BOOKKIT_DOWNLOAD_MODEL = "1";
+		await embedTexts(["stored"], model, {
+			loadTransformers: textModel().load,
+			log: () => {},
+			vectorCache: store,
+		});
+		const run = textModel();
+		const partly = await embedTexts(["stored", "not stored"], model, {
+			loadTransformers: run.load,
+			log: () => {},
+			vectorCache: store,
+			storedOnly: true,
+		});
+		expect(partly.ok).toBe(false);
+		const all = await embedTexts(["stored"], model, {
+			loadTransformers: run.load,
+			log: () => {},
+			vectorCache: store,
+			storedOnly: true,
+		});
+		expect(all.ok).toBe(true);
+		expect(run.embedded).toEqual([]);
+		rmSync(store, { recursive: true, force: true });
+	});
+
 	it("keeps no vectors with vectorCache: null", async () => {
 		process.env.BOOKKIT_MODEL_CACHE = cacheDir;
 		process.env.BOOKKIT_DOWNLOAD_MODEL = "1";

@@ -127,6 +127,11 @@ export type EmbedOptions = {
 	 * in the model cache.
 	 */
 	vectorCache?: string | null;
+	/**
+	 * Use stored vectors only: never load or download the model, and fail when
+	 * any text has none. For quick checks that can fall back to wording.
+	 */
+	storedOnly?: boolean;
 };
 
 /** Where the model's weights land once downloaded. */
@@ -226,6 +231,13 @@ export const embedTexts = async (
 			.filter((index) => vectors[index] === null);
 		if (missing.length === 0) {
 			return { ok: true, model, vectors: vectors as Float32Array[] };
+		}
+		if (options.storedOnly) {
+			return {
+				ok: false,
+				model,
+				reason: `${missing.length} of ${texts.length} text(s) have no stored vector; check:corpus stores them.`,
+			};
 		}
 
 		if (!existsSync(modelWeightsPath(cacheDir, model))) {

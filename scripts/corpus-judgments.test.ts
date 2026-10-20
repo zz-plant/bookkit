@@ -216,6 +216,88 @@ describe("check:corpus with judges' verdicts", () => {
 	});
 });
 
+describe("judging one mechanism at a time", () => {
+	const bookkitCheck = (file: string) => {
+		const result = Bun.spawnSync(
+			[
+				process.execPath,
+				join(repoRoot(), "scripts", "bookkit.ts"),
+				"check",
+				file,
+			],
+			{
+				cwd: workspace,
+				// No model and no stored vectors: nearest by wording, on any machine.
+				env: {
+					...process.env,
+					BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
+		return `${result.stdout.toString()}${result.stderr.toString()}`;
+	};
+	const waitingGame = "apps/one/src/content/book/mechanisms/waiting-game.mdx";
+
+	it("--judge-for asks only about that mechanism's nearest pairs", () => {
+		writeRecords([]);
+		const dir = join(workspace, "one-mechanism");
+		const result = checkCorpus(
+			"--judge-prompt",
+			dir,
+			"--judge-for",
+			"tidy-desk",
+			"--judge-top",
+			"1",
+		);
+		expect(result.status).toBe(0);
+		const key = JSON.parse(readFileSync(join(dir, "key.json"), "utf8"));
+		expect(key).toHaveLength(1);
+		expect(key[0].pair).toContain("tidy-desk");
+		expect(
+			checkCorpus("--judge-prompt", dir, "--judge-for", "tidy-dsk").output,
+		).toContain("Did you mean tidy-desk?");
+	});
+
+	it("bookkit check on a mechanism says when its closest pairs have no verdict", () => {
+		writeRecords([]);
+		expect(bookkitCheck(waitingGame)).toContain(
+			"--judge-prompt <dir> --judge-for waiting-game",
+		);
+	});
+
+	it("bookkit check on a mechanism names the one the judges call the same idea", () => {
+		writeRecords([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				texts: [textHash(text("waiting-game")), textHash(text("slow-walk"))],
+				votes: [vote("same_idea", "a"), vote("same_idea", "b")],
+			},
+		]);
+		expect(bookkitCheck(waitingGame)).toContain(
+			"judges: the same idea as slow-walk (2 of 2). Bind slow-walk instead",
+		);
+	});
+
+	it("bookkit check names a near mechanism with no verdict, though another pair has one", () => {
+		// tidy-desk shares no wording with waiting-game, so no wording match
+		// lists it; it is still among the three nearest, and unjudged.
+		writeRecords([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				texts: [textHash(text("waiting-game")), textHash(text("slow-walk"))],
+				votes: [vote("same_family")],
+			},
+		]);
+		const output = bookkitCheck(waitingGame);
+		expect(output).toContain(
+			"judges: no verdict yet on tidy-desk, among its 3 nearest by wording.",
+		);
+		expect(output).toContain("--judge-for waiting-game");
+	});
+});
+
 describe("corpus-judgments helpers", () => {
 	const record = (
 		texts: [string, string],

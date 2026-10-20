@@ -10,9 +10,12 @@ import { join } from "node:path";
 import {
 	type CorpusMechanism,
 	corpusEmbeddingText,
+	decidePair,
 	JUDGE_RELATIONS,
 	type JudgeRelation,
 	type JudgeVote,
+	lexicalMechanismSimilarity,
+	type PairCall,
 	type PairJudgment,
 } from "../../packages/astro-bookkit/src/suggestions";
 
@@ -173,6 +176,63 @@ export const matchJudgments = (
 	}
 	for (const key of current.keys()) changed.delete(key);
 	return { current: [...current.values()], changed: [...changed.values()] };
+};
+
+/**
+ * How close two mechanisms are, for choosing which pairs to ask judges about:
+ * the cosine of their vectors when both have one, else how alike their
+ * wording is. `--judge-for` and `bookkit check` rank with this.
+ */
+export const pairCloseness = (
+	a: CorpusMechanism,
+	b: CorpusMechanism,
+	vectorA?: ArrayLike<number> | null,
+	vectorB?: ArrayLike<number> | null,
+): number => {
+	if (!vectorA || !vectorB) return lexicalMechanismSimilarity(a, b).combined;
+	let dot = 0;
+	for (let i = 0; i < vectorA.length; i += 1) dot += vectorA[i] * vectorB[i];
+	return dot;
+};
+
+/** A mechanism's nearest others, closest first (see pairCloseness). */
+export const nearestTo = (
+	target: CorpusMechanism,
+	others: readonly CorpusMechanism[],
+	count: number,
+	vectorOf?: (mechanism: CorpusMechanism) => ArrayLike<number> | null,
+): CorpusMechanism[] =>
+	others
+		.filter((other) => other.slug !== target.slug)
+		.map((other) => ({
+			other,
+			closeness: pairCloseness(
+				target,
+				other,
+				vectorOf?.(target),
+				vectorOf?.(other),
+			),
+		}))
+		.sort((x, y) => y.closeness - x.closeness)
+		.slice(0, count)
+		.map(({ other }) => other);
+
+/** The judges' calls on one mechanism's pairs, as the texts read now; same idea and splits first. */
+export const callsFor = (
+	slug: string,
+	records: JudgmentRecord[],
+	mechanisms: ReadonlyArray<Text & { slug: string }>,
+): Array<{ other: string; call: PairCall }> => {
+	const order = { "same-idea": 0, split: 1, distinct: 2 };
+	return matchJudgments(records, mechanisms)
+		.current.filter((judgment) => judgment.pair.includes(slug))
+		.flatMap((judgment) => {
+			const call = decidePair(judgment.votes);
+			const other =
+				judgment.pair[0] === slug ? judgment.pair[1] : judgment.pair[0];
+			return call ? [{ other, call }] : [];
+		})
+		.sort((x, y) => order[x.call.call] - order[y.call.call]);
 };
 
 /** Votes recorded on two texts, whatever the slugs were called then. */

@@ -9,7 +9,6 @@ import {
 	decidePair,
 	describeCall,
 	evaluateJudgments,
-	lexicalMechanismSimilarity,
 } from "../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { didYouMean } from "./lib/cli";
@@ -18,6 +17,7 @@ import {
 	JUDGMENTS_FILE,
 	matchJudgments,
 	mergeRecords,
+	pairCloseness,
 	readAnswers,
 	readJudgments,
 	votesOn,
@@ -48,6 +48,7 @@ import { loadBookContent } from "./lib/load-book";
  *   bun run check:corpus -- --mode error                   # exit 1 while anything is unresolved
  *   bun run check:corpus -- --eval [--model nomic,minilm]  # score models and judges against the author's rulings
  *   bun run check:corpus -- --judge-prompt <dir> [--judge-top 10]  # ask judges about pairs, blind
+ *   bun run check:corpus -- --judge-prompt <dir> --judge-for <slug>  # only one mechanism's 3 nearest
  *   bun run check:corpus -- --judge-record <dir>           # record their answers in corpus-judgments.json
  *
  * corpus.json at the repo root, when present, names the books in the shared
@@ -106,7 +107,10 @@ const asJson = process.argv.includes("--json");
 const evalRequested = process.argv.includes("--eval");
 const judgePromptDir = optionalArg("--judge-prompt");
 const judgeRecordDir = optionalArg("--judge-record");
-const judgeTop = Number(optionalArg("--judge-top") ?? 10);
+const judgeFor = optionalArg("--judge-for");
+// Every merge on record was among the two highest-scoring pairs in the whole
+// corpus by meaning, so a mechanism's three nearest cover them with room.
+const judgeTop = Number(optionalArg("--judge-top") ?? (judgeFor ? 3 : 10));
 if (!Number.isInteger(judgeTop) || judgeTop < 0) {
 	console.error(
 		`--judge-top takes a whole number of pairs, got "${optionalArg("--judge-top")}".`,
@@ -485,11 +489,20 @@ function printJudged(pair: CorpusPair): void {
  * check:corpus --judge-prompt: the pairs worth a judge's time, most useful
  * first. Flagged pairs with no verdict, then pairs whose text changed since
  * judged, then the closest unjudged, unruled pairs (by meaning when the model
- * ran, else by wording), up to --judge-top.
+ * ran, else by wording), up to --judge-top. With --judge-for, only pairs
+ * that include that mechanism.
  */
 function writeJudgeRequestFor(dir: string): void {
 	const embedded = vectors;
 	const bySlug = new Map(mechanisms.map((m) => [m.slug, m]));
+	if (judgeFor && !bySlug.has(judgeFor)) {
+		console.error(
+			`--judge-for ${judgeFor}: no mechanism with that slug and a definition.${didYouMean(judgeFor, [...bySlug.keys()])}`,
+		);
+		process.exit(1);
+	}
+	const involves = (a: string, b: string) =>
+		!judgeFor || a === judgeFor || b === judgeFor;
 	const key = (a: string, b: string) => [a, b].sort().join("\u0000");
 	const judged = new Set(judgments.current.map((j) => key(...j.pair)));
 	const ruled = new Set(distinct.map((d) => key(...d.pair)));
@@ -501,27 +514,24 @@ function writeJudgeRequestFor(dir: string): void {
 			chosen.set(key(a, b), [left, right]);
 	};
 	const flagged = fullReport.pairs.filter(
-		(pair) => !judged.has(key(pair.a, pair.b)),
+		(pair) => !judged.has(key(pair.a, pair.b)) && involves(pair.a, pair.b),
 	);
+	const changed = judgments.changed.filter(([a, b]) => involves(a, b));
 	for (const pair of flagged) add(pair.a, pair.b);
-	for (const [a, b] of judgments.changed) add(a, b);
+	for (const [a, b] of changed) add(a, b);
 	const candidates: Array<{ a: string; b: string; score: number }> = [];
 	const unique = [...bySlug.values()];
 	for (let i = 0; i < unique.length; i += 1) {
 		for (let j = i + 1; j < unique.length; j += 1) {
 			const [a, b] = [unique[i], unique[j]];
+			if (!involves(a.slug, b.slug)) continue;
 			if (scope.corpusOf(a.book) !== scope.corpusOf(b.book)) continue;
 			const pairKey = key(a.slug, b.slug);
 			if (judged.has(pairKey) || ruled.has(pairKey) || chosen.has(pairKey))
 				continue;
 			const ia = mechanisms.indexOf(a);
 			const ib = mechanisms.indexOf(b);
-			const score = embedded
-				? embedded[ia].reduce(
-						(sum, value, k) => sum + value * embedded[ib][k],
-						0,
-					)
-				: lexicalMechanismSimilarity(a, b).combined;
+			const score = pairCloseness(a, b, embedded?.[ia], embedded?.[ib]);
 			candidates.push({ a: a.slug, b: b.slug, score });
 		}
 	}
@@ -536,7 +546,7 @@ function writeJudgeRequestFor(dir: string): void {
 	}
 	writeJudgeRequest(dir, [...chosen.values()]);
 	console.log(
-		`Wrote ${chosen.size} pair(s) to judge in ${dir}: ${flagged.length} flagged without a verdict, ${judgments.changed.length} changed since judged, the rest the closest unjudged by ${embedded ? "meaning" : "wording"}.`,
+		`Wrote ${chosen.size} pair(s) to judge in ${dir}: ${flagged.length} flagged without a verdict, ${changed.length} changed since judged, the rest the closest unjudged${judgeFor ? ` to ${judgeFor}` : ""} by ${embedded ? "meaning" : "wording"}.`,
 	);
 	console.log(
 		`\n1. Give each judge prompt.md and pairs.json, and nothing else (keep key.json from them). Use more than one judge, or one model in fresh sessions; a fresh session per judge keeps them independent.\n2. Save each judge's reply in ${dir} as answer-1.json, answer-2.json, ...\n3. bun run check:corpus -- --judge-record ${dir}`,

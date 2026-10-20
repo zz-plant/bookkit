@@ -18,7 +18,7 @@ export type BookDataFile =
 	| "preview-analytics.jsonl"
 	| "export-analytics.jsonl"
 	| "release-analytics.jsonl"
-	| "feedback-events.json";
+	| "feedback-events.jsonl";
 
 const workingDirectory = (): string => globalThis.process?.cwd?.() ?? ".";
 
@@ -52,21 +52,28 @@ const onCloudflareWorkers = () =>
 	globalThis.navigator?.userAgent === "Cloudflare-Workers";
 
 /**
- * Adds one record to a JSON-lines file, creating the folder first. A failure
- * is logged once per file and cause rather than thrown: a reader's request
- * does not fail because the server cannot keep what it sent.
+ * Adds records to a JSON-lines file at `path`, creating the folder first, and
+ * says whether they were written. The file is only ever appended to, in one
+ * write opened with O_APPEND: two requests at once, or two servers sharing a
+ * folder, each add their lines whole, and neither can drop the other's, as
+ * reading the file and writing it back could. A failure is logged once per
+ * file and cause rather than thrown.
  */
-export const appendBookRecord = async (
-	file: BookDataFile,
-	record: unknown,
-): Promise<void> => {
-	const path = bookDataPath(file);
+export const appendRecords = async (
+	path: string,
+	records: readonly unknown[],
+): Promise<boolean> => {
 	try {
 		await mkdir(dirname(path), { recursive: true });
-		await appendFile(path, `${JSON.stringify(record)}\n`, "utf8");
+		await appendFile(
+			path,
+			records.map((record) => `${JSON.stringify(record)}\n`).join(""),
+			{ encoding: "utf8", flag: "a" },
+		);
+		return true;
 	} catch (error) {
 		const code = (error as { code?: string }).code ?? "error";
-		if (warned.has(`${path} ${code}`)) return;
+		if (warned.has(`${path} ${code}`)) return false;
 		warned.add(`${path} ${code}`);
 		const reason = error instanceof Error ? error.message : String(error);
 		const outcome = onCloudflareWorkers()
@@ -75,17 +82,27 @@ export const appendBookRecord = async (
 		console.warn(
 			`[bookkit] Could not record to ${path}: ${reason}. ${outcome}`,
 		);
+		return false;
 	}
 };
 
 /**
- * The records in a JSON-lines file, oldest first; none when the file does not
- * exist yet. A line that is not a JSON object is skipped.
+ * Adds one record to a book's data file. A reader's request does not fail
+ * because the server cannot keep what it sent; see `appendRecords`.
  */
-export const readBookRecords = async <T>(file: BookDataFile): Promise<T[]> => {
+export const appendBookRecord = (
+	file: BookDataFile,
+	record: unknown,
+): Promise<boolean> => appendRecords(bookDataPath(file), [record]);
+
+/**
+ * The records in a JSON-lines file at `path`, oldest first; none when the
+ * file does not exist yet. A line that is not a JSON object is skipped.
+ */
+export const readRecords = async <T>(path: string): Promise<T[]> => {
 	let text: string;
 	try {
-		text = await readFile(bookDataPath(file), "utf8");
+		text = await readFile(path, "utf8");
 	} catch {
 		return [];
 	}
@@ -99,3 +116,7 @@ export const readBookRecords = async <T>(file: BookDataFile): Promise<T[]> => {
 		}
 	});
 };
+
+/** The records in one of a book's data files; see `readRecords`. */
+export const readBookRecords = <T>(file: BookDataFile): Promise<T[]> =>
+	readRecords<T>(bookDataPath(file));

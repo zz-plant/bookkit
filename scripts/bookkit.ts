@@ -1942,7 +1942,8 @@ Check
   check [book] [--all] [--quick] [--download-model]
                                             structure, plus mechanisms that overlap across books; the
                                             meaning pass needs a 550 MB model, downloaded once with
-                                            consent (--quick compares wording only)
+                                            consent (--quick compares wording only); as info, each
+                                            chapter's first unlinked use of a glossary term
   check <file.mdx> [--json] [--quick]       one content file: each finding with its field and fix; for a
                                             mechanism, similar ones, the judges' calls on it, and which of
                                             its 3 nearest have no verdict (--quick: nearest by wording)

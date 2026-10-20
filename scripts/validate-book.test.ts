@@ -76,6 +76,14 @@ beforeAll(() => {
 };
 `,
 	);
+	writeBook("glossary-book", {
+		"glossary/pager-queue.mdx":
+			'---\nslug: pager-queue\nterm: "Pager queue"\nstatus: draft\ndefinition: "Alerts waiting for an owner."\n---\n',
+		"chapters/01-start.mdx":
+			'---\nslug: start\ntitle: "Start"\nstatus: draft\n---\nThe pager queue grows.\n\nLink [the pager queue](/read/glossary/pager-queue).\n',
+		"chapters/02-next.mdx":
+			'---\nslug: next\ntitle: "Next"\nstatus: draft\n---\nSee [the pager queue](/read/glossary/pager-queue) first; the pager queue grows.\n',
+	});
 	writeBook("clean-book", {
 		"chapters/01-start.mdx":
 			'---\nslug: start\ntitle: "Start"\nstatus: draft\n---\nBody.\n',
@@ -135,6 +143,41 @@ describe("validate-book", () => {
 		expect(result.output).not.toContain("objectives.readerStart");
 	});
 
+	it("lists each chapter's first unlinked use of a glossary term as info, which never fails", () => {
+		const result = run("validate-book.ts", "--book", "glossary-book");
+		expect(result.status).toBe(0);
+		expect(result.output).toContain(
+			"INFO (1): glossary terms a chapter uses before linking them.",
+		);
+		// The first chapter's first use is not a link; the second links it first.
+		expect(result.output).toContain(
+			'- apps/glossary-book/src/content/book/chapters/01-start.mdx:6 "Pager queue" → /read/glossary/pager-queue',
+		);
+		expect(result.output).not.toContain("02-next.mdx:");
+		expect(result.output).toContain(", 1 info");
+
+		const json = JSON.parse(
+			run("validate-book.ts", "--book", "glossary-book", "--json").output,
+		);
+		expect(json.ok).toBe(true);
+		expect(
+			json.findings.some(
+				(finding: { code?: string }) =>
+					finding.code === "GLOSSARY_TERM_UNLINKED",
+			),
+		).toBe(false);
+		expect(json.info).toEqual([
+			expect.objectContaining({
+				level: "info",
+				code: "GLOSSARY_TERM_UNLINKED",
+				file: "apps/glossary-book/src/content/book/chapters/01-start.mdx",
+				line: 6,
+				term: "Pager queue",
+				href: "/read/glossary/pager-queue",
+			}),
+		]);
+	});
+
 	it("exits 0 with no errors", () => {
 		const result = run("validate-book.ts", "--book", "clean-book");
 		expect(result.status).toBe(0);
@@ -147,7 +190,7 @@ describe("validate-all", () => {
 		const result = run("validate-all.ts");
 		expect(result.status).toBe(1);
 		expect(result.output).toContain(
-			"✗ 2 of 4 books failed validation: broken-book, mdx-book",
+			"✗ 2 of 5 books failed validation: broken-book, mdx-book",
 		);
 	});
 });

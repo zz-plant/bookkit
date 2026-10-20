@@ -1,6 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
+import { readItemPath } from "../packages/astro-bookkit/src/book/read-routes";
+import {
+	checkBookContent,
+	readBookSources,
+} from "../packages/astro-bookkit/src/validators/book-validator";
+import {
+	firstUnlinkedGlossaryMentions,
+	glossaryTermsFrom,
+} from "../packages/astro-bookkit/src/validators/glossary-mentions";
 import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
@@ -66,14 +74,16 @@ Usage:
 
 Options:
   --book <book>   The book app to validate
-  --json          One JSON object: { book, status, releaseRules, ok, findings }
+  --json          One JSON object: { book, status, releaseRules, ok, findings, info }
   -h, --help      Show this help
 
 The book's status in book.config.ts decides the rules. A published or stable
 book gets release rules: no draft records, broken links and prerequisites are
 errors, and the site must be indexable at a public URL. Any other book is
-checked as a draft. Errors exit 1; warnings never do. (--mode and --no-drafts
-are accepted for older callers and ignored.)`,
+checked as a draft. Errors exit 1; warnings never do. INFO lists each
+chapter's first use of a glossary term that is not linked to its entry; it
+is advice and never fails. (--mode and --no-drafts are accepted for older
+callers and ignored.)`,
 	{ book: "string", json: "boolean", mode: "string", "no-drafts": "boolean" },
 	["book"],
 );
@@ -203,6 +213,28 @@ if (existsSync(join(workspaceRoot, configFile))) {
 const errors = findings.filter((finding) => finding.level === "error");
 const warnings = findings.filter((finding) => finding.level === "warning");
 
+// Each chapter's first use of a glossary term, when it is not a link. The
+// site does not link terms itself, so this is where an author learns which
+// ones a reader meets undefined. Advice only: it is never an error or a
+// warning, and a chapter that links a term at its first use is not listed.
+const sources = readBookSources(workspaceRoot, book);
+const terms = glossaryTermsFrom(sources.glossary);
+const info = sources.chapter
+	.flatMap((chapter) => firstUnlinkedGlossaryMentions(chapter, terms))
+	.map((mention) => {
+		const href = readItemPath("glossary", mention.slug);
+		return {
+			level: "info" as const,
+			code: "GLOSSARY_TERM_UNLINKED",
+			file: relative(workspaceRoot, mention.file),
+			line: mention.line,
+			term: mention.term,
+			href,
+			message: `First use of "${mention.term}" in this chapter is not linked to its glossary entry`,
+			fix: `Link it where the chapter first uses it: [${mention.term.toLowerCase()}](${href})`,
+		};
+	});
+
 if (args.json) {
 	// One object per finding: `code` is stable, `file` is repo-relative, and
 	// content findings carry the `field` and a `fix`.
@@ -214,6 +246,8 @@ if (args.json) {
 				releaseRules: content.releaseMode,
 				ok: errors.length === 0,
 				findings: [...errors, ...warnings],
+				// Advice that never fails: { code, file, line, term, href, message, fix }.
+				info,
 			},
 			null,
 			2,
@@ -224,6 +258,17 @@ if (args.json) {
 	console.log(
 		`\nVALIDATE ${book} (${status}${content.releaseMode ? ", so release rules apply: no drafts, and broken links are errors" : ""})`,
 	);
+	if (info.length > 0) {
+		console.log(
+			`\nINFO (${info.length}): glossary terms a chapter uses before linking them. Advice only; never fails.`,
+		);
+		for (const item of info) {
+			console.log(`- ${item.file}:${item.line} "${item.term}" → ${item.href}`);
+		}
+		console.log(
+			`  fix: link the term where the chapter first uses it, e.g. [${info[0].term.toLowerCase()}](${info[0].href}).`,
+		);
+	}
 	if (warnings.length > 0) {
 		console.log(`\nWARNINGS (${warnings.length})`);
 		// One line per file, so a tool missing five fields reads as one gap.
@@ -272,10 +317,11 @@ if (args.json) {
 			if (item.fix) console.log(`  fix: ${item.fix.replace(/\n/g, "\n  ")}`);
 		}
 	}
+	const infoCount = info.length > 0 ? `, ${info.length} info` : "";
 	console.log(
 		errors.length > 0
-			? `\n✗ ${book}: ${errors.length} error${errors.length === 1 ? "" : "s"}, ${warnings.length} warning${warnings.length === 1 ? "" : "s"}`
-			: `\n✓ ${book}: no errors, ${warnings.length} warning${warnings.length === 1 ? "" : "s"}`,
+			? `\n✗ ${book}: ${errors.length} error${errors.length === 1 ? "" : "s"}, ${warnings.length} warning${warnings.length === 1 ? "" : "s"}${infoCount}`
+			: `\n✓ ${book}: no errors, ${warnings.length} warning${warnings.length === 1 ? "" : "s"}${infoCount}`,
 	);
 }
 

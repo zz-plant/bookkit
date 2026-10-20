@@ -10,12 +10,14 @@ import {
 	type BookConfig,
 	formatTranslationCompleteness,
 	readRoutes,
+	resolveBookHomeCopy,
 } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
 
-// Read optional fields (author, relatedBooks) through BookConfig, so leaving
-// them out of book.config.ts still type-checks.
+// Read optional fields (author, home, relatedBooks) through BookConfig, so
+// leaving them out of book.config.ts still type-checks.
 const config: BookConfig = bookConfig;
+const home = resolveBookHomeCopy(config.home);
 
 const chapterIndex = buildLocalizedContentIndex(
 	bookEntryPoints.contentModules.chapters,
@@ -95,8 +97,8 @@ const startLinks = [
 		href: readRoutes.overview,
 	},
 	{
-		title: "Browse the mechanisms",
-		description: "The named patterns this book explains.",
+		title: home.mechanismsCard.title,
+		description: home.mechanismsCard.description,
 		href: readRoutes.mechanisms,
 	},
 	{
@@ -108,6 +110,7 @@ const startLinks = [
 ---
 <BaseLayout title={bookConfig.title}>
   <div class="hero-shell">
+    {home.kicker && <p class="hero-kicker">{home.kicker}</p>}
     <div class="section-header hero-shell__header">
       <h1>{bookConfig.title}</h1>
       {config.author && <p class="hero-byline">by {config.author.name}</p>}
@@ -149,10 +152,12 @@ const startLinks = [
   <RelatedBooks books={config.relatedBooks} />
   <script>
     const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    // Empty on a static build, which has no analytics handler.
+    const analyticsEndpoint = document.body.dataset.analyticsEndpoint;
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
     funnelLinks.forEach((link) => {
       link.addEventListener("click", () => {
-        if (isDevHost) return;
+        if (isDevHost || !analyticsEndpoint) return;
         const step = link.getAttribute("data-funnel-step");
         if (!step) return;
         const payload = JSON.stringify({
@@ -164,10 +169,10 @@ const startLinks = [
           timestamp: Date.now(),
         });
         if (navigator.sendBeacon) {
-          navigator.sendBeacon("/api/analytics.json", new Blob([payload], { type: "application/json" }));
+          navigator.sendBeacon(analyticsEndpoint, new Blob([payload], { type: "application/json" }));
           return;
         }
-        fetch("/api/analytics.json", {
+        fetch(analyticsEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: payload,

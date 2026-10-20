@@ -119,7 +119,7 @@ describe("upgradeProject", () => {
 			"apps/garden/src/book.config.ts": read(
 				"apps/garden/src/book.config.ts",
 			).replace('"Garden"', '"The Garden"'),
-			"apps/garden/src/pages/index.astro": `${read("apps/garden/src/pages/index.astro")}\n<!-- edited -->\n`,
+			"apps/garden/src/pages/read/mechanisms/index.astro": `${read("apps/garden/src/pages/read/mechanisms/index.astro")}\n<!-- edited -->\n`,
 			"scripts/mine.sh": "#!/bin/sh\n",
 		};
 		for (const [rel, content] of Object.entries(authored)) write(rel, content);
@@ -171,6 +171,56 @@ describe("upgradeProject", () => {
 			"Left in place (not written by this version): scripts/mine.sh",
 		);
 		expect(summary).not.toContain(chapter);
+	});
+
+	describe("a home page from an engine that left it to the book", () => {
+		const home = "apps/garden/src/pages/index.astro";
+		const shim =
+			"packages/astro-bookkit/templates/book-app/src/pages/index.astro";
+		const oldStarter = "---\n---\n<h1>The old starter's home page</h1>\n";
+
+		/** A project whose engine had the home page in its starter, not its shims. */
+		const olderProject = (homePage: string) => {
+			createProject(source, dir, { book: "garden", title: "Garden" });
+			rmSync(join(dir, shim));
+			write(
+				"packages/astro-bookkit/templates/starter/src/pages/index.astro",
+				oldStarter,
+			);
+			write(home, homePage);
+		};
+		const sharedHomePage = () => readFileSync(join(repoRoot, shim), "utf8");
+
+		it("replaces the starter's copy with the shared page", () => {
+			olderProject(oldStarter);
+			const result = upgradeProject(source, dir);
+			expect(read(home)).toBe(sharedHomePage());
+			expect(
+				existsSync(
+					join(dir, "apps/garden/src/pages/_index.astro.before-upgrade"),
+				),
+			).toBe(false);
+			expect(result.changes).toContainEqual({ path: home, action: "replaced" });
+		});
+
+		it("saves an edited copy beside it, out of Astro's way, and says where", () => {
+			const edited = `${oldStarter}<p>The author's own welcome.</p>\n`;
+			olderProject(edited);
+			const result = upgradeProject(source, dir);
+			expect(read(home)).toBe(sharedHomePage());
+			expect(read("apps/garden/src/pages/_index.astro.before-upgrade")).toBe(
+				edited,
+			);
+			const summary = summarizeUpgrade(result).join("\n");
+			expect(summary).toContain(`replaced ${home}`);
+			expect(summary).toContain(
+				`${home} is shared by every book from this version on, so your edited copy was replaced and saved as apps/garden/src/pages/_index.astro.before-upgrade.`,
+			);
+
+			// A second upgrade has nothing left to save.
+			const again = summarizeUpgrade(upgradeProject(source, dir)).join("\n");
+			expect(again).not.toContain("before-upgrade");
+		});
 	});
 
 	it("removes only the scripts an earlier version vendored", () => {

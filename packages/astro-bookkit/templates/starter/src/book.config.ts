@@ -63,6 +63,16 @@ export const bookConfig = {
 	// it to explain: { slug: "...", focus: "..." }.
 	mechanisms: [],
 	glossaryFocus: [],
+	// Copy on the home page: a short label above the title (such as "Field
+	// guide"; empty for none) and the "Where to start" card that opens the
+	// mechanisms index.
+	home: {
+		kicker: "",
+		mechanismsCard: {
+			title: "Browse the mechanisms",
+			description: "The named patterns this book explains.",
+		},
+	},
 	// Other books to link from the home page: { title, href, description }.
 	relatedBooks: [],
 } as const satisfies BookConfig;

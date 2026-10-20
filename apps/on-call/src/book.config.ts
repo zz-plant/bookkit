@@ -95,6 +95,15 @@ export const bookConfig = {
 		"escalation ramp",
 		"pager queue",
 	],
+	// Copy on the home page.
+	home: {
+		kicker: "Runbook",
+		mechanismsCard: {
+			title: "Find the pattern",
+			description:
+				"Mid-incident? Match what you’re seeing to a pattern and its first safe action.",
+		},
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

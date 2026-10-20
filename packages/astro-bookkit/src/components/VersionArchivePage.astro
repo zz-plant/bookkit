@@ -1,6 +1,7 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
 import { createBookLayoutRenderState } from "../book/layout";
+import { formatReleaseDate } from "../releases/notes";
 import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
 
 export type Props = {
@@ -137,11 +138,7 @@ const entries = versions.map((entry) => ({
             </div>
             {entry.date && (
               <time class="version-card__date" datetime={entry.date}>
-                {new Date(entry.date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                {formatReleaseDate(entry.date)}
               </time>
             )}
           </div>

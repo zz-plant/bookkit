@@ -3,12 +3,19 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import {
+	definitionPairs,
+	exportedToolSections,
+	toolPageContent,
+	toolPageSections,
+} from "./lib/toolkit-page.fixture";
 
 /**
  * A static build of a book (no `site.runtime`), as `bookkit deploy` publishes
  * it: it prints no warnings about its own routes or bundles, writes only the
  * MCP discovery manifest under /api/, ships valid JSON everywhere, and leaves
- * out the reader features that need a request handler on every page.
+ * out the reader features that need a request handler on every page. Its
+ * toolkit pages show each runbook procedure as the PDF and EPUB print it.
  */
 
 const BOOK = "on-call";
@@ -106,5 +113,76 @@ describe(`static build of ${BOOK}`, () => {
 			expect(source.includes("onnxruntime"), bundle).toBe(false);
 			expect(source.includes("@mlc-ai/web-llm"), bundle).toBe(false);
 		}
+	});
+
+	it("shows each procedure's owner, situations, escalation and drills, in the export's order", () => {
+		const exported = exportedToolSections(join(repoRoot(), "apps", BOOK));
+		expect([...exported.keys()].sort()).toEqual([
+			"capture-repro",
+			"classify-alert-severity",
+			"identify-rollback-candidate",
+			"ramp-escalation",
+		]);
+		for (const [slug, sections] of exported) {
+			const html = readFileSync(
+				join(outDir, "read", "toolkit", slug, "index.html"),
+				"utf8",
+			);
+			expect(sections, slug).toContain("Steps by situation");
+			expect(toolPageSections(html), slug).toEqual(sections);
+		}
+
+		const page = toolPageContent(
+			readFileSync(
+				join(
+					outDir,
+					"read",
+					"toolkit",
+					"classify-alert-severity",
+					"index.html",
+				),
+				"utf8",
+			),
+		);
+		const lists = [...page.matchAll(/<dl class="([^"]+)">([\s\S]*?)<\/dl>/g)];
+		expect(
+			lists.map(([, className, dl]) => [className, definitionPairs(dl)]),
+		).toEqual([
+			[
+				"fact-list fact-list--lead",
+				[
+					["Owner", "platform-oncall"],
+					["Review", "Every 30 days"],
+				],
+			],
+			[
+				"situation-list",
+				[
+					[
+						"Uptime or money is at risk",
+						"Classify as sev-1 and name an owner in the incident thread.",
+					],
+					[
+						"A feature is degraded but recoverable",
+						"Classify as sev-2 and check the rollback candidate.",
+					],
+					[
+						"No user impact is visible",
+						"Classify as sev-3 and capture a repro line.",
+					],
+				],
+			],
+			[
+				"fact-list",
+				[
+					["To", "duty-manager"],
+					["When", "A sev-1 is confirmed or suspected."],
+					["Within", "1 hour"],
+				],
+			],
+		]);
+		expect(page).toContain(
+			"<h2>Drills</h2><ul><li>Classify three sample alerts to sev-1/2/3 in under 10 minutes as a team.</li></ul>",
+		);
 	});
 });

@@ -1659,6 +1659,54 @@ a.card:hover h3 {
 	padding-top: 0.3em;
 }
 
+/* A procedure's labelled fields (owner, escalation): the label is apparatus, the value the author's. */
+.fact-list {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+}
+
+.fact-list--lead {
+	margin: calc(var(--space-2) * -1) 0 var(--space-6);
+}
+
+.fact-list__row {
+	display: grid;
+	grid-template-columns: 4.5rem 1fr;
+	gap: var(--space-3);
+	align-items: baseline;
+}
+
+.fact-list dt {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.fact-list dd,
+.situation-list dd {
+	margin: 0;
+}
+
+/* Steps by situation: each condition, in italics, over the action it calls for; ruled like the steps above. */
+.situation-list {
+	display: grid;
+	gap: var(--space-3);
+	margin: 0;
+}
+
+.situation-list__item {
+	padding: var(--space-3) 0;
+	border-top: 1px solid var(--color-border);
+}
+
+.situation-list dt {
+	font-family: var(--reader-font-family);
+	font-size: calc(var(--text-md) * var(--reader-font-scale));
+	font-style: italic;
+	line-height: var(--reader-line-height);
+}
+
 .detail-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -2955,7 +3003,9 @@ pre code {
 	article,
 	section,
 	.card,
-	.step-card {
+	.step-card,
+	.situation-list__item,
+	.fact-list__row {
 		break-inside: avoid;
 	}
 

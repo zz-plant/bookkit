@@ -1,13 +1,14 @@
-import { smartDashes } from "../utils/markdown";
+import {
+	CHARACTER_REFERENCE,
+	decodeCharacterReference,
+} from "../utils/character-references";
+import { normalizeLabel, smartDashes } from "../utils/markdown";
 import {
 	type InlineImage,
 	MARKDOWN_IMAGE,
 	type MarkdownDocument,
-	normalizeLabel,
 } from "./markdown-blocks";
 import {
-	CHARACTER_REFERENCE,
-	decodeCharacterReference,
 	HTML_TAG,
 	type HtmlTag,
 	IMG_TAG,

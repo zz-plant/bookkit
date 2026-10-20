@@ -1,3 +1,4 @@
+import { isSafeLink } from "../utils/links";
 import type {
 	InlineImage,
 	ListItem,
@@ -22,43 +23,6 @@ export const escapeHtml = (value: string) =>
 
 /** Where a link should point in the output, or null to keep only its text. */
 export type LinkResolver = (href: string) => string | null;
-
-/** A URL with a scheme (`https:`, `mailto:`), which no export rewrites. */
-export const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-
-/** The schemes an export links to. A link with any other scheme keeps only its words. */
-export const SAFE_LINK_SCHEMES: ReadonlySet<string> = new Set([
-	"http",
-	"https",
-	"mailto",
-	"tel",
-	"ftp",
-]);
-
-/**
- * The scheme of a link, lower case, as a browser reads it: leading spaces
- * and control characters (U+0000 to U+0020) skipped, and tabs and line
- * breaks anywhere ignored, so `java\tscript:` is `javascript`. Null for a
- * link without one (`#x`, `/read/…`, `notes.md`).
- */
-export const linkScheme = (href: string): string | null =>
-	href
-		.replace(/[\t\n\r]/g, "")
-		// biome-ignore lint/suspicious/noControlCharactersInRegex: a browser skips these before the scheme
-		.replace(/^[\u0000- ]+/, "")
-		.match(HAS_SCHEME)?.[0]
-		.slice(0, -1)
-		.toLowerCase() ?? null;
-
-/**
- * Whether an export may link to `href`: a link without a scheme, or one in
- * `SAFE_LINK_SCHEMES`. `javascript:`, `vbscript:`, `data:`, and `file:`
- * links (any other scheme) are not followed: their text stays, unlinked.
- */
-export const isSafeLink = (href: string): boolean => {
-	const scheme = linkScheme(href);
-	return scheme === null || SAFE_LINK_SCHEMES.has(scheme);
-};
 
 // Read UI sections, so a link to /read/<section>/<slug> can point inside an export.
 const SECTION_KINDS: Record<string, ExportEntryKind> = {

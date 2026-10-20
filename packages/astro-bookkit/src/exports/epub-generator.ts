@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { HAS_SCHEME } from "../utils/links";
 import {
 	defaultImageLoader,
 	type ExportImageFile,
@@ -7,7 +8,6 @@ import {
 } from "./images";
 import {
 	escapeHtml,
-	HAS_SCHEME,
 	type ImageResolver,
 	markdownToHtml,
 	readLinkTarget,

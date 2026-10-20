@@ -301,6 +301,50 @@ describe("references to other records", () => {
 	});
 });
 
+describe("unsafe links", () => {
+	const chapter = (status: string, body: string) =>
+		`---\nslug: drills\ntitle: "Drills"\nstatus: ${status}\n---\n${body}`;
+	const body = [
+		"Run [the script](javascript:alert(1)) or [read](https://example.com).",
+		"",
+		'Open <a href="&#106;avascript:alert(2)">the box</a> or <a href={target}>this</a>.',
+		"`[code](javascript:x)` stays code.",
+	].join("\n");
+	const unsafe = (status: string) =>
+		checkContentItem("chapter", chapter(status, body)).findings.filter(
+			(finding) => finding.code === "UNSAFE_LINK",
+		);
+
+	it("names each link the site would show only as words, with its line in the file", () => {
+		expect(unsafe("published").map((finding) => finding.message)).toEqual([
+			'Chapter links to "javascript:alert(1)" on line 6, which the site shows only as words: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
+			'Chapter links to "javascript:alert(2)" on line 8, which the site shows only as words: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
+			"Chapter has a link on line 8 whose address is an expression (href={target}), which the build cannot check, so the site shows only its words",
+		]);
+	});
+
+	it("is an error in a published record, or a book in release, and a warning in a draft", () => {
+		expect(unsafe("published").map((finding) => finding.level)).toEqual([
+			"error",
+			"error",
+			"error",
+		]);
+		expect(unsafe("draft").map((finding) => finding.level)).toEqual([
+			"warning",
+			"warning",
+			"warning",
+		]);
+		expect(
+			checkContentItem("chapter", chapter("draft", body), {
+				releaseMode: true,
+			}).findings.some(
+				(finding) =>
+					finding.code === "UNSAFE_LINK" && finding.level === "error",
+			),
+		).toBe(true);
+	});
+});
+
 describe("retired slugs", () => {
 	it("points a reference to a merged-away slug at its replacement", () => {
 		const retiredSlugs = retiredSlugsFromCorpus({

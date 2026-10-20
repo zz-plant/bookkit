@@ -1,4 +1,6 @@
 import GithubSlugger from "github-slugger";
+import { decodeEntities } from "./character-references";
+import { isSafeLink, stringLiteralValue } from "./links";
 
 export const createSlugger = () => {
 	const used = new Map<string, number>();
@@ -273,6 +275,179 @@ export const splitFencedCode = (markdown: string): MarkdownSegment[] => {
 	return segments;
 };
 
+/** A link in Markdown or MDX source whose address `isSafeLink` refuses. */
+export type UnsafeLink = {
+	/** Where it is in the source: the whole link, the definition's line, or the `href` attribute. */
+	start: number;
+	end: number;
+	/** What keeps its words in place of it: a link's text, or nothing. */
+	text: string;
+	/** The address, decoded; an `href={…}` expression as written. */
+	href: string;
+	/** 1-based line in the source. */
+	line: number;
+};
+
+/** Code, HTML comments, and MDX comments blanked out, keeping every offset. */
+const maskNonProse = (markdown: string): string =>
+	splitFencedCode(markdown)
+		.map(({ code, text }) =>
+			code
+				? text.replace(/[^\n]/g, " ")
+				: text.replace(
+						/(`+)[\s\S]*?\1|<!--[\s\S]*?-->|\{\/\*[\s\S]*?\*\/\}/g,
+						(span) => span.replace(/[^\n]/g, " "),
+					),
+		)
+		.join("\n");
+
+/** A Markdown link destination as CommonMark reads it: escapes and character references decoded. */
+const readDestination = (raw: string): string =>
+	decodeEntities(
+		(raw.startsWith("<") ? raw.slice(1, -1) : raw).replace(
+			/\\([!-/:-@[-`{-~])/g,
+			"$1",
+		),
+	);
+
+/** A reference label as CommonMark matches it: case and runs of spaces ignored. */
+export const normalizeLabel = (label: string): string =>
+	label.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** The index of the `[` that opens the bracket closing at `close`, or -1. */
+const openingBracket = (text: string, close: number): number => {
+	let depth = 0;
+	for (let index = close; index >= 0; index -= 1) {
+		if (text[index - 1] === "\\") continue;
+		if (text[index] === "]") depth += 1;
+		else if (text[index] === "[" && --depth === 0) return index;
+		else if (text[index] === "\n" && text[index - 1] === "\n") return -1;
+	}
+	return -1;
+};
+
+/**
+ * Where an inline link's `(destination "title")` that opens at `open` ends,
+ * and its destination; null when it is not one.
+ */
+const inlineDestination = (
+	text: string,
+	open: number,
+): { raw: string; end: number } | null => {
+	const rest = text.slice(open + 1);
+	const match = rest.match(
+		/^[ \t]*\n?[ \t]*(<[^<>\n]*>|(?:[^\s()\\]|\\.|\((?:[^\s()\\]|\\.)*\))*)(?:[ \t]*\n?[ \t]*(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*\n?[ \t]*\)/,
+	);
+	return match ? { raw: match[1], end: open + 1 + match[0].length } : null;
+};
+
+// `[label]: destination` at the start of a line; `[^1]:` is a footnote.
+const DEFINITION =
+	/^ {0,3}\[(?!\^)((?:[^\]\\\n]|\\.)+)\]:[ \t]*(<[^<>\n]*>|\S+)[^\n]*(?:\n|$)/gm;
+// `[text][label]`, `[label][]`, or `[label]`, not followed by `(` or `:`.
+const REFERENCE =
+	/(?<![!\]\\])\[((?:[^\]\\\n]|\\.)+)\](?:\[((?:[^\]\\\n]|\\.)*)\])?(?![(:[])/g;
+// An HTML element's opening tag (a capitalized name is a component).
+const ELEMENT_TAG =
+	/<[a-z][\w-]*(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}|[^\s"'=<>`]+))?)*\s*\/?>/g;
+const HREF_ATTRIBUTE =
+	/\s+href\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\}|([^\s"'=<>`]+))/gi;
+
+/**
+ * The links in Markdown or MDX source that the site and the exports keep
+ * only as text (see `isSafeLink`), in source order: inline links, reference
+ * links and their definitions, and `href` attributes on HTML elements,
+ * including an `href={…}` that is not a plain string. Code and comments are
+ * not read. A pattern match, not a parse: the build drops these links from
+ * the parsed page whatever this finds.
+ */
+export const findUnsafeLinks = (markdown: string): UnsafeLink[] => {
+	const masked = maskNonProse(markdown);
+	const lineAt = (index: number) => markdown.slice(0, index).split("\n").length;
+	const found: Omit<UnsafeLink, "line">[] = [];
+
+	// The address each unsafe definition's label stands for.
+	const unsafeLabels = new Map<string, string>();
+	for (const match of masked.matchAll(DEFINITION)) {
+		const href = readDestination(match[2]);
+		if (isSafeLink(href)) continue;
+		unsafeLabels.set(normalizeLabel(match[1]), href);
+		const start = match.index ?? 0;
+		found.push({ start, end: start + match[0].length, text: "", href });
+	}
+
+	for (const match of masked.matchAll(/\]\(/g)) {
+		const close = match.index ?? 0;
+		const open = openingBracket(masked, close);
+		if (open < 0 || masked[open - 1] === "!") continue;
+		const destination = inlineDestination(masked, close + 1);
+		if (!destination) continue;
+		const href = readDestination(destination.raw);
+		if (isSafeLink(href)) continue;
+		found.push({
+			start: open,
+			end: destination.end,
+			text: markdown.slice(open + 1, close),
+			href,
+		});
+	}
+
+	if (unsafeLabels.size > 0) {
+		for (const match of masked.matchAll(REFERENCE)) {
+			const href = unsafeLabels.get(normalizeLabel(match[2] || match[1]));
+			if (href === undefined) continue;
+			const start = match.index ?? 0;
+			found.push({
+				start,
+				end: start + match[0].length,
+				text: markdown.slice(start + 1, start + 1 + match[1].length),
+				href,
+			});
+		}
+	}
+
+	for (const tag of masked.matchAll(ELEMENT_TAG)) {
+		const tagStart = tag.index ?? 0;
+		for (const attribute of tag[0].matchAll(HREF_ATTRIBUTE)) {
+			const [, double, single, expression, bare] = attribute;
+			const href =
+				expression === undefined
+					? decodeEntities(double ?? single ?? bare ?? "")
+					: stringLiteralValue(expression);
+			if (href !== null && isSafeLink(href)) continue;
+			const start = tagStart + (attribute.index ?? 0);
+			found.push({
+				start,
+				end: start + attribute[0].length,
+				text: "",
+				href: href ?? `{${expression}}`,
+			});
+		}
+	}
+
+	// A link inside another unsafe one (`[[x](javascript:)](javascript:)`) goes with it.
+	return found
+		.sort((a, b) => a.start - b.start || b.end - a.end)
+		.filter(
+			(link, index, sorted) =>
+				!sorted
+					.slice(0, index)
+					.some((outer) => outer.start <= link.start && link.end <= outer.end),
+		)
+		.map((link) => ({ ...link, line: lineAt(link.start) }));
+};
+
+/** `markdown` with each unsafe link replaced by its text. */
+const withoutUnsafeLinks = (
+	markdown: string,
+	links: readonly UnsafeLink[],
+): string =>
+	links.reduceRight(
+		(text, link) =>
+			text.slice(0, link.start) + link.text + text.slice(link.end),
+		markdown,
+	);
+
 /** One `<tag>` in prose, and how `toMdxBody` writes it. */
 type TagToken = {
 	name: string;
@@ -454,14 +629,18 @@ const writeProse = (pieces: ProsePiece[], counts: MdxConversion): string => {
  * Makes Markdown safe to compile as MDX, which book apps load: HTML comments
  * become MDX comments, autolinks become links, and braces, tag-like `<`, and
  * lines MDX would read as `import`/`export` are escaped so they render as
- * written. Raw HTML is escaped too, or kept with `html: "jsx"`. Code (fenced
- * or inline) is left exactly as it was. MDX has no indented code blocks, so
- * indented text is treated as prose, as MDX itself would.
+ * written. Raw HTML is escaped too, or kept with `html: "jsx"`. A link the
+ * site would not keep (`findUnsafeLinks`) becomes its text, and is listed in
+ * `unsafeLinks` with its line in `source`. Code (fenced or inline) is left
+ * exactly as it was. MDX has no indented code blocks, so indented text is
+ * treated as prose, as MDX itself would.
  */
 export const toMdxBody = (
-	markdown: string,
+	source: string,
 	options: MdxBodyOptions = {},
-): { body: string; changes: MdxConversion } => {
+): { body: string; changes: MdxConversion; unsafeLinks: UnsafeLink[] } => {
+	const unsafeLinks = findUnsafeLinks(source);
+	const markdown = withoutUnsafeLinks(source, unsafeLinks);
 	const changes: MdxConversion = {
 		htmlComments: 0,
 		braces: 0,
@@ -485,5 +664,5 @@ export const toMdxBody = (
 			pieces ? writeProse(pieces, changes) : segment.text,
 		)
 		.join("\n");
-	return { body, changes };
+	return { body, changes, unsafeLinks };
 };

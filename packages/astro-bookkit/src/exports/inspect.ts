@@ -11,8 +11,8 @@ import {
 	PDFRawStream,
 	PDFString,
 } from "pdf-lib";
-import { decodeEntities } from "./markdown-html";
-import { isSafeLink, SAFE_LINK_SCHEMES } from "./markdown-to-html";
+import { decodeEntities } from "../utils/character-references";
+import { isSafeLink, SAFE_SCHEME_LIST } from "../utils/links";
 
 /**
  * Structural checks for built exports, deeper than "the file starts with the
@@ -145,10 +145,6 @@ const startsWithStoredMimetype = (bytes: Uint8Array): boolean => {
 const MODIFIED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 const HREF = /\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-
-const SAFE_SCHEME_LIST = [...SAFE_LINK_SCHEMES]
-	.join(", ")
-	.replace(/, (?=[^,]*$)/, ", and ");
 
 /** What is wrong with a link whose scheme an export must not link to, or null for a safe link. */
 const unsafeLinkProblem = (href: string): string | null =>

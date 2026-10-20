@@ -1,4 +1,8 @@
-import { FENCE_OPENING, splitFencedCode } from "../utils/markdown";
+import {
+	FENCE_OPENING,
+	normalizeLabel,
+	splitFencedCode,
+} from "../utils/markdown";
 import {
 	BLOCK_TAGS,
 	HTML_TAG,
@@ -95,10 +99,6 @@ const MDX_COMMENT = /\{\/\*[\s\S]*?\*\/\}/g;
 /** MDX source without its author comments (the braced comments scaffolds leave). */
 export const dropMdxComments = (body: string): string =>
 	body.replace(MDX_COMMENT, "");
-
-/** A reference label as CommonMark matches it: case and runs of spaces ignored. */
-export const normalizeLabel = (label: string): string =>
-	label.trim().replace(/\s+/g, " ").toLowerCase();
 
 /** An image in Markdown (`![alt](src "title")`) or HTML (`<img src alt>`). */
 export type InlineImage = { alt: string; src: string };

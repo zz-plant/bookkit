@@ -3,6 +3,7 @@ import { compile } from "@mdx-js/mdx";
 
 import {
 	createHeadingSlugger,
+	findUnsafeLinks,
 	smartDashes,
 	splitFencedCode,
 	stripMarkdown,
@@ -66,6 +67,7 @@ describe("toMdxBody", () => {
 				html: 0,
 				esm: 0,
 			},
+			unsafeLinks: [],
 		});
 	});
 
@@ -122,6 +124,36 @@ describe("toMdxBody with html: jsx", () => {
 		await expect(compile(body)).resolves.toBeDefined();
 		expect(body).toStartWith("\\<details>\\<summary>Timeline\\</summary>");
 		expect(changes.html).toBe(0);
+	});
+});
+
+describe("findUnsafeLinks", () => {
+	it("finds links, references, definitions, and href attributes the site would not keep, outside code", () => {
+		const markdown = [
+			'[a](javascript:alert(1)) [b](javascript\\:x) [c [d] e](vbscript:x "T")',
+			'![image](data:image/png;base64,AAAA) <a href={"data:text/html,x"}>f</a> <a href={url}>g</a>',
+			"`[code](javascript:x)` {/* [comment](javascript:x) */} [h][bad] [ok](https://x.y)",
+			"```",
+			"[fenced](javascript:x)",
+			"```",
+			"[bad]: file:///etc/passwd",
+		].join("\n");
+
+		expect(
+			findUnsafeLinks(markdown).map(({ line, href, text }) => ({
+				line,
+				href,
+				text,
+			})),
+		).toEqual([
+			{ line: 1, href: "javascript:alert(1)", text: "a" },
+			{ line: 1, href: "javascript:x", text: "b" },
+			{ line: 1, href: "vbscript:x", text: "c [d] e" },
+			{ line: 2, href: "data:text/html,x", text: "" },
+			{ line: 2, href: "{url}", text: "" },
+			{ line: 3, href: "file:///etc/passwd", text: "h" },
+			{ line: 7, href: "file:///etc/passwd", text: "" },
+		]);
 	});
 });
 

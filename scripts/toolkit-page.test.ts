@@ -98,9 +98,9 @@ describe("toolkit page", () => {
 		expect(build.exitCode, build.output).toBe(0);
 	});
 
-	it("renders an action without runbook fields as it did before", () => {
+	it("renders an action without runbook fields as it did before, with linkable section headings", () => {
 		expect(toolPageContent(page("plain-action"))).toBe(
-			`<h1 id="plain-action">Plain action</h1><p class="lede">5 minutes · for <a href="/read/mechanisms/${mechanism}">Starter mechanism</a></p><section class="content-block"><h2>When to use this</h2><p>The reply names no date.</p></section><section class="content-block"><h2>Steps</h2><ol class="step-list"><li class="step-card"><span class="step-card__number">1</span><span>Write down the date you were promised.</span></li><li class="step-card"><span class="step-card__number">2</span><span>Ask who owns the decision.</span></li></ol></section><section class="content-block"><h2>Failure looks like</h2><ul><li>The reply names no owner.</li></ul></section><section class="content-block"><h2>Legitimate demand</h2><ul><li>A named owner and a decision date.</li></ul></section><section class="content-block"><p>Ask once, in writing.</p></section>`,
+			`<h1 id="plain-action">Plain action</h1><p class="lede">5 minutes · for <a href="/read/mechanisms/${mechanism}">Starter mechanism</a></p><section class="content-block"><h2 id="when-to-use-this">When to use this</h2><p>The reply names no date.</p></section><section class="content-block"><h2 id="steps">Steps</h2><ol class="step-list"><li class="step-card"><span class="step-card__number">1</span><span>Write down the date you were promised.</span></li><li class="step-card"><span class="step-card__number">2</span><span>Ask who owns the decision.</span></li></ol></section><section class="content-block"><h2 id="failure-looks-like">Failure looks like</h2><ul><li>The reply names no owner.</li></ul></section><section class="content-block"><h2 id="legitimate-demand">Legitimate demand</h2><ul><li>A named owner and a decision date.</li></ul></section><section class="content-block"><p>Ask once, in writing.</p></section>`,
 		);
 	});
 
@@ -148,7 +148,7 @@ describe("toolkit page", () => {
 			],
 		]);
 		expect(html).toContain(
-			"<h2>Drills</h2><ul><li>Roll back a staging deploy.</li></ul>",
+			'<h2 id="drills">Drills</h2><ul><li>Roll back a staging deploy.</li></ul>',
 		);
 	});
 });

@@ -91,10 +91,21 @@ const renderState = createBookLayoutRenderState({
 	isPreview: false,
 });
 
-const entries = versions.map((entry) => ({
-	...entry,
-	href: buildVersionPath("/", entry, { prefixSegment }),
-}));
+// Only a server serves /v/<version>/ (the version middleware); a static build
+// has no page there, so an older version links to its release notes instead.
+const entries = versions.map((entry) =>
+	entry.isLatest || hasServerRuntime
+		? {
+				...entry,
+				href: buildVersionPath("/", entry, { prefixSegment }),
+				linkLabel: `View ${entry.isLatest ? "latest" : "archived"} version`,
+			}
+		: {
+				...entry,
+				href: `/release-notes#release-${entry.version}`,
+				linkLabel: `What changed in v${entry.version}`,
+			},
+);
 ---
 <BookLayout
   title={title}
@@ -153,9 +164,7 @@ const entries = versions.map((entry) => ({
               ))}
             </ul>
           ) : null}
-          <a class="version-card__link" href={entry.href}>
-            View {entry.isLatest ? "latest" : "archived"} version
-          </a>
+          <a class="version-card__link" href={entry.href}>{entry.linkLabel}</a>
         </article>
       ))
     ) : (

@@ -390,7 +390,7 @@ a,
 	text-decoration-color: var(--color-rubric);
 }
 
-.site-nav a[aria-current="page"],
+.site-nav a[aria-current],
 .site-nav__primary--active-route {
 	color: var(--color-ink);
 	text-decoration: underline;
@@ -2663,7 +2663,7 @@ a.card:hover h3 {
 		text-decoration: none;
 	}
 
-	.mobile-cta [aria-current="page"],
+	.mobile-cta [aria-current],
 	.mobile-cta [aria-expanded="true"] {
 		color: var(--color-ink);
 		text-decoration: underline;
@@ -2834,6 +2834,11 @@ pre code {
 	margin: var(--space-3) 0 var(--space-6);
 	font-family: var(--font-apparatus);
 	font-size: var(--text-apparatus);
+}
+
+/* "Read first" sits directly above the mechanisms, as one block. */
+.chapter-prerequisites:has(+ .chapter-mechanisms) {
+	margin-bottom: 0;
 }
 
 .chapter-mechanisms__label {

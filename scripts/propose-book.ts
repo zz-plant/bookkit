@@ -12,11 +12,25 @@ import { booksFromArgv } from "./lib/book-args";
 import { planEdges, withPrerequisites } from "./lib/chapter-prerequisites";
 import { loadBookContent } from "./lib/load-book";
 
+const USAGE =
+	"bun run bookkit propose <book> [--write] [--apply all|mechanisms|tools|edges|config] [--id <proposal>] [--detect-frame]";
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+	console.log(`Draft mechanisms, tools, prerequisite edges, and a config from a book's own text.
+
+Usage: ${USAGE}
+
+With no --apply it only shows the proposals. --apply writes them: all, or one
+kind at a time (repeat --apply for several); --id <proposal> keeps only that
+one. Nothing already registered is overwritten. --write also saves the bundle
+to apps/<book>/proposals/.`);
+	process.exit(0);
+}
+
 const {
 	books: [book],
 } = booksFromArgv(listBookDirs(), {
-	usage:
-		"bun run bookkit propose <book> [--write] [--apply mechanisms|tools|edges|config] [--id <proposal>] [--detect-frame]",
+	usage: USAGE,
 	valueFlags: [
 		"--title",
 		"--causal-stance",
@@ -44,13 +58,21 @@ for (let index = 0; index < process.argv.length; index += 1) {
 const APPLY_KINDS = ["mechanisms", "tools", "edges", "config"] as const;
 const applyKinds = new Set<string>();
 for (let index = 0; index < process.argv.length; index += 1) {
-	if (process.argv[index] === "--apply" && process.argv[index + 1]) {
+	if (process.argv[index] === "--apply") {
 		const kind = process.argv[index + 1];
-		if (APPLY_KINDS.includes(kind as (typeof APPLY_KINDS)[number])) {
+		if (!kind || kind.startsWith("--")) {
+			console.error(
+				`--apply needs what to write: all, or one of ${APPLY_KINDS.join(", ")}.\nUsage: ${USAGE}`,
+			);
+			process.exit(1);
+		}
+		if (kind === "all") {
+			for (const each of APPLY_KINDS) applyKinds.add(each);
+		} else if (APPLY_KINDS.includes(kind as (typeof APPLY_KINDS)[number])) {
 			applyKinds.add(kind);
 		} else {
 			console.error(
-				`Unknown --apply kind "${kind}". Valid kinds: ${APPLY_KINDS.join(", ")}`,
+				`Unknown --apply kind "${kind}". Valid kinds: all, ${APPLY_KINDS.join(", ")}`,
 			);
 			process.exit(1);
 		}
@@ -86,6 +108,14 @@ const acceptedEdges = bundle.edges.filter((e) => acceptsId(e.id));
 const acceptedTools = bundle.tools.filter((t) => acceptsId(t.id));
 
 printBundle(bundle);
+if (
+	applyKinds.size === 0 &&
+	acceptedMechanisms.length + acceptedTools.length + acceptedEdges.length > 0
+) {
+	console.log(
+		`\nNext: bun run bookkit propose ${book} --apply all writes them (or --apply mechanisms, tools, edges, or config; --id <proposal> for one). Nothing already registered is overwritten.`,
+	);
+}
 
 const proposalsDir = join(workspaceRoot, "apps", book, "proposals");
 if (writeArtifacts) {

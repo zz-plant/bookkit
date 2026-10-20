@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { authorOnly } from "../utils/author-token";
+import { bookDataPath } from "../utils/book-data";
 import {
 	invalidBodyResponse,
 	jsonResponse,
@@ -23,15 +24,11 @@ export type FeedbackEvent = {
 };
 
 export type FeedbackEndpointOptions = {
+	/** Default: `feedback-events.json` in the book's data folder (see `utils/book-data.ts`). */
 	storagePath?: string;
 	maxEvents?: number;
 };
 
-const defaultStoragePath = path.join(
-	process.cwd(),
-	".bookkit",
-	"feedback-events.json",
-);
 const MAX_COMMENT_LENGTH = 240;
 const MAX_TITLE_LENGTH = 160;
 const MAX_SLUG_LENGTH = 200;
@@ -154,7 +151,9 @@ const persistEvents = async (
 export const createFeedbackEndpoint = (
 	options: FeedbackEndpointOptions = {},
 ) => {
-	const storagePath = options.storagePath ?? defaultStoragePath;
+	// Resolved per request, so the server's BOOKKIT_DATA_DIR applies.
+	const storagePath = () =>
+		options.storagePath ?? bookDataPath("feedback-events.json");
 	const maxEvents = options.maxEvents ?? 2000;
 
 	return {
@@ -174,7 +173,7 @@ export const createFeedbackEndpoint = (
 				const since = sinceParam ?? 0;
 				const until = untilParam ?? Date.now();
 
-				const storedEvents = await loadEvents(storagePath);
+				const storedEvents = await loadEvents(storagePath());
 				const filtered = storedEvents.filter((event) => {
 					if (event.timestamp < since || event.timestamp > until) return false;
 					if (slugParam && event.slug !== slugParam) return false;
@@ -204,7 +203,7 @@ export const createFeedbackEndpoint = (
 				}
 
 				try {
-					await persistEvents(storagePath, events, maxEvents);
+					await persistEvents(storagePath(), events, maxEvents);
 				} catch {
 					return jsonResponse(
 						{ ok: false, error: "Unable to store feedback." },

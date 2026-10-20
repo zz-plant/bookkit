@@ -254,7 +254,10 @@ const qaEnabled = hasServerRuntime && aiQaEnabled;
           </p>
         )}
       </footer>
-      <MobileCta isReadRoute={renderState.routes.isReadRoute} />
+      <MobileCta
+        isReadRoute={renderState.routes.isReadRoute}
+        isReadDetailRoute={renderState.routes.isReadDetailRoute}
+      />
       <SearchPanel />
       {qaEnabled && <QaPanel aiQaSamples={aiQaSamples} />}
       <KeyboardHelp />

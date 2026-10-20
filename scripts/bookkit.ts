@@ -38,6 +38,7 @@ import {
 	withCorpusScope,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
+import { planChapterRename, planInsertAfter } from "./lib/chapter-moves";
 import {
 	ask,
 	choose,
@@ -75,6 +76,13 @@ import {
 } from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
 import { type FileChange, planMerge, planSync } from "./lib/merge-mechanisms";
+import {
+	isVersion,
+	nextMinorVersion,
+	releaseSource,
+	releaseVersions,
+} from "./lib/release-notes";
+import { titleFromSlug } from "./lib/scaffold-book";
 
 const args = process.argv.slice(2);
 // No command: the books, and the commands to write, check, preview, build, and deploy one.
@@ -308,6 +316,14 @@ switch (command) {
 			...(quick ? ["--no-semantic"] : []),
 			...(args.includes("--download-model") ? ["--download-model"] : []),
 		]);
+		// What a reader would trip on that is not an error: ideas named in
+		// prose but not bound, mechanisms no chapter uses, terms that recur.
+		if (book) {
+			console.log(
+				"\n🔎 Suggestions (advisory; nothing here blocks publishing)",
+			);
+			runScript("check-suggestions.ts", [book]);
+		}
 		console.log(
 			`\n${structure === 0 ? "✓" : "✗"} structure  ${corpus === 0 ? "✓" : "✗"} mechanisms across books`,
 		);
@@ -337,6 +353,45 @@ switch (command) {
 
 	case "merge": {
 		process.exit(merge(args.slice(1)));
+		break;
+	}
+
+	case "rename": {
+		process.exit(renameChapter(args.slice(1)));
+		break;
+	}
+
+	case "export": {
+		const target = targetBooks(
+			args,
+			"bun run bookkit export [book] [--out <dir>]",
+		);
+		if (target.books.length !== 1) {
+			console.error(
+				`Name the book to export (bun run bookkit export <book>), or set one with bun run bookkit use <book>. Books: ${books.join(", ")}`,
+			);
+			process.exit(1);
+		}
+		const [book] = target.books;
+		if (target.note) console.log(target.note);
+		const out = flagValue(args, "--out");
+		console.log(`\n📚 GitBook export of ${book}\n`);
+		const status = runScript("export-gitbook.ts", [
+			"--book",
+			book,
+			...(out ? ["--out", resolveFromCaller(out)] : []),
+		]);
+		// The PDF and EPUB come from the build.
+		const exportsDir = join("apps", book, "dist", "exports");
+		const built = ["book.pdf", "book.epub"].filter((file) =>
+			existsSync(join(repoRoot(), exportsDir, file)),
+		);
+		console.log(
+			built.length > 0
+				? `\nPDF and EPUB from the last build: ${built.map((file) => join(exportsDir, file)).join(", ")} (bun run bookkit build ${book} remakes them).`
+				: `\nThe PDF and EPUB come from the build: bun run bookkit build ${book} writes them to ${exportsDir}/.`,
+		);
+		process.exit(status);
 		break;
 	}
 
@@ -753,12 +808,13 @@ function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
 function createNew(kind: string | undefined, rest: string[]) {
 	/** Flags of `bookkit new` that take a value, per kind; the rest are switches. */
 	const NEW_FLAGS: Record<string, { valued: string[]; switches: string[] }> = {
-		chapter: { valued: [], switches: [] },
+		chapter: { valued: ["--after"], switches: [] },
+		release: { valued: ["--version"], switches: [] },
 		mechanism: { valued: ["--definition"], switches: ["--force"] },
 		tool: { valued: [], switches: [] },
 		example: { valued: [], switches: [] },
 		book: {
-			valued: ["--title", "--from"],
+			valued: ["--title", "--from", "--frame"],
 			switches: ["--skip-starter-content", "--no-install"],
 		},
 	};
@@ -797,6 +853,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 			},
 			{ value: "tool", label: "a ≤10-minute action for a mechanism" },
 			{ value: "example", label: "a replaceable illustration of a mechanism" },
+			{ value: "release", label: "a dated release note for the book" },
 			{ value: "book", label: "a new book app" },
 		]);
 
@@ -843,13 +900,24 @@ function createNew(kind: string | undefined, rest: string[]) {
 
 	switch (resolvedKind) {
 		case "chapter": {
-			const usage = 'bun run bookkit new chapter [book] "<title>"';
+			const usage =
+				'bun run bookkit new chapter [book] "<title>" [--after <chapter>]';
 			const [book, own] = takeBook(positional, 1, usage);
 			const title = required(own[0], "Chapter title:", usage);
-			const { fileName, slug } = nextChapterFileName(
-				listChapterFiles(book),
-				title,
-			);
+			const after = flag("--after");
+			// --after <chapter>: in the middle, renumbering the files after it.
+			const placed = after
+				? planInsertAfter(book, after, slugify(title))
+				: {
+						...nextChapterFileName(listChapterFiles(book), title),
+						changes: [],
+					};
+			if ("error" in placed) {
+				console.error(placed.error);
+				process.exit(1);
+			}
+			const { fileName } = placed;
+			const slug = slugify(title);
 			const content = loadBookContent(book);
 			if (content.chapters.some((chapter) => chapter.slug === slug)) {
 				console.error(
@@ -867,6 +935,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 				"chapters",
 				fileName,
 			);
+			applyChanges(placed.changes);
 			writeFileSync(
 				path,
 				chapterSource({
@@ -875,6 +944,13 @@ function createNew(kind: string | undefined, rest: string[]) {
 					mechanismSlugs: content.mechanisms.map((mechanism) => mechanism.slug),
 				}),
 			);
+			for (const change of placed.changes) {
+				if (change.kind === "move") {
+					console.log(
+						`Renumbered ${relative(repoRoot(), change.path)} → ${relative(repoRoot(), change.to)}`,
+					);
+				}
+			}
 			console.log(`Created ${relative(repoRoot(), path)}`);
 			console.log(
 				`Next: write it, list the mechanisms it uses in \`mechanisms:\`, and preview with bun run bookkit dev ${book}`,
@@ -992,30 +1068,89 @@ function createNew(kind: string | undefined, rest: string[]) {
 			break;
 		}
 
+		case "release": {
+			const usage =
+				'bun run bookkit new release [book] "<title>" [--version <x.y.z>]';
+			const [book, own] = takeBook(positional, 1, usage);
+			const title = required(own[0], "Release title:", usage);
+			const dir = join(
+				repoRoot(),
+				"apps",
+				book,
+				"src",
+				"content",
+				"book",
+				"releases",
+			);
+			const version =
+				flag("--version") ?? nextMinorVersion(releaseVersions(dir));
+			if (!isVersion(version)) {
+				console.error(
+					`--version needs x.y.z, such as 1.2.0, not "${version}".`,
+				);
+				process.exit(1);
+			}
+			const date = new Date().toISOString().slice(0, 10);
+			const path = join(dir, `${date}-${slugify(title)}.mdx`);
+			if (existsSync(path)) {
+				console.error(
+					`${relative(repoRoot(), path)} already exists. Pick another title.`,
+				);
+				process.exit(1);
+			}
+			mkdirSync(dir, { recursive: true });
+			writeFileSync(path, releaseSource({ title, version, date }));
+			console.log(
+				`Created ${relative(repoRoot(), path)} (version ${version}, ${date}).\nNext: write its summary and highlights; bun run bookkit check ${book} checks it, and the release notes page lists it.`,
+			);
+			process.exit(0);
+			break;
+		}
+
 		case "book": {
 			const slug = required(
 				positional[0],
 				"Book slug (lowercase-with-hyphens):",
-				'bun run bookkit new book <slug> [--title "<title>"] [scaffold options]',
+				'bun run bookkit new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder>]',
 			);
 			// --from <folder>: import a folder of notes once the book exists.
 			const fromIndex = rest.indexOf("--from");
-			const from = fromIndex >= 0 ? rest[fromIndex + 1] : undefined;
-			if (fromIndex >= 0 && (!from || from.startsWith("--"))) {
+			if (fromIndex >= 0 && !flag("--from")) {
 				console.error(
 					"--from needs a folder of Markdown notes: bun run bookkit new book <slug> --from <folder>",
 				);
 				process.exit(1);
 			}
+			// At a terminal, what was left out is asked for: a title, and notes.
+			const title =
+				flag("--title") ??
+				(isInteractive()
+					? ask(`Title (Enter for "${titleFromSlug(slugify(slug))}"):`)
+					: undefined);
+			const from =
+				flag("--from") ??
+				(isInteractive()
+					? ask("A folder of notes to import (Enter for none):")
+					: undefined);
 			const scaffoldArgs = rest.filter(
 				(arg, index) =>
-					arg !== slug && index !== fromIndex && index !== fromIndex + 1,
+					arg !== slug &&
+					index !== fromIndex &&
+					index !== fromIndex + 1 &&
+					arg !== "--title" &&
+					rest[index - 1] !== "--title",
 			);
+			// From notes, the starter's placeholder mechanism, tool, example, and
+			// overview would sit beside the author's chapters and go live with them.
 			const created = runScript("scaffold-book.ts", [
 				"--book",
 				slug,
+				...(title ? ["--title", title] : []),
 				...scaffoldArgs,
 				...(from ? ["--no-next"] : []),
+				...(from && !scaffoldArgs.includes("--skip-starter-content")
+					? ["--skip-starter-content"]
+					: []),
 			]);
 			// The new book is the one being worked on now.
 			if (created === 0) writeFocusBook(slug);
@@ -1035,16 +1170,17 @@ function createNew(kind: string | undefined, rest: string[]) {
 		default: {
 			if (resolvedKind) {
 				console.error(
-					`Cannot start "${resolvedKind}".${didYouMean(resolvedKind, ["chapter", "mechanism", "tool", "example", "book"])}`,
+					`Cannot start "${resolvedKind}".${didYouMean(resolvedKind, ["chapter", "mechanism", "tool", "example", "release", "book"])}`,
 				);
 			}
-			console.error(`Usage: bun run bookkit new <chapter|mechanism|tool|example|book> ...
+			console.error(`Usage: bun run bookkit new <chapter|mechanism|tool|example|release|book> ...
 
-  new chapter [book] "<title>"                          next numbered chapter, draft
+  new chapter [book] "<title>" [--after <chapter>]     next numbered chapter, draft; --after puts it there
   new mechanism [book] "<title>" [--definition "…"]     checks every book for one that already fits
   new tool [book] <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
   new example [book] <mechanism-slug> <domain> "<title>"
-  new book <slug> [--title "<title>"] [--from <folder of notes>]
+  new release [book] "<title>" [--version <x.y.z>]
+  new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder of notes>]
 
 [book] defaults to the current one (bun run bookkit use <book>). At a terminal, anything left out is asked for.`);
 			process.exit(1);
@@ -1721,6 +1857,61 @@ function sync(rest: string[]): number {
 	return 0;
 }
 
+/**
+ * bookkit rename chapter [book] <slug> <new-slug> [--title "…"] [--dry-run]:
+ * the chapter's slug, its file name, other chapters' prerequisites, and links
+ * to it, changed together (lib/chapter-moves.ts).
+ */
+function renameChapter(rest: string[]): number {
+	const usage =
+		'bun run bookkit rename chapter [book] <slug> <new-slug> [--title "<title>"] [--dry-run]';
+	if (rest[0] !== "chapter") {
+		console.error(
+			`Usage: ${usage}\nOnly chapters are renamed this way; a mechanism's slug changes with bun run bookkit merge.`,
+		);
+		return 1;
+	}
+	const own = positionals(rest.slice(1), ["--title"]);
+	const [book, slugs] =
+		own[0] && books.includes(own[0]) && own.length > 2
+			? [own[0], own.slice(1)]
+			: [
+					focusBook ??
+						(books.length === 1 ? books[0] : requireBook(undefined, usage)),
+					own,
+				];
+	const [from, to] = slugs;
+	if (!from || !to) {
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	const plan = planChapterRename(book, from, to, flagValue(rest, "--title"));
+	if ("error" in plan) {
+		console.error(plan.error);
+		return 1;
+	}
+	const dryRun = rest.includes("--dry-run");
+	console.log(
+		`${dryRun ? "Would rename" : "Renamed"} chapter ${from} to ${plan.to} in ${book}:`,
+	);
+	printChanges(plan.changes);
+	if (plan.leftovers.length > 0) {
+		console.log(`\nStill naming ${from} (read these over):`);
+		for (const left of plan.leftovers.slice(0, 12)) {
+			console.log(`  ${left.path}:${left.line}  ${left.text}`);
+		}
+	}
+	if (dryRun) {
+		console.log("\nNothing written (--dry-run).");
+		return 0;
+	}
+	applyChanges(plan.changes);
+	console.log(
+		`\nLinks to /read/chapters/${from} from outside the book no longer resolve; for a published book, say so in its release notes.\nNext: bun run bookkit check ${book}`,
+	);
+	return 0;
+}
+
 function printHelp() {
 	console.log(`Bookkit — write, check, preview, and publish books
 
@@ -1733,13 +1924,17 @@ Start
   new                                       asks what to start, then anything it needs
 
 Write
-  new chapter [book] "<title>"              start the next chapter as a draft
+  new chapter [book] "<title>" [--after <chapter>]
+                                            start the next chapter as a draft; --after puts it there
   new mechanism [book] "<title>" [--definition "…"]
                                             name a mechanism, after checking every book for one that fits
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
-  new book <slug> [--from <folder>]         a new book app; --from imports a folder of notes into it
+  new book <slug> [--from <folder>] [--frame <slug>]
+                                            a new book app; --from imports a folder of notes into it
   import [book] --dir <path> [--dry-run]    turn a folder of Markdown notes into chapters; --dry-run shows the plan
+  new release [book] "<title>"              a dated release note, the next version unless --version
+  rename chapter [book] <slug> <new-slug>   a chapter's slug, file, prerequisites, and links, together
   propose [book] [--apply all|…]            draft mechanisms, tools, edges, and config from a book's text
 
 Check
@@ -1779,6 +1974,7 @@ Preview and publish
   dev [book] [--port <n>]                   local preview with live reload; runs until stopped
   dev stop|status|logs [book]               stop or find a dev server bookkit dev (or astro dev) left running
   build [book] [--all]                      build one book (no book: the current one, or all)
+  export [book] [--out <dir>]               a GitBook folder of the book; says where the PDF and EPUB are
   deploy [book...] [--all] [--dry-run] [--no-build]
                                             verify, build, and check each book, then publish all or none;
                                             no book: the current one, or all; --all for every book

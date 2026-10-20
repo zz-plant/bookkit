@@ -5,7 +5,58 @@ import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
+import { parseFrontmatter } from "./lib/content-frontmatter";
+import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
+
+/**
+ * The placeholder prose a new book's book.config.ts starts with, read from
+ * the starter template, so an edited template needs no change here. Not
+ * site.url: https://<slug>.book may be the domain the author means to buy,
+ * and deploy already says when the Worker does not serve it.
+ */
+function starterPlaceholders(root: string) {
+	const template = join(starterTemplateRootIn(root), "src", "book.config.ts");
+	if (!existsSync(template)) return [];
+	const source = readFileSync(template, "utf8");
+	const fields = [
+		{
+			field: "objectives.readerStart",
+			key: "readerStart",
+			shown: "shows on the overview page",
+			meaning: "who the reader is before the first page",
+		},
+		{
+			field: "objectives.readerEnd",
+			key: "readerEnd",
+			shown: "shows on the overview page",
+			meaning: "what the reader can do after the last page",
+		},
+		{
+			field: "objectives.transformation",
+			key: "transformation",
+			shown: "shows on the overview page",
+			meaning: "the change between the two, in one sentence",
+		},
+		{
+			field: "frame.intent",
+			key: "intent",
+			meaning: "what the book moves the reader through",
+		},
+		{
+			field: "causalStance",
+			key: "causalStance",
+			shown: "shows on the overview page",
+			meaning: "the book's core claim about what causes the problem it covers",
+		},
+	];
+	return fields.flatMap((field) => {
+		const value = source.match(
+			new RegExp(`\\b${field.key}:\\s*("(?:[^"\\\\]|\\\\.)*")`),
+		)?.[1];
+		return value ? [{ ...field, text: value }] : [];
+	});
+}
 
 const args = parseScriptArgs(
 	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
@@ -75,6 +126,42 @@ for (const { file, finding } of compiled) {
 	if (finding) findings.push({ ...finding, file });
 }
 
+// Release notes are not a content section, but the release page drops a
+// note it cannot date: say so instead of losing it silently.
+const releasesDir = join(contentDir, "releases");
+if (existsSync(join(workspaceRoot, releasesDir))) {
+	for (const name of listFilesRecursive(join(workspaceRoot, releasesDir))) {
+		if (!/\.mdx?$/.test(name)) continue;
+		const file = join(releasesDir, name);
+		const { data } = parseFrontmatter(
+			readFileSync(join(workspaceRoot, file), "utf8"),
+		);
+		const version = typeof data.version === "string" ? data.version : "";
+		const date = typeof data.date === "string" ? data.date : "";
+		const missing = [!version && "version", !date && "date"].filter(Boolean);
+		if (missing.length > 0) {
+			findings.push({
+				level: "warning",
+				code: "RELEASE_NOTE_INCOMPLETE",
+				file,
+				message: `Release note has no ${missing.join(" or ")}, so the release notes page leaves it out`,
+				fix: 'Add version: "x.y.z" and date: "YYYY-MM-DD", or start one with bun run bookkit new release.',
+			});
+		} else if (
+			!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+			Number.isNaN(Date.parse(date))
+		) {
+			findings.push({
+				level: "warning",
+				code: "RELEASE_NOTE_DATE",
+				file,
+				message: `Release note date "${date}" is not a YYYY-MM-DD date, so it sorts out of place`,
+				fix: 'Write the date as YYYY-MM-DD, e.g. date: "2026-10-20".',
+			});
+		}
+	}
+}
+
 const configFile = join("apps", book, "src", "book.config.ts");
 if (content.releaseMode && existsSync(join(workspaceRoot, configFile))) {
 	const siteConfig = extractSiteConfig(
@@ -94,6 +181,22 @@ if (content.releaseMode && existsSync(join(workspaceRoot, configFile))) {
 			"RELEASE_SITE_URL",
 			'Set site.url to the public address readers will use, e.g. url: "https://example.com".',
 		);
+	}
+}
+
+// Starter text left in book.config.ts shows on the book's own pages: a
+// warning while it is a draft, an error once it is published.
+if (existsSync(join(workspaceRoot, configFile))) {
+	const source = readFileSync(join(workspaceRoot, configFile), "utf8");
+	const level = content.releaseMode ? "error" : "warning";
+	for (const placeholder of starterPlaceholders(workspaceRoot)) {
+		if (!source.includes(placeholder.text)) continue;
+		findings.push({
+			level,
+			code: "CONFIG_PLACEHOLDER",
+			message: `${configFile} still has the starter text for ${placeholder.field}${placeholder.shown ? `, which ${placeholder.shown}` : ""}`,
+			fix: `Replace it with ${placeholder.meaning}.`,
+		});
 	}
 }
 

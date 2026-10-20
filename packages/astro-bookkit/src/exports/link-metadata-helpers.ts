@@ -1,4 +1,4 @@
-import { buildExportParts } from "./content-parsing";
+import { buildExportParts, entryMarkdown } from "./content-parsing";
 import { createEpubExport } from "./epub-generator";
 import { exportIdentifier, exportPublicationName } from "./metadata";
 import { createPdfExport } from "./pdf-generator";
@@ -27,7 +27,7 @@ export const formatExportUpdatedDate = (updatedAt: string): string =>
 const textLength = (entries: ExportEntry[]): number =>
 	entries.reduce(
 		(total, entry) =>
-			total + entry.body.length + textLength(entry.children ?? []),
+			total + entryMarkdown(entry).length + textLength(entry.children ?? []),
 		0,
 	);
 

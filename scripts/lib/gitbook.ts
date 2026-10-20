@@ -1,4 +1,5 @@
 import { posix } from "node:path";
+import { entryMarkdown } from "../../packages/astro-bookkit/src/exports/content-parsing";
 import {
 	dropMdxComments,
 	replaceImages,
@@ -120,7 +121,7 @@ export const mdxToGitbookMarkdown = (
 				),
 			)
 			.join("\n");
-	return splitFencedCode(entry.body)
+	return splitFencedCode(entryMarkdown(entry))
 		.map((segment) => (segment.code ? segment.text : prose(segment.text)))
 		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")

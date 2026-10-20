@@ -13,7 +13,9 @@ import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
 	bookPageTitle,
 	buildLocalizedReadRoutePath,
+	chapterLinksForMechanism,
 	createBreadcrumbListStructuredDataFromTrail,
+	exampleLinksForMechanisms,
 	firstMetaDescription,
 	pageFactsForModule,
 	readItemPath,
@@ -94,6 +96,30 @@ const escalationFacts = factsOf(
 	],
 );
 const drills = frontmatter.drills ?? [];
+// The examples of this action's mechanism, and the chapters that use it.
+const { entries: exampleEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.examples, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const { entries: chapterEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const mechanismExamples = exampleLinksForMechanisms(
+	[frontmatter.mechanism],
+	exampleEntries,
+).map((link) => ({
+	...link,
+	meta: link.meta ? `Example · ${link.meta}` : "Example",
+}));
+const mechanismChapters = chapterLinksForMechanism(
+	frontmatter.mechanism,
+	chapterEntries,
+).map((link) => ({ ...link, meta: "Chapter" }));
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(
 	requestPath,
@@ -138,13 +164,13 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   )}
   {frontmatter.trigger && (
     <section class="content-block">
-      <h2>When to use this</h2>
+      <h2 id="when-to-use-this">When to use this</h2>
       <p>{frontmatter.trigger}</p>
     </section>
   )}
   {steps.length > 0 && (
     <section class="content-block">
-      <h2>Steps</h2>
+      <h2 id="steps">Steps</h2>
       <ol class="step-list">
         {steps.map((step, index) => (
           <li class="step-card">
@@ -157,7 +183,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   )}
   {situations.length > 0 && (
     <section class="content-block">
-      <h2>Steps by situation</h2>
+      <h2 id="steps-by-situation">Steps by situation</h2>
       <dl class="situation-list">
         {situations.map((step) => (
           <div class="situation-list__item">
@@ -170,7 +196,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   )}
   {escalationFacts.length > 0 && (
     <section class="content-block">
-      <h2>Escalation</h2>
+      <h2 id="escalation">Escalation</h2>
       <dl class="fact-list">
         {escalationFacts.map((fact) => (
           <div class="fact-list__row">
@@ -183,7 +209,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   )}
   {drills.length > 0 && (
     <section class="content-block">
-      <h2>Drills</h2>
+      <h2 id="drills">Drills</h2>
       <ul>
         {drills.map((drill) => (
           <li>{drill}</li>
@@ -193,7 +219,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   )}
   {failureLooksLike.length > 0 && (
     <section class="content-block">
-      <h2>Failure looks like</h2>
+      <h2 id="failure-looks-like">Failure looks like</h2>
       <ul>
         {failureLooksLike.map((item) => (
           <li>{item}</li>
@@ -203,7 +229,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   )}
   {legitimateDemand.length > 0 && (
     <section class="content-block">
-      <h2>Legitimate demand</h2>
+      <h2 id="legitimate-demand">Legitimate demand</h2>
       <ul>
         {legitimateDemand.map((item) => (
           <li>{item}</li>
@@ -223,7 +249,10 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
         label: "The mechanism behind this action",
         meta: mechanismTitle,
       },
-      { href: readRoutes.examples, label: "Examples" },
+      ...(mechanismExamples.length > 0
+        ? mechanismExamples
+        : [{ href: readRoutes.examples, label: "Examples" }]),
+      ...mechanismChapters,
       { href: readRoutes.toolkit, label: "Other actions" },
     ]}
   />

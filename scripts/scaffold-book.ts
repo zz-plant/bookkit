@@ -10,11 +10,14 @@ import {
 const USAGE = `Create a book app in apps/<slug> from the engine's starter template.
 
 Usage:
-  bun run new:book -- --book <slug> [--title "<title>"] [--skip-starter-content] [--no-install]
+  bun run new:book -- --book <slug> [--title "<title>"] [--frame <slug>] [--skip-starter-content] [--no-install]
 
 Options:
   --book <slug>             The book's slug: lowercase words joined by hyphens
   --title "<title>"         The book's title (default: from the slug)
+  --frame <slug>            The book's frame: intervention (default), explainer,
+                            field-guide, or runbook (bookkit try names the one
+                            a folder of notes reads as)
   --skip-starter-content    Leave the content folders empty
   --no-install              Skip the bun install that links the app and adds it to bun.lock
   --no-next                 Leave out the next steps (bookkit new book --from imports right after)
@@ -28,6 +31,7 @@ const args = parseScriptArgs(
 	{
 		book: "string",
 		title: "string",
+		frame: "string",
 		"skip-starter-content": "boolean",
 		"no-install": "boolean",
 		"no-next": "boolean",
@@ -54,6 +58,7 @@ try {
 		slug,
 		title: args.title ?? titleFromSlug(slug),
 		skipStarterContent: args["skip-starter-content"],
+		frame: args.frame,
 	}));
 	const warning = formatWithBiome(
 		root,

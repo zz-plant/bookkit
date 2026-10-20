@@ -3,6 +3,25 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-20 — Chapters, releases, and exports by command
+
+- **`bookkit new chapter "<title>" --after <chapter>`** puts the chapter right after the one named: in the numbering gap when there is one, else renumbering the files after it (and the import manifest that names them). Before, a new chapter could only go at the end.
+- **`bookkit rename chapter [book] <slug> <new-slug> [--title "…"] [--dry-run]`** changes a chapter's slug, its file name when the name carries the slug, other chapters' `prerequisites:`, and `/read/chapters/` links in the book's files, and lists lines that still name the old slug.
+- **A prerequisite that comes after its chapter in reading order** (file order, or `order:`) is a warning (`PREREQUISITE_ORDER`), so a reorder that breaks the reading graph shows up.
+- **`bookkit new release [book] "<title>" [--version x.y.z]`** starts `releases/<date>-<slug>.mdx` at the next minor version. `validate`/`check` warn about a release note the release page leaves out (no version or date) or sorts wrongly (a date that is not YYYY-MM-DD).
+- **`bookkit export [book]`** writes the GitBook export of the current book and says where the build's PDF and EPUB are.
+- **`bookkit check <book>`** ends with the book's suggestions (mechanisms named in prose but not bound, mechanisms no chapter lists, recurring terms); they never fail the check. MDX comments no longer count as prose, so the one `new chapter` writes no longer makes every mechanism look named in the chapter.
+- **Migration:** none.
+
+## 2026-10-20 — From a folder of notes to a publishable book
+
+- **`bookkit new book <slug> --from <notes>`** no longer adds the starter's placeholder mechanism, tool, example, glossary term, and overview beside the imported chapters (they went live with "Write the recognition step of the book here", and made a published book fail on 10 draft files). Without `--from`, a new book still gets them. At a terminal, `new book` also asks for a title and a notes folder.
+- **`--frame <slug>`** on `bookkit new book` and `new:book` starts the book on that frame (intervention, explainer, field-guide, or runbook), with the starter overview's headings to match. `bookkit try` prints the frame it detected in the `new book` command it suggests, so a runbook folder no longer becomes an intervention book.
+- **Starter text left in `book.config.ts` is named**: the three objectives, `frame.intent`, and `causalStance`, read from the starter template. A warning in a draft, an error once published, each with what to write instead. (`site.url`'s `https://<slug>.book` is left alone: it may be the domain the author means to buy, and deploy already says when the Worker does not serve it.)
+- **`bookkit deploy --dry-run`** rehearses uncommitted work instead of refusing it (it says a real deploy would refuse it, and stamps nothing, so its builds cannot be published with `--no-build`). A real deploy's refusal leads with what to do and lists at most 10 changes. Deploy runs `verify --all --skip build:all` and builds only the books it publishes, instead of building every book and then those again. After a passing dry run it names the publish command (with `--allow-dirty` when given) and the one-time `bunx wrangler login`.
+- **`verify --skip <gate>`** leaves out one gate by id (`--list --json` shows them).
+- **Migration:** none. A dry run of uncommitted work used to exit 1; it now exits 0 when the rehearsal passes, so a script that relied on that refusal should run a real deploy, or check `git status` itself.
+
 ## 2026-10-20 — Commands that read the way they are typed
 
 - **`bookkit new`** no longer reads an option's value as a title or a book: `new mechanism "<title>" --definition "<sentence>"` after `bookkit use` was refused with `Book "<title>" not found`. An option `new` does not have is named instead of being read as an argument, and `new book --title "…" <slug>` works in any order. `new book` makes the new book the current one.

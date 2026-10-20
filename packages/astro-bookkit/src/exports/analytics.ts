@@ -1,6 +1,4 @@
-import { appendFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { appendBookRecord } from "../utils/book-data";
 
 export type ExportAnalyticsEvent = {
 	type: "download";
@@ -15,18 +13,11 @@ export type ExportAnalyticsEvent = {
 	metadata?: Record<string, string>;
 };
 
-const logPath = join(tmpdir(), "bookkit-export-analytics.jsonl");
-
 export const recordExportEvent = async (
 	payload: ExportAnalyticsEvent,
 ): Promise<void> => {
-	const entry = {
+	await appendBookRecord("export-analytics.jsonl", {
 		...payload,
 		at: payload.at ?? new Date().toISOString(),
-	};
-	try {
-		await appendFile(logPath, `${JSON.stringify(entry)}\n`, "utf8");
-	} catch (error) {
-		console.warn("Export analytics log failed", error);
-	}
+	});
 };

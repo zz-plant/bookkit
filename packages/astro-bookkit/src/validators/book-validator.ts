@@ -174,6 +174,52 @@ type ParsedSource = {
 };
 
 /**
+ * Chapters that list a prerequisite readers reach only later. Readers meet
+ * chapters in reading order (an explicit `order`, else file order, as the
+ * read pages and exports list them), so the prerequisite graph and that
+ * order must agree.
+ */
+const prerequisiteOrderFindings = (
+	chapters: readonly ParsedSource[],
+): BookFinding[] => {
+	const orderOf = (data: Record<string, unknown> | null) =>
+		typeof data?.order === "number" ? data.order : Number.POSITIVE_INFINITY;
+	const reading = chapters
+		.filter((chapter) => chapter.data)
+		.map((chapter, index) => ({ chapter, index }))
+		.sort(
+			(a, b) =>
+				orderOf(a.chapter.data) - orderOf(b.chapter.data) ||
+				(a.chapter.file < b.chapter.file ? -1 : 1),
+		)
+		.map(({ chapter }) => chapter);
+	const position = new Map(
+		reading.map((chapter, index) => [
+			routeSlug(chapter.file, chapter.data ?? {}),
+			index,
+		]),
+	);
+	return reading.flatMap((chapter, index) => {
+		const slug = routeSlug(chapter.file, chapter.data ?? {});
+		const prerequisites = Array.isArray(chapter.data?.prerequisites)
+			? chapter.data.prerequisites.filter(
+					(item): item is string => typeof item === "string",
+				)
+			: [];
+		return prerequisites
+			.filter((prerequisite) => (position.get(prerequisite) ?? -1) > index)
+			.map((prerequisite) => ({
+				level: "warning" as const,
+				code: "PREREQUISITE_ORDER",
+				field: "prerequisites",
+				file: chapter.file,
+				message: `Chapter "${slug}" lists prerequisite "${prerequisite}", which readers reach only after it`,
+				fix: `Move "${prerequisite}" before "${slug}" (by file name, or with \`order:\`), or remove the prerequisite.`,
+			}));
+	});
+};
+
+/**
  * Two records of a section served at the same slug (in the same locale): the
  * site builds one page for it and drops the other, while the PDF and EPUB
  * include every chapter.
@@ -326,6 +372,7 @@ export const checkBookContent = (
 		}
 		findings.push(...duplicateSlugFindings(root, section, parsed[section]));
 	}
+	findings.push(...prerequisiteOrderFindings(parsed.chapter));
 
 	if (configSource) {
 		findings.push(

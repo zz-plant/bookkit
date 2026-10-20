@@ -1,7 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { buildExportParts } from "../../packages/astro-bookkit/src/exports/content-parsing";
+import {
+	buildExportParts,
+	entryMarkdown,
+} from "../../packages/astro-bookkit/src/exports/content-parsing";
 
 /**
  * Reads a built book's toolkit pages against its PDF/EPUB export, so tests
@@ -29,7 +32,9 @@ export const exportedToolSections = (appDir: string): Map<string, string[]> => {
 	return new Map(
 		tools.map((tool) => [
 			tool.slug,
-			[...tool.body.matchAll(/^## (.+)$/gm)].map((match) => match[1].trim()),
+			[...entryMarkdown(tool).matchAll(/^## (.+)$/gm)].map((match) =>
+				match[1].trim(),
+			),
 		]),
 	);
 };

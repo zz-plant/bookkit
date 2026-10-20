@@ -14,14 +14,17 @@ import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+	actionLinksForMechanisms,
 	bookPageTitle,
 	buildLocalizedReadRoutePath,
+	chapterReadingOrder,
 	createBreadcrumbListStructuredDataFromTrail,
 	defaultChapterPageCopy,
 	firstMetaDescription,
 	hasServerRuntime,
 	isThinPage,
 	pageFactsForModule,
+	prerequisiteChapterLinks,
 	readItemPath,
 	readRoutes,
 	THIN_PAGE_ROBOTS,
@@ -80,15 +83,27 @@ const mechanismTitleBySlug = new Map(
 	]),
 );
 // Reading order is the author's: an explicit `order`, else the numbered file order the index preserves.
-const orderOf = (value: unknown) =>
-	typeof value === "number" ? value : Number.POSITIVE_INFINITY;
-const chapterOrder = entries
-	.map(({ slug, module: chapterModule }) => ({
+const chapterOrder = chapterReadingOrder(entries).map(
+	({ slug, module: chapterModule }) => ({
 		slug,
 		title: chapterModule.frontmatter?.title ?? "Untitled chapter",
-		order: orderOf(chapterModule.frontmatter?.order),
-	}))
-	.sort((a, b) => (a.order === b.order ? 0 : a.order - b.order));
+	}),
+);
+// What to read first, and the actions for the mechanisms this chapter uses.
+const prerequisites = prerequisiteChapterLinks(
+	frontmatter.prerequisites,
+	entries,
+);
+const { entries: toolkitEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.toolkit, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const chapterActions = actionLinksForMechanisms(
+	chapterMechanisms,
+	toolkitEntries,
+);
 const currentIndex = chapterOrder.findIndex(
 	(entry) => entry.slug === frontmatter.slug,
 );
@@ -145,6 +160,14 @@ const chapterEyebrow = [
     <article>
       {chapterEyebrow && <div class="eyebrow">{chapterEyebrow}</div>}
       <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
+      {prerequisites.length > 0 && (
+        <div class="chapter-mechanisms chapter-prerequisites">
+          <span class="meta chapter-mechanisms__label">{defaultChapterPageCopy.prerequisitesLabel}</span>
+          {prerequisites.map((link) => (
+            <a class="pill" href={link.href}>{link.label}</a>
+          ))}
+        </div>
+      )}
       {chapterMechanisms.length > 0 && (
         <div class="chapter-mechanisms">
           <span class="meta chapter-mechanisms__label">Mechanisms:</span>
@@ -194,9 +217,18 @@ const chapterEyebrow = [
 
   <section class="next-steps" id="next-steps">
     <h2>{defaultChapterPageCopy.nextMoveHeading}</h2>
+    {chapterActions.length > 0 && <div class="eyebrow">{defaultChapterPageCopy.chapterActionsLabel}</div>}
     <div class="next-steps__links next-steps__branches">
-      <a class="next-steps__link" href={readRoutes.mechanisms}>{defaultChapterPageCopy.mechanismsLinkLabel}</a>
-      <a class="next-steps__link" href={readRoutes.toolkit}>{defaultChapterPageCopy.toolkitLinkLabel}</a>
+      {chapterActions.length > 0 ? (
+        chapterActions.map((link) => (
+          <a class="next-steps__link" href={link.href}>{link.label}</a>
+        ))
+      ) : (
+        <>
+          <a class="next-steps__link" href={readRoutes.mechanisms}>{defaultChapterPageCopy.mechanismsLinkLabel}</a>
+          <a class="next-steps__link" href={readRoutes.toolkit}>{defaultChapterPageCopy.toolkitLinkLabel}</a>
+        </>
+      )}
     </div>
   </section>
   {hasServerRuntime(bookConfig.site) && (

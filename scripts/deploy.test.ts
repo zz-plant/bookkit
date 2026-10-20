@@ -243,7 +243,9 @@ describe.concurrent("bookkit deploy: all or none", () => {
 		});
 
 		expect(result.status).toBe(1);
-		expect(workspace.calls("verify")).toEqual(["verify --all"]);
+		expect(workspace.calls("verify")).toEqual([
+			"verify --all --skip build:all",
+		]);
 		expect(workspace.calls("build")).toEqual([]);
 		expect(workspace.calls("wrangler")).toEqual([]);
 		expect(result.output).toContain(
@@ -261,7 +263,9 @@ describe.concurrent("bookkit deploy: all or none", () => {
 		const result = await deploy(workspace, ["--dry-run"]);
 
 		expect(result.status).toBe(0);
-		expect(workspace.calls("verify")).toEqual(["verify --all"]);
+		expect(workspace.calls("verify")).toEqual([
+			"verify --all --skip build:all",
+		]);
 		expect(workspace.calls("wrangler")).toEqual(
 			["alpha", "beta", "gamma"].map(
 				(book) => `${book} deploy --dry-run --message ${message}`,
@@ -335,7 +339,7 @@ describe.concurrent("bookkit deploy: provenance", () => {
 			"work in progress\n",
 		);
 
-		const refused = await deploy(workspace, ["alpha", "--dry-run"]);
+		const refused = await deploy(workspace, ["alpha"]);
 		expect(refused.status).toBe(1);
 		expect(refused.output).toContain(
 			" M apps/alpha/src/content/book/chapters/01-start.mdx",
@@ -352,6 +356,31 @@ describe.concurrent("bookkit deploy: provenance", () => {
 		expect(workspace.calls("wrangler")).toEqual([
 			`beta deploy --dry-run --message ${workspace.head().slice(0, 12)} Add books`,
 		]);
+	});
+
+	it("rehearses uncommitted changes in a dry run, saying a real deploy refuses them, and stamps nothing", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		appendFileSync(
+			join(workspace.root, "apps/alpha/src/content/book/chapters/01-start.mdx"),
+			"An uncommitted paragraph.\n",
+		);
+
+		const rehearsed = await deploy(workspace, ["--dry-run"]);
+		expect(rehearsed.status).toBe(0);
+		expect(rehearsed.output).toContain(
+			"Rehearsing uncommitted work: a real deploy refuses these 1 change(s)",
+		);
+		expect(rehearsed.output).toContain(
+			"Commit your changes, then publish: bun run bookkit deploy alpha",
+		);
+		expect(rehearsed.output).toContain("bunx wrangler login");
+		expect(workspace.calls("wrangler")).toHaveLength(1);
+
+		const fromStamp = await deploy(workspace, ["--no-build", "--dry-run"]);
+		expect(fromStamp.status).toBe(1);
+		expect(fromStamp.output).toContain(
+			"a dry run of uncommitted work stamps none",
+		);
 	});
 
 	it("publishes uncommitted changes with --allow-dirty, warning and saying so in the version message", async () => {

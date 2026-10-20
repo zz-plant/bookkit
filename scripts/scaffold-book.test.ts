@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
 	existsSync,
+	mkdirSync,
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
@@ -50,6 +51,7 @@ beforeAll(() => {
 	for (const entry of [
 		"packages",
 		"node_modules",
+		"scripts",
 		"tsconfig.base.json",
 		"biome.json",
 	]) {
@@ -236,6 +238,78 @@ describe("new:book", () => {
 		expect(missing.status).toBe(1);
 		expect(missing.output).toContain("Missing --book <book>.");
 		expect(existsSync(join(workspace, "apps", "x-book"))).toBe(false);
+	});
+
+	it("starts on the frame --frame names, with the overview's headings to match", () => {
+		const made = newBook("--book", "pager-notes", "--frame", "runbook");
+		expect(made.status).toBe(0);
+		const app = join(workspace, "apps", "pager-notes");
+		const config = readFileSync(join(app, "src", "book.config.ts"), "utf8");
+		expect(config).toContain('slug: "runbook"');
+		expect(config).not.toContain('"recognition"');
+		const overview = readFileSync(
+			join(app, "src", "content", "book", "chapters", "00-overview.mdx"),
+			"utf8",
+		);
+		expect(overview).toContain("## Ownership");
+		const errors = checkBookContent({
+			workspaceRoot: workspace,
+			bookSlug: "pager-notes",
+		}).findings.filter((finding) => finding.level === "error");
+		expect(errors).toEqual([]);
+		const unknown = newBook("--book", "other-notes", "--frame", "runbok");
+		expect(unknown.status).toBe(1);
+		expect(unknown.output).toContain('No frame "runbok". Frames: intervention');
+		expect(existsSync(join(workspace, "apps", "other-notes"))).toBe(false);
+	});
+
+	it("bookkit new book --from imports notes with no starter content beside them, on the frame given", () => {
+		const notes = join(workspace, "pager-notes-src");
+		mkdirSync(notes, { recursive: true });
+		writeFileSync(
+			join(notes, "01-why.md"),
+			"# Why handoffs fail\n\nMost incidents fail at the handoff.\n",
+		);
+		writeFileSync(
+			join(notes, "02-rhythm.md"),
+			"# Shift rhythm\n\nA shift has three beats.\n",
+		);
+		const made = run([
+			process.execPath,
+			join(repo, "scripts", "bookkit.ts"),
+			"new",
+			"book",
+			"handoffs",
+			"--frame",
+			"runbook",
+			"--from",
+			notes,
+			"--no-install",
+		]);
+		expect(made.status).toBe(0);
+		const content = join(
+			workspace,
+			"apps",
+			"handoffs",
+			"src",
+			"content",
+			"book",
+		);
+		expect(
+			listFilesRecursive(content).filter((file) => file.endsWith(".mdx")),
+		).toEqual(["chapters/01-why.mdx", "chapters/02-rhythm.mdx"]);
+		expect(
+			readFileSync(
+				join(workspace, "apps", "handoffs", "src", "book.config.ts"),
+				"utf8",
+			),
+		).toContain('slug: "runbook"');
+		// The new book is the current one.
+		expect(
+			JSON.parse(
+				readFileSync(join(workspace, ".bookkit", "local.json"), "utf8"),
+			),
+		).toEqual({ book: "handoffs" });
 	});
 
 	it("refuses an existing book", () => {

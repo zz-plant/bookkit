@@ -1,20 +1,42 @@
+import type { Color } from "pdf-lib";
 import { type PdfFontChain, widthOfText } from "./pdf-fonts";
 
 /**
- * Lines of text in mixed fonts for the PDF: prose with code spans in it,
- * a footnote number raised above the line, and the columns of a table.
+ * Lines of text in mixed fonts for the PDF: prose with code spans, bold and
+ * italic text, and links in it, a footnote number raised above the line,
+ * and the columns of a table.
  */
 
-/** Text in one font and size; `rise` lifts it off the baseline, as a note number is. */
+/**
+ * Where linked text points: a page of the site or elsewhere (`uri`), or a
+ * named destination in the PDF, with `fallback` (the entry, without its
+ * heading) and `uri` to use when the PDF does not have it.
+ */
+export type PdfLinkTarget =
+	| { uri: string }
+	| { destination: string; fallback: string; uri?: string };
+
+/**
+ * Text in one font and size; `rise` lifts it off the baseline, as a note
+ * number is. Linked text carries its `link` and is drawn in `color`. A
+ * `lineBreak` piece (`<br>`) ends the line.
+ */
 export type Piece = {
 	text: string;
 	fonts: PdfFontChain;
 	size: number;
 	rise?: number;
+	link?: PdfLinkTarget;
+	color?: Color;
+	lineBreak?: true;
 };
 
 const sameStyle = (a: Piece, b: Piece) =>
-	a.fonts === b.fonts && a.size === b.size && a.rise === b.rise;
+	a.fonts === b.fonts &&
+	a.size === b.size &&
+	a.rise === b.rise &&
+	a.link === b.link &&
+	a.color === b.color;
 
 /** Pieces with neighbours in the same style joined, so a line in one style is one string. */
 export const mergePieces = (pieces: Piece[]): Piece[] => {
@@ -33,8 +55,8 @@ export const widthOfPieces = (pieces: Piece[]): number =>
 		0,
 	);
 
-/** A run of text between spaces, which may change font (`max_retries`, then a comma). */
-export type Word = { parts: Piece[]; space?: Piece };
+/** A run of text between spaces, which may change font (`max_retries`, then a comma); or a line break. */
+export type Word = { parts: Piece[]; space?: Piece; lineBreak?: true };
 
 /** Text as words; the space before each word keeps the style it was written in. */
 export const toWords = (pieces: Piece[]): Word[] => {
@@ -42,6 +64,12 @@ export const toWords = (pieces: Piece[]): Word[] => {
 	let word: Word | null = null;
 	let space: Piece | undefined;
 	for (const piece of pieces) {
+		if (piece.lineBreak) {
+			words.push({ parts: [], lineBreak: true });
+			word = null;
+			space = undefined;
+			continue;
+		}
 		for (const chunk of piece.text.split(/(\s+)/)) {
 			if (!chunk) continue;
 			if (/^\s/.test(chunk)) {
@@ -50,7 +78,11 @@ export const toWords = (pieces: Piece[]): Word[] => {
 				continue;
 			}
 			if (!word) {
-				word = { parts: [], space: words.length > 0 ? space : undefined };
+				const after = words[words.length - 1];
+				word = {
+					parts: [],
+					space: after && !after.lineBreak ? space : undefined,
+				};
 				words.push(word);
 				space = undefined;
 			}
@@ -72,7 +104,12 @@ export const wrapWords = (words: Word[], maxWidth: number): Piece[][] => {
 	const fits = (line: Piece[]) => widthOfPieces(line) <= maxWidth;
 	const lines: Piece[][] = [];
 	let current: Piece[] = [];
-	for (const { parts, space } of words) {
+	for (const { parts, space, lineBreak } of words) {
+		if (lineBreak) {
+			lines.push(mergePieces(current));
+			current = [];
+			continue;
+		}
 		const next =
 			current.length > 0
 				? [...current, ...(space ? [space] : []), ...parts]

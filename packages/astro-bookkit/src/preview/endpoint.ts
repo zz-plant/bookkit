@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import { authorOnly } from "../utils/author-token";
+import { readBookRecords } from "../utils/book-data";
 import {
 	invalidBodyResponse,
 	jsonResponse,
@@ -7,7 +7,7 @@ import {
 	tryParseJsonBody,
 } from "../utils/http";
 import {
-	getPreviewAnalyticsLogPath,
+	PREVIEW_ANALYTICS_FILE,
 	type PreviewAnalyticsEvent,
 	recordPreviewEvent,
 } from "./analytics";
@@ -54,25 +54,8 @@ const normalizeEvent = (
 	};
 };
 
-const parseEventsFromLog = async (): Promise<PreviewAnalyticsEvent[]> => {
-	try {
-		const log = await readFile(getPreviewAnalyticsLogPath(), "utf8");
-		return log
-			.split("\n")
-			.map((line) => line.trim())
-			.filter(Boolean)
-			.map((line) => {
-				try {
-					return JSON.parse(line) as PreviewAnalyticsEvent;
-				} catch {
-					return null;
-				}
-			})
-			.filter((entry): entry is PreviewAnalyticsEvent => Boolean(entry));
-	} catch {
-		return [];
-	}
-};
+const parseEventsFromLog = (): Promise<PreviewAnalyticsEvent[]> =>
+	readBookRecords<PreviewAnalyticsEvent>(PREVIEW_ANALYTICS_FILE);
 
 const buildPreviewCounts = (events: PreviewAnalyticsEvent[]) => {
 	const counts: Record<string, number> = {};

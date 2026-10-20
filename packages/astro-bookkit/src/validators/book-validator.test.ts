@@ -249,6 +249,30 @@ describe("cross-file checks", () => {
 		expect(codes(check())).toContain("error:UNKNOWN_PREREQUISITE");
 	});
 
+	it("warns when a prerequisite comes after the chapter in reading order", () => {
+		writeConfig('\tstatus: "draft",\n');
+		writeBook([
+			[
+				"chapters/01-early.mdx",
+				chapter("early", "draft", "prerequisites:\n  - late\n"),
+			],
+			["chapters/02-late.mdx", chapter("late", "draft")],
+			// An explicit order puts this one first, ahead of what it needs.
+			[
+				"chapters/03-ordered.mdx",
+				chapter("ordered", "draft", "order: 0\nprerequisites:\n  - early\n"),
+			],
+		]);
+		const order = check().findings.filter(
+			(finding) => finding.code === "PREREQUISITE_ORDER",
+		);
+		expect(order.map((finding) => finding.message)).toEqual([
+			'Chapter "ordered" lists prerequisite "early", which readers reach only after it',
+			'Chapter "early" lists prerequisite "late", which readers reach only after it',
+		]);
+		expect(order.every((finding) => finding.level === "warning")).toBe(true);
+	});
+
 	it("requires a chapter once the book is past draft", () => {
 		writeConfig('\tstatus: "draft",\n');
 		expect(check().ok).toBe(true);

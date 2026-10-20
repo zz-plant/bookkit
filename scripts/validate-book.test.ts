@@ -47,6 +47,8 @@ const run = (script: string, ...args: string[]) =>
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-validate-"));
 	symlinkSync(join(repoRoot(), "scripts"), join(workspace, "scripts"));
+	// The starter template, which names the placeholder text to look for.
+	symlinkSync(join(repoRoot(), "packages"), join(workspace, "packages"));
 	writeBook("broken-book", {
 		// Two errors: unknown mechanism, and a 45-minute timebox.
 		"toolkit/a.mdx": tool("a", "no-such-mechanism", 45),
@@ -59,6 +61,21 @@ beforeAll(() => {
 		"chapters/01-braces.mdx":
 			'---\nslug: braces\ntitle: "Braces"\nstatus: draft\n---\nFine prose.\n\nA literal {brace in prose.\n',
 	});
+	writeBook("placeholder-book", {
+		"chapters/01-start.mdx":
+			'---\nslug: start\ntitle: "Start"\nstatus: draft\n---\nBody.\n',
+	});
+	writeFileSync(
+		join(workspace, "apps", "placeholder-book", "src", "book.config.ts"),
+		`export const bookConfig = {
+	slug: "placeholder-book",
+	status: "draft",
+	site: { url: "https://placeholder-book.book" },
+	causalStance:
+		"The book's core claim about what causes the problem it covers.",
+};
+`,
+	);
 	writeBook("clean-book", {
 		"chapters/01-start.mdx":
 			'---\nslug: start\ntitle: "Start"\nstatus: draft\n---\nBody.\n',
@@ -104,6 +121,20 @@ describe("validate-book", () => {
 		);
 	});
 
+	it("names starter text left in book.config.ts, with what to write instead", () => {
+		const result = run("validate-book.ts", "--book", "placeholder-book");
+		expect(result.status).toBe(0);
+		expect(result.output).toContain(
+			"apps/placeholder-book/src/book.config.ts still has the starter text for causalStance, which shows on the overview page",
+		);
+		// https://<slug>.book may be the domain the author means to buy.
+		expect(result.output).not.toContain("site.url");
+		expect(result.output).toContain(
+			"fix: Replace it with the book's core claim about what causes the problem it covers.",
+		);
+		expect(result.output).not.toContain("objectives.readerStart");
+	});
+
 	it("exits 0 with no errors", () => {
 		const result = run("validate-book.ts", "--book", "clean-book");
 		expect(result.status).toBe(0);
@@ -116,7 +147,7 @@ describe("validate-all", () => {
 		const result = run("validate-all.ts");
 		expect(result.status).toBe(1);
 		expect(result.output).toContain(
-			"✗ 2 of 3 books failed validation: broken-book, mdx-book",
+			"✗ 2 of 4 books failed validation: broken-book, mdx-book",
 		);
 	});
 });

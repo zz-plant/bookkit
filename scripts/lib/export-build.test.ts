@@ -10,6 +10,7 @@ import { join } from "node:path";
 import JSZip from "jszip";
 import { PDFDocument, PDFName, PDFRawStream } from "pdf-lib";
 import {
+	extractPdfLinks,
 	extractPdfText,
 	inspectEpub,
 	inspectPdf,
@@ -118,6 +119,19 @@ describe("PDF and EPUB exports in a build", () => {
 		expect(prose).not.toContain("&#101;");
 		expect(prose).not.toContain("[^1]");
 		expect(prose).not.toContain("| ---");
+		// The HTML import kept: keys in Courier, a <details> led by its summary in bold.
+		const runs = (await extractPdfText(pdf)).flat();
+		expect(runs.find((run) => run.text === "Ctrl")?.font).toBe("Courier");
+		expect(runs.find((run) => run.text === "Timeline")?.font).toBe(
+			"Helvetica-Bold",
+		);
+		expect(prose).not.toContain("<kbd>");
+		// Links between notes go to the chapter inside the PDF.
+		const destinations = (await extractPdfLinks(pdf)).flatMap(
+			(link) => link.destination ?? [],
+		);
+		expect(destinations).toContain("chapters/why-handoffs-fail");
+		expect(destinations).toContain("chapters/handoff-checklist");
 
 		const epub = new Uint8Array(readFileSync(dist("exports", "book.epub")));
 		expect(await inspectEpub(epub)).toEqual([]);
@@ -149,7 +163,16 @@ describe("PDF and EPUB exports in a build", () => {
 		expect(rhythm).toContain(
 			"<pre><code>oncall handoff --to @next --note &quot;{state}&quot; &lt;&lt;EOF</code></pre>",
 		);
+		expect(await xhtml("handoff-checklist")).toContain(
+			'<p class="align-center"><img src="../images/handoff-board.png" alt=""/></p>',
+		);
 		const retro = await xhtml("retro-notes");
+		expect(retro).toContain(
+			"Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search the log.",
+		);
+		expect(retro).toContain(
+			'<div class="details"><p class="details__summary"><strong>Timeline</strong></p><ul><li>02:10 pager</li><li>04:15 resolved</li></ul></div>',
+		);
 		expect(retro).toContain(
 			'<sup><a id="fnref.1" href="#fn.1" epub:type="noteref" role="doc-noteref">1</a></sup>',
 		);

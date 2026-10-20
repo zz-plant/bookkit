@@ -173,55 +173,67 @@ describe("upgradeProject", () => {
 		expect(summary).not.toContain(chapter);
 	});
 
-	describe("a home page from an engine that left it to the book", () => {
-		const home = "apps/garden/src/pages/index.astro";
-		const shim =
-			"packages/astro-bookkit/templates/book-app/src/pages/index.astro";
-		const oldStarter = "---\n---\n<h1>The old starter's home page</h1>\n";
+	describe.each([
+		{
+			what: "home page",
+			file: "src/pages/index.astro",
+			saved: "src/pages/_index.astro.before-upgrade",
+			oldStarter: "---\n---\n<h1>The old starter's home page</h1>\n",
+			edit: "<p>The author's own welcome.</p>\n",
+		},
+		{
+			what: "reading hub",
+			file: "src/lib/read-hub.ts",
+			saved: "src/lib/_read-hub.ts.before-upgrade",
+			oldStarter:
+				'export const readHubConfig = { hero: { title: "Reading hub" } };\n',
+			edit: "// The author's own cards.\n",
+		},
+	])(
+		"a $what from an engine that left it to the book",
+		({ file, saved, oldStarter, edit }) => {
+			const page = `apps/garden/${file}`;
+			const savedAs = `apps/garden/${saved}`;
+			const shim = `packages/astro-bookkit/templates/book-app/${file}`;
 
-		/** A project whose engine had the home page in its starter, not its shims. */
-		const olderProject = (homePage: string) => {
-			createProject(source, dir, { book: "garden", title: "Garden" });
-			rmSync(join(dir, shim));
-			write(
-				"packages/astro-bookkit/templates/starter/src/pages/index.astro",
-				oldStarter,
-			);
-			write(home, homePage);
-		};
-		const sharedHomePage = () => readFileSync(join(repoRoot, shim), "utf8");
+			/** A project whose engine had the file in its starter, not its shims. */
+			const olderProject = (content: string) => {
+				createProject(source, dir, { book: "garden", title: "Garden" });
+				rmSync(join(dir, shim));
+				write(`packages/astro-bookkit/templates/starter/${file}`, oldStarter);
+				write(page, content);
+			};
+			const shared = () => readFileSync(join(repoRoot, shim), "utf8");
 
-		it("replaces the starter's copy with the shared page", () => {
-			olderProject(oldStarter);
-			const result = upgradeProject(source, dir);
-			expect(read(home)).toBe(sharedHomePage());
-			expect(
-				existsSync(
-					join(dir, "apps/garden/src/pages/_index.astro.before-upgrade"),
-				),
-			).toBe(false);
-			expect(result.changes).toContainEqual({ path: home, action: "replaced" });
-		});
+			it("replaces the starter's copy with the shared file", () => {
+				olderProject(oldStarter);
+				const result = upgradeProject(source, dir);
+				expect(read(page)).toBe(shared());
+				expect(existsSync(join(dir, savedAs))).toBe(false);
+				expect(result.changes).toContainEqual({
+					path: page,
+					action: "replaced",
+				});
+			});
 
-		it("saves an edited copy beside it, out of Astro's way, and says where", () => {
-			const edited = `${oldStarter}<p>The author's own welcome.</p>\n`;
-			olderProject(edited);
-			const result = upgradeProject(source, dir);
-			expect(read(home)).toBe(sharedHomePage());
-			expect(read("apps/garden/src/pages/_index.astro.before-upgrade")).toBe(
-				edited,
-			);
-			const summary = summarizeUpgrade(result).join("\n");
-			expect(summary).toContain(`replaced ${home}`);
-			expect(summary).toContain(
-				`${home} is shared by every book from this version on, so your edited copy was replaced and saved as apps/garden/src/pages/_index.astro.before-upgrade.`,
-			);
+			it("saves an edited copy beside it, where nothing reads it, and says where", () => {
+				const edited = `${oldStarter}${edit}`;
+				olderProject(edited);
+				const result = upgradeProject(source, dir);
+				expect(read(page)).toBe(shared());
+				expect(read(savedAs)).toBe(edited);
+				const summary = summarizeUpgrade(result).join("\n");
+				expect(summary).toContain(`replaced ${page}`);
+				expect(summary).toContain(
+					`${page} is shared by every book from this version on, so your edited copy was replaced and saved as ${savedAs}.`,
+				);
 
-			// A second upgrade has nothing left to save.
-			const again = summarizeUpgrade(upgradeProject(source, dir)).join("\n");
-			expect(again).not.toContain("before-upgrade");
-		});
-	});
+				// A second upgrade has nothing left to save.
+				const again = summarizeUpgrade(upgradeProject(source, dir)).join("\n");
+				expect(again).not.toContain("before-upgrade");
+			});
+		},
+	);
 
 	it("removes only the scripts an earlier version vendored", () => {
 		createProject(source, dir, { book: "garden", title: "Garden" });

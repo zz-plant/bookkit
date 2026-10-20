@@ -202,6 +202,10 @@ export const bookConfig = {
 				"Match what you’re seeing to a named pattern and what to do about it.",
 		},
 	},
+	readHub: {
+		lede: "Start with the overview, go straight to a problem you have, or look something up.",
+		quickStartCards: [],
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

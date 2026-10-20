@@ -42,6 +42,7 @@ export type {
 	BookLayoutTranslationNoticeState,
 	BookLayoutVersionDisplayState,
 	BookMiddlewareOptions,
+	BookReadHubConfig,
 	BookRuntime,
 	BookRuntimeConfig,
 	BookVersionEntryOptions,
@@ -57,7 +58,6 @@ export type {
 	ReadHubContentModule,
 	ReadHubContentModuleGroups,
 	ReadHubContentSectionKey,
-	ReadHubCopy,
 	ReadHubHeroConfig,
 	ReadHubHeroLink,
 	ReadHubIntroConfig,
@@ -99,7 +99,7 @@ export {
 	createReleaseNotesFromModules,
 	defaultBookHomeCopy,
 	defaultChapterPageCopy,
-	defaultReadHubCopy,
+	defaultReadHubConfig,
 	formatTranslationCompleteness,
 	getOgImageForPath,
 	normalizeOgPathname,
@@ -108,6 +108,7 @@ export {
 	readRoutes,
 	readSectionPath,
 	resolveBookHomeCopy,
+	resolveReadHubConfig,
 } from "./book";
 export {
 	computeTopologicalOrder,

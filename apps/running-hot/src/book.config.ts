@@ -120,6 +120,31 @@ export const bookConfig = {
 			description: "Find where the heat is landing and who is absorbing it.",
 		},
 	},
+	readHub: {
+		lede: "Start with the overview, go straight to a problem you have, or look something up.",
+		quickStartCards: [
+			{
+				title: "Read the overview",
+				description: "What the book covers and how it’s organized.",
+				href: "/read/overview",
+				recommended: true,
+				funnelStep: "new_reader_overview",
+			},
+			{
+				title: "Read the chapters in order",
+				description: "The full argument, start to finish.",
+				href: "/read/chapters",
+				funnelStep: "quickstart_chapter_first",
+			},
+			{
+				title: "Find the pattern",
+				description:
+					"Already feeling the heat? Start with the mechanism that matches.",
+				href: "/read/mechanisms",
+				funnelStep: "quickstart_problem_first",
+			},
+		],
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

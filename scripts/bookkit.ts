@@ -75,6 +75,7 @@ import {
 } from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
 import { type FileChange, planMerge, planSync } from "./lib/merge-mechanisms";
+import { titleFromSlug } from "./lib/scaffold-book";
 
 const args = process.argv.slice(2);
 // No command: the books, and the commands to write, check, preview, build, and deploy one.
@@ -758,7 +759,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 		tool: { valued: [], switches: [] },
 		example: { valued: [], switches: [] },
 		book: {
-			valued: ["--title", "--from"],
+			valued: ["--title", "--from", "--frame"],
 			switches: ["--skip-starter-content", "--no-install"],
 		},
 	};
@@ -996,26 +997,46 @@ function createNew(kind: string | undefined, rest: string[]) {
 			const slug = required(
 				positional[0],
 				"Book slug (lowercase-with-hyphens):",
-				'bun run bookkit new book <slug> [--title "<title>"] [scaffold options]',
+				'bun run bookkit new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder>]',
 			);
 			// --from <folder>: import a folder of notes once the book exists.
 			const fromIndex = rest.indexOf("--from");
-			const from = fromIndex >= 0 ? rest[fromIndex + 1] : undefined;
-			if (fromIndex >= 0 && (!from || from.startsWith("--"))) {
+			if (fromIndex >= 0 && !flag("--from")) {
 				console.error(
 					"--from needs a folder of Markdown notes: bun run bookkit new book <slug> --from <folder>",
 				);
 				process.exit(1);
 			}
+			// At a terminal, what was left out is asked for: a title, and notes.
+			const title =
+				flag("--title") ??
+				(isInteractive()
+					? ask(`Title (Enter for "${titleFromSlug(slugify(slug))}"):`)
+					: undefined);
+			const from =
+				flag("--from") ??
+				(isInteractive()
+					? ask("A folder of notes to import (Enter for none):")
+					: undefined);
 			const scaffoldArgs = rest.filter(
 				(arg, index) =>
-					arg !== slug && index !== fromIndex && index !== fromIndex + 1,
+					arg !== slug &&
+					index !== fromIndex &&
+					index !== fromIndex + 1 &&
+					arg !== "--title" &&
+					rest[index - 1] !== "--title",
 			);
+			// From notes, the starter's placeholder mechanism, tool, example, and
+			// overview would sit beside the author's chapters and go live with them.
 			const created = runScript("scaffold-book.ts", [
 				"--book",
 				slug,
+				...(title ? ["--title", title] : []),
 				...scaffoldArgs,
 				...(from ? ["--no-next"] : []),
+				...(from && !scaffoldArgs.includes("--skip-starter-content")
+					? ["--skip-starter-content"]
+					: []),
 			]);
 			// The new book is the one being worked on now.
 			if (created === 0) writeFocusBook(slug);
@@ -1044,7 +1065,7 @@ function createNew(kind: string | undefined, rest: string[]) {
   new mechanism [book] "<title>" [--definition "…"]     checks every book for one that already fits
   new tool [book] <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
   new example [book] <mechanism-slug> <domain> "<title>"
-  new book <slug> [--title "<title>"] [--from <folder of notes>]
+  new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder of notes>]
 
 [book] defaults to the current one (bun run bookkit use <book>). At a terminal, anything left out is asked for.`);
 			process.exit(1);
@@ -1738,7 +1759,8 @@ Write
                                             name a mechanism, after checking every book for one that fits
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
-  new book <slug> [--from <folder>]         a new book app; --from imports a folder of notes into it
+  new book <slug> [--from <folder>] [--frame <slug>]
+                                            a new book app; --from imports a folder of notes into it
   import [book] --dir <path> [--dry-run]    turn a folder of Markdown notes into chapters; --dry-run shows the plan
   propose [book] [--apply all|…]            draft mechanisms, tools, edges, and config from a book's text
 

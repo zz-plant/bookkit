@@ -5,7 +5,63 @@ import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
+import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
+
+/**
+ * The placeholder values a new book's book.config.ts starts with, read from
+ * the starter template, so an edited template needs no change here.
+ */
+function starterPlaceholders(root: string, book: string) {
+	const template = join(starterTemplateRootIn(root), "src", "book.config.ts");
+	if (!existsSync(template)) return [];
+	const source = readFileSync(template, "utf8");
+	const fields = [
+		{
+			field: "site.url",
+			key: "url",
+			shown: "canonical links, the sitemap, and link previews use",
+			meaning: "the address the book will be published at",
+		},
+		{
+			field: "objectives.readerStart",
+			key: "readerStart",
+			shown: "shows on the overview page",
+			meaning: "who the reader is before the first page",
+		},
+		{
+			field: "objectives.readerEnd",
+			key: "readerEnd",
+			shown: "shows on the overview page",
+			meaning: "what the reader can do after the last page",
+		},
+		{
+			field: "objectives.transformation",
+			key: "transformation",
+			shown: "shows on the overview page",
+			meaning: "the change between the two, in one sentence",
+		},
+		{
+			field: "frame.intent",
+			key: "intent",
+			meaning: "what the book moves the reader through",
+		},
+		{
+			field: "causalStance",
+			key: "causalStance",
+			shown: "shows on the overview page",
+			meaning: "the book's core claim about what causes the problem it covers",
+		},
+	];
+	return fields.flatMap((field) => {
+		const value = source.match(
+			new RegExp(`\\b${field.key}:\\s*("(?:[^"\\\\]|\\\\.)*")`),
+		)?.[1];
+		return value
+			? [{ ...field, text: value.replaceAll("__BOOK_SLUG__", book) }]
+			: [];
+	});
+}
 
 const args = parseScriptArgs(
 	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
@@ -94,6 +150,22 @@ if (content.releaseMode && existsSync(join(workspaceRoot, configFile))) {
 			"RELEASE_SITE_URL",
 			'Set site.url to the public address readers will use, e.g. url: "https://example.com".',
 		);
+	}
+}
+
+// Starter text left in book.config.ts shows on the book's own pages: a
+// warning while it is a draft, an error once it is published.
+if (existsSync(join(workspaceRoot, configFile))) {
+	const source = readFileSync(join(workspaceRoot, configFile), "utf8");
+	const level = content.releaseMode ? "error" : "warning";
+	for (const placeholder of starterPlaceholders(workspaceRoot, book)) {
+		if (!source.includes(placeholder.text)) continue;
+		findings.push({
+			level,
+			code: "CONFIG_PLACEHOLDER",
+			message: `${configFile} still has the starter text for ${placeholder.field}${placeholder.shown ? `, which ${placeholder.shown}` : ""}`,
+			fix: `Replace it with ${placeholder.meaning}.`,
+		});
 	}
 }
 

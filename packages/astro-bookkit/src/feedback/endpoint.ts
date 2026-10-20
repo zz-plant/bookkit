@@ -1,8 +1,13 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { authorOnly } from "../utils/author-token";
-import { bookDataPath } from "../utils/book-data";
+import {
+	appendRecords,
+	bookDataDir,
+	bookDataPath,
+	readRecords,
+} from "../utils/book-data";
 import {
 	invalidBodyResponse,
 	jsonResponse,
@@ -24,8 +29,13 @@ export type FeedbackEvent = {
 };
 
 export type FeedbackEndpointOptions = {
-	/** Default: `feedback-events.json` in the book's data folder (see `utils/book-data.ts`). */
+	/**
+	 * A JSON-lines file, one event per line, which POST only appends to.
+	 * Default: `feedback-events.jsonl` in the book's data folder (see
+	 * `utils/book-data.ts`).
+	 */
 	storagePath?: string;
+	/** GET reads the newest this many events (default 2000). */
 	maxEvents?: number;
 };
 
@@ -125,27 +135,22 @@ const parseNumber = (value: string | null) => {
 	return Number.isFinite(numeric) ? numeric : null;
 };
 
-const loadEvents = async (storagePath: string): Promise<FeedbackEvent[]> => {
+/**
+ * Feedback kept before it moved to JSON lines: one JSON array, which each
+ * POST read and wrote back whole, so two at once could lose one. Read, never
+ * written.
+ */
+const LEGACY_FEEDBACK_FILE = "feedback-events.json";
+
+const loadLegacyEvents = async (): Promise<FeedbackEvent[]> => {
 	try {
-		const stored = await fs.readFile(storagePath, "utf8");
-		const parsed = JSON.parse(stored);
+		const parsed: unknown = JSON.parse(
+			await readFile(join(bookDataDir(), LEGACY_FEEDBACK_FILE), "utf8"),
+		);
 		return Array.isArray(parsed) ? (parsed as FeedbackEvent[]) : [];
 	} catch {
 		return [];
 	}
-};
-
-const persistEvents = async (
-	storagePath: string,
-	events: FeedbackEvent[],
-	maxEvents: number,
-) => {
-	const directory = path.dirname(storagePath);
-	await fs.mkdir(directory, { recursive: true });
-
-	const existing = await loadEvents(storagePath);
-	const merged = [...existing, ...events].slice(-maxEvents);
-	await fs.writeFile(storagePath, JSON.stringify(merged, null, 2));
 };
 
 export const createFeedbackEndpoint = (
@@ -153,8 +158,13 @@ export const createFeedbackEndpoint = (
 ) => {
 	// Resolved per request, so the server's BOOKKIT_DATA_DIR applies.
 	const storagePath = () =>
-		options.storagePath ?? bookDataPath("feedback-events.json");
+		options.storagePath ?? bookDataPath("feedback-events.jsonl");
 	const maxEvents = options.maxEvents ?? 2000;
+	const loadEvents = async () =>
+		[
+			...(options.storagePath ? [] : await loadLegacyEvents()),
+			...(await readRecords<FeedbackEvent>(storagePath())),
+		].slice(-maxEvents);
 
 	return {
 		// Readers' comments: for the author only.
@@ -173,7 +183,7 @@ export const createFeedbackEndpoint = (
 				const since = sinceParam ?? 0;
 				const until = untilParam ?? Date.now();
 
-				const storedEvents = await loadEvents(storagePath());
+				const storedEvents = await loadEvents();
 				const filtered = storedEvents.filter((event) => {
 					if (event.timestamp < since || event.timestamp > until) return false;
 					if (slugParam && event.slug !== slugParam) return false;
@@ -202,9 +212,7 @@ export const createFeedbackEndpoint = (
 					);
 				}
 
-				try {
-					await persistEvents(storagePath(), events, maxEvents);
-				} catch {
+				if (!(await appendRecords(storagePath(), events))) {
 					return jsonResponse(
 						{ ok: false, error: "Unable to store feedback." },
 						500,

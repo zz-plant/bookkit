@@ -10,17 +10,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+	runChildAsync,
+	waitForChildren,
+} from "../../../../scripts/lib/child-process.fixture";
+import {
 	appendBookRecord,
+	appendRecords,
 	BOOK_DATA_DIR_ENV,
 	bookDataDir,
 	bookDataPath,
 	readBookRecords,
+	readRecords,
 } from "./book-data";
 
 // Under Bun, import.meta.env is process.env, so BOOKKIT_ROOT here stands in
 // for the book's folder that the bookkit() integration sets in a dev server
 // or build.
 const ENV = [BOOK_DATA_DIR_ENV, "BOOKKIT_ROOT"] as const;
+
+// One test starts four bun processes at once.
+waitForChildren();
 
 let saved: Record<string, string | undefined>;
 let scratch: string;
@@ -92,6 +101,42 @@ describe("appendBookRecord and readBookRecords", () => {
 		]);
 	});
 
+	it("keep every record when several servers append to one file at once", async () => {
+		const file = join(scratch, "shared.jsonl");
+		// Each process appends 100 times, three records at a time, as a
+		// server does for one request's events.
+		const writer = (name: string) =>
+			runChildAsync([
+				process.execPath,
+				"-e",
+				`const { appendRecords } = await import(${JSON.stringify(join(import.meta.dir, "book-data.ts"))});
+				await Promise.all(Array.from({ length: 100 }, (_, i) =>
+					appendRecords(${JSON.stringify(file)}, [0, 1, 2].map((part) => ({ writer: "${name}", i, part }))),
+				));`,
+			]);
+		const writers = await Promise.all(["a", "b", "c", "d"].map(writer));
+		expect(writers.map(({ status, output }) => ({ status, output }))).toEqual(
+			writers.map(() => ({ status: 0, output: "" })),
+		);
+		await appendRecords(file, [{ writer: "test", i: 0, part: 0 }]);
+
+		const records = await readRecords<{
+			writer: string;
+			i: number;
+			part: number;
+		}>(file);
+		expect(records).toHaveLength(4 * 100 * 3 + 1);
+		// One call's records stay together, in order.
+		records.forEach((record, index) => {
+			if (record.part > 0) {
+				expect(records[index - 1]).toEqual({
+					...record,
+					part: record.part - 1,
+				});
+			}
+		});
+	});
+
 	it("keep the request going when the folder cannot be written, and say so once", async () => {
 		const warned = spyOn(console, "warn").mockImplementation(() => {});
 		try {
@@ -99,7 +144,9 @@ describe("appendBookRecord and readBookRecords", () => {
 			writeFileSync(join(scratch, "a-file"), "");
 			process.env[BOOK_DATA_DIR_ENV] = join(scratch, "a-file", "data");
 
-			await appendBookRecord("export-analytics.jsonl", { n: 1 });
+			expect(await appendBookRecord("export-analytics.jsonl", { n: 1 })).toBe(
+				false,
+			);
 			await appendBookRecord("export-analytics.jsonl", { n: 2 });
 
 			expect(warned).toHaveBeenCalledTimes(1);

@@ -256,7 +256,7 @@ describe("reader routes keep accepting what the reader scripts send", () => {
 	it("stores feedback, up to 20 events per request", async () => {
 		const directory = mkdtempSync(join(tmpdir(), "bookkit-feedback-"));
 		try {
-			const storagePath = join(directory, "events.json");
+			const storagePath = join(directory, "events.jsonl");
 			const endpoint = createFeedbackEndpoint({ storagePath });
 			const event = { eventType: "feedback", slug: "intro", emoji: "👍" };
 
@@ -272,9 +272,9 @@ describe("reader routes keep accepting what the reader scripts send", () => {
 				request({ events: Array.from({ length: 21 }, () => event) }),
 			);
 			expect(flood.status).toBe(400);
-			expect(
-				JSON.parse(readFileSync(storagePath, "utf8")) as unknown[],
-			).toHaveLength(21);
+			expect(readFileSync(storagePath, "utf8").trim().split("\n")).toHaveLength(
+				21,
+			);
 		} finally {
 			rmSync(directory, { recursive: true, force: true });
 		}
@@ -313,7 +313,7 @@ describe("what readers send", () => {
 
 		expect(readdirSync(dataDir).sort()).toEqual([
 			"export-analytics.jsonl",
-			"feedback-events.json",
+			"feedback-events.jsonl",
 			"preview-analytics.jsonl",
 			"reader-analytics.jsonl",
 			"release-analytics.jsonl",

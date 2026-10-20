@@ -20,7 +20,7 @@ type Book = (typeof BOOKS)[number];
 
 const DATA_FILES = [
 	"export-analytics.jsonl",
-	"feedback-events.json",
+	"feedback-events.jsonl",
 	"preview-analytics.jsonl",
 	"reader-analytics.jsonl",
 	"release-analytics.jsonl",

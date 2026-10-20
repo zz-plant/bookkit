@@ -1,5 +1,10 @@
 import { createSlugger, stripMarkdown } from "../utils/markdown";
-import { type MarkdownBlock, parseMarkdownBlocks } from "./markdown-blocks";
+import {
+	type InlineImage,
+	type MarkdownBlock,
+	parseMarkdownBlocks,
+	replaceImages,
+} from "./markdown-blocks";
 
 export const escapeHtml = (value: string) =>
 	value
@@ -12,6 +17,9 @@ export const escapeHtml = (value: string) =>
 /** Where a link should point in the output, or null to keep only its text. */
 export type LinkResolver = (href: string) => string | null;
 
+/** Where an image's file is in the output, or null to show its alt text instead. */
+export type ImageResolver = (image: InlineImage) => string | null;
+
 /**
  * An id that is a valid XML name, as EPUB content documents require: no
  * spaces or punctuation, and it starts with a letter or underscore.
@@ -23,6 +31,10 @@ export const xmlId = (value: string): string => {
 };
 
 const CODE_SPAN = /`([^`]+)`/g;
+
+/** What a reader sees in place of an image the export cannot carry. */
+export const imageAltText = (image: InlineImage): string =>
+	`[Image: ${image.alt.trim()}]`;
 const LINK = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 // Private-use characters bracket HTML that is set aside while emphasis is applied.
 const HOLD_OPEN = String.fromCharCode(0xe000);
@@ -62,6 +74,7 @@ const emphasize = (html: string) => {
 export const renderInline = (
 	value: string,
 	resolveLink: LinkResolver = (href) => href,
+	resolveImage: ImageResolver = (image) => image.src,
 ): string => {
 	const held: string[] = [];
 	const hold = (html: string) =>
@@ -71,6 +84,20 @@ export const renderInline = (
 	text = text.replace(CODE_SPAN, (_, code: string) =>
 		hold(`<code>${escapeHtml(code)}</code>`),
 	);
+	// Before links, which would otherwise take an image's `[alt](src)`.
+	text = replaceImages(text, (image) => {
+		const src = resolveImage(image);
+		if (src !== null) {
+			return hold(
+				`<img src="${escapeHtml(src)}" alt="${escapeHtml(image.alt)}"/>`,
+			);
+		}
+		return image.alt.trim()
+			? hold(
+					`<span class="image-alt">${escapeHtml(imageAltText(image))}</span>`,
+				)
+			: "";
+	});
 	text = text.replace(LINK, (_, label: string, href: string) => {
 		const inner = emphasize(escapeHtml(label));
 		const target = resolveLink(href);
@@ -89,9 +116,11 @@ export const renderInline = (
 export const markdownToHtml = (
 	body: string,
 	resolveLink?: LinkResolver,
+	resolveImage?: ImageResolver,
 ): string => {
 	const slugger = createSlugger();
-	const inline = (text: string) => renderInline(text, resolveLink);
+	const inline = (text: string) =>
+		renderInline(text, resolveLink, resolveImage);
 	const render = (block: MarkdownBlock): string => {
 		if (block.type === "heading") {
 			const level = Math.min(block.level, 6);

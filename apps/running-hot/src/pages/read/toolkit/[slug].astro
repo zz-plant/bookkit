@@ -18,6 +18,7 @@ import {
 	pageFactsForModule,
 	readItemPath,
 	readRoutes,
+	runbookStepLabel,
 	toolkitDisplayName,
 } from "@bookkit/astro-bookkit";
 
@@ -160,7 +161,7 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
       <dl class="situation-list">
         {situations.map((step) => (
           <div class="situation-list__item">
-            <dt>{step.when || "In any situation"}</dt>
+            <dt>{runbookStepLabel(step.when)}</dt>
             <dd>{step.action}</dd>
           </div>
         ))}

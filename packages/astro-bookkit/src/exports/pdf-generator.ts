@@ -1,32 +1,43 @@
 import {
 	type Color,
 	PDFDocument,
-	type PDFFont,
 	PDFHexString,
+	type PDFImage,
 	PDFName,
 	type PDFObject,
 	type PDFRef,
 	rgb,
-	StandardFonts,
 } from "pdf-lib";
 import { stripMarkdown } from "../utils/markdown";
-import { parseMarkdownBlocks } from "./markdown-blocks";
+import { defaultImageLoader, imageWarning, warnWith } from "./images";
 import {
+	type InlineImage,
+	parseMarkdownBlocks,
+	splitImages,
+} from "./markdown-blocks";
+import { imageAltText } from "./markdown-to-html";
+import {
+	describeExportEntry,
 	EXPORT_KIND_LABELS,
 	formatExportEdition,
 	parseExportDate,
 } from "./metadata";
-import type { ExportBundle, ExportEntry } from "./types";
+import {
+	BUILT_IN_PDF_SCRIPTS,
+	createPdfFontChain,
+	fontRuns,
+	isWinAnsi,
+	type PdfFontChain,
+	type PdfFontFile,
+	widthOfText,
+} from "./pdf-fonts";
+import type { ExportBundle, ExportEntry, ExportRenderOptions } from "./types";
 
 /**
- * pdf-lib's standard fonts use WinAnsi encoding and throw on anything outside
- * it. Book content routinely contains arrows, comparison symbols, and emoji,
- * so text is transliterated to the nearest WinAnsi-safe form before drawing
- * rather than letting one character abort the whole export.
+ * Symbols written in ASCII rather than drawn from another font, so prose
+ * keeps one typeface: arrows, comparison signs, check marks, and dashes.
  */
-const WINANSI_EXTRAS = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
-
-const TRANSLITERATIONS: Readonly<Record<string, string>> = {
+const SYMBOLS: Readonly<Record<string, string>> = {
 	"→": "->",
 	"←": "<-",
 	"↔": "<->",
@@ -55,7 +66,12 @@ const TRANSLITERATIONS: Readonly<Record<string, string>> = {
 	"″": '"',
 	ﬁ: "fi",
 	ﬂ: "fl",
-	// Latin letters with no decomposition to a base letter.
+	"​": "",
+	"﻿": "",
+};
+
+/** Latin letters with no decomposition to a base letter, for when no font has them. */
+const LETTERS: Readonly<Record<string, string>> = {
 	Ł: "L",
 	ł: "l",
 	Đ: "D",
@@ -65,27 +81,20 @@ const TRANSLITERATIONS: Readonly<Record<string, string>> = {
 	ı: "i",
 	Ŧ: "T",
 	ŧ: "t",
-	"​": "",
-	"﻿": "",
 };
 
 const PICTOGRAPHIC = /\p{Extended_Pictographic}|\p{Emoji_Component}/u;
 
-const isWinAnsi = (char: string): boolean => {
-	const codePoint = char.codePointAt(0) ?? 0;
-	return (
-		(codePoint >= 0x20 && codePoint <= 0x7e) ||
-		(codePoint >= 0xa0 && codePoint <= 0xff) ||
-		WINANSI_EXTRAS.has(char)
-	);
-};
-
 /**
- * Text the standard fonts can draw. A character with no WinAnsi form becomes
- * "?" and is reported to `onUnsupported`.
+ * Text the PDF can draw. Windows-1252 text is kept (Helvetica draws it),
+ * symbols with an ASCII form are written that way, and a character another
+ * font has (`covers`) is kept. After that, letters lose diacritics no font
+ * has and emoji are dropped; anything else becomes "?" and is reported to
+ * `onUnsupported`.
  */
-export const toWinAnsiText = (
+export const encodePdfText = (
 	text: string,
+	covers: (char: string) => boolean = () => false,
 	onUnsupported?: (char: string) => void,
 ): string => {
 	let out = "";
@@ -94,13 +103,22 @@ export const toWinAnsiText = (
 			out += char;
 			continue;
 		}
-		const mapped = TRANSLITERATIONS[char];
-		if (mapped !== undefined) {
-			out += mapped;
+		const symbol = SYMBOLS[char];
+		if (symbol !== undefined) {
+			out += symbol;
 			continue;
 		}
 		if (/\s/.test(char)) {
 			out += " ";
+			continue;
+		}
+		if (covers(char)) {
+			out += char;
+			continue;
+		}
+		const letter = LETTERS[char];
+		if (letter !== undefined) {
+			out += letter;
 			continue;
 		}
 		// Letters with unsupported diacritics keep their base letter.
@@ -117,23 +135,50 @@ export const toWinAnsiText = (
 	return out;
 };
 
+/** Text Helvetica alone can draw: `encodePdfText` with no other fonts. */
+export const toWinAnsiText = (
+	text: string,
+	onUnsupported?: (char: string) => void,
+): string => encodePdfText(text, undefined, onUnsupported);
+
 const codePoint = (char: string) =>
 	`U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0")}`;
 
 const unsupportedTextError = (
 	title: string,
 	found: Map<string, Set<string>>,
+	hasBookFonts: boolean,
+	unshaped: ReadonlySet<string>,
 ): Error => {
-	const lines = [...found].map(([where, chars]) => {
-		const sample = [...chars].slice(0, 5);
-		const more = chars.size - sample.length;
-		return `  - ${where}: ${sample.map((char) => `${char} (${codePoint(char)})`).join(", ")}${more > 0 ? `, and ${more} more` : ""}`;
-	});
+	const listed = (chars: Iterable<string>) => {
+		const all = [...chars];
+		const sample = all.slice(0, 5);
+		const more = all.length - sample.length;
+		return `${sample.map((char) => `${char} (${codePoint(char)})`).join(", ")}${more > 0 ? `, and ${more} more` : ""}`;
+	};
+	const lines = [...found].map(
+		([where, chars]) => `  - ${where}: ${listed(chars)}`,
+	);
+	const all = new Set([...found.values()].flatMap((chars) => [...chars]));
+	const missing = [...all].filter((char) => !unshaped.has(char));
+	const shapeless = [...all].filter((char) => unshaped.has(char));
+	const notes: string[] = [];
+	if (missing.length > 0) {
+		notes.push(
+			`${shapeless.length > 0 ? `No font has ${listed(missing)}. ` : ""}The built-in fonts cover ${BUILT_IN_PDF_SCRIPTS} text${hasBookFonts ? ", and the font in exports.pdfFont does not have these either" : ""}. To build the PDF, set exports.pdfFont in book.config.ts to a TrueType or OpenType font file that has them (for Chinese, Japanese, or Korean, a Noto Sans CJK font), or set exports.pdf to false to publish the book without a PDF.`,
+		);
+	}
+	if (shapeless.length > 0) {
+		notes.push(
+			`The font in exports.pdfFont has ${listed(shapeless)}, but the PDF cannot lay out their script: it needs syllable shaping that the PDF's font engine does not do. Set exports.pdf to false in book.config.ts to publish the book without a PDF.`,
+		);
+	}
 	return new Error(
 		[
-			`PDF export of "${title}" stopped: its fonts cover Western European text only (Windows-1252), and these parts of the book use other characters:`,
+			`PDF export of "${title}" stopped: none of its fonts can draw these characters:`,
 			...lines,
-			"Replace or remove those characters to build the PDF. The EPUB export is not affected.",
+			...notes,
+			"The EPUB export is not affected.",
 		].join("\n"),
 	);
 };
@@ -141,12 +186,11 @@ const unsupportedTextError = (
 /** Lines no wider than `maxWidth`; a word longer than a line (a URL, an identifier) is split. */
 const wrapText = (
 	text: string,
-	font: PDFFont,
+	fonts: PdfFontChain,
 	size: number,
 	maxWidth: number,
 ): string[] => {
-	const fits = (value: string) =>
-		font.widthOfTextAtSize(value, size) <= maxWidth;
+	const fits = (value: string) => widthOfText(value, fonts, size) <= maxWidth;
 	const lines: string[] = [];
 	let current = "";
 	for (const word of text.split(/\s+/).filter(Boolean)) {
@@ -158,10 +202,11 @@ const wrapText = (
 		if (current) lines.push(current);
 		current = word;
 		while (!fits(current)) {
-			let cut = current.length - 1;
-			while (cut > 1 && !fits(current.slice(0, cut))) cut -= 1;
-			lines.push(current.slice(0, cut));
-			current = current.slice(cut);
+			const chars = Array.from(current);
+			let cut = chars.length - 1;
+			while (cut > 1 && !fits(chars.slice(0, cut).join(""))) cut -= 1;
+			lines.push(chars.slice(0, cut).join(""));
+			current = chars.slice(cut).join("");
 		}
 	}
 	if (current) lines.push(current);
@@ -179,7 +224,7 @@ const CALLOUT_INK = rgb(0.35, 0.3, 0.7);
 const CALLOUT_FILL = rgb(0.96, 0.96, 1.0);
 
 type TextStyle = {
-	font: PDFFont;
+	fonts: PdfFontChain;
 	size: number;
 	lineHeight: number;
 	color: Color;
@@ -206,14 +251,6 @@ const countEntries = (entries: ExportEntry[]): number =>
 		(total, entry) => total + 1 + countEntries(entry.children ?? []),
 		0,
 	);
-
-const KIND_NAMES = {
-	chapter: "chapter",
-	mechanism: "mechanism",
-	tool: "toolkit action",
-	glossary: "glossary term",
-	example: "example",
-} as const;
 
 /** The document outline (bookmarks), opened by default so the reader sees the book's structure. */
 const addOutline = (pdfDoc: PDFDocument, nodes: OutlineNode[]) => {
@@ -260,9 +297,27 @@ const addOutline = (pdfDoc: PDFDocument, nodes: OutlineNode[]) => {
 	return destination;
 };
 
+const IMAGE_FORMAT_NAMES: Record<string, string> = {
+	"image/gif": "a GIF",
+	"image/svg+xml": "an SVG",
+	"image/webp": "a WebP image",
+};
+
+/** Read once, however many fonts ask. */
+const once = <T>(read: () => T): (() => T) => {
+	let value: { result: T } | undefined;
+	return () => {
+		value ??= { result: read() };
+		return value.result;
+	};
+};
+
 export const createPdfExport = async (
 	bundle: ExportBundle,
+	options: ExportRenderOptions = {},
 ): Promise<Uint8Array> => {
+	const loadImage = options.loadImage ?? defaultImageLoader();
+	const warn = warnWith(options);
 	// No clock reads: metadata comes from the bundle, so unchanged content gives identical bytes.
 	const pdfDoc = await PDFDocument.create({ updateMetadata: false });
 	pdfDoc.setTitle(bundle.title, { showInWindowTitleBar: true });
@@ -276,11 +331,14 @@ export const createPdfExport = async (
 		pdfDoc.setModificationDate(released);
 	}
 
-	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-	const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+	const bookFonts: () => PdfFontFile[] = once(options.pdfFonts ?? (() => []));
+	const fonts = {
+		regular: await createPdfFontChain(pdfDoc, "regular", bookFonts),
+		bold: await createPdfFontChain(pdfDoc, "bold", bookFonts),
+		italic: await createPdfFontChain(pdfDoc, "italic", bookFonts),
+	};
 	const body: TextStyle = {
-		font,
+		fonts: fonts.regular,
 		size: 11,
 		lineHeight: 16,
 		color: INK,
@@ -290,8 +348,8 @@ export const createPdfExport = async (
 
 	const unsupported = new Map<string, Set<string>>();
 	let where = "the title page";
-	const encode = (text: string) =>
-		toWinAnsiText(text, (char) => {
+	const encode = (text: string, chain: PdfFontChain) =>
+		encodePdfText(text, chain.covers, (char) => {
 			const chars = unsupported.get(where) ?? new Set<string>();
 			chars.add(char);
 			unsupported.set(where, chars);
@@ -311,9 +369,30 @@ export const createPdfExport = async (
 		top: Math.min(PAGE_HEIGHT, y + 24),
 	});
 
+	/** One line of text, each run in the font that has its characters. */
+	const drawLine = (
+		line: string,
+		x: number,
+		style: Pick<TextStyle, "fonts" | "size" | "color">,
+	) => {
+		let at = x;
+		for (const run of fontRuns(line, style.fonts)) {
+			page.drawText(run.text, {
+				x: at,
+				y,
+				size: style.size,
+				font: run.font,
+				color: style.color,
+			});
+			at += run.font.widthOfTextAtSize(run.text, style.size);
+		}
+	};
+
 	/** Wrapped text, breaking to a new page between any two lines. */
-	const drawText = (text: string, style: TextStyle, marker?: string) => {
-		const lines = wrapText(encode(text), style.font, style.size, style.width);
+	const drawText = async (text: string, style: TextStyle, marker?: string) => {
+		const encoded = encode(text, style.fonts);
+		await style.fonts.prepare(encoded);
+		const lines = wrapText(encoded, style.fonts, style.size, style.width);
 		lines.forEach((line, index) => {
 			ensureSpace(style.lineHeight);
 			if (style.fill) {
@@ -330,28 +409,26 @@ export const createPdfExport = async (
 					x: style.x - 16,
 					y,
 					size: style.size,
-					font: style.font,
+					font: style.fonts.standard,
 					color: style.color,
 				});
 			}
-			page.drawText(line, {
-				x: style.x,
-				y,
-				size: style.size,
-				font: style.font,
-				color: style.color,
-			});
+			drawLine(line, style.x, style);
 			y -= style.lineHeight;
 		});
 	};
 
-	const drawHeading = (text: string, size: number, spaceBelow: number) => {
+	const drawHeading = async (
+		text: string,
+		size: number,
+		spaceBelow: number,
+	) => {
 		const lineHeight = size * 1.3;
 		// Keep a heading on the same page as the line after it.
 		ensureSpace(lineHeight + spaceBelow + body.lineHeight);
-		drawText(stripMarkdown(text), {
+		await drawText(stripMarkdown(text), {
 			...body,
-			font: fontBold,
+			fonts: fonts.bold,
 			size,
 			lineHeight,
 			color: HEADING_INK,
@@ -359,43 +436,146 @@ export const createPdfExport = async (
 		y -= spaceBelow;
 	};
 
-	const drawMarkdown = (markdown: string) => {
-		for (const block of parseMarkdownBlocks(markdown)) {
+	// One embedded copy per image file, however often it is shown.
+	const embedded = new Map<string, PDFImage | string>();
+	/** The image to draw, or null (after a warning) when the PDF shows its alt text. */
+	const embedImage = async (
+		image: InlineImage,
+		entry: ExportEntry,
+	): Promise<PDFImage | null> => {
+		const fallBack = (problem: string, fix: string) => {
+			warn(imageWarning({ format: "PDF", entry, image, problem, fix }));
+			return null;
+		};
+		const result = loadImage(image.src, entry);
+		if ("problem" in result) return fallBack(result.problem, result.fix);
+		const { file } = result;
+		const formatName = IMAGE_FORMAT_NAMES[file.mediaType];
+		if (formatName) {
+			return fallBack(
+				`is ${formatName}, and the PDF embeds PNG and JPEG images only`,
+				"Link a PNG or JPEG copy to show the image in the PDF.",
+			);
+		}
+		let pdfImage = embedded.get(file.key);
+		if (pdfImage === undefined) {
+			try {
+				pdfImage =
+					file.mediaType === "image/png"
+						? await pdfDoc.embedPng(file.bytes)
+						: await pdfDoc.embedJpg(file.bytes);
+			} catch (error) {
+				pdfImage = error instanceof Error ? error.message : String(error);
+			}
+			embedded.set(file.key, pdfImage);
+		}
+		return typeof pdfImage === "string"
+			? fallBack(
+					`could not be read (${pdfImage})`,
+					"Open the file and save it again as a PNG or JPEG.",
+				)
+			: pdfImage;
+	};
+
+	/** An image as a block of its own, at 96 pixels to the inch but never wider than the text or taller than a page. */
+	const drawImage = (pdfImage: PDFImage, style: TextStyle) => {
+		const scale = Math.min(
+			0.75,
+			style.width / pdfImage.width,
+			(PAGE_HEIGHT - MARGIN * 2) / pdfImage.height,
+		);
+		const width = pdfImage.width * scale;
+		const height = pdfImage.height * scale;
+		// The image's top sits where the top of a line of text would.
+		const top = () => y + style.size * 0.75;
+		if (top() - height < MARGIN) newPage();
+		page.drawImage(pdfImage, { x: style.x, y: top() - height, width, height });
+		y = top() - height - style.lineHeight;
+	};
+
+	/**
+	 * Text that may show images. An image the PDF embeds is drawn as a block
+	 * between the text around it; any other image's alt text stays in the line.
+	 */
+	const drawProse = async (
+		text: string,
+		style: TextStyle,
+		entry: ExportEntry,
+		marker?: string,
+	) => {
+		let pending = "";
+		let lead = marker;
+		const flush = async () => {
+			if (pending.trim()) await drawText(stripMarkdown(pending), style, lead);
+			pending = "";
+			lead = undefined;
+		};
+		const parts = splitImages(text);
+		if (parts.length === 1 && typeof parts[0] === "string") {
+			await drawText(stripMarkdown(parts[0]), style, marker);
+			return;
+		}
+		for (const part of parts) {
+			if (typeof part === "string") {
+				pending += part;
+				continue;
+			}
+			const pdfImage = await embedImage(part, entry);
+			if (pdfImage) {
+				await flush();
+				drawImage(pdfImage, style);
+			} else if (part.alt.trim()) {
+				pending += ` ${imageAltText(part)} `;
+			}
+		}
+		await flush();
+	};
+
+	const drawMarkdown = async (entry: ExportEntry) => {
+		for (const block of parseMarkdownBlocks(entry.body)) {
 			if (block.type === "heading") {
-				drawHeading(
+				await drawHeading(
 					block.text,
 					block.level <= 2 ? 14 : 12,
 					block.level <= 2 ? 8 : 6,
 				);
 			} else if (block.type === "list") {
-				block.items.forEach((item, index) => {
-					drawText(
-						stripMarkdown(item),
+				for (const [index, item] of block.items.entries()) {
+					await drawProse(
+						item,
 						{ ...body, x: MARGIN + 18, width: CONTENT_WIDTH - 18 },
+						entry,
 						block.ordered ? `${index + 1}.` : "•",
 					);
 					y -= 3;
-				});
+				}
 				y -= 3;
 			} else if (block.type === "quote") {
-				drawText(stripMarkdown(block.text), {
-					...body,
-					font: fontItalic,
-					color: CALLOUT_INK,
-					x: MARGIN + 14,
-					width: CONTENT_WIDTH - 28,
-					fill: CALLOUT_FILL,
-				});
+				await drawProse(
+					block.text,
+					{
+						...body,
+						fonts: fonts.italic,
+						color: CALLOUT_INK,
+						x: MARGIN + 14,
+						width: CONTENT_WIDTH - 28,
+						fill: CALLOUT_FILL,
+					},
+					entry,
+				);
 				y -= 6;
 			} else {
-				drawText(stripMarkdown(block.text), body);
+				await drawProse(block.text, body, entry);
 				y -= 6;
 			}
 		}
 	};
 
-	const drawEntry = (entry: ExportEntry, depth: number): OutlineNode => {
-		where = `${KIND_NAMES[entry.kind]} "${entry.title}" (${entry.slug})`;
+	const drawEntry = async (
+		entry: ExportEntry,
+		depth: number,
+	): Promise<OutlineNode> => {
+		where = describeExportEntry(entry);
 		const compact = entry.kind === "glossary";
 		const size = compact ? 13 : depth > 1 ? 15 : 18;
 		const label = compact ? null : EXPORT_KIND_LABELS[entry.kind];
@@ -406,44 +586,42 @@ export const createPdfExport = async (
 		ensureSpace(eyebrowHeight + size * 2.6 + 30);
 		const mark = here();
 		if (label) {
-			drawText(label.toUpperCase(), {
+			await drawText(label.toUpperCase(), {
 				...body,
-				font: fontBold,
+				fonts: fonts.bold,
 				size: 8,
 				lineHeight: eyebrowHeight,
 				color: MUTED,
 			});
 		}
-		drawHeading(entry.title, size, compact ? 4 : 10);
-		drawMarkdown(entry.body);
+		await drawHeading(entry.title, size, compact ? 4 : 10);
+		await drawMarkdown(entry);
 		y -= compact ? 6 : 14;
-		return {
-			title: entry.title,
-			mark,
-			children: (entry.children ?? []).map((child) =>
-				drawEntry(child, depth + 1),
-			),
-		};
+		const children: OutlineNode[] = [];
+		for (const child of entry.children ?? []) {
+			children.push(await drawEntry(child, depth + 1));
+		}
+		return { title: entry.title, mark, children };
 	};
 
 	// Title block.
-	drawText(bundle.title, {
+	await drawText(bundle.title, {
 		...body,
-		font: fontBold,
+		fonts: fonts.bold,
 		size: 24,
 		lineHeight: 30,
 		color: HEADING_INK,
 	});
 	if (bundle.author) {
 		y -= 4;
-		drawText(bundle.author, { ...body, size: 13, lineHeight: 18 });
+		await drawText(bundle.author, { ...body, size: 13, lineHeight: 18 });
 	}
 	const edition = formatExportEdition(bundle);
 	if (edition) {
 		y -= 2;
-		drawText(edition, {
+		await drawText(edition, {
 			...body,
-			font: fontItalic,
+			fonts: fonts.italic,
 			size: 12,
 			lineHeight: 18,
 			color: MUTED,
@@ -461,26 +639,30 @@ export const createPdfExport = async (
 
 	const outline: OutlineNode[] = [];
 	const showParts = bundle.parts.length > 1;
-	bundle.parts.forEach((part, index) => {
+	for (const [index, part] of bundle.parts.entries()) {
 		if (!showParts) {
-			outline.push(...part.entries.map((entry) => drawEntry(entry, 1)));
-			return;
+			for (const entry of part.entries) outline.push(await drawEntry(entry, 1));
+			continue;
 		}
 		where = `part "${part.title}"`;
 		if (index > 0) newPage();
 		const mark = here();
-		drawHeading(part.title, 22, 18);
-		outline.push({
-			title: part.title,
-			mark,
-			children: part.entries.map((entry) => drawEntry(entry, 1)),
-		});
-	});
-
-	if (unsupported.size > 0) {
-		throw unsupportedTextError(bundle.title, unsupported);
+		await drawHeading(part.title, 22, 18);
+		const children: OutlineNode[] = [];
+		for (const entry of part.entries) children.push(await drawEntry(entry, 1));
+		outline.push({ title: part.title, mark, children });
 	}
 
+	if (unsupported.size > 0) {
+		throw unsupportedTextError(
+			bundle.title,
+			unsupported,
+			options.pdfFonts !== undefined,
+			new Set(Object.values(fonts).flatMap((chain) => [...chain.unshaped])),
+		);
+	}
+
+	const { standard } = fonts.regular;
 	if (withContents) {
 		const rows = flattenOutline(outline);
 		const rowHeight = 18;
@@ -507,31 +689,32 @@ export const createPdfExport = async (
 		let contentsPage = 1;
 		page = pdfDoc.getPage(contentsPage);
 		y = PAGE_HEIGHT - MARGIN;
-		drawHeading("Contents", headingSize, headingGap);
+		await drawHeading("Contents", headingSize, headingGap);
 		for (const { node, depth } of rows) {
 			if (y - rowHeight < MARGIN) {
 				contentsPage += 1;
 				page = pdfDoc.getPage(contentsPage);
 				y = PAGE_HEIGHT - MARGIN;
 			}
-			const rowFont = showParts && depth === 0 ? fontBold : font;
+			const rowFonts = showParts && depth === 0 ? fonts.bold : fonts.regular;
 			const x = MARGIN + depth * 14;
 			const pageLabel = String(node.mark.pageIndex + 1);
-			const labelWidth = font.widthOfTextAtSize(pageLabel, 11);
+			const labelWidth = standard.widthOfTextAtSize(pageLabel, 11);
 			const maxWidth = PAGE_WIDTH - MARGIN - x - labelWidth - 12;
-			let title = toWinAnsiText(node.title);
+			let title = encodePdfText(node.title, rowFonts.covers);
+			await rowFonts.prepare(title);
 			while (
-				title.length > 1 &&
-				rowFont.widthOfTextAtSize(title, 11) > maxWidth
+				Array.from(title).length > 1 &&
+				widthOfText(title, rowFonts, 11) > maxWidth
 			) {
-				title = `${title.slice(0, -2)}…`;
+				title = `${Array.from(title).slice(0, -2).join("")}…`;
 			}
-			page.drawText(title, { x, y, size: 11, font: rowFont, color: INK });
+			drawLine(title, x, { fonts: rowFonts, size: 11, color: INK });
 			page.drawText(pageLabel, {
 				x: PAGE_WIDTH - MARGIN - labelWidth,
 				y,
 				size: 11,
-				font,
+				font: standard,
 				color: MUTED,
 			});
 			const link = pdfDoc.context.register(
@@ -555,10 +738,10 @@ export const createPdfExport = async (
 		if (index === 0) return;
 		const label = String(index + 1);
 		numbered.drawText(label, {
-			x: (PAGE_WIDTH - font.widthOfTextAtSize(label, 9)) / 2,
+			x: (PAGE_WIDTH - standard.widthOfTextAtSize(label, 9)) / 2,
 			y: MARGIN / 2,
 			size: 9,
-			font,
+			font: standard,
 			color: MUTED,
 		});
 	});

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ExportBundle, ExportEntryKind } from "./types";
+import type { ExportBundle, ExportEntry, ExportEntryKind } from "./types";
 
 /**
  * Publication metadata shared by the PDF and EPUB generators. Nothing here
@@ -78,6 +78,18 @@ export const EXPORT_KIND_LABELS: Record<ExportEntryKind, string | null> = {
 	glossary: "Glossary",
 	example: "Example",
 };
+
+const KIND_NAMES: Record<ExportEntryKind, string> = {
+	chapter: "chapter",
+	mechanism: "mechanism",
+	tool: "toolkit action",
+	glossary: "glossary term",
+	example: "example",
+};
+
+/** An entry as messages name it: `chapter "Why handoffs fail" (why-handoffs-fail)`. */
+export const describeExportEntry = (entry: ExportEntry): string =>
+	`${KIND_NAMES[entry.kind]} "${entry.title}" (${entry.slug})`;
 
 /** The line under the title, e.g. "Draft · Version 0.2.0 · September 15, 2024". */
 export const formatExportEdition = (

@@ -2,8 +2,11 @@ import JSZip from "jszip";
 import {
 	decodePDFRawStream,
 	PDFArray,
+	PDFDict,
 	PDFDocument,
+	PDFName,
 	type PDFObject,
+	type PDFPage,
 	PDFRawStream,
 } from "pdf-lib";
 
@@ -139,8 +142,9 @@ const MODIFIED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 /**
  * What stops an EPUB from opening reliably: the OCF container, the package
- * metadata EPUB 3 requires, a manifest item or link with no file behind it,
- * or a content document that is not well-formed XHTML.
+ * metadata EPUB 3 requires, a manifest item, link, or image with no file
+ * behind it, an image the manifest does not list, or a content document that
+ * is not well-formed XHTML.
  */
 export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 	const problems: string[] = [];
@@ -228,6 +232,20 @@ export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 			if (!zip.file(target))
 				problems.push(`${path} links to ${href}, which is not in the book`);
 		}
+		for (const [, src] of xhtml.matchAll(/\ssrc="([^"]+)"/g)) {
+			if (/^[a-z][a-z0-9+.-]*:/i.test(src)) {
+				problems.push(
+					`${path} shows ${src} from outside the book; an EPUB carries its images`,
+				);
+				continue;
+			}
+			const target = resolvePath(path, src);
+			if (!zip.file(target)) {
+				problems.push(`${path} shows ${src}, which is not in the book`);
+			} else if (![...manifest.values()].some((item) => item.path === target)) {
+				problems.push(`${path} shows ${src}, which the manifest does not list`);
+			}
+		}
 	}
 	return problems;
 };
@@ -245,36 +263,83 @@ const contentStreams = (pdf: PDFDocument, contents: PDFObject | undefined) => {
 /** One text run drawn on a page, at its baseline position. */
 export type PdfTextRun = { x: number; y: number; text: string };
 
+const latin1 = (bytes: Uint8Array) => new TextDecoder("latin1").decode(bytes);
+
+const hexBytes = (hex: string) =>
+	new Uint8Array(
+		(hex.match(/../g) ?? []).map((pair) => Number.parseInt(pair, 16)),
+	);
+
 /**
- * The text runs on each page of a PDF Bookkit wrote (single-byte WinAnsi
- * strings positioned with `Tm`, as pdf-lib draws them).
+ * How each of a page's fonts turns a `<hex> Tj` string into text: one
+ * Windows-1252 byte per character for the standard fonts, and for an
+ * embedded (Type0) font, two-byte glyph codes looked up in its ToUnicode
+ * map, as pdf-lib writes it (`bfchar` entries).
+ */
+const pageFontDecoders = (pdf: PDFDocument, page: PDFPage) => {
+	const winAnsi = new TextDecoder("windows-1252");
+	const decoders = new Map<string, (hex: string) => string>();
+	const fonts = page.node.Resources()?.lookupMaybe(PDFName.of("Font"), PDFDict);
+	for (const [name, ref] of fonts?.entries() ?? []) {
+		const font = pdf.context.lookup(ref);
+		const toUnicode =
+			font instanceof PDFDict &&
+			font.get(PDFName.of("Subtype"))?.toString() === "/Type0"
+				? font.lookup(PDFName.of("ToUnicode"))
+				: undefined;
+		if (!(toUnicode instanceof PDFRawStream)) {
+			decoders.set(name.toString(), (hex) => winAnsi.decode(hexBytes(hex)));
+			continue;
+		}
+		const map = new Map<string, string>();
+		const cmap = latin1(decodePDFRawStream(toUnicode).decode());
+		for (const [, block] of cmap.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+			for (const [, code, unicode] of block.matchAll(
+				/<([\dA-Fa-f]+)>\s*<([\dA-Fa-f]+)>/g,
+			)) {
+				const units = (unicode.match(/..../g) ?? []).map((unit) =>
+					Number.parseInt(unit, 16),
+				);
+				map.set(code.toUpperCase(), String.fromCharCode(...units));
+			}
+		}
+		decoders.set(name.toString(), (hex) =>
+			(hex.toUpperCase().match(/..../g) ?? [])
+				.map((code) => map.get(code) ?? "\uFFFD")
+				.join(""),
+		);
+	}
+	return decoders;
+};
+
+/**
+ * The text runs on each page of a PDF Bookkit wrote, as pdf-lib draws them:
+ * a font set with `Tf`, a position with `Tm`, then a hex string with `Tj`.
+ * Text in Helvetica and text in an embedded font are both read back.
  */
 export const extractPdfText = async (
 	bytes: Uint8Array,
 ): Promise<PdfTextRun[][]> => {
 	const pdf = await PDFDocument.load(bytes, { updateMetadata: false });
-	const decoder = new TextDecoder("windows-1252");
 	return pdf.getPages().map((page) => {
+		const decoders = pageFontDecoders(pdf, page);
 		const runs: PdfTextRun[] = [];
+		let decode = decoders.values().next().value ?? (() => "");
 		let x = 0;
 		let y = 0;
 		for (const stream of contentStreams(pdf, page.node.Contents())) {
-			const operators = new TextDecoder("latin1").decode(
-				decodePDFRawStream(stream).decode(),
-			);
+			const operators = latin1(decodePDFRawStream(stream).decode());
 			for (const match of operators.matchAll(
-				/(-?[\d.]+)\s+(-?[\d.]+)\s+Tm|<([\dA-Fa-f]*)>\s*Tj/g,
+				/(\/[^\s/<>[\](){}%]+)\s+-?[\d.]+\s+Tf|(-?[\d.]+)\s+(-?[\d.]+)\s+Tm|<([\dA-Fa-f]*)>\s*Tj/g,
 			)) {
-				if (match[3] === undefined) {
-					x = Number(match[1]);
-					y = Number(match[2]);
-					continue;
+				if (match[1] !== undefined) {
+					decode = decoders.get(match[1]) ?? decode;
+				} else if (match[4] === undefined) {
+					x = Number(match[2]);
+					y = Number(match[3]);
+				} else {
+					runs.push({ x, y, text: decode(match[4]) });
 				}
-				const hex = match[3].match(/../g) ?? [];
-				const text = decoder.decode(
-					new Uint8Array(hex.map((pair) => Number.parseInt(pair, 16))),
-				);
-				runs.push({ x, y, text });
 			}
 		}
 		return runs;

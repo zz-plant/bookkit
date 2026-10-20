@@ -85,7 +85,7 @@ import { writeHealthyDist } from ${JSON.stringify(join(repoRoot(), "scripts", "l
 const book = basename(process.cwd());
 appendFileSync(${JSON.stringify(log("build"))}, \`build \${book}\\n\`);
 if (process.env.STUB_FAIL_BUILD === book) process.exit(1);
-writeHealthyDist(join(process.cwd(), "dist"));
+await writeHealthyDist(join(process.cwd(), "dist"));
 if (process.env.STUB_BREAK_DIST === book) rmSync(join(process.cwd(), "dist", "exports"), { recursive: true });
 `,
 	);

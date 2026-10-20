@@ -11,6 +11,7 @@ import type {
 	ExportLinkOptions,
 	ExportMetadata,
 	ExportPart,
+	ExportRenderOptions,
 } from "./types";
 
 export const formatBytes = (bytes: number): string => {
@@ -47,11 +48,12 @@ export const createExportResponse = async (
 	bundle: ExportBundle,
 	format: ExportFormat,
 	filename: string,
+	options: ExportRenderOptions = {},
 ): Promise<Response> => {
 	const bytes =
 		format === "pdf"
-			? await createPdfExport(bundle)
-			: await createEpubExport(bundle);
+			? await createPdfExport(bundle, options)
+			: await createEpubExport(bundle, options);
 	return new Response(Uint8Array.from(bytes), {
 		headers: {
 			"Content-Type":
@@ -113,7 +115,8 @@ export const createBookExportHelpers = ({
 	book,
 	modules,
 	basePath,
-	formats,
+	formats = ["pdf", "epub"],
+	render = {},
 }: BookExportHelperOptions) => {
 	const parts = buildExportParts(modules, {
 		defaultLocale: book.language,
@@ -153,6 +156,10 @@ export const createBookExportHelpers = ({
 	};
 
 	return {
+		/** The formats this book builds and links. */
+		formats,
+		/** What the PDF and EPUB read besides the bundle: images, fonts, warnings. */
+		render,
 		getBookExportBundle,
 		getChapterExportBundle,
 		getBookExportLinks: () =>

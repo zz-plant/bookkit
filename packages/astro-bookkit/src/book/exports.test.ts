@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Resvg } from "@resvg/resvg-js";
 import JSZip from "jszip";
 import {
 	type PDFArray,
@@ -10,6 +15,7 @@ import {
 } from "pdf-lib";
 
 import { extractPdfText, inspectEpub, inspectPdf } from "../exports";
+import { createBookExportHelpersFromConfig } from "./exports";
 import { createBookRuntime } from "./runtime";
 
 /**
@@ -92,6 +98,7 @@ steps:
 runbookSteps:
   - when: Money is at risk
     action: Classify as sev-1.
+  - action: Note the alert in the incident log.
 escalation:
   to: duty-manager
   when: A sev-1 is confirmed.
@@ -136,7 +143,12 @@ const READING_ORDER = [
 	"Quiet alert",
 ];
 
-const createRuntime = (options: { releases?: boolean } = {}) =>
+const createRuntime = (
+	options: {
+		releases?: boolean;
+		exports?: { pdf?: boolean; pdfFont?: string };
+	} = {},
+) =>
 	createBookRuntime({
 		bookConfig: {
 			slug: "drill-book",
@@ -147,6 +159,7 @@ const createRuntime = (options: { releases?: boolean } = {}) =>
 			localization: { defaultLocale: "en-GB" },
 			// The author's order, not the alphabet: triage comes first.
 			mechanisms: [{ slug: "triage" }, { slug: "escalation" }],
+			exports: options.exports,
 		},
 		modules: {
 			contentModules: {
@@ -261,6 +274,22 @@ const readOutline = async (bytes: Uint8Array) => {
 	};
 };
 
+type Helpers = ReturnType<typeof createBookExportHelpersFromConfig>;
+const createExport = async (helpers: Helpers, format: "pdf" | "epub") => {
+	const { createExportResponse } = await import("../exports");
+	return download(
+		await createExportResponse(
+			helpers.getBookExportBundle(),
+			format,
+			`book.${format}`,
+			helpers.render,
+		),
+	);
+};
+const createPdfFromHelpers = (helpers: Helpers) => createExport(helpers, "pdf");
+const createEpubFromHelpers = (helpers: Helpers) =>
+	createExport(helpers, "epub");
+
 const pageText = async (bytes: Uint8Array) =>
 	(await extractPdfText(bytes)).map((runs) =>
 		runs.map((run) => run.text).join("\n"),
@@ -293,6 +322,8 @@ describe("book exports", () => {
 			"<p>A pager alert fires.</p>",
 			"<ol><li>Read the payload.</li><li>Classify severity.</li></ol>",
 			"<strong>Money is at risk:</strong> Classify as sev-1.",
+			// As the toolkit page labels a step without a condition.
+			"<strong>In any situation:</strong> Note the alert in the incident log.",
 			"<strong>To:</strong> duty-manager",
 			"<strong>Within:</strong> 1 hour",
 			"Classify three sample alerts.",
@@ -458,5 +489,99 @@ describe("book exports", () => {
 			await bookEpub(createRuntime({ releases: false })),
 		);
 		expect(dated.modified).toBe("2026-01-01T00:00:00Z");
+	});
+
+	it("build no PDF when the book turns it off, and still build the EPUB", async () => {
+		const runtime = createRuntime({ exports: { pdf: false } });
+
+		const book = await runtime.exportRoutes.book.pdf.GET();
+		expect(book.body).toBeNull();
+		expect(runtime.exportRoutes.chapters.pdf.getStaticPaths()).toEqual([]);
+		expect(
+			(
+				await runtime.exportRoutes.chapters.pdf.GET({
+					params: { slug: "overview" },
+				})
+			).body,
+		).toBeNull();
+		expect(runtime.getBookExportLinks().map((link) => link.href)).toEqual([
+			"/exports/book.epub",
+		]);
+		expect(
+			runtime
+				.getChapterExportLinks("overview", "Overview")
+				.map((link) => link.format),
+		).toEqual(["epub"]);
+		expect(await inspectEpub(await bookEpub(runtime))).toEqual([]);
+		expect(runtime.exportRoutes.chapters.epub.getStaticPaths()).toHaveLength(2);
+	});
+
+	it("draw text in the font exports.pdfFont names, and name the setting when the file is missing", async () => {
+		const font = createRequire(import.meta.url).resolve(
+			"@fontsource/noto-sans/files/noto-sans-devanagari-400-normal.woff",
+		);
+		const withFont = (pdfFont: string) =>
+			createBookExportHelpersFromConfig({
+				bookConfig: {
+					title: "Glyphs",
+					exports: { pdfFont },
+				},
+				modules: {
+					chapters: { "../content/book/chapters/a.mdx": "Placeholder: ◌" },
+				},
+				folders: { root: "/books/glyphs", publicDir: "/books/glyphs/public" },
+			});
+		const helpers = withFont(font);
+		const pdf = await createPdfFromHelpers(helpers);
+		// Helvetica draws the words and the book's font the placeholder, on one line.
+		const runs = (await extractPdfText(pdf)).flat();
+		const line = runs.filter((run) => run.y === runs.at(-1)?.y);
+		expect(line.map((run) => run.text)).toEqual(["Placeholder: ", "◌"]);
+
+		await expect(
+			createPdfFromHelpers(withFont("fonts/missing.otf")),
+		).rejects.toThrow(
+			'exports.pdfFont in book.config.ts is "fonts/missing.otf", but there is no file at /books/glyphs/fonts/missing.otf.',
+		);
+	});
+
+	it("carry images from public/ and from beside the content file", async () => {
+		const root = mkdtempSync(join(tmpdir(), "bookkit-book-images-"));
+		try {
+			const png = new Resvg(
+				'<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4"><rect width="8" height="4"/></svg>',
+			)
+				.render()
+				.asPng();
+			mkdirSync(join(root, "public", "images"), { recursive: true });
+			writeFileSync(join(root, "public", "images", "board.png"), png);
+			mkdirSync(join(root, "src", "content", "book", "chapters", "img"), {
+				recursive: true,
+			});
+			writeFileSync(
+				join(root, "src", "content", "book", "chapters", "img", "flow.png"),
+				png,
+			);
+			const warnings: string[] = [];
+			const helpers = createBookExportHelpersFromConfig({
+				bookConfig: { title: "Pictures" },
+				modules: {
+					chapters: {
+						"../content/book/chapters/a.mdx":
+							"![The board](/images/board.png)\n\n![The flow](./img/flow.png)",
+					},
+				},
+				folders: { root, publicDir: join(root, "public") },
+				onWarning: (message) => warnings.push(message),
+			});
+			const epub = await JSZip.loadAsync(await createEpubFromHelpers(helpers));
+			expect(
+				Object.keys(epub.files).filter((path) => path.includes("images/")),
+			).toEqual(["OEBPS/images/board.png", "OEBPS/images/flow.png"]);
+			expect(warnings).toEqual([]);
+			expect(await inspectPdf(await createPdfFromHelpers(helpers))).toEqual([]);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });

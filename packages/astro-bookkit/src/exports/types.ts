@@ -1,3 +1,6 @@
+import type { ExportImageLoader } from "./images";
+import type { PdfFontFile } from "./pdf-fonts";
+
 /** The content section an export entry was built from. */
 export type ExportEntryKind =
 	| "chapter"
@@ -15,6 +18,8 @@ export type ExportEntry = {
 	body: string;
 	description?: string;
 	locale?: string;
+	/** The content file it was read from (its module key); relative image paths start there. */
+	source?: string;
 	/** Entries read as part of this one, such as a mechanism's toolkit actions. */
 	children?: ExportEntry[];
 };
@@ -43,6 +48,23 @@ export type ExportBundle = {
 };
 
 export type ExportFormat = "pdf" | "epub";
+
+/** What an export reads besides its bundle. */
+export type ExportRenderOptions = {
+	/**
+	 * Reads the image files entries show. Default: `/x.png` from `public/`
+	 * in the working directory.
+	 */
+	loadImage?: ExportImageLoader;
+	/**
+	 * Font files the PDF tries, after its built-in ones, for characters they
+	 * do not cover (`exports.pdfFont`). Called only when such a character
+	 * appears.
+	 */
+	pdfFonts?: () => PdfFontFile[];
+	/** Problems that do not stop the export, such as an image shown as its alt text. Default: console.warn. */
+	onWarning?: (message: string) => void;
+};
 
 export type ExportMetadata = {
 	format: ExportFormat;
@@ -98,5 +120,7 @@ export type BookExportHelperOptions = {
 	book: BookExportInfo;
 	modules: ExportRawModules;
 	basePath?: string;
+	/** The formats built and linked; default both. */
 	formats?: ExportFormat[];
+	render?: ExportRenderOptions;
 };

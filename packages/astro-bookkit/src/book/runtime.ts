@@ -21,7 +21,10 @@ import {
 	createChapterExportSlugs,
 	createReleaseNoteHelpers,
 } from "./app-helpers";
-import { createBookExportHelpersFromConfig } from "./exports";
+import {
+	type BookExportsConfig,
+	createBookExportHelpersFromConfig,
+} from "./exports";
 import { getOgImageForPath } from "./og";
 import type { BookVersionEntryOptions } from "./releases";
 
@@ -38,6 +41,8 @@ type BookRuntimeConfig = {
 	};
 	localization?: { defaultLocale?: string };
 	mechanisms?: ReadonlyArray<{ slug: string }>;
+	/** The PDF and EPUB downloads. */
+	exports?: BookExportsConfig;
 	features?: {
 		aiQa?: boolean;
 		aiQaProvider?: import("../qa").AiQaProviderConfig;
@@ -70,6 +75,12 @@ export const createBookRuntime = ({
 	const chapterExportSlugs = createChapterExportSlugs(
 		bookEntryPoints.contentModules.chapters,
 	);
+	// A format the book turns off (`exports.pdf: false`) writes no files.
+	const exportRoute = (format: "pdf" | "epub") => ({
+		format,
+		enabled: exportHelpers.formats.includes(format),
+		render: exportHelpers.render,
+	});
 
 	return {
 		bookConfig,
@@ -131,30 +142,30 @@ export const createBookRuntime = ({
 			book: {
 				pdf: {
 					GET: createBookExportGetHandler({
+						...exportRoute("pdf"),
 						getBookExportBundle: exportHelpers.getBookExportBundle,
-						format: "pdf",
 						filename: `${bookConfig.slug}.pdf`,
 					}),
 				},
 				epub: {
 					GET: createBookExportGetHandler({
+						...exportRoute("epub"),
 						getBookExportBundle: exportHelpers.getBookExportBundle,
-						format: "epub",
 						filename: `${bookConfig.slug}.epub`,
 					}),
 				},
 			},
 			chapters: {
 				pdf: createChapterExportHandlers({
+					...exportRoute("pdf"),
 					chapterExportSlugs,
 					getChapterExportBundle: exportHelpers.getChapterExportBundle,
-					format: "pdf",
 					filenamePrefix: bookConfig.slug,
 				}),
 				epub: createChapterExportHandlers({
+					...exportRoute("epub"),
 					chapterExportSlugs,
 					getChapterExportBundle: exportHelpers.getChapterExportBundle,
-					format: "epub",
 					filenamePrefix: bookConfig.slug,
 				}),
 			},

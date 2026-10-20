@@ -25,20 +25,36 @@ export function extractSiteConfig(source: string): SeoSiteConfig | null {
  * build cannot enforce preview tokens, so check:build refuses that pairing.
  */
 export function extractPreviewAccessEnabled(source: string): boolean {
+	return extractBooleanSetting(source, "previewAccess", "enabled") === true;
+}
+
+/**
+ * Whether the book builds a PDF: false only when `bookConfig.exports.pdf` is
+ * the literal `false`. check:build then expects no book.pdf.
+ */
+export function extractPdfExportEnabled(source: string): boolean {
+	return extractBooleanSetting(source, "exports", "pdf") !== false;
+}
+
+/** `bookConfig.<section>.<field>` when it is a boolean literal, else null. */
+function extractBooleanSetting(
+	source: string,
+	section: string,
+	field: string,
+): boolean | null {
 	const parsed = parseBookConfig(source);
-	if (!parsed) return false;
-	const node = readObjectProperty(parsed.bookConfig, "previewAccess");
-	const previewAccess = node ? unwrapExpression(node) : null;
-	if (!previewAccess) return false;
-	const object = ts.isIdentifier(previewAccess)
-		? parsed.objectBindings.get(previewAccess.text)
-		: ts.isObjectLiteralExpression(previewAccess)
-			? previewAccess
-			: undefined;
-	const enabled = object ? readObjectProperty(object, "enabled") : null;
-	return enabled
-		? readBooleanLiteral(unwrapExpression(enabled)) === true
-		: false;
+	if (!parsed) return null;
+	const node = readObjectProperty(parsed.bookConfig, section);
+	const value = node ? unwrapExpression(node) : null;
+	const object = !value
+		? undefined
+		: ts.isIdentifier(value)
+			? parsed.objectBindings.get(value.text)
+			: ts.isObjectLiteralExpression(value)
+				? value
+				: undefined;
+	const setting = object ? readObjectProperty(object, field) : null;
+	return setting ? readBooleanLiteral(unwrapExpression(setting)) : null;
 }
 
 function parseBookConfig(source: string): {

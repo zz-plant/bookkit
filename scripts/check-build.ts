@@ -6,13 +6,15 @@ import { extractBookStatusFromSource } from "../packages/astro-bookkit/src/valid
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { formatInspection, inspectBuildOutput } from "./lib/build-output";
 import {
+	extractPdfExportEnabled,
 	extractPreviewAccessEnabled,
 	extractSiteConfig,
 } from "./lib/site-config";
 
 /**
  * Verifies each book's `dist/` is deployable: real pages (not preview lockouts),
- * real PDF/EPUB exports, the SEO artifacts a public host needs, and one site URL
+ * PDF and EPUB exports that pass the engine's structural checks (the PDF only
+ * when the book has one), the SEO artifacts a public host needs, and one site URL
  * across all of them. The book's status sets the rest: a published or stable
  * book must be indexable and have chapters; any other book must be noindex.
  * Preview access is refused, since a static host cannot enforce it. Run after
@@ -48,7 +50,7 @@ for (const book of books) {
 		? (extractBookStatusFromSource(config) ?? "draft")
 		: undefined;
 
-	const result = inspectBuildOutput({
+	const result = await inspectBuildOutput({
 		book,
 		distDir: join(appDir, "dist"),
 		published: status === undefined ? undefined : isReleasedStatus(status),
@@ -57,6 +59,7 @@ for (const book of books) {
 			extractPreviewAccessEnabled(config) &&
 			extractSiteConfig(config)?.runtime !== "server",
 		requireChapters: status !== undefined && status !== "draft",
+		pdf: config === undefined || extractPdfExportEnabled(config),
 	});
 
 	for (const line of formatInspection(result)) {

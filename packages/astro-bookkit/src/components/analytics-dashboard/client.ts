@@ -17,6 +17,12 @@ import {
 	summarizeAnalyticsEvents,
 } from "../../analytics/dashboard";
 import {
+	AUTHOR_TOKEN_EVENT,
+	fetchAuthorJson,
+	reportAuthorRead,
+	storedAuthorToken,
+} from "../author-access/access";
+import {
 	renderChapterRows,
 	renderLocaleRows,
 	renderMetric,
@@ -65,24 +71,17 @@ const loadLocalEvents = (storageKey: string): AnalyticsDashboardEvent[] =>
 const loadRemoteEvents = async (
 	endpoint: string,
 ): Promise<AnalyticsDashboardEvent[]> => {
-	try {
-		const response = await fetch(endpoint);
-		if (!response.ok) return [];
-		const payload = await response.json();
-		if (!Array.isArray(payload?.events)) return [];
-		return filterEventsByRetention(
-			payload.events
-				.map((event: unknown) => normalizeAnalyticsEvent(event))
-				.filter(
-					(
-						event: AnalyticsDashboardEvent | null,
-					): event is AnalyticsDashboardEvent => Boolean(event),
-				),
-			{ retentionDays: RETENTION_DAYS },
-		);
-	} catch {
-		return [];
-	}
+	const read = await fetchAuthorJson(endpoint, { token: storedAuthorToken() });
+	reportAuthorRead("analytics", read.state);
+	if (read.state !== "ok") return [];
+	const events = (read.payload as { events?: unknown } | null)?.events;
+	if (!Array.isArray(events)) return [];
+	return filterEventsByRetention(
+		events
+			.map((event: unknown) => normalizeAnalyticsEvent(event))
+			.filter((event): event is AnalyticsDashboardEvent => Boolean(event)),
+		{ retentionDays: RETENTION_DAYS },
+	);
 };
 
 const loadEvents = async (
@@ -282,6 +281,14 @@ const initDashboard = async (dashboard: Element): Promise<void> => {
 	window.addEventListener("storage", (event) => {
 		if (event.key !== storageKey) return;
 		events = loadLocalEvents(storageKey);
+		versions = createUniqueVersions(events);
+		fillVersions();
+		render();
+	});
+
+	// The author saved or forgot the token: ask the server again.
+	window.addEventListener(AUTHOR_TOKEN_EVENT, async () => {
+		events = await loadEvents(endpoint, storageKey);
 		versions = createUniqueVersions(events);
 		fillVersions();
 		render();

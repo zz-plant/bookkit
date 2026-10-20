@@ -90,6 +90,13 @@ const hasLinks = links.length > 0;
   )}
 
   <script>
+    import {
+      AUTHOR_TOKEN_EVENT,
+      fetchAuthorJson,
+      reportAuthorRead,
+      storedAuthorToken,
+    } from "./author-access/access";
+
     const analyticsKeyPrefix = document.body?.dataset?.analyticsKey || "book";
     const analyticsKey = `${analyticsKeyPrefix}.preview.analytics`;
     const previewAnalyticsEndpoint = document.body?.dataset?.previewAnalyticsEndpoint;
@@ -152,27 +159,32 @@ const hasLinks = links.length > 0;
 
     const loadRemoteStats = async () => {
       if (!previewAnalyticsEndpoint) return null;
-      try {
-        const response = await fetch(previewAnalyticsEndpoint, { headers: { Accept: "application/json" } });
-        if (!response.ok) return null;
-        const payload = await response.json();
-        return {
-          counts: payload?.totals || {},
-          latest: payload?.latest || {},
-        };
-      } catch (error) {
-        return null;
-      }
+      const read = await fetchAuthorJson(previewAnalyticsEndpoint, {
+        token: storedAuthorToken(),
+      });
+      reportAuthorRead("preview-links", read.state);
+      if (read.state !== "ok") return null;
+      const payload = read.payload as { totals?: PreviewStats["counts"]; latest?: PreviewStats["latest"] } | null;
+      return {
+        counts: payload?.totals || {},
+        latest: payload?.latest || {},
+      };
     };
 
-    const localStats = statsFromEvents(parseEvents());
-    updateUsage(localStats.counts, localStats.latest);
+    // This browser's own visits first, then the server's once it answers.
+    const showUsage = () => {
+      const localStats = statsFromEvents(parseEvents());
+      updateUsage(localStats.counts, localStats.latest);
+      loadRemoteStats().then((stats) => {
+        if (stats) {
+          updateUsage(stats.counts, stats.latest);
+        }
+      });
+    };
 
-    loadRemoteStats().then((stats) => {
-      if (stats) {
-        updateUsage(stats.counts, stats.latest);
-      }
-    });
+    showUsage();
+    // The author saved or forgot the token: ask the server again.
+    window.addEventListener(AUTHOR_TOKEN_EVENT, showUsage);
 
     const copyButtons = document.querySelectorAll<HTMLElement>("[data-preview-copy]");
     copyButtons.forEach((button) => {

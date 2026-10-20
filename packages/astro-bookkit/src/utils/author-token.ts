@@ -9,6 +9,13 @@ import { jsonResponse } from "./http";
  */
 export const AUTHOR_TOKEN_ENV = "BOOKKIT_AUTHOR_TOKEN";
 
+/**
+ * What an author endpoint answers, with a 500, when the server has no usable
+ * token; the dashboards recognise it to tell the author what to set.
+ */
+export const NOT_CONFIGURED_ERROR =
+	"This endpoint is not configured on this server.";
+
 /** Shorter tokens are refused as unset: they can be guessed. */
 export const MIN_AUTHOR_TOKEN_LENGTH = 32;
 
@@ -86,7 +93,7 @@ export const checkAuthorToken = async (
 		return {
 			ok: false,
 			status: 500,
-			error: "This endpoint is not configured on this server.",
+			error: NOT_CONFIGURED_ERROR,
 		};
 	}
 

@@ -105,6 +105,15 @@ describe(`static build of ${BOOK}`, () => {
 		expect(offenders.map((file) => file.slice(outDir.length))).toEqual([]);
 	});
 
+	it("leaves the author token panel off the analytics page: there is no server to send it to", () => {
+		const analytics = readFileSync(
+			join(outDir, "read", "analytics", "index.html"),
+			"utf8",
+		);
+		expect(analytics).toContain("data-analytics-dashboard");
+		expect(analytics).not.toContain("data-author-access");
+	});
+
 	it("puts the phone action bar in a labelled nav landmark on every page", () => {
 		const offenders = pages().filter((file) => {
 			const bar = readFileSync(file, "utf8").match(

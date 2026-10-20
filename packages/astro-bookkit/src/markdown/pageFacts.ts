@@ -1,10 +1,12 @@
-import { stripMarkdown } from "../utils/markdown";
+import { splitFencedCode, stripMarkdown } from "../utils/markdown";
 
 /**
  * Two facts about a content file, read from its MDX source:
  *
- * - `excerpt`: the first paragraph of prose, for a meta description when the
- *   author wrote none.
+ * - `excerpt`: the first paragraph of prose, as Markdown on one line, for a
+ *   meta description when the author wrote none. `toMetaDescription` makes
+ *   it plain text once, as it does a `summary`: text already plain would
+ *   lose its `<placeholders>` to a second pass.
  * - `wordCount`: words of prose in the body, so stub chapters can be kept out
  *   of search.
  *
@@ -20,8 +22,9 @@ const MIN_EXCERPT_CHARACTERS = 40;
 
 const FRONTMATTER = /^﻿?---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
 
-/** Block-level syntax at the start of a line: headings, quotes, list markers. */
-const LINE_MARKER = /^\s{0,3}(?:#{1,6}\s+|>\s?|[-*+]\s+|\d+[.)]\s+)/;
+/** Block-level syntax at the start of a line: headings, quotes, list markers (and a task's box). */
+const LINE_MARKER =
+	/^\s{0,3}(?:#{1,6}\s+|>\s?|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?)/;
 
 /** A block that is not a plain paragraph of prose. */
 const NON_PARAGRAPH = /^(?:#{1,6}\s|[-*+]\s|>|\||<|\d+[.)]\s)/;
@@ -34,18 +37,27 @@ export const countWords = (text: string): number =>
 
 const collapse = (text: string): string => text.replace(/\s+/g, " ").trim();
 
+// Tags are left to stripMarkdown, which skips escaped `\<placeholders\>` and code.
 const proseOf = (block: string): string =>
 	block
 		.split("\n")
-		.map((line) =>
-			stripMarkdown(line.replace(LINE_MARKER, "").replace(/<[^>]*>/g, " ")),
-		)
+		.map((line) => stripMarkdown(line.replace(LINE_MARKER, "")))
 		.join(" ");
 
+/** A block's inline Markdown: its lines, without their block markers, on one line. */
+const markdownOf = (block: string): string =>
+	collapse(
+		block
+			.split("\n")
+			.map((line) => line.replace(LINE_MARKER, ""))
+			.join(" "),
+	);
+
 export const extractPageFacts = (source: string): PageFacts => {
-	const body = source
-		.replace(FRONTMATTER, "")
-		.replace(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, "")
+	// Fenced code (indented or not) leaves an empty line, so the text around it stays two blocks.
+	const body = splitFencedCode(source.replace(FRONTMATTER, ""))
+		.map((segment) => (segment.code ? "" : segment.text))
+		.join("\n")
 		.replace(/<!--[\s\S]*?-->/g, "")
 		.replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
 		.replace(/^(?:import|export)\s.*$/gm, "");
@@ -63,7 +75,7 @@ export const extractPageFacts = (source: string): PageFacts => {
 			!NOTE.test(block) &&
 			text.length >= MIN_EXCERPT_CHARACTERS
 		) {
-			excerpt = text;
+			excerpt = markdownOf(block);
 		}
 	}
 	return { excerpt, wordCount };

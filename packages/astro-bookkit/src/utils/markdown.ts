@@ -50,12 +50,31 @@ export const smartDashes = (text: string): string =>
 // A code span, or a backslash escape (`\<name\>`, `\*`).
 const LITERAL_TEXT = /(`+)([\s\S]*?[^`])\1(?!`)|\\([!-/:-@[-`{-~])/g;
 const HELD_TEXT = /\uE000(\d+)\uE001/g;
+const TAG_NAME = /^<\/?([A-Za-z][\w.:-]*)/;
+
+/**
+ * What a tag leaves in plain text: a space for one that separates words (a
+ * block element, `<br>`, `<hr>`, or an MDX component such as `<Callout>`),
+ * nothing for an inline one (`<kbd>`, `<em>`), a comment, or an autolink.
+ */
+const tagText = (tag: string): string => {
+	const name = tag.match(TAG_NAME)?.[1];
+	if (!name) return "";
+	const lower = name.toLowerCase();
+	return /^[A-Z]/.test(name) ||
+		BLOCK_ELEMENTS.has(lower) ||
+		lower === "br" ||
+		lower === "hr"
+		? " "
+		: "";
+};
 
 /**
  * Markdown as plain text, for search entries and page descriptions. Code
  * spans keep their text without the backticks, escaped characters keep
- * their character, an image keeps its alt text, and underscores inside a
- * word (`snake_case`) are not read as emphasis.
+ * their character (`\<name\>` is `<name>`), an image keeps its alt text,
+ * underscores inside a word (`snake_case`) are not read as emphasis, and
+ * HTML tags are left out, a space kept where one separates words.
  */
 export const stripMarkdown = (value: string) => {
 	const literal: string[] = [];
@@ -76,8 +95,9 @@ export const stripMarkdown = (value: string) => {
 				return `\uE000${literal.length - 1}\uE001`;
 			},
 		);
+	// A link's destination may hold balanced parentheses: `(/wiki/Foo_(bar))`.
 	return held
-		.replace(/!?\[(.*?)\]\([^)]*\)/g, "$1")
+		.replace(/!?\[(.*?)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
 		.replace(/\*\*(.*?)\*\*/g, "$1")
 		.replace(/\*(.*?)\*/g, "$1")
 		.replace(
@@ -85,7 +105,7 @@ export const stripMarkdown = (value: string) => {
 			"$1$2",
 		)
 		.replace(/~~(.*?)~~/g, "$1")
-		.replace(/<[^>]+>/g, "")
+		.replace(/<[^>]+>/g, tagText)
 		.replace(/^\s*[-*+]\s+/g, "")
 		.replace(/^\s*\d+\.\s+/g, "")
 		.replace(HELD_TEXT, (_, index: string) => literal[Number(index)])
@@ -124,7 +144,14 @@ export type MdxBodyOptions = {
 /** A run of prose or fenced code; `line` is the 0-based line it starts on. */
 export type MarkdownSegment = { code: boolean; text: string; line: number };
 
-const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
+/**
+ * A line that opens fenced code: three or more backticks (with no backtick
+ * in the info string after them) or tildes. MDX has no indented code, so a
+ * fence may be indented any amount, as one in a third-level list item is.
+ */
+export const FENCE_OPENING = /^([ \t]*)(`{3,}(?=[^`]*$)|~{3,})/;
+/** A line that can close fenced code: the fence, and nothing after it but spaces. */
+const FENCE_CLOSING = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const INLINE_CODE = /(`+)[\s\S]*?\1/g;
 const HTML_COMMENT = /<!--([\s\S]*?)-->/g;
 const HTML_TAG =
@@ -211,23 +238,29 @@ export const KEPT_ELEMENTS: ReadonlySet<string> = new Set([
 	"var",
 ]);
 
-/** Splits Markdown into runs of prose and fenced code, in order. */
+/**
+ * Splits Markdown into runs of prose and fenced code, in order. Code runs
+ * to a closing fence of the same character, at least as long as the one
+ * that opened it, or to the end.
+ */
 export const splitFencedCode = (markdown: string): MarkdownSegment[] => {
 	const segments: MarkdownSegment[] = [];
 	let current: MarkdownSegment | null = null;
 	let fence: string | null = null;
 	markdown.split("\n").forEach((line, index) => {
-		const marker = line.match(FENCE)?.[1];
-		const opens = !fence && Boolean(marker);
+		const opening = fence ? undefined : line.match(FENCE_OPENING)?.[2];
+		const opens = opening !== undefined;
 		const code = Boolean(fence) || opens;
-		if (opens && marker) fence = marker;
-		else if (
-			fence &&
-			marker &&
-			marker[0] === fence[0] &&
-			marker.length >= fence.length
-		) {
-			fence = null;
+		if (opening !== undefined) fence = opening;
+		else if (fence) {
+			const closing = line.match(FENCE_CLOSING)?.[1];
+			if (
+				closing &&
+				closing[0] === fence[0] &&
+				closing.length >= fence.length
+			) {
+				fence = null;
+			}
 		}
 		// A fence that opens right after another closes starts a new block.
 		if (current && current.code === code && !opens) {

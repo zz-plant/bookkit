@@ -1,5 +1,6 @@
 import {
 	type Color,
+	LineCapStyle,
 	PDFDocument,
 	PDFHexString,
 	type PDFImage,
@@ -9,17 +10,15 @@ import {
 	type PDFRef,
 	rgb,
 } from "pdf-lib";
-import { createHeadingSlugger } from "../utils/markdown";
 import { defaultImageLoader, imageWarning, warnWith } from "./images";
-import {
-	type InlineImage,
-	type MarkdownBlock,
-	type MarkdownDocument,
-	parseMarkdown,
+import type {
+	InlineImage,
+	MarkdownBlock,
+	MarkdownDocument,
 } from "./markdown-blocks";
+import { type HeadingBlock, parseEntryMarkdown } from "./markdown-headings";
 import {
 	createNoteNumbers,
-	headingSlugText,
 	type InlineNode,
 	type NoteNumbers,
 	parseInline,
@@ -27,6 +26,7 @@ import {
 import {
 	HAS_SCHEME,
 	imageAltText,
+	isSafeLink,
 	readLinkTarget,
 	readSectionOf,
 } from "./markdown-to-html";
@@ -222,10 +222,16 @@ const TABLE_HEAD_FILL = rgb(0.94, 0.94, 0.94);
 const LINK_INK = rgb(0.1, 0.3, 0.65);
 // A list's bullet at each depth, alternating.
 const BULLETS = ["•", "–"];
-// Links open these schemes; any other (javascript:, file:, data:) stays text.
-const LINKED_SCHEMES = /^(?:https?|mailto|tel|ftp):/i;
+// How far a task's text sits right of its box's left edge.
+const TASK_INDENT = 13;
 // Table text, cell padding, and the narrowest column worth drawing as a grid.
 const TABLE = { size: 10, lineHeight: 13, padX: 5, padY: 4, minColumn: 36 };
+
+/**
+ * What leads a list item's first line: its bullet or number, and for a task
+ * list item, after that, a box drawn ticked or empty.
+ */
+type Marker = string | { bullet: string; checked: boolean };
 
 type TextStyle = {
 	fonts: PdfFontChain;
@@ -533,21 +539,56 @@ export const createPdfExport = async (
 		return prepared;
 	};
 
-	/** The list marker (a bullet or number) to the left of a line of text. */
-	const drawMarker = (marker: string, style: TextStyle) =>
-		page.drawText(marker, {
-			x: style.x - 16,
+	/**
+	 * A task's box, ☐ or ☑, at `x` on the current line, drawn as lines: none
+	 * of the built-in fonts has those characters.
+	 */
+	const drawTaskBox = (checked: boolean, x: number, style: TextStyle) => {
+		const side = style.size * 0.72;
+		page.drawRectangle({
+			x,
+			y,
+			width: side,
+			height: side,
+			borderColor: style.color,
+			borderWidth: 0.8,
+		});
+		if (!checked) return;
+		const at = (dx: number, dy: number) => ({
+			x: x + side * dx,
+			y: y + side * dy,
+		});
+		const tick = {
+			thickness: 1.2,
+			color: style.color,
+			lineCap: LineCapStyle.Round,
+		};
+		page.drawLine({ start: at(0.2, 0.5), end: at(0.42, 0.24), ...tick });
+		page.drawLine({ start: at(0.42, 0.24), end: at(0.82, 0.8), ...tick });
+	};
+
+	/** The list marker (a bullet or number) to the left of a line of text, then a task's box. */
+	const drawMarker = (marker: Marker, style: TextStyle) => {
+		const { bullet, checked } =
+			typeof marker === "string"
+				? { bullet: marker, checked: undefined }
+				: marker;
+		const boxX = style.x - (checked === undefined ? 0 : TASK_INDENT);
+		page.drawText(bullet, {
+			x: boxX - 16,
 			y,
 			size: style.size,
 			font: style.fonts.standard,
 			color: style.color,
 		});
+		if (checked !== undefined) drawTaskBox(checked, boxX, style);
+	};
 
 	/** Wrapped text in mixed fonts, breaking to a new page between any two lines. */
 	const drawPiecesWrapped = async (
 		pieces: Piece[],
 		style: TextStyle,
-		marker?: string,
+		marker?: Marker,
 	) => {
 		const lines = wrapWords(toWords(await preparePieces(pieces)), style.width);
 		lines.forEach((line, index) => {
@@ -576,19 +617,19 @@ export const createPdfExport = async (
 
 	/**
 	 * Where a link in `entry` points: a heading or entry in this PDF (a named
-	 * destination), else the page on the site, else nowhere (null). A link to
-	 * a scheme the PDF does not open stays text.
+	 * destination), else the page on the site, else nowhere (null). A link
+	 * with a scheme exports do not open (`javascript:`, `data:`) stays text.
 	 */
 	const linkTarget = (
 		href: string,
 		entry: ExportEntry,
 	): PdfLinkTarget | null => {
+		if (!isSafeLink(href)) return null;
 		if (href.startsWith("#")) {
 			const fallback = entryDestination(entry);
 			return { destination: `${fallback}/${href.slice(1)}`, fallback };
 		}
-		if (HAS_SCHEME.test(href))
-			return LINKED_SCHEMES.test(href) ? { uri: href } : null;
+		if (HAS_SCHEME.test(href)) return { uri: href };
 		const uri =
 			href.startsWith("/") && siteUrl ? `${siteUrl}${href}` : undefined;
 		const record = readLinkTarget(href);
@@ -787,7 +828,7 @@ export const createPdfExport = async (
 		nodes: InlineNode[],
 		style: TextStyle,
 		flow: Flow,
-		marker?: string,
+		marker?: Marker,
 	) => {
 		let pending: Piece[] = [];
 		let lead = marker;
@@ -1061,7 +1102,7 @@ export const createPdfExport = async (
 		frame: Frame,
 		document: MarkdownDocument,
 		flow: Flow,
-		headingId: (text: string) => string,
+		ids: ReadonlyMap<HeadingBlock, string>,
 	): Promise<void> => {
 		const inline = (text: string) => parseInline(text, document);
 		const style: TextStyle = {
@@ -1077,14 +1118,16 @@ export const createPdfExport = async (
 			...extra,
 		});
 		const nested = (inner: MarkdownBlock[], at: Frame) =>
-			drawBlocks(inner, at, document, flow, headingId);
+			drawBlocks(inner, at, document, flow, ids);
 		for (const block of blocks) {
 			if (block.type === "heading") {
 				const nodes = inline(block.text);
 				// A heading written as an HTML tag has no id on the site, so none here.
-				const destination = block.html
-					? undefined
-					: `${entryDestination(flow.entry)}/${headingId(headingSlugText(nodes))}`;
+				const id = ids.get(block);
+				const destination =
+					id === undefined
+						? undefined
+						: `${entryDestination(flow.entry)}/${id}`;
 				await drawHeading(
 					{ nodes, flow },
 					block.level <= 2 ? 14 : 12,
@@ -1095,10 +1138,19 @@ export const createPdfExport = async (
 			} else if (block.type === "list") {
 				const item = indented(18, { lists: frame.lists + 1 });
 				for (const [index, entry] of block.items.entries()) {
-					const marker = block.ordered
+					const bullet = block.ordered
 						? `${block.start + index}.`
 						: BULLETS[frame.lists % BULLETS.length];
-					const itemStyle = { ...style, x: item.x, width: item.width };
+					const { checked } = entry;
+					const marker: Marker =
+						checked === undefined ? bullet : { bullet, checked };
+					// A task's text lines up after its box, line after line.
+					const taskIndent = checked === undefined ? 0 : TASK_INDENT;
+					const itemStyle = {
+						...style,
+						x: item.x + taskIndent,
+						width: item.width - taskIndent,
+					};
 					if (entry.text.trim()) {
 						await drawProse(inline(entry.text), itemStyle, flow, marker);
 					} else {
@@ -1200,16 +1252,12 @@ export const createPdfExport = async (
 	};
 
 	const drawMarkdown = async (entry: ExportEntry) => {
-		const document = parseMarkdown(entry.body);
+		const { document, ids } = parseEntryMarkdown({
+			...entry.fields,
+			body: entry.body,
+		});
 		const flow: Flow = { entry, notes: createNoteNumbers() };
-		// One slugger per entry, as the site has one per page.
-		await drawBlocks(
-			document.blocks,
-			page0,
-			document,
-			flow,
-			createHeadingSlugger(),
-		);
+		await drawBlocks(document.blocks, page0, document, flow, ids);
 		await drawNotes(document, flow);
 	};
 

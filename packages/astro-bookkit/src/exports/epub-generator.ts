@@ -185,7 +185,7 @@ export const createEpubExport = async (
 		const { entry } = item;
 		const label = entry ? EXPORT_KIND_LABELS[entry.kind] : null;
 		const content = entry
-			? `\n${markdownToHtml(entry.body, resolveLink, imagesOf(entry))}`
+			? `\n${markdownToHtml({ ...entry.fields, body: entry.body }, resolveLink, imagesOf(entry))}`
 			: "";
 		return xhtmlDocument({
 			title: item.title,

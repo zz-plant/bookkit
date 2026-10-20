@@ -113,7 +113,7 @@ export const closeBrowser = async (
 	if (pagesClosed && (await settlesWithin(browser.close(), stepMs))) return;
 	const killed = kill(pids);
 	log(
-		`Chromium's ${pagesClosed ? "browser" : "pages"} did not close within ${stepMs / 1000} s (load average ${loadavg()[0].toFixed(0)}), so ${killed.length > 0 ? `its process was killed (${killed.join(", ")})` : "it was left to exit with this process"}. The cases had already run; this does not fail them.`,
+		`${pagesClosed ? "Chromium" : "Chromium's pages"} did not close within ${stepMs / 1000} s (load average ${loadavg()[0].toFixed(0)}), ${killed.length > 0 ? `so its process was killed (${killed.join(", ")})` : "and none of its processes was left to kill"}. Closing does not fail the file.`,
 	);
 };
 

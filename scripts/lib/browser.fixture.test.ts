@@ -60,7 +60,7 @@ describe("closeBrowser", () => {
 		expect(logged).toEqual([
 			expect.stringMatching(
 				new RegExp(
-					`^Chromium's browser did not close within 0.2 s \\(load average \\d+\\), so its process was killed \\(${child.pid}\\)\\. The cases had already run; this does not fail them\\.$`,
+					`^Chromium did not close within 0.2 s \\(load average \\d+\\), so its process was killed \\(${child.pid}\\)\\. Closing does not fail the file\\.$`,
 				),
 			),
 		]);

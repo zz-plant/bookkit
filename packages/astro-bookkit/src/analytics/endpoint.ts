@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import { authorOnly } from "../utils/author-token";
+import { readBookRecords } from "../utils/book-data";
 import {
 	invalidBodyResponse,
 	jsonResponse,
@@ -7,7 +7,7 @@ import {
 	tryParseJsonBody,
 } from "../utils/http";
 import {
-	getReaderAnalyticsLogPath,
+	READER_ANALYTICS_FILE,
 	type ReaderAnalyticsEvent,
 	recordReaderAnalyticsEvent,
 } from "./analytics";
@@ -83,25 +83,8 @@ const normalizeEvent = (
 	};
 };
 
-const parseEventsFromLog = async (): Promise<ReaderAnalyticsEvent[]> => {
-	try {
-		const log = await readFile(getReaderAnalyticsLogPath(), "utf8");
-		return log
-			.split("\n")
-			.map((line) => line.trim())
-			.filter(Boolean)
-			.map((line) => {
-				try {
-					return JSON.parse(line) as ReaderAnalyticsEvent;
-				} catch {
-					return null;
-				}
-			})
-			.filter((entry): entry is ReaderAnalyticsEvent => Boolean(entry));
-	} catch {
-		return [];
-	}
-};
+const parseEventsFromLog = (): Promise<ReaderAnalyticsEvent[]> =>
+	readBookRecords<ReaderAnalyticsEvent>(READER_ANALYTICS_FILE);
 
 const filterByQuery = (events: ReaderAnalyticsEvent[], request: Request) => {
 	const { searchParams } = new URL(request.url);

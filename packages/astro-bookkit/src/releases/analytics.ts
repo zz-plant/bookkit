@@ -1,6 +1,4 @@
-import { appendFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { appendBookRecord } from "../utils/book-data";
 
 export type ReleaseEvent = {
 	event: "rss_subscribe_click" | "webhook_delivery" | "email_delivery";
@@ -11,18 +9,11 @@ export type ReleaseEvent = {
 	at?: string;
 };
 
-const logPath = join(tmpdir(), "bookkit-release-analytics.jsonl");
-
 export const recordReleaseEvent = async (
 	payload: ReleaseEvent,
 ): Promise<void> => {
-	const entry = {
+	await appendBookRecord("release-analytics.jsonl", {
 		...payload,
 		at: payload.at ?? new Date().toISOString(),
-	};
-	try {
-		await appendFile(logPath, `${JSON.stringify(entry)}\n`, "utf8");
-	} catch (error) {
-		console.warn("Release analytics log failed", error);
-	}
+	});
 };

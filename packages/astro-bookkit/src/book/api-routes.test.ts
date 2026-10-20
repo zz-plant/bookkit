@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { APIContext } from "astro";
@@ -278,5 +278,59 @@ describe("reader routes keep accepting what the reader scripts send", () => {
 		} finally {
 			rmSync(directory, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("what readers send", () => {
+	let savedDataDir: string | undefined;
+	let dataDir: string;
+
+	beforeEach(() => {
+		savedDataDir = process.env.BOOKKIT_DATA_DIR;
+		dataDir = mkdtempSync(join(tmpdir(), "bookkit-api-data-"));
+		process.env.BOOKKIT_DATA_DIR = dataDir;
+	});
+	afterEach(() => {
+		if (savedDataDir === undefined) delete process.env.BOOKKIT_DATA_DIR;
+		else process.env.BOOKKIT_DATA_DIR = savedDataDir;
+		rmSync(dataDir, { recursive: true, force: true });
+	});
+
+	it("is kept in the folder BOOKKIT_DATA_DIR names, and read back from there", async () => {
+		process.env.BOOKKIT_AUTHOR_TOKEN = TOKEN;
+		const api = createApi();
+		const send = (route: ApiRoute, body: unknown) =>
+			api[route].POST(context(post(JSON.stringify(body))));
+
+		const statuses = await Promise.all([
+			send("analytics", { type: "pageview", path: "/read/one" }),
+			send("previewAnalytics", { type: "preview", tokenHint: "abcd" }),
+			send("exportAnalytics", { type: "download", format: "pdf" }),
+			send("releaseAnalytics", { event: "rss_subscribe_click" }),
+			send("feedback", { eventType: "feedback", slug: "intro" }),
+		]).then((responses) => responses.map((response) => response.status));
+		expect(statuses).toEqual([200, 200, 200, 200, 200]);
+
+		expect(readdirSync(dataDir).sort()).toEqual([
+			"export-analytics.jsonl",
+			"feedback-events.json",
+			"preview-analytics.jsonl",
+			"reader-analytics.jsonl",
+			"release-analytics.jsonl",
+		]);
+
+		const read = async (route: ApiRoute) =>
+			(await api[route].GET(context(get(`Bearer ${TOKEN}`)))).json();
+		expect(await read("analytics")).toMatchObject({
+			total: 1,
+			events: [{ path: "/read/one" }],
+		});
+		expect(await read("previewAnalytics")).toMatchObject({
+			total: 1,
+			totals: { abcd: 1 },
+		});
+		expect(await read("feedback")).toMatchObject({
+			events: [{ slug: "intro" }],
+		});
 	});
 });

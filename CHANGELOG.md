@@ -3,6 +3,15 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-20 — One path from a new mechanism to a ruling
+
+- **`bookkit judge [mechanism]`** writes a blind request for judges under `.bookkit/judging/` (gitignored): one folder per judge, three by default (`--judges <n>`), each with a prompt that names the full path to its own copy of the pairs, in its own order, so it can be handed over as is. With a mechanism it asks about that one's three nearest pairs with no verdict or ruling; without, about the corpus (`check:corpus --judge-prompt`). Before, the request was `bun run check:corpus -- --judge-prompt <dir>` with a folder you chose, often inside the repository, and one `pairs.json` all judges shared.
+- **`bookkit judge record [folder]`** reads the newest request that has answers (`--judge-record`) and lists the pairs left to settle, each with its `bookkit rule` command.
+- **`bookkit rule <a> <b> --distinct "<reason>"`** adds the ruling to `corpus.json` as text in the file's own layout (the rest of the file is untouched, and Biome keeps it as written). It checks that both are mechanisms of the shared corpus (suggesting the closest slug for a typo), refuses a pair already ruled, and asks for the reason in the author's words, showing the judges' draft when there is one. Merges stay by hand.
+- **Every hint names the next command**: `new mechanism`, `bookkit check <file>`, the corpus report's clusters, and `judge record` point at `bookkit judge` and `bookkit rule` instead of `check:corpus` flags or "edit corpus.json". `bookkit check` names a mechanism's unjudged nearest only when it ranked them by meaning, as `bookkit judge` does.
+- **`bookkit new book <slug> --from <folder>`** creates the book and imports the folder; `bookkit try` prints that one command instead of three. `scaffold-book --no-next` leaves out the next steps the import then prints.
+- **Migration:** a request folder written by `check:corpus --judge-prompt` now holds `judge-<n>/prompt.md` and `judge-<n>/pairs.json` instead of one `prompt.md` and `pairs.json`; answers still go in the request folder as `answer-<n>.json`.
+
 ## 2026-10-20 — check:types skips unchanged projects; judges at write time
 
 - **`check:types` remembers passes.** Each project's check (TypeScript or `astro check`) is skipped while nothing it reads has changed since it passed: its own folder, the folders it imports from (a book app: the engine; `scripts/`: the packages), `bun.lock`, `package.json`, `tsconfig.base.json`, and an app's generated `.astro/` types. On a 4-core machine: 21 s for everything, 0.13 s when nothing changed, 1.2 s after a change to `scripts/` only, about 6 s after a change to one app. A failure is never recorded, so it is reported on every run until fixed. Records live in `node_modules/.cache/bookkit-typecheck`; `--no-cache` ignores them, and CI (`CI` set) never reads them.

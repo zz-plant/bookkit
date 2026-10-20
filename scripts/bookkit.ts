@@ -1,5 +1,11 @@
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	readdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
@@ -37,6 +43,7 @@ import {
 } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
 import { callsFor, nearestTo, readJudgments } from "./lib/corpus-judgments";
+import { addDistinctRuling, findRuling } from "./lib/corpus-rulings";
 import { corpusScope, readCorpusBooks } from "./lib/corpus-scope";
 import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
@@ -279,7 +286,7 @@ switch (command) {
 		);
 		if (corpus !== 0) {
 			console.log(
-				"  → For each cluster above: make it one mechanism, or rule the pair distinct in corpus.json.",
+				'  → For each cluster above: make it one mechanism, or rule the pair distinct: bun run bookkit rule <a> <b> --distinct "<reason>".',
 			);
 		}
 		process.exit(structure === 0 && corpus === 0 ? 0 : 1);
@@ -288,6 +295,16 @@ switch (command) {
 
 	case "new": {
 		createNew(args[1], args.slice(2));
+		break;
+	}
+
+	case "judge": {
+		process.exit(judge(args.slice(1)));
+		break;
+	}
+
+	case "rule": {
+		process.exit(rule(args.slice(1)));
 		break;
 	}
 
@@ -796,7 +813,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 			]);
 			if (status === 0) {
 				console.log(
-					"Then run bun run bookkit check: once the definition is written, it compares meaning across every book.",
+					`Then run bun run bookkit check: once the definition is written, it compares meaning across every book. To ask judges whether it is the same idea as its nearest mechanisms: bun run bookkit judge ${slug}`,
 				);
 			}
 			process.exit(status);
@@ -853,8 +870,33 @@ function createNew(kind: string | undefined, rest: string[]) {
 				"Book slug (lowercase-with-hyphens):",
 				'bun run bookkit new book <slug> [--title "<title>"] [scaffold options]',
 			);
+			// --from <folder>: import a folder of notes once the book exists.
+			const fromIndex = rest.indexOf("--from");
+			const from = fromIndex >= 0 ? rest[fromIndex + 1] : undefined;
+			if (fromIndex >= 0 && (!from || from.startsWith("--"))) {
+				console.error(
+					"--from needs a folder of Markdown notes: bun run bookkit new book <slug> --from <folder>",
+				);
+				process.exit(1);
+			}
+			const scaffoldArgs = rest
+				.slice(1)
+				.filter((_, index) => index !== fromIndex - 1 && index !== fromIndex);
+			const created = runScript("scaffold-book.ts", [
+				"--book",
+				slug,
+				...scaffoldArgs,
+				...(from ? ["--no-next"] : []),
+			]);
+			if (created !== 0 || !from) process.exit(created);
+			console.log(`\nImporting ${from} into ${slug}:`);
 			process.exit(
-				runScript("scaffold-book.ts", ["--book", slug, ...rest.slice(1)]),
+				runScript("import-book-from-markdown.ts", [
+					"--book",
+					slug,
+					"--dir",
+					resolveFromCaller(from),
+				]),
 			);
 			break;
 		}
@@ -1016,7 +1058,7 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 		console.log("  may duplicate (by wording):");
 		for (const match of ownCorpus) console.log(describe(match));
 		console.log(
-			"    Same idea: bind that slug instead. Different: rule the pair distinct in corpus.json.",
+			'    Same idea: bind that slug instead. Different: bun run bookkit rule <a> <b> --distinct "<reason>".',
 		);
 	}
 	if (elsewhere.length > 0) {
@@ -1109,8 +1151,8 @@ function printJudged(slug: string, judges: MechanismJudges) {
 	for (const { other, call } of open) {
 		console.log(
 			call.call === "same-idea"
-				? `  judges: the same idea as ${other} (${call.votes} of ${call.votes}). Bind ${other} instead, or rule the pair distinct in corpus.json.`
-				: `  judges split on ${other}: same idea ${call.call === "split" ? call.sameIdea : 0} of ${call.votes}. Your ruling settles it.`,
+				? `  judges: the same idea as ${other} (${call.votes} of ${call.votes}). Bind ${other} instead, or: bun run bookkit rule ${slug} ${other} --distinct "<reason>"`
+				: `  judges split on ${other}: same idea ${call.call === "split" ? call.sameIdea : 0} of ${call.votes}. Settle it: bind ${other}, or bun run bookkit rule ${slug} ${other} --distinct "<reason>"`,
 		);
 	}
 	if (judges.calls.length > 0 && open.length === 0) {
@@ -1119,11 +1161,179 @@ function printJudged(slug: string, judges: MechanismJudges) {
 		);
 	}
 	// Verdicts follow the text, so an edited definition starts with none.
+	// Named only when ranked by meaning, as `bookkit judge` ranks when it can;
+	// by wording, the pairs it asks about may differ.
 	if (judges.unasked.length > 0) {
 		console.log(
-			`  judges: no verdict yet on ${judges.unasked.join(", ")}, among its 3 nearest by ${judges.nearestBy}. Ask about them: bun run check:corpus -- --judge-prompt <dir> --judge-for ${slug}`,
+			judges.nearestBy === "meaning"
+				? `  judges: no verdict yet on ${judges.unasked.join(", ")}, among its 3 nearest. Ask: bun run bookkit judge ${slug}`
+				: `  judges: no verdict yet on some of its nearest mechanisms. Ask: bun run bookkit judge ${slug}`,
 		);
 	}
+}
+
+/** Where `bookkit judge` writes requests: per-author state, gitignored. */
+function judgingDir(): string {
+	return join(repoRoot(), ".bookkit", "judging");
+}
+
+/** The newest request folder (by key.json's time) that has answers in it. */
+function newestAnswered(): { folder: string } | { error: string } {
+	const root = judgingDir();
+	const requests = existsSync(root)
+		? readdirSync(root)
+				.map((name) => join(root, name))
+				.filter((folder) => existsSync(join(folder, "key.json")))
+				.sort(
+					(a, b) =>
+						statSync(join(b, "key.json")).mtimeMs -
+						statSync(join(a, "key.json")).mtimeMs,
+				)
+		: [];
+	const answered = requests.find((folder) =>
+		readdirSync(folder).some((file) => /^answer.*\.json$/i.test(file)),
+	);
+	if (answered) return { folder: answered };
+	return {
+		error:
+			requests.length === 0
+				? "No judging requests yet. Start one with bun run bookkit judge [mechanism]."
+				: `No answers yet in ${requests[0]}. Save judge n's reply there as answer-<n>.json, then run this again.`,
+	};
+}
+
+/**
+ * bookkit judge [slug]: a blind request for judges (check:corpus
+ * --judge-prompt), in a fresh folder under .bookkit/judging/. bookkit judge
+ * record [folder]: reads the answers back (--judge-record).
+ */
+function judge(rest: string[]): number {
+	if (rest[0] === "record") {
+		const named =
+			rest[1] && !rest[1].startsWith("--")
+				? resolveFromCaller(rest[1])
+				: undefined;
+		const found = named ? { folder: named } : newestAnswered();
+		if ("error" in found) {
+			console.error(found.error);
+			return 1;
+		}
+		return runScript("check-corpus.ts", ["--judge-record", found.folder]);
+	}
+	const slug = rest[0] && !rest[0].startsWith("--") ? rest[0] : undefined;
+	const passed = (name: string) => {
+		const index = rest.indexOf(name);
+		return index >= 0 && rest[index + 1] ? [name, rest[index + 1]] : [];
+	};
+	const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+	let folder = join(judgingDir(), `${slug ?? "corpus"}-${stamp}`);
+	for (let n = 2; existsSync(folder); n += 1) {
+		folder = join(judgingDir(), `${slug ?? "corpus"}-${stamp}-${n}`);
+	}
+	return runScript("check-corpus.ts", [
+		"--judge-prompt",
+		folder,
+		...(slug ? ["--judge-for", slug] : []),
+		...passed("--judge-top"),
+		...passed("--judges"),
+		...(rest.includes("--quick") ? ["--no-semantic"] : []),
+		...(rest.includes("--download-model") ? ["--download-model"] : []),
+	]);
+}
+
+/**
+ * bookkit rule <a> <b> --distinct "<reason>": the author's ruling that two
+ * mechanisms in the shared corpus are different ideas, added to corpus.json.
+ * Merges stay by hand: they change slugs in every book that uses them.
+ */
+function rule(rest: string[]): number {
+	const usage =
+		'bun run bookkit rule <mechanism> <mechanism> --distinct "<reason>"';
+	if (rest.includes("--same") || rest.includes("--merge")) {
+		console.error(
+			'A merge keeps one slug in every book that uses either mechanism, so it is done by hand: give both files one slug and contract, rebind the chapters, and record it in corpus.json "merged" with both mechanisms as they were. bookkit rule records distinct rulings.',
+		);
+		return 1;
+	}
+	const reasonIndex = rest.indexOf("--distinct");
+	const reason = reasonIndex >= 0 ? rest[reasonIndex + 1] : undefined;
+	const [a, b] = rest.filter(
+		(arg, index) => !arg.startsWith("--") && index !== reasonIndex + 1,
+	);
+	if (!a || !b || reasonIndex < 0) {
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	if (a === b) {
+		console.error(`Name two different mechanisms; got ${a} twice.`);
+		return 1;
+	}
+	const books = listBookDirs();
+	const scope = corpusScope(books, readCorpusBooks());
+	const shared = scope.shared.flatMap(
+		(book) => loadBookContent(book).mechanisms,
+	);
+	const slugs = [...new Set(shared.map((m) => m.slug))];
+	for (const slug of [a, b]) {
+		if (slugs.includes(slug)) continue;
+		const elsewhere = scope.separate.some((book) =>
+			loadBookContent(book).mechanisms.some((m) => m.slug === slug),
+		);
+		console.error(
+			elsewhere
+				? `${slug} is in a book outside the shared corpus (corpus.json "books"), and rulings apply to the shared corpus only.`
+				: `No mechanism ${slug} in the shared corpus.${didYouMean(slug, slugs)}`,
+		);
+		return 1;
+	}
+	const corpusPath = join(repoRoot(), "corpus.json");
+	const text = existsSync(corpusPath) ? readFileSync(corpusPath, "utf8") : null;
+	let distinct: Array<{ pair: [string, string]; reason: string }> = [];
+	try {
+		distinct = text ? (JSON.parse(text).distinct ?? []) : [];
+	} catch (error) {
+		console.error(
+			`corpus.json is not valid JSON (${error instanceof Error ? error.message : String(error)}). Fix it first.`,
+		);
+		return 1;
+	}
+	const existing = findRuling(distinct, a, b);
+	if (existing) {
+		console.error(
+			`${a} ~ ${b} is already ruled distinct: ${existing.reason}\nTo change the ruling, edit it in corpus.json.`,
+		);
+		return 1;
+	}
+	const read = readJudgments(repoRoot());
+	const call =
+		"error" in read
+			? undefined
+			: callsFor(a, read.records, shared).find(({ other }) => other === b)
+					?.call;
+	if (!reason?.trim() || reason.startsWith("--")) {
+		console.error(
+			"--distinct needs the reason, in your words: what each one's lever is, so a reader can tell them apart.",
+		);
+		if (call?.call === "distinct") {
+			console.error(`  The judges' draft: ${call.draft}`);
+		}
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	writeFileSync(
+		corpusPath,
+		addDistinctRuling(text, { pair: [a, b], reason: reason.trim() }),
+	);
+	console.log(`Ruled ${a} ~ ${b} distinct in corpus.json.`);
+	if (call && call.call !== "distinct") {
+		console.log(
+			"  The judges called them the same idea, or split; your ruling stands over theirs.",
+		);
+	}
+	console.log(
+		"Next: bun run bookkit check no longer flags the pair. Commit corpus.json with the chapters it concerns.",
+	);
+	return 0;
 }
 
 function printHelp() {
@@ -1142,7 +1352,7 @@ Write
   new mechanism [book] "<title>"            name a mechanism, after checking every book for one that fits
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
-  new book <slug>                           a new book app
+  new book <slug> [--from <folder>]         a new book app; --from imports a folder of notes into it
   import [book] --dir <path> [--dry-run]    turn a folder of Markdown notes into chapters; --dry-run shows the plan
   propose [book] [--apply …]                draft mechanisms, tools, and config from a book's text
 
@@ -1160,6 +1370,11 @@ Check
                                             section once --frame is given; exits 1 on an error (for CI)
   contract [section] [--json]               the fields a mechanism, tool, example, chapter, or glossary entry needs
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
+  judge [mechanism] [--judges 3]            ask judges, blind, whether close mechanisms are the same idea: one
+                                            mechanism's 3 nearest without a verdict, or the corpus's flagged and
+                                            closest pairs; writes a prompt per judge in .bookkit/judging/
+  judge record [folder]                     record their answers (default: the newest request with answers)
+  rule <a> <b> --distinct "<reason>"        rule two mechanisms different ideas, in corpus.json
   similar "<title>" [--definition "…"] [--semantic]
                                             existing mechanisms, in any book, that a new one might duplicate
   validate [book]                           structure only

@@ -258,8 +258,9 @@ export const votesOn = (
  */
 export const judgePrompt = (
 	pairCount: number,
-): string => `<!-- Written by bun run check:corpus -- --judge-prompt. Give a judge this file and pairs.json, nothing else. -->
-You are a blind judge. Read exactly one file and nothing else: pairs.json, next to this prompt.
+	pairsPath: string,
+): string => `<!-- Written by bun run bookkit judge. Give one judge this prompt, in a session that sees nothing else. -->
+You are a blind judge. Read exactly one file and nothing else: ${pairsPath}
 
 Do not open, list, or search any other file or directory, do not run commands, do not search the web, and do not look at any repository. Judge only from the text in that file. If you cannot read it, say so and stop.
 
@@ -291,37 +292,45 @@ type KeyEntry = {
 };
 
 /**
- * Writes prompt.md, pairs.json (what the judge sees: neutral ids, sides in a
- * fixed shuffled order), and key.json (ids to slugs and text hashes, for
- * --judge-record; keep it from the judge).
+ * Writes a request for `judges` independent judges: key.json (ids to slugs
+ * and text hashes, for recording; keep it from the judges), and for each
+ * judge a folder judge-<n>/ with pairs.json (what it sees: neutral ids, sides
+ * shuffled) and prompt.md, which names that pairs.json by its full path. Each
+ * judge sees the pairs in its own order, as the 2026-10-14 judges did, so no
+ * position effect is shared. Answers go in the request folder as
+ * answer-<n>.json.
  */
 export const writeJudgeRequest = (
 	dir: string,
 	pairs: ReadonlyArray<[Text & { slug: string }, Text & { slug: string }]>,
-) => {
+	judges = 3,
+): string[] => {
 	mkdirSync(dir, { recursive: true });
-	// A seeded shuffle, so neither the order nor the side gives anything away.
+	// Seeded shuffles, so neither the order nor the side gives anything away.
 	let seed = 20261014;
 	const random = () => {
 		seed = (seed * 1103515245 + 12345) % 2147483648;
 		return seed / 2147483648;
 	};
-	const order = pairs.map((_, index) => index);
-	for (let i = order.length - 1; i > 0; i -= 1) {
-		const j = Math.floor(random() * (i + 1));
-		[order[i], order[j]] = [order[j], order[i]];
-	}
+	const shuffled = <T>(items: T[]): T[] => {
+		const copy = [...items];
+		for (let i = copy.length - 1; i > 0; i -= 1) {
+			const j = Math.floor(random() * (i + 1));
+			[copy[i], copy[j]] = [copy[j], copy[i]];
+		}
+		return copy;
+	};
+	const side = (mechanism: Text) => ({
+		title: mechanism.title,
+		definition: mechanism.definition,
+		covers: mechanism.is,
+	});
 	const visible = [];
 	const key: KeyEntry[] = [];
-	for (const [position, index] of order.entries()) {
+	for (const [position, index] of shuffled(pairs.map((_, i) => i)).entries()) {
 		const id = `P${String(position + 1).padStart(2, "0")}`;
 		const [first, second] =
 			random() < 0.5 ? pairs[index] : [pairs[index][1], pairs[index][0]];
-		const side = (mechanism: Text) => ({
-			title: mechanism.title,
-			definition: mechanism.definition,
-			covers: mechanism.is,
-		});
 		visible.push({ id, A: side(first), B: side(second) });
 		key.push({
 			id,
@@ -329,12 +338,21 @@ export const writeJudgeRequest = (
 			texts: [textHash(first), textHash(second)],
 		});
 	}
-	writeFileSync(join(dir, "prompt.md"), judgePrompt(pairs.length));
-	writeFileSync(
-		join(dir, "pairs.json"),
-		`${JSON.stringify(visible, null, "\t")}\n`,
-	);
 	writeFileSync(join(dir, "key.json"), `${JSON.stringify(key, null, "\t")}\n`);
+	const prompts: string[] = [];
+	for (let judge = 1; judge <= judges; judge += 1) {
+		const folder = join(dir, `judge-${judge}`);
+		mkdirSync(folder, { recursive: true });
+		const pairsPath = join(folder, "pairs.json");
+		writeFileSync(
+			pairsPath,
+			`${JSON.stringify(judge === 1 ? visible : shuffled(visible), null, "\t")}\n`,
+		);
+		const promptPath = join(folder, "prompt.md");
+		writeFileSync(promptPath, judgePrompt(pairs.length, pairsPath));
+		prompts.push(promptPath);
+	}
+	return prompts;
 };
 
 type Answer = {

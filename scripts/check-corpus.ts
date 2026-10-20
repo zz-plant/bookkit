@@ -47,9 +47,10 @@ import { loadBookContent } from "./lib/load-book";
  *   bun run check:corpus -- --export corpus-report.json
  *   bun run check:corpus -- --mode error                   # exit 1 while anything is unresolved
  *   bun run check:corpus -- --eval [--model nomic,minilm]  # score models and judges against the author's rulings
- *   bun run check:corpus -- --judge-prompt <dir> [--judge-top 10]  # ask judges about pairs, blind
+ *   bun run check:corpus -- --judge-prompt <dir> [--judge-top 10] [--judges 3]  # ask judges about pairs, blind
  *   bun run check:corpus -- --judge-prompt <dir> --judge-for <slug>  # only one mechanism's 3 nearest
  *   bun run check:corpus -- --judge-record <dir>           # record their answers in corpus-judgments.json
+ *   (bun run bookkit judge [slug] and bookkit judge record run these with a folder in .bookkit/judging/)
  *
  * corpus.json at the repo root, when present, names the books in the shared
  * corpus, records pairs the author reviewed and ruled distinct, and keeps each
@@ -108,6 +109,13 @@ const evalRequested = process.argv.includes("--eval");
 const judgePromptDir = optionalArg("--judge-prompt");
 const judgeRecordDir = optionalArg("--judge-record");
 const judgeFor = optionalArg("--judge-for");
+const judgeCount = Number(optionalArg("--judges") ?? 3);
+if (!Number.isInteger(judgeCount) || judgeCount < 1) {
+	console.error(
+		`--judges takes a whole number of judges, at least 1; got "${optionalArg("--judges")}".`,
+	);
+	process.exit(1);
+}
 // Every merge on record was among the two highest-scoring pairs in the whole
 // corpus by meaning, so a mechanism's three nearest cover them with room.
 const judgeTop = Number(optionalArg("--judge-top") ?? (judgeFor ? 3 : 10));
@@ -227,12 +235,28 @@ if (judgeRecordDir) {
 	console.log(
 		`Recorded ${read.judges.length} judge(s) on ${read.records.length} pair(s) in ${JUDGMENTS_FILE}:`,
 	);
+	const open: Array<[string, string]> = [];
 	for (const judgment of matchJudgments(read.records, mechanisms).current) {
 		const call = decidePair(judgment.votes);
-		if (call)
-			console.log(`  ${judgment.pair.join(" ~ ")}: ${describeCall(call)}`);
+		if (!call) continue;
+		console.log(`  ${judgment.pair.join(" ~ ")}: ${describeCall(call)}`);
+		const ruled = (corpusFile.distinct ?? []).some(({ pair }) =>
+			judgment.pair.every((slug) => pair.includes(slug)),
+		);
+		if (call.call !== "distinct" && !ruled) open.push(judgment.pair);
 	}
-	console.log("\nNext: bun run check:corpus, which now reads them.");
+	if (open.length > 0) {
+		console.log(
+			`\nYours to settle (${open.length}): merge each pair into one mechanism, or rule it distinct with a reason that names each one's lever:`,
+		);
+		for (const [a, b] of open) {
+			console.log(`  bun run bookkit rule ${a} ${b} --distinct "<reason>"`);
+		}
+	} else {
+		console.log(
+			"\nNo pair is the same idea. bun run bookkit check now counts these verdicts.",
+		);
+	}
 	process.exit(0);
 }
 
@@ -360,7 +384,7 @@ if (asJson) {
 	console.log(`  ${semanticNote}`);
 	if (judgments.current.length > 0 || judgments.changed.length > 0) {
 		console.log(
-			`  judges: verdicts on ${judgments.current.length} pair(s) in ${JUDGMENTS_FILE}${judgments.changed.length > 0 ? `; ${judgments.changed.length} changed since judged (${judgments.changed.map((pair) => pair.join(" ~ ")).join(", ")}): ask again with --judge-prompt <dir>` : ""}`,
+			`  judges: verdicts on ${judgments.current.length} pair(s) in ${JUDGMENTS_FILE}${judgments.changed.length > 0 ? `; ${judgments.changed.length} changed since judged (${judgments.changed.map((pair) => pair.join(" ~ ")).join(", ")}): ask again with bun run bookkit judge` : ""}`,
 		);
 	}
 	if (undefinedSlugs.size > 0) {
@@ -424,14 +448,14 @@ if (asJson) {
 			for (const pair of cluster.pairs) printJudged(pair);
 		});
 		console.log(
-			"\n→ For each cluster, decide: one mechanism (same slug and contract in every book that uses it) or distinct (add the pair to corpus.json with a reason).",
+			'\n→ For each cluster, decide: one mechanism (same slug and contract in every book that uses it), or distinct: bun run bookkit rule <a> <b> --distinct "<reason>".',
 		);
 		const unjudged = report.clusters
 			.flatMap((cluster) => cluster.pairs)
 			.filter((pair) => !pair.judged).length;
 		if (unjudged > 0) {
 			console.log(
-				`  ${unjudged} flagged pair(s) have no judges' verdict yet: bun run check:corpus -- --judge-prompt <dir> writes the question for them.`,
+				`  ${unjudged} flagged pair(s) have no judges' verdict yet: bun run bookkit judge writes the question for them.`,
 			);
 		}
 	}
@@ -474,13 +498,15 @@ function printJudged(pair: CorpusPair): void {
 	console.log(`   ${pair.a} ~ ${pair.b}: ${describeCall(pair.judged)}`);
 	if (pair.judged.call === "same-idea") {
 		console.log(
-			"     → likely one mechanism. Merge them, or rule them distinct with a reason that names each one's lever.",
+			`     → likely one mechanism. Merge them, or: bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason naming each lever>"`,
 		);
 	} else if (pair.judged.call === "split") {
-		console.log("     → the judges disagree; your ruling settles it.");
+		console.log(
+			`     → the judges disagree; your ruling settles it: merge, or bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason>"`,
+		);
 	} else {
 		console.log(
-			`     → draft for corpus.json "distinct" (rewrite the reason to name each lever): ${JSON.stringify({ pair: [pair.a, pair.b], reason: pair.judged.draft })}`,
+			`     → bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason>"  (the judges' draft, to rewrite naming each lever: ${pair.judged.draft})`,
 		);
 	}
 }
@@ -544,12 +570,12 @@ function writeJudgeRequestFor(dir: string): void {
 		);
 		return;
 	}
-	writeJudgeRequest(dir, [...chosen.values()]);
+	const prompts = writeJudgeRequest(dir, [...chosen.values()], judgeCount);
 	console.log(
 		`Wrote ${chosen.size} pair(s) to judge in ${dir}: ${flagged.length} flagged without a verdict, ${changed.length} changed since judged, the rest the closest unjudged${judgeFor ? ` to ${judgeFor}` : ""} by ${embedded ? "meaning" : "wording"}.`,
 	);
 	console.log(
-		`\n1. Give each judge prompt.md and pairs.json, and nothing else (keep key.json from them). Use more than one judge, or one model in fresh sessions; a fresh session per judge keeps them independent.\n2. Save each judge's reply in ${dir} as answer-1.json, answer-2.json, ...\n3. bun run check:corpus -- --judge-record ${dir}`,
+		`\nAsk ${prompts.length} judge(s), each in a fresh session (an LLM or a person) that sees nothing but its prompt. Each prompt names its own copy of the pairs, in its own order:\n${prompts.map((prompt) => `  ${prompt}`).join("\n")}\nSave judge n's reply as ${join(dir, "answer-<n>.json")}, then: bun run bookkit judge record`,
 	);
 }
 
@@ -691,7 +717,7 @@ async function runEval(): Promise<void> {
 	);
 	if (judges.scored === 0) {
 		console.log(
-			"  Nothing to score. Ask judges about the ruled pairs with --judge-prompt, then --judge-record.",
+			"  Nothing to score: no verdicts are recorded on the ruled pairs as they read when ruled.",
 		);
 		return;
 	}

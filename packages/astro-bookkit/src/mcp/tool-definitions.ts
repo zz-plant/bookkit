@@ -29,11 +29,6 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		description:
 			"Scaffold a new book app in apps/<book> from the engine's starter template (bun run new:book).",
 		safety: "requires_guard",
-		rateLimit: {
-			maxPerMinute: 5,
-			guidance:
-				"Limit book creation to avoid workspace clutter. Clean up failed scaffolds before retrying.",
-		},
 		expectedRuntime: "<=30s",
 		expectedRuntimeClass: "moderate",
 		sideEffectLevel: "local-write",
@@ -228,11 +223,6 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		description:
 			"Validate and build a book (bun run compile:book). The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, and missing runbook fields are errors); a draft or in-review book does not. Validation errors stop the compile.",
 		safety: "mutating",
-		rateLimit: {
-			maxPerMinute: 10,
-			guidance:
-				"Compilation is CPU-intensive. Limit calls; run validate_book first.",
-		},
 		expectedRuntime: "<=2m",
 		expectedRuntimeClass: "moderate",
 		sideEffectLevel: "local-write",
@@ -264,10 +254,6 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		name: "bookkit.export_book",
 		description: "Export compiled book output in GitBook-compatible format.",
 		safety: "mutating",
-		rateLimit: {
-			maxPerMinute: 10,
-			guidance: "Export writes to disk. Limit calls; run compile_book first.",
-		},
 		expectedRuntime: "<=1m",
 		expectedRuntimeClass: "moderate",
 		sideEffectLevel: "local-write",

@@ -49,6 +49,12 @@ describe("tools/list describes the status rule", () => {
 			] as { description?: string } | undefined
 		)?.description ?? "";
 
+	it("advertises no per-tool rate limit, since neither transport enforces one", () => {
+		for (const tool of response.result.tools) {
+			expect(tool).not.toHaveProperty("rateLimit");
+		}
+	});
+
 	it("no longer says release mode is about draft examples, or needs --mode/--no-drafts", () => {
 		const listed = JSON.stringify(response.result.tools);
 		expect(listed).not.toContain("draft examples");

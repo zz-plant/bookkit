@@ -1,5 +1,5 @@
 ---
-import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
+import { versionHref, type BookVersionEntry } from "../releases/versions";
 
 export type Props = {
 	versions: BookVersionEntry[];
@@ -27,7 +27,8 @@ const resolvedCurrent =
 	versions[0]?.version;
 const versionEntries = versions.map((entry) => ({
 	...entry,
-	href: buildVersionPath(currentPath, entry, { prefixSegment }),
+	// An older version opens what changed in it (see versionHref).
+	href: versionHref(currentPath, entry, { prefixSegment }),
 }));
 ---
 <div
@@ -48,7 +49,11 @@ const versionEntries = versions.map((entry) => ({
             selected={entry.version === resolvedCurrent}
             data-href={entry.href}
           >
-            {isLatest && suffix ? `${display} (${suffix})` : display}
+            {isLatest
+              ? suffix
+                ? `${display} (${suffix})`
+                : display
+              : `${display}: what changed`}
           </option>
         );
       })}

@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import RelatedBooks from "@bookkit/astro-bookkit/components/RelatedBooks.astro";
+import DraftBookNote from "@bookkit/astro-bookkit/components/DraftBookNote.astro";
+import ResumeReading from "@bookkit/astro-bookkit/components/ResumeReading.astro";
 import {
 	buildLocalizedContentIndex,
 	resolveLocalizedContent,
@@ -8,8 +10,10 @@ import {
 import { bookEntryPoints } from "../lib/book-entrypoints";
 import {
 	type BookConfig,
+	chapterLinksInReadingOrder,
 	formatTranslationCompleteness,
 	readRoutes,
+	readSectionTitles,
 	resolveBookHomeCopy,
 } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
@@ -92,8 +96,9 @@ const stats = [
 ];
 const startLinks = [
 	{
-		title: "Read the overview",
-		description: "What the book covers and how it’s organized.",
+		title: readSectionTitles.overview,
+		description:
+			"What the book sets out to do, its approach, and its ground rules.",
 		href: readRoutes.overview,
 	},
 	{
@@ -116,6 +121,8 @@ const startLinks = [
       {config.author && <p class="hero-byline">by {config.author.name}</p>}
       {metaDescription && <p class="lede">{metaDescription}</p>}
     </div>
+    <ResumeReading chapters={chapterLinksInReadingOrder(chapters.entries)} />
+    <DraftBookNote status={config.status} />
   </div>
 
   <section class="content-block">

@@ -485,6 +485,23 @@ a,
 	margin: 0;
 }
 
+/* The read sections, two to a row so the menu stays short on a phone. */
+.site-nav__group--sections {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	column-gap: var(--space-4);
+}
+
+.site-nav__group--sections .site-nav__group-label {
+	grid-column: 1 / -1;
+}
+
+/* Keyboard shortcuts need a keyboard; a touch-only device has no use for the panel. */
+@media (hover: none) and (pointer: coarse) {
+	.site-nav__overflow .kbd-toggle {
+		display: none;
+	}
+}
+
 @media (min-width: 721px) {
 	.site-nav__more.is-open .site-nav__overflow {
 		position: absolute;
@@ -1042,6 +1059,67 @@ a.card:hover h3 {
 
 .hero-shell .lede {
 	color: var(--color-ink);
+}
+
+/*
+ * Under a home page's or hub's opening: where a returning reader left off,
+ * and whether the book is a draft. One line each.
+ */
+.resume-reading,
+.book-draft-note {
+	margin: var(--space-3) 0 0;
+	max-width: 62ch;
+}
+
+.resume-reading {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-1) var(--space-4);
+}
+
+.resume-reading[hidden] {
+	display: none;
+}
+
+.resume-reading__link {
+	font-size: var(--text-md);
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-decoration-color: var(--color-rubric);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.2em;
+}
+
+.resume-reading__link:hover {
+	color: var(--color-rubric);
+}
+
+.resume-reading__note {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.resume-reading__clear {
+	font: inherit;
+	color: var(--color-ink);
+	background: none;
+	border: 0;
+	padding: 0;
+	margin-left: var(--space-1);
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+	cursor: pointer;
+}
+
+.resume-reading__clear:hover {
+	color: var(--color-rubric);
+}
+
+.book-draft-note strong {
+	color: var(--color-ink);
+	font-weight: 500;
 }
 
 .hero-primary-cta {

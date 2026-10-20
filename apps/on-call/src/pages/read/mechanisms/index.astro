@@ -5,6 +5,7 @@ import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization"
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import {
 	type BookConfig,
+	bookPageTitle,
 	buildTranslationLede,
 	readItemPath,
 	readRoutes,
@@ -91,7 +92,7 @@ const quickFilters = [
 ].filter((filter) => isDistinguishingTag(filter.value));
 const localizedLede = buildTranslationLede(copy.lede, completeness);
 ---
-<BaseLayout title={`Mechanisms • ${bookConfig.title}`}>
+<BaseLayout title={bookPageTitle("Mechanisms", bookConfig.title)}>
   <ContentIndexList
     title="Mechanisms"
     lede={localizedLede}

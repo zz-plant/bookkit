@@ -25,3 +25,19 @@ export const defaultChapterPageCopy: ChapterPageCopy = {
 	mechanismsLinkLabel: "Mechanisms",
 	toolkitLinkLabel: "Toolkit",
 };
+
+/** "Chapter 2 of 5": where a chapter sits in the reading order the index lists. */
+export const chapterPositionLabel = (number: number, total: number): string =>
+	`Chapter ${number} of ${total}`;
+
+/**
+ * What a draft is. The chapter index says it of its chapters; a draft
+ * book's home page and reading hub say it of the book, in the same words.
+ */
+export const draftCopy = {
+	book: "This book is a draft.",
+	allChapters: "These chapters are drafts",
+	someChapters: "Some chapters are drafts",
+	meaning:
+		"Drafts are complete enough to use. The mechanisms they describe won’t change, but wording, examples, and order may.",
+} as const;

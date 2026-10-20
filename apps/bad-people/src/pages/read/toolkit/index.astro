@@ -4,6 +4,7 @@ import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import {
+	bookPageTitle,
 	buildTranslationLede,
 	readItemPath,
 	toolkitDisplayName,
@@ -35,7 +36,7 @@ const localizedLede = buildTranslationLede(
 	completeness,
 );
 ---
-<BaseLayout title={`Toolkit • ${bookConfig.title}`}>
+<BaseLayout title={bookPageTitle("Toolkit", bookConfig.title)}>
   <ContentIndexList
     title="Toolkit"
     lede={localizedLede}

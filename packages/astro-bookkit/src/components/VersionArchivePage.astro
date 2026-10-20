@@ -2,7 +2,7 @@
 import BookLayout from "../layouts/BookLayout.astro";
 import { createBookLayoutRenderState } from "../book/layout";
 import { formatReleaseDate } from "../releases/notes";
-import { buildVersionPath, type BookVersionEntry } from "../releases/versions";
+import { versionHref, type BookVersionEntry } from "../releases/versions";
 
 export type Props = {
 	title: string;
@@ -91,21 +91,15 @@ const renderState = createBookLayoutRenderState({
 	isPreview: false,
 });
 
-// Only a server serves /v/<version>/ (the version middleware); a static build
-// has no page there, so an older version links to its release notes instead.
-const entries = versions.map((entry) =>
-	entry.isLatest || hasServerRuntime
-		? {
-				...entry,
-				href: buildVersionPath("/", entry, { prefixSegment }),
-				linkLabel: `View ${entry.isLatest ? "latest" : "archived"} version`,
-			}
-		: {
-				...entry,
-				href: `/release-notes#release-${entry.version}`,
-				linkLabel: `What changed in v${entry.version}`,
-			},
-);
+// The latest version is the book; an older one links to what changed in
+// it, on a server as on a static build (see versionHref).
+const entries = versions.map((entry) => ({
+	...entry,
+	href: versionHref("/", entry, { prefixSegment }),
+	linkLabel: entry.isLatest
+		? "View latest version"
+		: `What changed in v${entry.version}`,
+}));
 ---
 <BookLayout
   title={title}

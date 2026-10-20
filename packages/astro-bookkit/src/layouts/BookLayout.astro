@@ -195,6 +195,7 @@ const qaEnabled = hasServerRuntime && aiQaEnabled;
         localeEntries={renderState.locale.entries}
         versionEntries={renderState.version.entries}
         currentPath={renderState.routes.requestPathname}
+        sectionPath={renderState.routes.normalizedLocalePath}
         resolvedVersion={renderState.version.resolvedVersion}
         versionPrefix={renderState.version.prefix}
         versionArchivePath={renderState.version.archivePath}

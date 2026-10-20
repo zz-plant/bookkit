@@ -3,7 +3,11 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
-import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import {
+	bookPageTitle,
+	buildTranslationLede,
+	readItemPath,
+} from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
 const modules = bookEntryPoints.contentModules.examples;
@@ -31,7 +35,7 @@ const localizedLede = buildTranslationLede(
 	completeness,
 );
 ---
-<BaseLayout title={`Examples • ${bookConfig.title}`}>
+<BaseLayout title={bookPageTitle("Examples", bookConfig.title)}>
   <ContentIndexList
     title="Examples"
     lede={localizedLede}

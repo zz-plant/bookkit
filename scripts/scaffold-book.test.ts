@@ -134,7 +134,8 @@ describe("new:book", () => {
 		);
 		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
 		expect(config).toContain("readHub: {");
-		expect(config).toContain('title: "Read the chapters in order",');
+		// No cards of its own, so the hub's default cards end with chapter 1.
+		expect(config).not.toContain("quickStartCards: [");
 	});
 
 	it("gets the shared mechanisms index, with its copy in book.config.ts", () => {

@@ -9,20 +9,16 @@ import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
 
 /**
- * The placeholder values a new book's book.config.ts starts with, read from
- * the starter template, so an edited template needs no change here.
+ * The placeholder prose a new book's book.config.ts starts with, read from
+ * the starter template, so an edited template needs no change here. Not
+ * site.url: https://<slug>.book may be the domain the author means to buy,
+ * and deploy already says when the Worker does not serve it.
  */
-function starterPlaceholders(root: string, book: string) {
+function starterPlaceholders(root: string) {
 	const template = join(starterTemplateRootIn(root), "src", "book.config.ts");
 	if (!existsSync(template)) return [];
 	const source = readFileSync(template, "utf8");
 	const fields = [
-		{
-			field: "site.url",
-			key: "url",
-			shown: "canonical links, the sitemap, and link previews use",
-			meaning: "the address the book will be published at",
-		},
 		{
 			field: "objectives.readerStart",
 			key: "readerStart",
@@ -57,9 +53,7 @@ function starterPlaceholders(root: string, book: string) {
 		const value = source.match(
 			new RegExp(`\\b${field.key}:\\s*("(?:[^"\\\\]|\\\\.)*")`),
 		)?.[1];
-		return value
-			? [{ ...field, text: value.replaceAll("__BOOK_SLUG__", book) }]
-			: [];
+		return value ? [{ ...field, text: value }] : [];
 	});
 }
 
@@ -158,7 +152,7 @@ if (content.releaseMode && existsSync(join(workspaceRoot, configFile))) {
 if (existsSync(join(workspaceRoot, configFile))) {
 	const source = readFileSync(join(workspaceRoot, configFile), "utf8");
 	const level = content.releaseMode ? "error" : "warning";
-	for (const placeholder of starterPlaceholders(workspaceRoot, book)) {
+	for (const placeholder of starterPlaceholders(workspaceRoot)) {
 		if (!source.includes(placeholder.text)) continue;
 		findings.push({
 			level,

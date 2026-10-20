@@ -128,11 +128,10 @@ describe("validate-book", () => {
 		const result = run("validate-book.ts", "--book", "placeholder-book");
 		expect(result.status).toBe(0);
 		expect(result.output).toContain(
-			"apps/placeholder-book/src/book.config.ts still has the starter text for site.url",
+			"apps/placeholder-book/src/book.config.ts still has the starter text for causalStance, which shows on the overview page",
 		);
-		expect(result.output).toContain(
-			"still has the starter text for causalStance, which shows on the overview page",
-		);
+		// https://<slug>.book may be the domain the author means to buy.
+		expect(result.output).not.toContain("site.url");
 		expect(result.output).toContain(
 			"fix: Replace it with the book's core claim about what causes the problem it covers.",
 		);

@@ -1,4 +1,4 @@
-import { recordReleaseEvent } from "./analytics";
+import { type DeliveryResult, deliverRelease } from "./delivery";
 import type { ReleaseNote } from "./notes";
 
 export type ReleaseEmailTarget = {
@@ -20,12 +20,7 @@ export type ReleaseEmailPayload = {
 	at: string;
 };
 
-export type ReleaseEmailResult = {
-	target: ReleaseEmailTarget;
-	status: "success" | "failure";
-	statusCode?: number;
-	error?: string;
-};
+export type ReleaseEmailResult = DeliveryResult<ReleaseEmailTarget>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null;
@@ -109,18 +104,6 @@ export const parseReleaseEmailTargets = (
 		.map((url) => ({ url }));
 };
 
-const buildHeaders = (target: ReleaseEmailTarget) => {
-	const headers: Record<string, string> = {
-		"Content-Type": "application/json",
-		"User-Agent": "astro-bookkit",
-		...target.headers,
-	};
-	if (target.secret) {
-		headers["X-Bookkit-Webhook-Token"] = target.secret;
-	}
-	return headers;
-};
-
 export const sendReleaseEmailHooks = async ({
 	release,
 	book,
@@ -131,57 +114,17 @@ export const sendReleaseEmailHooks = async ({
 	targets: ReleaseEmailTarget[];
 }): Promise<ReleaseEmailResult[]> => {
 	const payload = buildReleaseEmailPayload({ release, book });
-	const activeTargets = targets.filter((target) => target.enabled !== false);
-
-	const results = await Promise.all(
-		activeTargets.map(async (target): Promise<ReleaseEmailResult> => {
-			try {
-				const response = await fetch(target.url, {
-					method: "POST",
-					headers: buildHeaders(target),
-					body: JSON.stringify(payload),
-				});
-				const status: ReleaseEmailResult["status"] = response.ok
-					? "success"
-					: "failure";
-				await recordReleaseEvent({
+	return Promise.all(
+		targets
+			.filter((target) => target.enabled !== false)
+			.map((target) =>
+				deliverRelease({
 					event: "email_delivery",
-					status,
+					target,
+					payload,
 					version: release.version,
-					webhook: target.url,
 					metadata: target.provider ? { provider: target.provider } : undefined,
-				});
-				return {
-					target,
-					status,
-					statusCode: response.status,
-					error: response.ok ? undefined : `HTTP ${response.status}`,
-				};
-			} catch (error) {
-				const message =
-					error instanceof Error ? error.message : "Unknown error";
-				await recordReleaseEvent({
-					event: "email_delivery",
-					status: "failure",
-					version: release.version,
-					webhook: target.url,
-					metadata: {
-						error: message,
-						...(target.provider ? { provider: target.provider } : {}),
-					},
-				});
-				return {
-					target,
-					status: "failure",
-					error: message,
-				};
-			}
-		}),
+				}),
+			),
 	);
-
-	if (!activeTargets.length) {
-		return [];
-	}
-
-	return results;
 };

@@ -140,7 +140,7 @@ describe.each(endpoints)("$route", ({ route, endpoint, noTargets, event }) => {
 		});
 	});
 
-	it("names a target without a name by its host only", async () => {
+	it("names a target without a name by its scheme and host only", async () => {
 		process.env.BOOKKIT_AUTHOR_TOKEN = TOKEN;
 		process.env.BOOKKIT_RELEASE_WEBHOOKS = target.url;
 		process.env.BOOKKIT_RELEASE_EMAIL_TARGETS = target.url;
@@ -149,9 +149,31 @@ describe.each(endpoints)("$route", ({ route, endpoint, noTargets, event }) => {
 		expect(await response.json()).toEqual({
 			ok: true,
 			delivered: [
-				{ target: "hooks.example", status: "success", statusCode: 202 },
+				{
+					target: "https://hooks.example",
+					status: "success",
+					statusCode: 202,
+				},
 			],
 		});
+	});
+
+	it("keeps the target's URL out of the answer when a delivery fails", async () => {
+		process.env.BOOKKIT_AUTHOR_TOKEN = TOKEN;
+		sent.mockImplementation(async () => {
+			throw new TypeError(`Failed to parse URL from ${target.url}`);
+		});
+		const response = await endpoint.POST({ request: post(`Bearer ${TOKEN}`) });
+		const text = await response.text();
+
+		expect(JSON.parse(text).delivered).toEqual([
+			{
+				target: "subscribers",
+				status: "failure",
+				error: "Failed to parse URL from subscribers",
+			},
+		]);
+		expect(text).not.toContain("s3cr3t-path");
 	});
 
 	it("says when no targets are configured, once the caller is the author", async () => {

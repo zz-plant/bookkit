@@ -1,6 +1,6 @@
 import {
-	isAddressAttribute,
 	isSafeLink,
+	isUnsafeAttribute,
 	stringLiteralValue,
 } from "../utils/links";
 
@@ -8,13 +8,15 @@ import {
  * The site's pages keep only links `isSafeLink` allows, as the PDF and EPUB
  * do: a Markdown link, or a reference to a definition, whose address would
  * run code or open a document it carries (`javascript:`, `vbscript:`,
- * `data:`) becomes its text. So does an HTML element in MDX with such an
- * address in an attribute `isAddressAttribute` names: an `<a href>` or
- * `<area href>`, an `<iframe src>`, `<embed src>`, or `<object data>`, a
- * `<form action>`, or a `formaction`. It becomes what it contains: a link
- * its words, an `<object>` its fallback, an `<iframe>` or `<embed>` nothing.
- * So does one whose address is an expression (`src={…}`) that is not a
- * plain string: the build cannot check what it will be.
+ * `data:`) becomes its text. So does an HTML element in MDX with an
+ * attribute `isUnsafeAttribute` refuses: such an address in an `<a href>`
+ * or `<area href>`, an `<iframe src>`, `<embed src>`, or `<object data>`, a
+ * `<form action>`, or a `formaction`; any `<iframe srcdoc>`; or an SVG
+ * `<animate>` or `<set>` that changes an `href`. It becomes what it
+ * contains: a link its words, an `<object>` its fallback, an `<iframe>` or
+ * `<embed>` nothing. So does one whose address is an expression (`src={…}`)
+ * that is not a plain string, and one with a spread attribute
+ * (`{...props}`): the build cannot check what they will be.
  *
  * It runs on the Markdown tree (mdast), before HTML exists, because Astro 7's
  * default processor, Sätteri, runs no rehype plugins passed to `mdx()`.
@@ -30,29 +32,36 @@ type MdastNode = {
 	children?: MdastNode[];
 };
 
+/** `mdxJsxAttribute` (`name="value"`, `name={…}`), or `mdxJsxExpressionAttribute` (`{...props}`). */
 type JsxAttribute = {
 	type: string;
 	name?: string;
 	value?: string | null | { type: string; value: string };
 };
 
-/** The address an attribute holds, or null for an expression the build cannot read. */
-const addressOf = (value: JsxAttribute["value"]): string | null => {
+/** What an attribute holds: its text, or null for an expression the build cannot read. */
+const attributeValue = (value: JsxAttribute["value"]): string | null => {
 	if (value === null || value === undefined) return "";
 	return typeof value === "string" ? value : stringLiteralValue(value.value);
 };
 
-/** Whether an attribute of `element` holds an address the page must not keep. */
-const isUnsafeAddress = (element: string, attribute: JsxAttribute): boolean => {
+/** Whether an attribute of `element` is one the page must not keep; every spread is. */
+const isUnsafeJsxAttribute = (
+	element: string,
+	attribute: JsxAttribute,
+): boolean => {
+	if (attribute.type === "mdxJsxExpressionAttribute") return true;
 	if (attribute.type !== "mdxJsxAttribute" || !attribute.name) return false;
-	if (!isAddressAttribute(element, attribute.name)) return false;
-	const address = addressOf(attribute.value);
-	return address === null || !isSafeLink(address);
+	return isUnsafeAttribute(
+		element,
+		attribute.name,
+		attributeValue(attribute.value),
+	);
 };
 
 /**
  * Whether a node is a link the page must not keep: a Markdown link to an
- * unsafe address, or an HTML element with an unsafe address. A capitalized
+ * unsafe address, or an HTML element with an unsafe attribute. A capitalized
  * JSX name is a component, whose props are not addresses.
  */
 const isUnsafeLink = (node: MdastNode): boolean => {
@@ -63,7 +72,7 @@ const isUnsafeLink = (node: MdastNode): boolean => {
 	const element = node.name;
 	if (!element || !/^[a-z]/.test(element)) return false;
 	return (node.attributes ?? []).some((attribute) =>
-		isUnsafeAddress(element, attribute),
+		isUnsafeJsxAttribute(element, attribute),
 	);
 };
 

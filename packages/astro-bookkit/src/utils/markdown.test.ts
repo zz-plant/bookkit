@@ -119,6 +119,45 @@ describe("toMdxBody with html: jsx", () => {
 		expect(body).toContain("A stray \\</div> and an unclosed \\<p> stay text.");
 	});
 
+	it("keeps an embedded page with a source, and shows one without a source, or with an unsafe one, as text", async () => {
+		const { body, changes, unsafeLinks } = toMdxBody(
+			[
+				'<iframe src="https://www.youtube.com/embed/abc" title="Video" frameborder="0" allowfullscreen></iframe>',
+				"",
+				'<iframe src="javascript:alert(1)"></iframe> <iframe src=""></iframe>',
+				"",
+				'<iframe srcdoc="<b>x</b>" src="https://example.com/embed"></iframe>',
+			].join("\n"),
+			{ html: "jsx" },
+		);
+		await expect(compile(body)).resolves.toBeDefined();
+		expect(body.split("\n")).toEqual([
+			'<iframe src="https://www.youtube.com/embed/abc" title="Video" frameborder="0" allowfullscreen></iframe>',
+			"",
+			'\\<iframe>\\</iframe> \\<iframe src="">\\</iframe>',
+			"",
+			'<iframe src="https://example.com/embed"></iframe>',
+		]);
+		expect(changes.html).toBe(4);
+		expect(unsafeLinks.map(({ attribute }) => attribute)).toEqual([
+			"src",
+			"srcdoc",
+		]);
+	});
+
+	it("ends an address before an escaped tag, which GFM would otherwise read on into", () => {
+		const { body } = toMdxBody(
+			[
+				"GET https://api.example.com/users/<id> or www.example.com/<page>.",
+				'<video src="https://example.com/clip.mp4"></video> and https://example.com/ <b>bold</b>',
+			].join("\n"),
+		);
+		expect(body.split("\n")).toEqual([
+			"GET https\\://api.example.com/users/\\<id> or www\\.example.com/\\<page>.",
+			'\\<video src="https\\://example.com/clip.mp4">\\</video> and https://example.com/ \\<b>bold\\</b>',
+		]);
+	});
+
 	it("shows the same HTML as text by default", async () => {
 		const { body, changes } = toMdxBody(DETAILS);
 		await expect(compile(body)).resolves.toBeDefined();
@@ -213,6 +252,40 @@ describe("findUnsafeLinks", () => {
 				'<img src="data:image/png;base64,AAAA"> <video src="javascript:x"></video> <object src="javascript:x" data="https://example.com/doc.pdf"></object> <div action="javascript:x" data-href="javascript:x"></div>',
 			),
 		).toEqual([]);
+	});
+
+	it("finds a document in srcdoc, a spread, an SVG link, and an animation of an address", () => {
+		const markdown = [
+			'<iframe srcdoc="<script>alert(1)</script>"></iframe>',
+			'<iframe src="https://example.com/embed" srcDoc={"x"}></iframe>',
+			'<iframe {...{ src: "javascript:alert(2)" }}></iframe> <a {...props}>a</a>',
+			'<a href="https://example.com/" {...{ href: "javascript:alert(3)" }}>b</a>',
+			'<svg><a xlink:href="javascript:alert(4)"><text>c</text></a></svg>',
+			'<svg><animate attributeName="href" values="javascript:alert(5)" /><set attributeName={name} /></svg>',
+			'<svg><animate attributeName="r" values="1;2" /></svg> <Figure {...props} /> `<a {...props}>`',
+		].join("\n");
+		const found = (tags?: "html") =>
+			findUnsafeLinks(markdown, { tags }).map(
+				({ line, element, attribute, href }) => [
+					line,
+					`<${element} ${attribute}>`,
+					href,
+				],
+			);
+		expect(found()).toEqual([
+			[1, "<iframe srcdoc>", "<script>alert(1)</script>"],
+			[2, "<iframe srcdoc>", "x"],
+			[3, "<iframe {...}>", '{...{ src: "javascript:alert(2)" }}'],
+			[3, "<a {...}>", "{...props}"],
+			[4, "<a {...}>", '{...{ href: "javascript:alert(3)" }}'],
+			[5, "<a xlink:href>", "javascript:alert(4)"],
+			[6, "<animate attributename>", "href"],
+			[6, "<set attributename>", "{name}"],
+		]);
+		// In a Markdown note braces are text, and spread nothing.
+		expect(found("html")).toEqual(
+			found().filter(([, tag]) => !String(tag).includes("{...}")),
+		);
 	});
 
 	it("reads a capitalized tag as a component in MDX, and as HTML in a Markdown note", () => {

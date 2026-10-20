@@ -502,10 +502,14 @@ export type ContentCheckContext = {
 	format?: "mdx" | "md";
 };
 
+/** A long value (a document in `srcdoc`, a spread) cut short at 60 characters. */
+const shortened = (value: string): string =>
+	value.length > 60 ? `${value.slice(0, 59)}…` : value;
+
 /**
  * What an unsafe link finding says: a link keeps its words on the site, and
- * an element with an unsafe address (`<iframe src>`, `<form action>`, …)
- * keeps only what it contains.
+ * an element with an unsafe attribute (`<iframe src>`, `<form action>`,
+ * `<iframe srcdoc>`, a spread, …) keeps only what it contains.
  */
 const unsafeLinkFinding = (
 	label: string,
@@ -514,7 +518,8 @@ const unsafeLinkFinding = (
 ): Pick<ContentFinding, "message" | "fix"> => {
 	const computed = link.href.startsWith("{");
 	const attribute = link.attribute ?? "href";
-	if (!link.element || attribute === "href") {
+	const element = link.element;
+	if (!element || attribute === "href") {
 		return computed
 			? {
 					message: `${label} has a link on line ${line} whose address is an expression (href=${link.href}), which the build cannot check, so the site shows only its words`,
@@ -525,15 +530,39 @@ const unsafeLinkFinding = (
 					fix: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
 				};
 	}
-	const tag = `<${link.element} ${attribute}=${computed ? link.href : JSON.stringify(link.href)}>`;
+	const keeps = `so the site leaves out the <${element}> and keeps only what it contains`;
+	if (attribute === "{...}") {
+		return {
+			message: `${label} has <${element} ${shortened(link.href)}> on line ${line}, a spread whose attributes the build cannot check, ${keeps}`,
+			fix: 'Write each attribute out with a plain string value, as in href="https://example.com".',
+		};
+	}
+	if (attribute === "srcdoc") {
+		return {
+			message: `${label} has <${element} srcdoc=${computed ? shortened(link.href) : JSON.stringify(shortened(link.href))}> on line ${line}, a document written into the page that would run with the page's own rights, ${keeps}`,
+			fix: `Point src at a web address or a page of the book in place of srcdoc, or remove the <${element}>.`,
+		};
+	}
+	if (attribute === "attributename") {
+		return computed
+			? {
+					message: `${label} has <${element} attributeName=${link.href}> on line ${line}, which may change an address the build cannot check, ${keeps}`,
+					fix: 'Write the attribute name as a plain string, as in attributeName="opacity".',
+				}
+			: {
+					message: `${label} has <${element} attributeName=${JSON.stringify(link.href)}> on line ${line}, which changes an address after the page loads, past the check of the link itself, ${keeps}`,
+					fix: `Animate an attribute other than ${link.href}, or remove the <${element}>.`,
+				};
+	}
+	const tag = `<${element} ${attribute}=${computed ? link.href : JSON.stringify(link.href)}>`;
 	return computed
 		? {
-				message: `${label} has ${tag} on line ${line}, an address the build cannot check, so the site leaves out the <${link.element}> and keeps only what it contains`,
+				message: `${label} has ${tag} on line ${line}, an address the build cannot check, ${keeps}`,
 				fix: `Write the address as a plain string, as in ${attribute}="https://example.com".`,
 			}
 		: {
-				message: `${label} has ${tag} on line ${line}, which the site leaves out, keeping only what the <${link.element}> contains: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
-				fix: `Point ${attribute} at a web address or a page of the book, or remove the <${link.element}>.`,
+				message: `${label} has ${tag} on line ${line}, which the site leaves out, keeping only what the <${element}> contains: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+				fix: `Point ${attribute} at a web address or a page of the book, or remove the <${element}>.`,
 			};
 };
 

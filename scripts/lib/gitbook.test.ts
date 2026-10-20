@@ -52,6 +52,46 @@ describe("mdxToGitbookMarkdown", () => {
 		);
 	});
 
+	it("keeps only the words of a link the site would not keep, and drops an element's unsafe address", () => {
+		const copied: string[] = [];
+		expect(
+			convert(
+				[
+					"[js](javascript:alert(1)) [ref][bad] [![Logo](/images/logo.png)](data:text/html,x) [web](https://example.com)",
+					'<a href="java&#x09;script:alert(2)">html</a> <a {...{ href: "javascript:alert(3)" }}>spread</a> <a href="/read/chapters/overview">page</a>',
+					'<iframe src="vbscript:x"></iframe> <iframe srcdoc="<script>alert(4)</script>" src="https://www.youtube.com/embed/abc"></iframe>',
+					'<form action="data:text/html,x"><button formaction="javascript:alert(5)">Go</button></form>',
+					'<svg><a xlink:href="javascript:alert(6)"><text>svg</text></a></svg>',
+					"`[code](javascript:x)`",
+					"",
+					"[bad]: javascript:alert(7)",
+				].join("\n"),
+				copied,
+			),
+		).toBe(
+			[
+				"js ref ![Logo](../.gitbook/assets/logo.png) [web](https://example.com)",
+				'<a>html</a> <a>spread</a> <a href="overview.md">page</a>',
+				'<iframe></iframe> <iframe src="https://www.youtube.com/embed/abc"></iframe>',
+				"<form><button>Go</button></form>",
+				"<svg><a><text>svg</text></a></svg>",
+				"`[code](javascript:x)`",
+			].join("\n"),
+		);
+		expect(copied).toEqual(["/images/logo.png"]);
+		// The Markdown a record's fields write goes by the same rule.
+		expect(
+			mdxToGitbookMarkdown(
+				{
+					...chapter("Body."),
+					fields: { before: "Defined in [the note](javascript:alert(8))." },
+				},
+				pages,
+				{ copyImage: () => null },
+			),
+		).toBe("Defined in the note.\n\nBody.");
+	});
+
 	it("copies local images and keeps remote ones, but leaves code as written", () => {
 		const copied: string[] = [];
 		expect(

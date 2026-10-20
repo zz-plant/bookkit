@@ -12,7 +12,11 @@ import type {
 } from "../../packages/astro-bookkit/src/exports/types";
 import { formatFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
 import { HAS_SCHEME } from "../../packages/astro-bookkit/src/utils/links";
-import { splitFencedCode } from "../../packages/astro-bookkit/src/utils/markdown";
+import {
+	findUnsafeLinks,
+	splitFencedCode,
+	withoutUnsafeLinks,
+} from "../../packages/astro-bookkit/src/utils/markdown";
 
 /**
  * A book as a GitBook folder: one Markdown page per record, in the reading
@@ -70,6 +74,10 @@ const outsideCode = (text: string, rewrite: (prose: string) => string) => {
  * export lines, and component tags (keeping what they wrap) are dropped;
  * links to read pages point at the folder's pages; local images are copied
  * in; other site links point at the site. Code blocks are left as written.
+ * The site's link rule holds (`findUnsafeLinks`): a link to a `javascript:`,
+ * `vbscript:`, or `data:` address keeps only its words, and an element loses
+ * an unsafe address, an `<iframe srcdoc>`, or a spread attribute, so it
+ * links to, loads, and submits to nothing.
  */
 export const mdxToGitbookMarkdown = (
 	entry: ExportEntry,
@@ -119,7 +127,10 @@ export const mdxToGitbookMarkdown = (
 				),
 			)
 			.join("\n");
-	return splitFencedCode(entryMarkdown(entry))
+	const markdown = entryMarkdown(entry);
+	return splitFencedCode(
+		withoutUnsafeLinks(markdown, findUnsafeLinks(markdown)),
+	)
 		.map((segment) => (segment.code ? segment.text : prose(segment.text)))
 		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")

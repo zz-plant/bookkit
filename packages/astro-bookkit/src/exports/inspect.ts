@@ -13,8 +13,9 @@ import {
 } from "pdf-lib";
 import { decodeEntities } from "../utils/character-references";
 import {
-	isAddressAttribute,
+	isDocumentAttribute,
 	isSafeLink,
+	isUnsafeAttribute,
 	SAFE_SCHEME_LIST,
 } from "../utils/links";
 
@@ -164,7 +165,8 @@ const unsafeLinkProblem = (href: string): string | null =>
  * no file behind it, an image the manifest does not list, a content
  * document that is not well-formed XHTML, or a link, embedded document, or
  * form address with a scheme that runs code or carries a document
- * (`javascript:`, `vbscript:`, `data:`).
+ * (`javascript:`, `vbscript:`, `data:`), an `<iframe srcdoc>`, or an SVG
+ * animation that sets an `href`.
  */
 export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 	const problems: string[] = [];
@@ -259,8 +261,9 @@ export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 			if (!zip.file(target))
 				problems.push(`${path} links to ${href}, which is not in the book`);
 		}
-		// Images, and the addresses no export writes: an embedded document's
-		// (`<iframe src>`, `<object data>`) or a form's (`action`, `formaction`).
+		// Images, and the attributes no export writes: an embedded document's
+		// address (`<iframe src>`, `<object data>`) or a form's (`action`,
+		// `formaction`), an `<iframe srcdoc>`, or an animation of an `href`.
 		for (const [, element, attributes] of xhtml.matchAll(OPENING_TAG)) {
 			for (const [, rawName, double, single] of attributes.matchAll(
 				TAG_ATTRIBUTE,
@@ -268,15 +271,15 @@ export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 				const name = rawName.toLowerCase();
 				const value = double ?? single ?? "";
 				const address = decodeEntities(value);
-				if (
-					name !== "href" &&
-					isAddressAttribute(element, name) &&
-					!isSafeLink(address)
-				) {
+				if (name !== "href" && isUnsafeAttribute(element, name, address)) {
 					const shown =
 						address.length > 60 ? `${address.slice(0, 59)}…` : address;
 					problems.push(
-						`${path} has <${element.toLowerCase()} ${name}="${shown}">; an export links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+						`${path} has <${element.toLowerCase()} ${name}="${shown}">; ${
+							isDocumentAttribute(element, name)
+								? "an export holds no document written into an attribute"
+								: `an export links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`
+						}`,
 					);
 					continue;
 				}

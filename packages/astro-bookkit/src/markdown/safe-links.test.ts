@@ -87,6 +87,66 @@ describe("safe links in the site's pages", () => {
 		});
 	}
 
+	// Attributes no address check can vouch for: a document in srcdoc, a
+	// spread, and an SVG animation that rewrites a link's address.
+	const UNCHECKABLE = [
+		['<iframe srcdoc="<script>alert(1)</script>"></iframe>', ""],
+		['<iframe srcDoc={"<script>alert(1)</script>"}></iframe>', ""],
+		[
+			'<iframe src="https://example.com/embed" srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>',
+			"",
+		],
+		['<iframe {...{ src: "javascript:alert(1)" }}></iframe>', ""],
+		[
+			'<a {...{ href: "javascript:alert(1)" }}>spread words</a>',
+			"spread words",
+		],
+		["<a {...props}>props words</a>", "props words"],
+		[
+			'<a href="https://example.com/" {...{ href: "javascript:alert(1)" }}>override words</a>',
+			"override words",
+		],
+		['Before <embed {...{ src: "javascript:alert(1)" }} /> after.', "Before"],
+		[
+			'<svg><a xlink:href="javascript:alert(1)"><text>svg words</text></a></svg>',
+			"svg words",
+		],
+		[
+			'<svg><a href="https://example.com/"><animate attributeName="href" values="javascript:alert(1)" /><text>animated words</text></a></svg>',
+			"animated words",
+		],
+		[
+			'<svg><a href="https://example.com/"><set attributeName={name} to="javascript:alert(1)" /><text>set words</text></a></svg>',
+			"set words",
+		],
+	] as const;
+
+	/** What the page renders: the compiled content, without MDX's wrapper. */
+	const content = (code: string) =>
+		code.slice(
+			code.indexOf("function _createMdxContent"),
+			code.indexOf("export default function MDXContent"),
+		);
+
+	for (const [mdx, words] of UNCHECKABLE) {
+		it(`leaves out ${mdx.match(/<(?!svg)[a-z]+[^>]*?(?:srcdoc|\.\.\.|xlink:href|attributeName)/i)?.[0]}…>, keeping what it contains`, async () => {
+			const code = content(await compiled(mdx));
+			expect(code).not.toMatch(
+				/javascript|script&gt|srcdoc|"iframe"|"embed"|"animate"|"set"|xlink|\.\.\.(?!props\.components)/i,
+			);
+			if (words) expect(code).toContain(`"${words}`);
+		});
+	}
+
+	it("keeps an SVG animation of anything but an address, and a component's spread props", async () => {
+		const code = await compiled(
+			'<svg><circle r="1"><animate attributeName="r" values="1;2" /></circle></svg>\n\n<Figure {...props} />',
+		);
+		expect(code).toContain('"animate"');
+		expect(code).toContain('attributeName: "r"');
+		expect(code).toMatch(/_jsx\(Figure, \{\s*\.\.\.props/);
+	});
+
 	it("leaves out an unsafe element inside another one", async () => {
 		const code = await compiled(
 			'<form action="javascript:alert(1)">\n  <button formAction="vbscript:x">inner</button>\n</form>',

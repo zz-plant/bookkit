@@ -210,6 +210,33 @@ describe("ci.yml", () => {
 		);
 	});
 
+	it("runs check:a11y in its own job, with Chromium cached by Playwright version", () => {
+		const steps = workflow.jobs.accessibility.steps;
+		const runs = steps.map((step) => step.run ?? "");
+		const cache = steps.findIndex(
+			(step) =>
+				step.uses?.startsWith("actions/cache@") &&
+				step.with?.path === "~/.cache/ms-playwright",
+		);
+		const install = runs.findIndex((run) =>
+			run.startsWith("bunx playwright install --with-deps"),
+		);
+		const check = runs.indexOf("bun run check:a11y");
+		expect(steps[cache]?.with?.key).toContain(
+			"steps.playwright.outputs.version",
+		);
+		expect(install).toBeGreaterThan(cache);
+		expect(check).toBeGreaterThan(install);
+		// It reads the link-preview cache governance-and-tests saves, and saves none.
+		expect(
+			steps.some(
+				(step) =>
+					step.uses?.startsWith("actions/cache@") &&
+					String(step.with?.path).includes("bookkit-og"),
+			),
+		).toBe(false);
+	});
+
 	it("runs the meaning pass of check:corpus, with the model download allowed and cached, and fails if it did not run", () => {
 		const job = workflow.jobs["semantic-corpus"];
 		expect(job.env?.BOOKKIT_DOWNLOAD_MODEL).toBe("1");

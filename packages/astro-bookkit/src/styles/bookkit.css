@@ -20,6 +20,11 @@
 	--color-ink: #1d1b17;
 	--color-rubric: #a3301c;
 	--color-text: var(--color-ink);
+	/*
+	 * Muted is the lightest grey for words: 4.99:1 on light paper, 6.41:1 on
+	 * dark, over the 4.5:1 WCAG AA asks of text. Faint (2.46:1 and 3.24:1) is
+	 * for marks only: underlines, separators, list markers.
+	 */
 	--color-muted: color-mix(in srgb, var(--color-ink) 64%, var(--color-paper));
 	--color-faint: color-mix(in srgb, var(--color-ink) 40%, var(--color-paper));
 	--color-bg: var(--color-paper);
@@ -404,7 +409,6 @@ a,
 /* The shortcut hint only means something where there is a keyboard. */
 .search-toggle span {
 	margin-left: 0.4em;
-	color: var(--color-faint);
 }
 
 @media (hover: none) {
@@ -466,7 +470,7 @@ a,
 
 .site-nav__group-label {
 	margin: 0;
-	color: var(--color-faint);
+	color: var(--color-muted);
 	font-size: var(--text-apparatus);
 }
 
@@ -563,7 +567,7 @@ a,
 
 .reader-settings__hint {
 	margin: 0;
-	color: var(--color-faint);
+	color: var(--color-muted);
 	font-size: var(--text-apparatus);
 }
 
@@ -574,7 +578,7 @@ a,
 
 .reader-settings__label {
 	font-size: var(--text-apparatus);
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .reader-settings__options {
@@ -1318,7 +1322,7 @@ a.card:hover h3 {
 }
 
 .list-density-toggle__label {
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .list-density-toggle__button {
@@ -1339,7 +1343,7 @@ a.card:hover h3 {
 }
 
 .list-filter__label {
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .list-filter__input {
@@ -1370,7 +1374,7 @@ a.card:hover h3 {
 }
 
 .list-quick-filters__label {
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .list-quick-filter {
@@ -1391,10 +1395,6 @@ a.card:hover h3 {
 	text-decoration-color: var(--color-rubric);
 	text-decoration-thickness: 2px;
 	text-underline-offset: 0.35em;
-}
-
-.list-quick-filter--clear {
-	color: var(--color-faint);
 }
 
 .list-empty {
@@ -1433,9 +1433,8 @@ a.card:hover h3 {
 	display: flex;
 	flex-wrap: nowrap;
 	overflow-x: auto;
-	gap: var(--space-3);
-	align-items: baseline;
-	padding: var(--space-2) 0;
+	align-items: center;
+	padding: var(--space-1) 0;
 	border-bottom: 1px solid var(--color-border);
 	background: var(--color-paper);
 	font-family: var(--font-apparatus);
@@ -1444,11 +1443,18 @@ a.card:hover h3 {
 }
 
 .alpha-nav__label {
-	color: var(--color-faint);
+	margin-right: var(--space-2);
+	color: var(--color-muted);
 	white-space: nowrap;
 }
 
+/* A letter alone is narrower than the 24px target WCAG 2.2 asks for (2.5.8). */
 .alpha-nav__link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.5rem;
+	min-height: 1.5rem;
 	color: var(--color-ink);
 	text-decoration: none;
 	flex-shrink: 0;
@@ -1605,10 +1611,6 @@ a.card:hover h3 {
 
 .breadcrumb a:hover {
 	color: var(--color-rubric);
-}
-
-.breadcrumb span {
-	color: var(--color-faint);
 }
 
 .next-steps {
@@ -1864,9 +1866,10 @@ a.card:hover h3 {
 	outline-offset: 2px;
 }
 
+/* The lighter tint keeps the muted snippet over 4.5:1. */
 .search-panel__item[aria-selected="true"] {
 	border-color: var(--color-accent);
-	background: var(--color-accent-soft);
+	background: var(--color-surface-muted);
 }
 
 .search-panel__item-title {
@@ -2817,11 +2820,12 @@ pre code {
 	align-items: start;
 }
 
+/* The row gap keeps wrapped links 24px apart (WCAG 2.2 target size). */
 .chapter-mechanisms {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
-	gap: var(--space-1) var(--space-3);
+	gap: var(--space-2) var(--space-3);
 	margin: var(--space-3) 0 var(--space-6);
 	font-family: var(--font-apparatus);
 	font-size: var(--text-apparatus);
@@ -2830,7 +2834,7 @@ pre code {
 .chapter-mechanisms__label {
 	font-family: var(--font-apparatus);
 	font-size: var(--text-apparatus);
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .chapter-content {
@@ -2861,7 +2865,7 @@ pre code {
 	font-family: var(--font-apparatus);
 	font-size: var(--text-apparatus);
 	font-weight: 400;
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .chapter-step-list {
@@ -2894,10 +2898,6 @@ pre code {
 	color: var(--color-ink);
 	border-left: 2px solid var(--color-rubric);
 	padding-left: calc(0.6rem - 1px);
-}
-
-.chapter-step-list span {
-	color: var(--color-faint);
 }
 
 .chapter-toc-mobile {
@@ -2950,7 +2950,7 @@ pre code {
 .chapter-pagination__label {
 	font-family: var(--font-apparatus);
 	font-size: var(--text-apparatus);
-	color: var(--color-faint);
+	color: var(--color-muted);
 }
 
 .chapter-pagination__title {

@@ -25,9 +25,6 @@ export const handleCompileBook: ToolHandler = ({ options, args }) => {
 		"--",
 		"--book",
 		book,
-		"--mode",
-		"error",
-		"--no-drafts",
 	]);
 
 	return {

@@ -1,9 +1,23 @@
 import { describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+	appendFileSync,
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { readFolder } from "./folder-report";
+import { previewFolder } from "../../packages/astro-bookkit/src/proposals";
+import { mdxConversionSummary, readFolder } from "./folder-report";
+import { planImport } from "./import-markdown";
+import {
+	countConversions,
+	describeConversions,
+	sumConversions,
+} from "./import-rules";
 
 const tree = (files: Record<string, string>): string => {
 	const root = mkdtempSync(join(tmpdir(), "bookkit-folder-"));
@@ -47,5 +61,54 @@ describe("readFolder", () => {
 		);
 		const empty = readFolder(tree({ "notes.txt": "x" }));
 		expect("error" in empty && empty.error).toContain("No Markdown");
+	});
+});
+
+describe("bookkit try's MDX summary", () => {
+	it("counts what import converts, in import's words, leaving out what import skips", async () => {
+		const workspace = mkdtempSync(join(tmpdir(), "bookkit-try-"));
+		try {
+			const notes = join(workspace, "notes");
+			cpSync(join(import.meta.dir, "fixtures", "import-notes"), notes, {
+				recursive: true,
+			});
+			// A prose line that starts with `export`, which MDX would run as code.
+			writeFileSync(
+				join(notes, "08-exporting.md"),
+				"# Exporting\n\nexport the data first, then check it.\n",
+			);
+			// Import skips a README, so its braces are not converted.
+			appendFileSync(join(notes, "README.md"), "\nFill in {owner}.\n");
+			mkdirSync(
+				join(workspace, "apps", "notes-book", "src", "content", "book"),
+				{ recursive: true },
+			);
+
+			const folder = readFolder(notes);
+			if ("error" in folder) throw new Error(folder.error);
+			const summary = mdxConversionSummary(previewFolder(folder.files));
+
+			const plan = await planImport({
+				workspaceRoot: workspace,
+				book: "notes-book",
+				sourceDir: notes,
+			});
+			const converted = plan.chapters
+				.map((chapter) => chapter.changes)
+				.filter((changes) => countConversions(changes) > 0);
+			expect(summary).toBe(
+				`Import would convert ${converted.length} documents so they compile as MDX: ${describeConversions(sumConversions(converted))}.`,
+			);
+			expect(summary).toContain("2 import/export lines escaped");
+			expect(summary).toContain("HTML tags kept as HTML");
+		} finally {
+			rmSync(workspace, { recursive: true, force: true });
+		}
+	});
+
+	it("says nothing when no note needs converting", () => {
+		const folder = readFolder(tree({ "a.md": "# A\n\nPlain prose." }));
+		if ("error" in folder) throw new Error(folder.error);
+		expect(mdxConversionSummary(previewFolder(folder.files))).toBeNull();
 	});
 });

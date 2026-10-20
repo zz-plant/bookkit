@@ -187,7 +187,8 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	},
 	{
 		name: "bookkit.validate_book",
-		description: "Run book validation and return structured command output.",
+		description:
+			"Validate a book with the checks bun run validate runs, in process. The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, and missing runbook fields are errors); a draft or in-review book does not. Each finding has a code, the field, a fix, and its file.",
 		safety: "read_only",
 		expectedRuntime: "<=10m",
 		expectedRuntimeClass: "long",
@@ -213,6 +214,11 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 					description:
 						"Optional book slug. Defaults to the current endpoint book when omitted.",
 				},
+				releaseMode: {
+					type: "boolean",
+					description:
+						"true applies release rules to a draft or in-review book too, to see what publishing it would need. Omitted or false: the book's status decides.",
+				},
 			},
 			additionalProperties: false,
 		},
@@ -220,7 +226,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.compile_book",
 		description:
-			"Compile book content into build output. Runs the CLI compile command for a given book.",
+			"Validate and build a book (bun run compile:book). The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, and missing runbook fields are errors); a draft or in-review book does not. Validation errors stop the compile.",
 		safety: "mutating",
 		rateLimit: {
 			maxPerMinute: 10,
@@ -444,7 +450,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				releaseMode: {
 					type: "boolean",
 					description:
-						"Apply release validation (draft examples are errors). Default false.",
+						"true applies release rules whatever the book's status: a draft record is an error, and so are broken links and unknown prerequisites. Omitted or false: the book's status in book.config.ts decides (release rules for published or stable), and a record whose own status is published or stable is always held to them.",
 				},
 			},
 			required: ["section", "source"],

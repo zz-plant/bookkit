@@ -1,5 +1,7 @@
+import { isReleasedStatus } from "../../schemas/status";
 import {
 	readBookSources,
+	readBookStatus,
 	readRetiredSlugs,
 } from "../../validators/book-validator";
 import {
@@ -81,12 +83,19 @@ export const handleCheckContent: ToolHandler = ({ options, args }) => {
 			? args.book.trim()
 			: options.bookSlug;
 	const mechanismSlugs = mechanismSlugsFrom(mechanismSources(options, book));
+	// The same rule validate applies: the book's status, unless releaseMode forces release rules.
+	const bookStatus =
+		book && options.workspaceRoot
+			? readBookStatus(options.workspaceRoot, book)
+			: undefined;
+	const releaseRules =
+		args?.releaseMode === true || isReleasedStatus(bookStatus);
 	const result = checkContentItem(section, source, {
 		mechanismSlugs: mechanismSlugs.size > 0 ? mechanismSlugs : undefined,
 		retiredSlugs: options.workspaceRoot
 			? readRetiredSlugs(options.workspaceRoot)
 			: undefined,
-		releaseMode: args?.releaseMode === true,
+		releaseMode: releaseRules,
 	});
 	const similar =
 		section === "mechanism"
@@ -108,6 +117,8 @@ export const handleCheckContent: ToolHandler = ({ options, args }) => {
 		payload: {
 			book,
 			section,
+			bookStatus: bookStatus ?? null,
+			releaseRules,
 			ok: result.ok,
 			findings: result.findings,
 			similar,

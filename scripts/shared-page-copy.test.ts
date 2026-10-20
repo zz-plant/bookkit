@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createBookWorkspace, runBun } from "./lib/book-workspace.fixture";
+import { buildBook, createBookWorkspace } from "./lib/book-workspace.fixture";
 
 /**
  * Pages every book shares take their copy from book.config.ts: the home page
@@ -80,7 +80,7 @@ beforeAll(() => {
 `,
 			),
 	);
-	build = runBun(["run", "build"], appDir);
+	build = buildBook(appDir);
 }, 240_000);
 
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));

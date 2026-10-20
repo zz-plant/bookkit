@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { repoRoot } from "../_lib";
+import { runChild, waitForChildren } from "./child-process.fixture";
 import { planGates, REPRESENTATIVE_BOOK } from "./verify-plan";
+
+waitForChildren();
 
 const books = ["bad-people", "on-call", "running-hot"];
 const ids = (changed: string[] | null) =>
@@ -112,10 +115,10 @@ describe("planGates", () => {
 describe("verify --skip", () => {
 	it("leaves out the gate it names, as deploy does with build:all", () => {
 		const list = (...args: string[]) =>
-			Bun.spawnSync(
+			runChild(
 				[process.execPath, join(repoRoot(), "scripts", "verify.ts"), ...args],
-				{ cwd: repoRoot(), stdout: "pipe" },
-			).stdout.toString();
+				{ cwd: repoRoot() },
+			).stdout;
 		expect(list("--all", "--list")).toContain("build every book");
 		const skipped = list("--all", "--list", "--skip", "build:all");
 		expect(skipped).not.toContain("build every book");

@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * check:runbooks --mode error judges review cadence against today, except in
@@ -11,8 +12,10 @@ import { repoRoot } from "./_lib";
 
 let workspace: string;
 
-const runbooks = (cwd: string, book?: string) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const runbooks = (cwd: string, book?: string) =>
+	runChild(
 		[
 			process.execPath,
 			join(repoRoot(), "scripts", "check-runbooks.ts"),
@@ -20,13 +23,8 @@ const runbooks = (cwd: string, book?: string) => {
 			"error",
 			...(book ? ["--book", book] : []),
 		],
-		{ cwd, stdout: "pipe", stderr: "pipe" },
+		{ cwd },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 const writeRunbookBook = (book: string, configExtra: string) => {
 	const app = join(workspace, "apps", book);

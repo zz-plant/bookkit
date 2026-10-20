@@ -2,17 +2,14 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
-const run = (args: string[], script = "import-book-from-markdown.ts") => {
-	const result = Bun.spawnSync(
-		[process.execPath, join(repoRoot(), "scripts", script), ...args],
-		{ cwd: repoRoot(), stdout: "pipe", stderr: "pipe" },
-	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
+waitForChildren();
+
+const run = (args: string[], script = "import-book-from-markdown.ts") =>
+	runChild([process.execPath, join(repoRoot(), "scripts", script), ...args], {
+		cwd: repoRoot(),
+	});
 
 describe("import-book-from-markdown arguments", () => {
 	it("prints its usage and an example, not a bare error, when arguments are missing", () => {

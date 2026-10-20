@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseFrontmatter } from "../packages/astro-bookkit/src/utils/frontmatter";
 import { repoRoot } from "./_lib";
+import { copyBooks } from "./lib/book-workspace.fixture";
+import { BUILD_DEADLINE_MS, runChildAsync } from "./lib/child-process.fixture";
 
 /**
  * The read UI links every pair of pages the book's frontmatter connects, in
@@ -12,46 +13,35 @@ import { repoRoot } from "./_lib";
  * examples. Built with the shared templates, as a reader sees them; the
  * expected links are read from each book's content files, so the test holds
  * for any content. on-call has prerequisites and glossary `mechanisms`;
- * bad-people has two releases.
+ * bad-people has two releases. It builds copies of the books, since
+ * static-build.test.ts builds apps/on-call at the same time.
  */
 
 const BOOKS = ["on-call", "bad-people"] as const;
 type Book = (typeof BOOKS)[number];
 
-const outDirs = new Map<Book, string>();
 const logs = new Map<Book, string>();
 const exitCodes = new Map<Book, number | null>();
+let workspace: string;
+let appDir: (book: string) => string;
 
 beforeAll(async () => {
+	({ workspace, appDir } = copyBooks("reader-links-", BOOKS));
 	await Promise.all(
 		BOOKS.map(async (book) => {
-			const outDir = mkdtempSync(
-				join(tmpdir(), `bookkit-reader-links-${book}-`),
-			);
-			outDirs.set(book, outDir);
-			const child = Bun.spawn(
-				[process.execPath, "run", "build", "--outDir", outDir],
-				{
-					cwd: join(repoRoot(), "apps", book),
-					env: { ...process.env, NO_COLOR: "1" },
-					stdout: "pipe",
-					stderr: "pipe",
-				},
-			);
-			const [stdout, stderr] = await Promise.all([
-				new Response(child.stdout).text(),
-				new Response(child.stderr).text(),
-			]);
-			exitCodes.set(book, await child.exited);
-			logs.set(book, `${stdout}${stderr}`);
+			const build = await runChildAsync([process.execPath, "run", "build"], {
+				cwd: appDir(book),
+				env: { ...process.env, NO_COLOR: "1" },
+				deadlineMs: BUILD_DEADLINE_MS,
+			});
+			exitCodes.set(book, build.status);
+			logs.set(book, build.output);
 		}),
 	);
 }, 240_000);
 
 afterAll(() => {
-	for (const dir of outDirs.values()) {
-		rmSync(dir, { recursive: true, force: true });
-	}
+	if (workspace) rmSync(workspace, { recursive: true, force: true });
 });
 
 type Record_ = { slug: string; data: Record<string, unknown> };
@@ -78,7 +68,8 @@ const list = (value: unknown): string[] =>
 const page = (book: Book, path: string): string =>
 	readFileSync(
 		join(
-			outDirs.get(book) ?? "",
+			appDir(book),
+			"dist",
 			...path.split("/").filter(Boolean),
 			"index.html",
 		),

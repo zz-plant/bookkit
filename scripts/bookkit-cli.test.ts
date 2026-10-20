@@ -10,27 +10,20 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * `bookkit` itself: what it prints with no command, and its exit code when a
  * command it runs never starts or is killed.
  */
 
-const bookkit = (cwd: string, args: string[], env?: Record<string, string>) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const bookkit = (cwd: string, args: string[], env?: Record<string, string>) =>
+	runChild(
 		[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
-		{
-			cwd,
-			env: { ...process.env, ...env },
-			stdout: "pipe",
-			stderr: "pipe",
-		},
+		{ cwd, env: { ...process.env, ...env } },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 describe("bookkit with no command", () => {
 	it("lists the books and the commands to write, check, preview, build, and deploy one", () => {

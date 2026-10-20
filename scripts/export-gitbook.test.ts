@@ -12,13 +12,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
 import { createBookWorkspace, runBun } from "./lib/book-workspace.fixture";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /** export:gitbook replaces its output folder, so it must never take one it did not write. */
 
 let scratch: string;
 
-const exportTo = (out: string, book = "on-call", cwd = repoRoot()) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const exportTo = (out: string, book = "on-call", cwd = repoRoot()) =>
+	runChild(
 		[
 			process.execPath,
 			join(repoRoot(), "scripts", "export-gitbook.ts"),
@@ -27,13 +30,8 @@ const exportTo = (out: string, book = "on-call", cwd = repoRoot()) => {
 			"--out",
 			out,
 		],
-		{ cwd, stdout: "pipe", stderr: "pipe" },
+		{ cwd },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 beforeEach(() => {
 	scratch = mkdtempSync(join(tmpdir(), "bookkit-gitbook-"));

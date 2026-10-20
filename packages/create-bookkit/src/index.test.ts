@@ -9,22 +9,22 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+	runChild,
+	waitForChildren,
+} from "../../../scripts/lib/child-process.fixture";
 
 /** The create-bookkit command's refusals, run in a scratch folder. */
 
 const repoRoot = join(import.meta.dir, "../../..");
 let cwd: string;
 
-const createBookkit = (...args: string[]) => {
-	const result = Bun.spawnSync(
-		[process.execPath, join(import.meta.dir, "index.ts"), ...args],
-		{ cwd, stdout: "pipe", stderr: "pipe" },
-	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
+waitForChildren();
+
+const createBookkit = (...args: string[]) =>
+	runChild([process.execPath, join(import.meta.dir, "index.ts"), ...args], {
+		cwd,
+	});
 
 beforeEach(() => {
 	cwd = mkdtempSync(join(tmpdir(), "create-bookkit-cli-"));

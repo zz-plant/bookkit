@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * `bookkit check <file>`: the file inside its book, then the MDX compiler the
@@ -12,21 +13,18 @@ import { repoRoot } from "./_lib";
 let workspace: string;
 const chapters = join("apps", "a-book", "src", "content", "book", "chapters");
 
-const check = (file: string) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const check = (file: string) =>
+	runChild(
 		[
 			process.execPath,
 			join(repoRoot(), "scripts", "bookkit.ts"),
 			"check",
 			join(chapters, file),
 		],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		{ cwd: workspace },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 const chapter = (slug: string, body: string, extra = "") =>
 	`---\nslug: ${slug}\ntitle: "${slug}"\nstatus: draft\n${extra}---\n${body}\n`;

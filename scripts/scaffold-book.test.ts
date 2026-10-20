@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
 import { listFilesRecursive, repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 import { starterSlugs } from "./lib/scaffold-book";
 
 /**
@@ -25,18 +26,13 @@ import { starterSlugs } from "./lib/scaffold-book";
 const repo = repoRoot();
 let workspace: string;
 
-const run = (command: string[], cwd = workspace) => {
-	const result = Bun.spawnSync(command, {
+waitForChildren();
+
+const run = (command: string[], cwd = workspace) =>
+	runChild(command, {
 		cwd,
-		stdout: "pipe",
-		stderr: "pipe",
 		env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
 	});
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 // --no-install: the workspace borrows this repository's node_modules.
 const newBook = (...args: string[]) =>

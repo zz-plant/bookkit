@@ -1,24 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChildAsync, waitForChildren } from "./lib/child-process.fixture";
+
+waitForChildren();
 
 /** Sends JSON-RPC lines to a fresh server and returns its responses by id. */
 const exchange = async (messages: unknown[]) => {
-	const server = Bun.spawn(
+	const { stdout } = await runChildAsync(
 		[process.execPath, "run", join(repoRoot(), "scripts", "mcp-server.ts")],
-		{ cwd: repoRoot(), stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+		{
+			cwd: repoRoot(),
+			// Strings are sent as raw lines, to exercise malformed input.
+			stdin: messages
+				.map(
+					(message) =>
+						`${typeof message === "string" ? message : JSON.stringify(message)}\n`,
+				)
+				.join(""),
+		},
 	);
-	for (const message of messages) {
-		// Strings are sent as raw lines, to exercise malformed input.
-		server.stdin.write(
-			`${typeof message === "string" ? message : JSON.stringify(message)}\n`,
-		);
-	}
-	server.stdin.end();
-	const output = await new Response(server.stdout).text();
-	await server.exited;
 	return new Map(
-		output
+		stdout
 			.trim()
 			.split("\n")
 			.filter(Boolean)

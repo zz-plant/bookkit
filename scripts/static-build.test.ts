@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { BUILD_DEADLINE_MS, runChild } from "./lib/child-process.fixture";
 import {
 	definitionPairs,
 	exportedToolSections,
@@ -34,17 +35,16 @@ const pages = () => filesUnder(outDir).filter((file) => file.endsWith(".html"));
 
 beforeAll(() => {
 	outDir = mkdtempSync(join(tmpdir(), "bookkit-static-build-"));
-	const result = Bun.spawnSync(
+	const result = runChild(
 		[process.execPath, "run", "build", "--outDir", outDir],
 		{
 			cwd: join(repoRoot(), "apps", BOOK),
 			env: { ...process.env, NO_COLOR: "1" },
-			stdout: "pipe",
-			stderr: "pipe",
+			deadlineMs: BUILD_DEADLINE_MS,
 		},
 	);
-	exitCode = result.exitCode;
-	log = `${result.stdout.toString()}${result.stderr.toString()}`;
+	exitCode = result.status;
+	log = result.output;
 }, 180_000);
 
 afterAll(() => {

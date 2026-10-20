@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 import { parseFrontmatter } from "./lib/content-frontmatter";
 import { nextMinorVersion } from "./lib/release-notes";
 
@@ -20,6 +21,8 @@ import { nextMinorVersion } from "./lib/release-notes";
  * their own: a chapter put between two others, a chapter renamed everywhere
  * it is named, and a release note started at the next version.
  */
+
+waitForChildren();
 
 let workspace: string;
 
@@ -61,16 +64,11 @@ const chapters = () =>
 		.filter((name) => name.endsWith(".mdx"))
 		.sort();
 
-const bookkit = (...args: string[]) => {
-	const result = Bun.spawnSync(
+const bookkit = (...args: string[]) =>
+	runChild(
 		[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		{ cwd: workspace },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-chapters-"));
@@ -160,15 +158,15 @@ describe("rename chapter", () => {
 		);
 		expect(manifest.chapters[0].file).toBe("03-waiting-line.mdx");
 		// The book still checks clean.
-		const check = Bun.spawnSync(
+		const check = runChild(
 			[
 				process.execPath,
 				join(repoRoot(), "scripts", "validate-book.ts"),
 				"--book",
 				"notes",
 			],
-			{ cwd: workspace, stdout: "pipe" },
-		).stdout.toString();
+			{ cwd: workspace },
+		).stdout;
 		expect(check).not.toContain("not a chapter slug");
 	});
 

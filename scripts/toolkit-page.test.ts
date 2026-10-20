@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createBookWorkspace, runBun } from "./lib/book-workspace.fixture";
+import { buildBook, createBookWorkspace } from "./lib/book-workspace.fixture";
 import { starterSlugs } from "./lib/scaffold-book";
 import {
 	definitionPairs,
@@ -88,7 +88,7 @@ drills:
 `,
 		"## Notes\n\nKeep the thread open until metrics recover.",
 	);
-	build = runBun(["run", "build"], appDir);
+	build = buildBook(appDir);
 }, 240_000);
 
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));

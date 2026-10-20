@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * check:corpus in a workspace whose corpus.json still names books that are
@@ -34,8 +35,10 @@ const writeBook = (book: string, files: Record<string, string>) => {
 	}
 };
 
-const checkCorpus = (...args: string[]) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const checkCorpus = (...args: string[]) =>
+	runChild(
 		[
 			process.execPath,
 			join(repoRoot(), "scripts", "check-corpus.ts"),
@@ -44,13 +47,8 @@ const checkCorpus = (...args: string[]) => {
 			"error",
 			...args,
 		],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		{ cwd: workspace },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-corpus-"));

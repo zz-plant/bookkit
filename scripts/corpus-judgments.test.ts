@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 import {
 	formatJson,
 	type JudgmentRecord,
@@ -66,21 +67,18 @@ const vote = (relation: string, judge = "test judge") => ({
 	sameEvidence: 0.7,
 });
 
-const checkCorpus = (...args: string[]) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const checkCorpus = (...args: string[]) =>
+	runChild(
 		[
 			process.execPath,
 			join(repoRoot(), "scripts", "check-corpus.ts"),
 			"--no-semantic",
 			...args,
 		],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		{ cwd: workspace },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 const writeRecords = (records: unknown[]) =>
 	writeFileSync(
@@ -243,8 +241,8 @@ describe("check:corpus with judges' verdicts", () => {
 });
 
 describe("judging one mechanism at a time", () => {
-	const bookkitCheck = (file: string, ...flags: string[]) => {
-		const result = Bun.spawnSync(
+	const bookkitCheck = (file: string, ...flags: string[]) =>
+		runChild(
 			[
 				process.execPath,
 				join(repoRoot(), "scripts", "bookkit.ts"),
@@ -259,12 +257,8 @@ describe("judging one mechanism at a time", () => {
 					...process.env,
 					BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
 				},
-				stdout: "pipe",
-				stderr: "pipe",
 			},
-		);
-		return `${result.stdout.toString()}${result.stderr.toString()}`;
-	};
+		).output;
 	const waitingGame = "apps/one/src/content/book/mechanisms/waiting-game.mdx";
 
 	it("--judge-for asks only about that mechanism's nearest pairs", () => {
@@ -326,8 +320,8 @@ describe("judging one mechanism at a time", () => {
 });
 
 describe("bookkit judge and bookkit rule", () => {
-	const bookkit = (...args: string[]) => {
-		const result = Bun.spawnSync(
+	const bookkit = (...args: string[]) =>
+		runChild(
 			[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
 			{
 				cwd: workspace,
@@ -335,15 +329,8 @@ describe("bookkit judge and bookkit rule", () => {
 					...process.env,
 					BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
 				},
-				stdout: "pipe",
-				stderr: "pipe",
 			},
 		);
-		return {
-			status: result.exitCode,
-			output: `${result.stdout.toString()}${result.stderr.toString()}`,
-		};
-	};
 	const judging = () => join(workspace, ".bookkit", "judging");
 
 	it("judge writes a request under .bookkit/judging, and judge record reads the newest answered one", () => {
@@ -482,8 +469,8 @@ console.log(JSON.stringify(pairs.map((pair) => ({
 		writeFileSync(path, FAKE_JUDGE);
 		return `'${process.execPath}' '${path}'`;
 	};
-	const bookkit = (env: Record<string, string>, ...args: string[]) => {
-		const result = Bun.spawnSync(
+	const bookkit = (env: Record<string, string>, ...args: string[]) =>
+		runChild(
 			[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
 			{
 				cwd: workspace,
@@ -493,15 +480,8 @@ console.log(JSON.stringify(pairs.map((pair) => ({
 					BOOKKIT_JUDGE_COMMAND: "",
 					...env,
 				},
-				stdout: "pipe",
-				stderr: "pipe",
 			},
 		);
-		return {
-			status: result.exitCode,
-			output: `${result.stdout.toString()}${result.stderr.toString()}`,
-		};
-	};
 	const judging = () => join(workspace, ".bookkit", "judging");
 	const saved = () =>
 		JSON.parse(readFileSync(join(workspace, "corpus-judgments.json"), "utf8"))

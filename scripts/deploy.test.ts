@@ -13,12 +13,21 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import {
+	runChild,
+	runChildAsync,
+	waitForChildren,
+} from "./lib/child-process.fixture";
 
 /**
  * `bookkit deploy` in a scratch git repository. Its `verify`, each book's
  * build, and wrangler are stand-ins that record what they were asked to do,
  * so nothing is built for real and nothing is published.
  */
+
+// Each test runs deploy, which runs bun several times, and the tests of a
+// describe.concurrent block run at once: under load one took 12 s.
+waitForChildren();
 
 const created: string[] = [];
 afterAll(() => {
@@ -31,7 +40,7 @@ const env = Object.fromEntries(
 );
 
 const git = (cwd: string, ...args: string[]) => {
-	const result = Bun.spawnSync(
+	const result = runChild(
 		[
 			"git",
 			"-c",
@@ -42,10 +51,10 @@ const git = (cwd: string, ...args: string[]) => {
 			"commit.gpgsign=false",
 			...args,
 		],
-		{ cwd, env, stdout: "pipe", stderr: "pipe" },
+		{ cwd, env },
 	);
-	if (result.exitCode !== 0) throw new Error(result.stderr.toString());
-	return result.stdout.toString().trim();
+	if (result.status !== 0) throw new Error(result.stderr);
+	return result.stdout.trim();
 };
 
 type BookOptions = { siteUrl?: string; hosts?: string[] };
@@ -160,12 +169,12 @@ if (process.env.STUB_BREAK_DIST === book) rmSync(join(process.cwd(), "dist", "ex
 };
 
 /** Runs `bookkit deploy` asynchronously, so a test server can answer it. */
-const deploy = async (
+const deploy = (
 	workspace: Workspace,
 	args: string[],
 	extraEnv: Record<string, string> = {},
-) => {
-	const child = Bun.spawn(
+) =>
+	runChildAsync(
 		[
 			process.execPath,
 			"run",
@@ -173,338 +182,258 @@ const deploy = async (
 			"deploy",
 			...args,
 		],
-		{
-			cwd: workspace.root,
-			env: { ...env, ...extraEnv },
-			stdout: "pipe",
-			stderr: "pipe",
-		},
+		{ cwd: workspace.root, env: { ...env, ...extraEnv } },
 	);
-	const [stdout, stderr, status] = await Promise.all([
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-		child.exited,
-	]);
-	return { status, output: `${stdout}${stderr}` };
-};
-
-/** Each test spawns deploy, which spawns bun several times; concurrent runs share the CPU. */
-const SLOW = 30_000;
 
 const THREE_BOOKS = { gamma: {}, beta: {}, alpha: {} };
 
 describe.concurrent("bookkit deploy: all or none", () => {
-	it(
-		"checks every book before publishing any, so one failure publishes nothing",
-		async () => {
-			const workspace = makeWorkspace(THREE_BOOKS);
+	it("checks every book before publishing any, so one failure publishes nothing", async () => {
+		const workspace = makeWorkspace(THREE_BOOKS);
 
-			const result = await deploy(workspace, ["--dry-run"], {
-				STUB_BREAK_DIST: "alpha",
-				STUB_FAIL_BUILD: "gamma",
-			});
+		const result = await deploy(workspace, ["--dry-run"], {
+			STUB_BREAK_DIST: "alpha",
+			STUB_FAIL_BUILD: "gamma",
+		});
 
-			expect(result.status).toBe(1);
-			expect(workspace.calls("wrangler")).toEqual([]);
-			// Every book was still checked, so the summary names every problem.
-			expect(workspace.calls("build")).toEqual([
-				"build alpha",
-				"build beta",
-				"build gamma",
-			]);
-			expect(result.output).toMatch(
-				/alpha {2}refused: its dist\/ failed check:build/,
-			);
-			expect(result.output).toContain(
-				"beta   passed its checks; not published",
-			);
-			expect(result.output).toMatch(
-				/gamma {2}refused: its build failed \(exit 1\)/,
-			);
-			expect(result.output).toContain(
-				"Nothing was published: 2 of 3 book(s) failed their checks.",
-			);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(1);
+		expect(workspace.calls("wrangler")).toEqual([]);
+		// Every book was still checked, so the summary names every problem.
+		expect(workspace.calls("build")).toEqual([
+			"build alpha",
+			"build beta",
+			"build gamma",
+		]);
+		expect(result.output).toMatch(
+			/alpha {2}refused: its dist\/ failed check:build/,
+		);
+		expect(result.output).toContain("beta   passed its checks; not published");
+		expect(result.output).toMatch(
+			/gamma {2}refused: its build failed \(exit 1\)/,
+		);
+		expect(result.output).toContain(
+			"Nothing was published: 2 of 3 book(s) failed their checks.",
+		);
+	});
 
-	it(
-		"publishes nothing when verify --all fails",
-		async () => {
-			const workspace = makeWorkspace(THREE_BOOKS);
+	it("publishes nothing when verify --all fails", async () => {
+		const workspace = makeWorkspace(THREE_BOOKS);
 
-			const result = await deploy(workspace, ["--dry-run"], {
-				STUB_VERIFY_EXIT: "1",
-			});
+		const result = await deploy(workspace, ["--dry-run"], {
+			STUB_VERIFY_EXIT: "1",
+		});
 
-			expect(result.status).toBe(1);
-			expect(workspace.calls("verify")).toEqual([
-				"verify --all --skip build:all",
-			]);
-			expect(workspace.calls("build")).toEqual([]);
-			expect(workspace.calls("wrangler")).toEqual([]);
-			expect(result.output).toContain(
-				"Nothing was published: verify --all failed",
-			);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(1);
+		expect(workspace.calls("verify")).toEqual([
+			"verify --all --skip build:all",
+		]);
+		expect(workspace.calls("build")).toEqual([]);
+		expect(workspace.calls("wrangler")).toEqual([]);
+		expect(result.output).toContain(
+			"Nothing was published: verify --all failed",
+		);
+	});
 
-	it(
-		"publishes the books in sorted order, skips folders that are not books, and tags each version with the commit",
-		async () => {
-			const workspace = makeWorkspace(THREE_BOOKS, {
-				"apps/notes/README.md": "Not a book.\n",
-				"apps/draft/src/book.config.ts": "export const bookConfig = {};\n",
-			});
-			const message = `${workspace.head().slice(0, 12)} Add books`;
+	it("publishes the books in sorted order, skips folders that are not books, and tags each version with the commit", async () => {
+		const workspace = makeWorkspace(THREE_BOOKS, {
+			"apps/notes/README.md": "Not a book.\n",
+			"apps/draft/src/book.config.ts": "export const bookConfig = {};\n",
+		});
+		const message = `${workspace.head().slice(0, 12)} Add books`;
 
-			const result = await deploy(workspace, ["--dry-run"]);
+		const result = await deploy(workspace, ["--dry-run"]);
 
-			expect(result.status).toBe(0);
-			expect(workspace.calls("verify")).toEqual([
-				"verify --all --skip build:all",
-			]);
-			expect(workspace.calls("wrangler")).toEqual(
-				["alpha", "beta", "gamma"].map(
-					(book) => `${book} deploy --dry-run --message ${message}`,
-				),
-			);
-			expect(result.output).toContain(
-				"Skipping apps/draft: it has no wrangler.jsonc",
-			);
-			expect(result.output).toContain(
-				"Skipping apps/notes: it has no src/book.config.ts or wrangler.jsonc",
-			);
-			expect(result.output).toMatch(/alpha {2}passed; wrangler dry run ok/);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(0);
+		expect(workspace.calls("verify")).toEqual([
+			"verify --all --skip build:all",
+		]);
+		expect(workspace.calls("wrangler")).toEqual(
+			["alpha", "beta", "gamma"].map(
+				(book) => `${book} deploy --dry-run --message ${message}`,
+			),
+		);
+		expect(result.output).toContain(
+			"Skipping apps/draft: it has no wrangler.jsonc",
+		);
+		expect(result.output).toContain(
+			"Skipping apps/notes: it has no src/book.config.ts or wrangler.jsonc",
+		);
+		expect(result.output).toMatch(/alpha {2}passed; wrangler dry run ok/);
+	});
 
-	it(
-		"deploys the current book when none is named, and every book with --all",
-		async () => {
-			const workspace = makeWorkspace(THREE_BOOKS);
-			mkdirSync(join(workspace.root, ".bookkit"));
-			writeFileSync(
-				join(workspace.root, ".bookkit", "local.json"),
-				JSON.stringify({ book: "beta" }),
-			);
+	it("deploys the current book when none is named, and every book with --all", async () => {
+		const workspace = makeWorkspace(THREE_BOOKS);
+		mkdirSync(join(workspace.root, ".bookkit"));
+		writeFileSync(
+			join(workspace.root, ".bookkit", "local.json"),
+			JSON.stringify({ book: "beta" }),
+		);
 
-			const current = await deploy(workspace, ["--dry-run"]);
-			expect(current.status).toBe(0);
-			expect(current.output).toContain("Deploying beta, the current book.");
-			expect(
-				workspace.calls("wrangler").map((line) => line.split(" ")[0]),
-			).toEqual(["beta"]);
+		const current = await deploy(workspace, ["--dry-run"]);
+		expect(current.status).toBe(0);
+		expect(current.output).toContain("Deploying beta, the current book.");
+		expect(
+			workspace.calls("wrangler").map((line) => line.split(" ")[0]),
+		).toEqual(["beta"]);
 
-			workspace.clearCalls();
-			const all = await deploy(workspace, ["--all", "--dry-run"]);
-			expect(all.status).toBe(0);
-			expect(
-				workspace.calls("wrangler").map((line) => line.split(" ")[0]),
-			).toEqual(["alpha", "beta", "gamma"]);
-		},
-		SLOW,
-	);
+		workspace.clearCalls();
+		const all = await deploy(workspace, ["--all", "--dry-run"]);
+		expect(all.status).toBe(0);
+		expect(
+			workspace.calls("wrangler").map((line) => line.split(" ")[0]),
+		).toEqual(["alpha", "beta", "gamma"]);
+	});
 
-	it(
-		"reports a book wrangler fails on, after trying every book",
-		async () => {
-			const workspace = makeWorkspace(THREE_BOOKS);
+	it("reports a book wrangler fails on, after trying every book", async () => {
+		const workspace = makeWorkspace(THREE_BOOKS);
 
-			const result = await deploy(workspace, ["--dry-run"], {
-				STUB_FAIL_WRANGLER: "beta",
-			});
+		const result = await deploy(workspace, ["--dry-run"], {
+			STUB_FAIL_WRANGLER: "beta",
+		});
 
-			expect(result.status).toBe(1);
-			expect(workspace.calls("wrangler")).toHaveLength(3);
-			expect(result.output).toContain("beta   wrangler dry run failed");
-			expect(result.output).toContain("wrangler failed for beta");
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(1);
+		expect(workspace.calls("wrangler")).toHaveLength(3);
+		expect(result.output).toContain("beta   wrangler dry run failed");
+		expect(result.output).toContain("wrangler failed for beta");
+	});
 
-	it(
-		"refuses an unknown flag instead of publishing for real",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {} });
+	it("refuses an unknown flag instead of publishing for real", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
 
-			const result = await deploy(workspace, ["alpha", "--dryrun"]);
+		const result = await deploy(workspace, ["alpha", "--dryrun"]);
 
-			expect(result.status).toBe(1);
-			expect(result.output).toContain("--dryrun");
-			expect(workspace.calls("wrangler")).toEqual([]);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain("--dryrun");
+		expect(workspace.calls("wrangler")).toEqual([]);
+	});
 });
 
 describe.concurrent("bookkit deploy: provenance", () => {
-	it(
-		"refuses uncommitted changes in a book being deployed, and ignores other books' changes",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {}, beta: {} });
-			appendFileSync(
-				join(
-					workspace.root,
-					"apps/alpha/src/content/book/chapters/01-start.mdx",
-				),
-				"An uncommitted paragraph.\n",
-			);
-			writeFileSync(
-				join(workspace.root, "apps/alpha/src/content/book/chapters/02-wip.mdx"),
-				"work in progress\n",
-			);
+	it("refuses uncommitted changes in a book being deployed, and ignores other books' changes", async () => {
+		const workspace = makeWorkspace({ alpha: {}, beta: {} });
+		appendFileSync(
+			join(workspace.root, "apps/alpha/src/content/book/chapters/01-start.mdx"),
+			"An uncommitted paragraph.\n",
+		);
+		writeFileSync(
+			join(workspace.root, "apps/alpha/src/content/book/chapters/02-wip.mdx"),
+			"work in progress\n",
+		);
 
-			const refused = await deploy(workspace, ["alpha"]);
-			expect(refused.status).toBe(1);
-			expect(refused.output).toContain(
-				" M apps/alpha/src/content/book/chapters/01-start.mdx",
-			);
-			expect(refused.output).toContain(
-				"?? apps/alpha/src/content/book/chapters/02-wip.mdx",
-			);
-			expect(refused.output).toContain("--allow-dirty");
-			expect(workspace.calls("verify")).toEqual([]);
-			expect(workspace.calls("wrangler")).toEqual([]);
+		const refused = await deploy(workspace, ["alpha"]);
+		expect(refused.status).toBe(1);
+		expect(refused.output).toContain(
+			" M apps/alpha/src/content/book/chapters/01-start.mdx",
+		);
+		expect(refused.output).toContain(
+			"?? apps/alpha/src/content/book/chapters/02-wip.mdx",
+		);
+		expect(refused.output).toContain("--allow-dirty");
+		expect(workspace.calls("verify")).toEqual([]);
+		expect(workspace.calls("wrangler")).toEqual([]);
 
-			const other = await deploy(workspace, ["beta", "--dry-run"]);
-			expect(other.status).toBe(0);
-			expect(workspace.calls("wrangler")).toEqual([
-				`beta deploy --dry-run --message ${workspace.head().slice(0, 12)} Add books`,
-			]);
-		},
-		SLOW,
-	);
+		const other = await deploy(workspace, ["beta", "--dry-run"]);
+		expect(other.status).toBe(0);
+		expect(workspace.calls("wrangler")).toEqual([
+			`beta deploy --dry-run --message ${workspace.head().slice(0, 12)} Add books`,
+		]);
+	});
 
-	it(
-		"rehearses uncommitted changes in a dry run, saying a real deploy refuses them, and stamps nothing",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {} });
-			appendFileSync(
-				join(
-					workspace.root,
-					"apps/alpha/src/content/book/chapters/01-start.mdx",
-				),
-				"An uncommitted paragraph.\n",
-			);
+	it("rehearses uncommitted changes in a dry run, saying a real deploy refuses them, and stamps nothing", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		appendFileSync(
+			join(workspace.root, "apps/alpha/src/content/book/chapters/01-start.mdx"),
+			"An uncommitted paragraph.\n",
+		);
 
-			const rehearsed = await deploy(workspace, ["--dry-run"]);
-			expect(rehearsed.status).toBe(0);
-			expect(rehearsed.output).toContain(
-				"Rehearsing uncommitted work: a real deploy refuses these 1 change(s)",
-			);
-			expect(rehearsed.output).toContain(
-				"Commit your changes, then publish: bun run bookkit deploy alpha",
-			);
-			expect(rehearsed.output).toContain("bunx wrangler login");
-			expect(workspace.calls("wrangler")).toHaveLength(1);
+		const rehearsed = await deploy(workspace, ["--dry-run"]);
+		expect(rehearsed.status).toBe(0);
+		expect(rehearsed.output).toContain(
+			"Rehearsing uncommitted work: a real deploy refuses these 1 change(s)",
+		);
+		expect(rehearsed.output).toContain(
+			"Commit your changes, then publish: bun run bookkit deploy alpha",
+		);
+		expect(rehearsed.output).toContain("bunx wrangler login");
+		expect(workspace.calls("wrangler")).toHaveLength(1);
 
-			const fromStamp = await deploy(workspace, ["--no-build", "--dry-run"]);
-			expect(fromStamp.status).toBe(1);
-			expect(fromStamp.output).toContain(
-				"a dry run of uncommitted work stamps none",
-			);
-		},
-		SLOW,
-	);
+		const fromStamp = await deploy(workspace, ["--no-build", "--dry-run"]);
+		expect(fromStamp.status).toBe(1);
+		expect(fromStamp.output).toContain(
+			"a dry run of uncommitted work stamps none",
+		);
+	});
 
-	it(
-		"publishes uncommitted changes with --allow-dirty, warning and saying so in the version message",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {} });
-			appendFileSync(
-				join(
-					workspace.root,
-					"apps/alpha/src/content/book/chapters/01-start.mdx",
-				),
-				"An uncommitted paragraph.\n",
-			);
+	it("publishes uncommitted changes with --allow-dirty, warning and saying so in the version message", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		appendFileSync(
+			join(workspace.root, "apps/alpha/src/content/book/chapters/01-start.mdx"),
+			"An uncommitted paragraph.\n",
+		);
 
-			const result = await deploy(workspace, ["--dry-run", "--allow-dirty"]);
+		const result = await deploy(workspace, ["--dry-run", "--allow-dirty"]);
 
-			expect(result.status).toBe(0);
-			expect(result.output).toContain("WARNING: --allow-dirty");
-			expect(workspace.calls("wrangler")).toEqual([
-				`alpha deploy --dry-run --message ${workspace.head().slice(0, 12)}+uncommitted Add books`,
-			]);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(0);
+		expect(result.output).toContain("WARNING: --allow-dirty");
+		expect(workspace.calls("wrangler")).toEqual([
+			`alpha deploy --dry-run --message ${workspace.head().slice(0, 12)}+uncommitted Add books`,
+		]);
+	});
 
-	it(
-		"--no-build publishes the dist/ a dry run stamped at HEAD, without verifying or building again",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {} });
-			expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
-			workspace.clearCalls();
+	it("--no-build publishes the dist/ a dry run stamped at HEAD, without verifying or building again", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
+		workspace.clearCalls();
 
-			const result = await deploy(workspace, ["--no-build", "--dry-run"]);
+		const result = await deploy(workspace, ["--no-build", "--dry-run"]);
 
-			expect(result.status).toBe(0);
-			expect(workspace.calls("verify")).toEqual([]);
-			expect(workspace.calls("build")).toEqual([]);
-			expect(workspace.calls("wrangler")).toHaveLength(1);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(0);
+		expect(workspace.calls("verify")).toEqual([]);
+		expect(workspace.calls("build")).toEqual([]);
+		expect(workspace.calls("wrangler")).toHaveLength(1);
+	});
 
-	it(
-		"--no-build refuses a dist/ that no deploy run stamped",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {} });
-			Bun.spawnSync([process.execPath, "run", "build"], {
-				cwd: join(workspace.root, "apps", "alpha"),
-				env,
-			});
+	it("--no-build refuses a dist/ that no deploy run stamped", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		runChild([process.execPath, "run", "build"], {
+			cwd: join(workspace.root, "apps", "alpha"),
+			env,
+		});
 
-			const result = await deploy(workspace, ["--no-build", "--dry-run"]);
+		const result = await deploy(workspace, ["--no-build", "--dry-run"]);
 
-			expect(result.status).toBe(1);
-			expect(result.output).toContain("apps/alpha/dist/ has no deploy stamp");
-			expect(workspace.calls("wrangler")).toEqual([]);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain("apps/alpha/dist/ has no deploy stamp");
+		expect(workspace.calls("wrangler")).toEqual([]);
+	});
 
-	it(
-		"--no-build refuses a dist/ stamped at another commit, or changed since",
-		async () => {
-			const workspace = makeWorkspace({ alpha: {} });
-			expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
-			const stamped = workspace.head();
-			writeFileSync(
-				join(
-					workspace.root,
-					"apps/alpha/src/content/book/chapters/02-next.mdx",
-				),
-				'---\nslug: "02-next"\ntitle: "Next"\nstatus: draft\n---\nNew.\n',
-			);
-			workspace.commit("Add a chapter");
-			workspace.clearCalls();
+	it("--no-build refuses a dist/ stamped at another commit, or changed since", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
+		const stamped = workspace.head();
+		writeFileSync(
+			join(workspace.root, "apps/alpha/src/content/book/chapters/02-next.mdx"),
+			'---\nslug: "02-next"\ntitle: "Next"\nstatus: draft\n---\nNew.\n',
+		);
+		workspace.commit("Add a chapter");
+		workspace.clearCalls();
 
-			const stale = await deploy(workspace, ["--no-build", "--dry-run"]);
-			expect(stale.status).toBe(1);
-			expect(stale.output).toContain(
-				`apps/alpha/dist/ was built at ${stamped.slice(0, 12)}, but HEAD is ${workspace.head().slice(0, 12)}`,
-			);
+		const stale = await deploy(workspace, ["--no-build", "--dry-run"]);
+		expect(stale.status).toBe(1);
+		expect(stale.output).toContain(
+			`apps/alpha/dist/ was built at ${stamped.slice(0, 12)}, but HEAD is ${workspace.head().slice(0, 12)}`,
+		);
 
-			expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
-			appendFileSync(
-				join(workspace.root, "apps/alpha/dist/index.html"),
-				"edit",
-			);
-			workspace.clearCalls();
-			const edited = await deploy(workspace, ["--no-build", "--dry-run"]);
-			expect(edited.status).toBe(1);
-			expect(edited.output).toContain(
-				"apps/alpha/dist/ changed since bookkit deploy checked it",
-			);
-			expect(workspace.calls("wrangler")).toEqual([]);
-		},
-		SLOW,
-	);
+		expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
+		appendFileSync(join(workspace.root, "apps/alpha/dist/index.html"), "edit");
+		workspace.clearCalls();
+		const edited = await deploy(workspace, ["--no-build", "--dry-run"]);
+		expect(edited.status).toBe(1);
+		expect(edited.output).toContain(
+			"apps/alpha/dist/ changed since bookkit deploy checked it",
+		);
+		expect(workspace.calls("wrangler")).toEqual([]);
+	});
 });
 
 describe.concurrent("bookkit deploy: page count against the live site", () => {
@@ -530,41 +459,30 @@ describe.concurrent("bookkit deploy: page count against the live site", () => {
 		return { siteUrl: `http://${host}`, hosts: [host] };
 	};
 
-	it(
-		"refuses a book whose sitemap shrinks by more than a quarter, unless --allow-page-drop",
-		async () => {
-			const workspace = makeWorkspace({ alpha: liveSite(8) });
+	it("refuses a book whose sitemap shrinks by more than a quarter, unless --allow-page-drop", async () => {
+		const workspace = makeWorkspace({ alpha: liveSite(8) });
 
-			const refused = await deploy(workspace, ["--dry-run"]);
-			expect(refused.status).toBe(1);
-			expect(refused.output).toContain(
-				"its sitemap lists 1 page(s), but 8 are live",
-			);
-			expect(workspace.calls("wrangler")).toEqual([]);
+		const refused = await deploy(workspace, ["--dry-run"]);
+		expect(refused.status).toBe(1);
+		expect(refused.output).toContain(
+			"its sitemap lists 1 page(s), but 8 are live",
+		);
+		expect(workspace.calls("wrangler")).toEqual([]);
 
-			const allowed = await deploy(workspace, [
-				"--dry-run",
-				"--allow-page-drop",
-			]);
-			expect(allowed.status).toBe(0);
-			expect(allowed.output).toContain("1 sitemap page(s); 8 live.");
-		},
-		SLOW,
-	);
+		const allowed = await deploy(workspace, ["--dry-run", "--allow-page-drop"]);
+		expect(allowed.status).toBe(0);
+		expect(allowed.output).toContain("1 sitemap page(s); 8 live.");
+	});
 
-	it(
-		"publishes when the page count holds, and says when it cannot compare",
-		async () => {
-			const workspace = makeWorkspace({ alpha: liveSite(1), beta: {} });
+	it("publishes when the page count holds, and says when it cannot compare", async () => {
+		const workspace = makeWorkspace({ alpha: liveSite(1), beta: {} });
 
-			const result = await deploy(workspace, ["--dry-run"]);
+		const result = await deploy(workspace, ["--dry-run"]);
 
-			expect(result.status).toBe(0);
-			expect(result.output).toContain("1 sitemap page(s); 1 live.");
-			expect(result.output).toContain(
-				"not compared with the live site: the Worker does not serve site.url's host (beta.example)",
-			);
-		},
-		SLOW,
-	);
+		expect(result.status).toBe(0);
+		expect(result.output).toContain("1 sitemap page(s); 1 live.");
+		expect(result.output).toContain(
+			"not compared with the live site: the Worker does not serve site.url's host (beta.example)",
+		);
+	});
 });

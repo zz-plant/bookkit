@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 import { parseFrontmatter } from "./lib/content-frontmatter";
 import { rebindCode, rebindContent } from "./lib/merge-mechanisms";
 
@@ -164,16 +165,13 @@ const contractOf = (path: string) => {
 	return contract;
 };
 
-const bookkit = (...args: string[]) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const bookkit = (...args: string[]) =>
+	runChild(
 		[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		{ cwd: workspace },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-merge-"));

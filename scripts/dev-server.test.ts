@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:net";
 import { join } from "node:path";
 import type { Subprocess } from "bun";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 import { isPortInUse } from "./lib/dev-server";
 
 /**
@@ -11,6 +12,8 @@ import { isPortInUse } from "./lib/dev-server";
  * to the background. The command must stay in the foreground, serve the MCP
  * endpoint's tool calls, and give the port back when it is stopped.
  */
+
+waitForChildren();
 
 // Not on-call: static-build.test.ts builds that app, and test files run in
 // parallel, so two Astro processes would share its .astro/ folder.
@@ -147,7 +150,7 @@ describe("bookkit dev", () => {
 
 	it("dev status and dev stop, from another command, find it and stop it with SIGTERM", async () => {
 		const control = (action: string) =>
-			Bun.spawnSync(
+			runChild(
 				[
 					process.execPath,
 					"run",
@@ -156,8 +159,8 @@ describe("bookkit dev", () => {
 					action,
 					BOOK,
 				],
-				{ cwd: repoRoot(), env: AGENT_ENV, stdout: "pipe", stderr: "pipe" },
-			).stdout.toString();
+				{ cwd: repoRoot(), env: AGENT_ENV },
+			).stdout;
 		expect(control("status")).toContain(
 			`The dev server for ${BOOK} is running: http://localhost:${port}/`,
 		);
@@ -173,7 +176,7 @@ describe("bookkit dev", () => {
 		expect(code).toBe(143);
 		expect(await isPortInUse(port)).toBe(false);
 		expect(await output).toContain(`localhost:${port}`);
-	}, 20_000);
+	});
 });
 
 describe("bookkit dev on a port that is taken", () => {

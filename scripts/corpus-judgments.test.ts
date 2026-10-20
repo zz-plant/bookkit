@@ -216,6 +216,62 @@ describe("check:corpus with judges' verdicts", () => {
 	});
 });
 
+describe("judging one mechanism at a time", () => {
+	const bookkitCheck = (file: string) => {
+		const result = Bun.spawnSync(
+			[
+				process.execPath,
+				join(repoRoot(), "scripts", "bookkit.ts"),
+				"check",
+				file,
+			],
+			{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		);
+		return `${result.stdout.toString()}${result.stderr.toString()}`;
+	};
+	const waitingGame = "apps/one/src/content/book/mechanisms/waiting-game.mdx";
+
+	it("--judge-for asks only about that mechanism's nearest pairs", () => {
+		writeRecords([]);
+		const dir = join(workspace, "one-mechanism");
+		const result = checkCorpus(
+			"--judge-prompt",
+			dir,
+			"--judge-for",
+			"tidy-desk",
+			"--judge-top",
+			"1",
+		);
+		expect(result.status).toBe(0);
+		const key = JSON.parse(readFileSync(join(dir, "key.json"), "utf8"));
+		expect(key).toHaveLength(1);
+		expect(key[0].pair).toContain("tidy-desk");
+		expect(
+			checkCorpus("--judge-prompt", dir, "--judge-for", "tidy-dsk").output,
+		).toContain("Did you mean tidy-desk?");
+	});
+
+	it("bookkit check on a mechanism says when its closest pairs have no verdict", () => {
+		writeRecords([]);
+		expect(bookkitCheck(waitingGame)).toContain(
+			"--judge-prompt <dir> --judge-for waiting-game",
+		);
+	});
+
+	it("bookkit check on a mechanism names the one the judges call the same idea", () => {
+		writeRecords([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				texts: [textHash(text("waiting-game")), textHash(text("slow-walk"))],
+				votes: [vote("same_idea", "a"), vote("same_idea", "b")],
+			},
+		]);
+		expect(bookkitCheck(waitingGame)).toContain(
+			"judges: the same idea as slow-walk (2 of 2). Bind slow-walk instead",
+		);
+	});
+});
+
 describe("corpus-judgments helpers", () => {
 	const record = (
 		texts: [string, string],

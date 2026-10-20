@@ -31,6 +31,7 @@ import {
 	writeFocusBook,
 } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
+import { callsFor, readJudgments } from "./lib/corpus-judgments";
 import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
 	isBookContentPath,
@@ -960,6 +961,10 @@ async function checkOneFile(path: string, asJson: boolean) {
 		section === "mechanism"
 			? similarForMechanismFile(result.frontmatter, book)
 			: [];
+	const slug =
+		typeof result.frontmatter?.slug === "string" ? result.frontmatter.slug : "";
+	const judged =
+		section === "mechanism" && slug ? judgedForMechanism(slug) : [];
 	if (asJson) {
 		console.log(
 			JSON.stringify(
@@ -970,6 +975,7 @@ async function checkOneFile(path: string, asJson: boolean) {
 					frontmatter: undefined,
 					body: undefined,
 					similar,
+					judged,
 				},
 				null,
 				2,
@@ -1002,7 +1008,67 @@ async function checkOneFile(path: string, asJson: boolean) {
 		);
 		for (const match of elsewhere) console.log(describe(match));
 	}
+	if (section === "mechanism" && slug) printJudged(slug, judged, ownCorpus);
 	process.exit(result.ok ? 0 : 1);
+}
+
+/**
+ * Judges' calls on a mechanism's pairs (corpus-judgments.json), as its text
+ * reads now, each marked when corpus.json already rules the pair distinct.
+ */
+function judgedForMechanism(slug: string) {
+	const read = readJudgments(repoRoot());
+	if ("error" in read || read.records.length === 0) return [];
+	const mechanisms = listBookDirs().flatMap(
+		(other) => loadBookContent(other).mechanisms,
+	);
+	let distinct: Array<{ pair: [string, string] }> = [];
+	try {
+		const corpusPath = join(repoRoot(), "corpus.json");
+		if (existsSync(corpusPath))
+			distinct = JSON.parse(readFileSync(corpusPath, "utf8")).distinct ?? [];
+	} catch {
+		// check:corpus reports an unreadable corpus.json.
+	}
+	return callsFor(slug, read.records, mechanisms).map((judged) => ({
+		...judged,
+		ruledDistinct: distinct.some(
+			({ pair }) => pair.includes(slug) && pair.includes(judged.other),
+		),
+	}));
+}
+
+function printJudged(
+	slug: string,
+	judged: ReturnType<typeof judgedForMechanism>,
+	ownCorpus: Array<{ slug: string; ruledDistinct?: string }>,
+) {
+	// A pair the author ruled on is settled, whatever the judges said.
+	const open = judged.filter(
+		({ call, ruledDistinct }) => call.call !== "distinct" && !ruledDistinct,
+	);
+	for (const { other, call } of open) {
+		console.log(
+			call.call === "same-idea"
+				? `  judges: the same idea as ${other} (${call.votes} of ${call.votes}). Bind ${other} instead, or rule the pair distinct in corpus.json.`
+				: `  judges split on ${other}: same idea ${call.call === "split" ? call.sameIdea : 0} of ${call.votes}. Your ruling settles it.`,
+		);
+	}
+	if (judged.length > 0 && open.length === 0) {
+		console.log(
+			`  judges: compared it with ${judged.length} mechanism(s); none is open (not the same idea, or you ruled the pair).`,
+		);
+	}
+	// Verdicts follow the text, so an edited definition starts with none.
+	const judgedOthers = new Set(judged.map(({ other }) => other));
+	const unasked = ownCorpus.filter(
+		(match) => !match.ruledDistinct && !judgedOthers.has(match.slug),
+	);
+	if (judged.length === 0 || unasked.length > 0) {
+		console.log(
+			`  judges: no verdict yet on its closest pairs. Ask about its 3 nearest: bun run check:corpus -- --judge-prompt <dir> --judge-for ${slug}`,
+		);
+	}
 }
 
 function printHelp() {
@@ -1031,7 +1097,8 @@ Check
                                             structure, plus mechanisms that overlap across books; the
                                             meaning pass needs a 550 MB model, downloaded once with
                                             consent (--quick compares wording only)
-  check <file.mdx> [--json]                 one content file: each finding with its field and fix
+  check <file.mdx> [--json]                 one content file: each finding with its field and fix; for a
+                                            mechanism, similar ones and the judges' calls on it
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame
                                             section once --frame is given; exits 1 on an error (for CI)

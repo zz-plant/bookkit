@@ -10,9 +10,11 @@ import { join } from "node:path";
 import {
 	type CorpusMechanism,
 	corpusEmbeddingText,
+	decidePair,
 	JUDGE_RELATIONS,
 	type JudgeRelation,
 	type JudgeVote,
+	type PairCall,
 	type PairJudgment,
 } from "../../packages/astro-bookkit/src/suggestions";
 
@@ -173,6 +175,24 @@ export const matchJudgments = (
 	}
 	for (const key of current.keys()) changed.delete(key);
 	return { current: [...current.values()], changed: [...changed.values()] };
+};
+
+/** The judges' calls on one mechanism's pairs, as the texts read now; same idea and splits first. */
+export const callsFor = (
+	slug: string,
+	records: JudgmentRecord[],
+	mechanisms: ReadonlyArray<Text & { slug: string }>,
+): Array<{ other: string; call: PairCall }> => {
+	const order = { "same-idea": 0, split: 1, distinct: 2 };
+	return matchJudgments(records, mechanisms)
+		.current.filter((judgment) => judgment.pair.includes(slug))
+		.flatMap((judgment) => {
+			const call = decidePair(judgment.votes);
+			const other =
+				judgment.pair[0] === slug ? judgment.pair[1] : judgment.pair[0];
+			return call ? [{ other, call }] : [];
+		})
+		.sort((x, y) => order[x.call.call] - order[y.call.call]);
 };
 
 /** Votes recorded on two texts, whatever the slugs were called then. */

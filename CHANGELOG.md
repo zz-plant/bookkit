@@ -3,10 +3,11 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
-## 2026-10-20 — check:types skips projects that have not changed
+## 2026-10-20 — check:types skips unchanged projects; judges at write time
 
 - **`check:types` remembers passes.** Each project's check (TypeScript or `astro check`) is skipped while nothing it reads has changed since it passed: its own folder, the folders it imports from (a book app: the engine; `scripts/`: the packages), `bun.lock`, `package.json`, `tsconfig.base.json`, and an app's generated `.astro/` types. On a 4-core machine: 21 s for everything, 0.13 s when nothing changed, 1.2 s after a change to `scripts/` only, about 6 s after a change to one app. A failure is never recorded, so it is reported on every run until fixed. Records live in `node_modules/.cache/bookkit-typecheck`; `--no-cache` ignores them, and CI (`CI` set) never reads them.
 - **Measured and left alone:** checking the 18 shared pages once instead of in every app would save about 2 s, because three quarters of each `astro check` run is fixed start-up cost; and `bun test --changed` picks no test for a change to `scripts/check-corpus.ts`, which three test files run as a child process, so test selection by imports would skip real coverage.
+- **Judges where they can matter.** `check:corpus --judge-prompt <dir> --judge-for <slug>` asks about one mechanism only: its flagged or changed pairs, then its three nearest pairs with no verdict or ruling (every merge on record was among the two closest pairs in the corpus). `bookkit check <mechanism file>` now shows the judges' calls on that mechanism (the same idea as another, or a split, unless corpus.json already rules the pair) and prints that command when its closest pairs have no verdict, so a new mechanism is judged as it is written rather than in a batch.
 - **Migration:** none.
 
 ## 2026-10-14 — Judges in check:corpus, and faster builds and checks

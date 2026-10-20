@@ -85,8 +85,6 @@ export {
 	defaultReadHubConfig,
 	resolveReadHubConfig,
 } from "./read-hub-config";
-export type { ReadHubCopy } from "./read-hub-copy";
-export { defaultReadHubCopy } from "./read-hub-copy";
 export type { ReadIndexKey } from "./read-routes";
 export {
 	buildTranslationLede,

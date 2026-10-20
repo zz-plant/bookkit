@@ -10,6 +10,7 @@ import { listBookDirs, repoRoot, slugify } from "../_lib";
 import {
 	countConversions,
 	describeConversions,
+	describeUnsafeLinks,
 	importSkipReason,
 	sumConversions,
 } from "./import-rules";
@@ -148,6 +149,23 @@ export const mdxConversionSummary = (preview: FolderPreview): string | null => {
 	return `Import would convert ${plural(changes.length, "document")} so ${changes.length === 1 ? "it compiles" : "they compile"} as MDX: ${describeConversions(sumConversions(changes))}.`;
 };
 
+/**
+ * The links import would keep as their text in the notes it imports, listed
+ * with their file and line as `bookkit import` lists them.
+ */
+export const unsafeLinksSummary = (preview: FolderPreview): string[] =>
+	describeUnsafeLinks(
+		"Links import would keep as text",
+		preview.documents.flatMap((doc) =>
+			importSkipReason(doc.path)
+				? []
+				: (doc.unsafeLinks ?? []).map((link) => ({
+						source: doc.path,
+						...link,
+					})),
+		),
+	);
+
 export const printTry = (target: string, preview: FolderPreview) => {
 	const label = target.replace(/\/$/, "");
 	console.log(`\nBOOKKIT TRY · ${label}  (read-only: nothing was written)\n`);
@@ -230,6 +248,8 @@ export const printTry = (target: string, preview: FolderPreview) => {
 
 	const conversions = mdxConversionSummary(preview);
 	if (conversions) console.log(`\n${conversions}`);
+	const unsafeLinks = unsafeLinksSummary(preview);
+	if (unsafeLinks.length > 0) console.log(`\n${unsafeLinks.join("\n")}`);
 
 	const slug = slugify(basename(resolveFromCaller(target))) || "my-book";
 	const title = slug

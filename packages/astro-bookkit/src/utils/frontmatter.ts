@@ -51,6 +51,14 @@ export const parseFrontmatter = (raw: string): ParsedFrontmatter => {
 };
 
 /**
+ * How many lines of `source` come before `body`, the body `parseFrontmatter`
+ * read from it, so a line in the body can be named as a line of the file.
+ */
+export const linesBeforeBody = (source: string, body: string): number =>
+	source.slice(0, source.trimEnd().length - body.trimEnd().length).split("\n")
+		.length - 1;
+
+/**
  * A field as text, for readers that only need scalars (titles, slugs,
  * summaries): strings are trimmed, numbers and booleans are stringified, and
  * anything else is undefined.

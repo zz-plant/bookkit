@@ -155,6 +155,77 @@ describe("findUnsafeLinks", () => {
 			{ line: 7, href: "file:///etc/passwd", text: "" },
 		]);
 	});
+
+	// One case per attribute: an unsafe address, a character reference, and
+	// an expression; a web address, and an image's data: source, are kept.
+	const EMBEDS = [
+		["iframe", "src"],
+		["embed", "src"],
+		["object", "data"],
+		["form", "action"],
+		["button", "formaction"],
+		["input", "formAction"],
+	] as const;
+
+	for (const [element, attribute] of EMBEDS) {
+		it(`finds the address of <${element} ${attribute}> the site would not keep`, () => {
+			const markdown = [
+				`<${element} ${attribute}="javascript:alert(1)">`,
+				`<${element} id="x" ${attribute}='&#106;avascript:alert(2)' />`,
+				`<${element} ${attribute}={target}>`,
+				`<${element} ${attribute}="https://example.com/embed">`,
+				`\\<${element} ${attribute}="javascript:alert(3)">`,
+				`\`<${element} ${attribute}="javascript:alert(4)">\``,
+			].join("\n");
+			expect(
+				findUnsafeLinks(markdown).map(({ line, href, ...where }) => ({
+					line,
+					href,
+					element: where.element,
+					attribute: where.attribute,
+				})),
+			).toEqual([
+				{
+					line: 1,
+					href: "javascript:alert(1)",
+					element,
+					attribute: attribute.toLowerCase(),
+				},
+				{
+					line: 2,
+					href: "javascript:alert(2)",
+					element,
+					attribute: attribute.toLowerCase(),
+				},
+				{
+					line: 3,
+					href: "{target}",
+					element,
+					attribute: attribute.toLowerCase(),
+				},
+			]);
+		});
+	}
+
+	it("reads only the attributes that hold an address", () => {
+		expect(
+			findUnsafeLinks(
+				'<img src="data:image/png;base64,AAAA"> <video src="javascript:x"></video> <object src="javascript:x" data="https://example.com/doc.pdf"></object> <div action="javascript:x" data-href="javascript:x"></div>',
+			),
+		).toEqual([]);
+	});
+
+	it("reads a capitalized tag as a component in MDX, and as HTML in a Markdown note", () => {
+		const markdown = '<IFRAME SRC="javascript:alert(1)"></IFRAME>';
+		expect(findUnsafeLinks(markdown)).toEqual([]);
+		expect(
+			findUnsafeLinks(markdown, { tags: "html" }).map(
+				({ href, element, attribute }) => ({ href, element, attribute }),
+			),
+		).toEqual([
+			{ href: "javascript:alert(1)", element: "iframe", attribute: "src" },
+		]);
+	});
 });
 
 describe("splitFencedCode", () => {

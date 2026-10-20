@@ -21,7 +21,11 @@ import {
 	toMdxBody,
 } from "../../packages/astro-bookkit/src/utils/markdown";
 import { compileMdx, type MdxCompileResult } from "./compile-mdx";
-import { INDEX_NAMES, importSkipReason } from "./import-rules";
+import {
+	INDEX_NAMES,
+	importSkipReason,
+	type NoteUnsafeLink,
+} from "./import-rules";
 
 /**
  * `bookkit import`: turns a folder of Markdown notes into a book's chapters.
@@ -99,7 +103,7 @@ export type PlannedChapter = {
 	/** Raw HTML is shown as text: kept as HTML, the chapter did not compile. */
 	htmlAsText: boolean;
 	/** Links kept as their text, since the site would not link them; `line` is in the note. */
-	unsafeLinks: Array<{ line: number; href: string }>;
+	unsafeLinks: NoteUnsafeLink[];
 	/** Source frontmatter fields the chapter schema has no place for. */
 	leftOut: string[];
 	compile: MdxCompileResult;
@@ -674,10 +678,14 @@ export const planImport = async (
 			content,
 			changes: converted.changes,
 			htmlAsText,
-			unsafeLinks: converted.unsafeLinks.map(({ line, href }) => ({
-				line: linesBefore + line,
-				href,
-			})),
+			unsafeLinks: converted.unsafeLinks.map(
+				({ line, href, element, attribute }) => ({
+					line: linesBefore + line,
+					href,
+					element,
+					attribute,
+				}),
+			),
 			leftOut: Object.keys(note.data).filter((key) => !MAPPED_FIELDS.has(key)),
 			compile: compiled,
 		});

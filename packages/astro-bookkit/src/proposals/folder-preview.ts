@@ -7,12 +7,13 @@ import {
 	type MechanismRecord,
 	type ToolRecord,
 } from "../suggestions";
-import { parseFrontmatter } from "../utils/frontmatter";
+import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	createSlugger,
 	type MdxConversion,
 	stripMarkdown,
 	toMdxBody,
+	type UnsafeLink,
 } from "../utils/markdown";
 import {
 	type ContentFinding,
@@ -60,6 +61,13 @@ export type FolderDocument = {
 	frameSteps: { covered: string[]; missing: string[] };
 	/** What import would change for the body to compile as MDX (prose only). */
 	mdx?: MdxConversion;
+	/**
+	 * Links import would keep as their text (prose only), as its report lists
+	 * them; `line` is in the file. Contract files report them as UNSAFE_LINK.
+	 */
+	unsafeLinks?: Array<
+		Pick<UnsafeLink, "line" | "href" | "element" | "attribute">
+	>;
 	findings: FolderFinding[];
 };
 
@@ -343,6 +351,13 @@ export const previewFolder = (
 			});
 		}
 
+		// As import converts it: common HTML kept, the rest escaped.
+		const converted =
+			isProse && !entry.contract
+				? toMdxBody(entry.body, { html: "jsx" })
+				: undefined;
+		const bodyLine = linesBeforeBody(entry.file.source, entry.body);
+
 		return {
 			path: entry.file.path,
 			section: entry.section,
@@ -355,11 +370,15 @@ export const previewFolder = (
 				fileTitle(entry.file.path),
 			words: countWords(entry.body),
 			frameSteps: { covered, missing },
-			// As import converts it: common HTML kept, the rest escaped.
-			mdx:
-				isProse && !entry.contract
-					? toMdxBody(entry.body, { html: "jsx" }).changes
-					: undefined,
+			mdx: converted?.changes,
+			unsafeLinks: converted?.unsafeLinks.map(
+				({ line, href, element, attribute }) => ({
+					line: bodyLine + line,
+					href,
+					element,
+					attribute,
+				}),
+			),
 			findings,
 		};
 	});

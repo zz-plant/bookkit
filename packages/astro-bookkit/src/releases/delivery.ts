@@ -6,6 +6,8 @@ export type DeliveryTarget = {
 	name?: string;
 	secret?: string;
 	headers?: Record<string, string>;
+	/** `false` skips the target. */
+	enabled?: boolean;
 };
 
 export type DeliveryResult<T extends DeliveryTarget> = {
@@ -14,6 +16,79 @@ export type DeliveryResult<T extends DeliveryTarget> = {
 	statusCode?: number;
 	/** Why it failed, with the target's URL replaced by its label. */
 	error?: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
+const readStringField = (
+	value: Record<string, unknown>,
+	key: string,
+): string | undefined => {
+	const field = value[key];
+	return typeof field === "string" && field.trim() ? field : undefined;
+};
+
+const readHeadersField = (
+	value: Record<string, unknown>,
+): Record<string, string> | undefined => {
+	const headers = value.headers;
+	if (!isRecord(headers)) return undefined;
+	const normalized = Object.entries(headers).flatMap(
+		([headerKey, headerValue]) =>
+			typeof headerValue === "string" ? [[headerKey, headerValue]] : [],
+	);
+	return normalized.length ? Object.fromEntries(normalized) : undefined;
+};
+
+const normalizeTarget = (
+	entry: unknown,
+): (DeliveryTarget & { provider?: string }) | null => {
+	if (typeof entry === "string") {
+		return entry.trim() ? { url: entry.trim() } : null;
+	}
+	if (!isRecord(entry)) return null;
+	const url = readStringField(entry, "url");
+	if (!url) return null;
+	return {
+		url,
+		name: readStringField(entry, "name"),
+		secret: readStringField(entry, "secret"),
+		provider: readStringField(entry, "provider"),
+		headers: readHeadersField(entry),
+		enabled: typeof entry.enabled === "boolean" ? entry.enabled : undefined,
+	};
+};
+
+/**
+ * Delivery targets from an environment variable (`BOOKKIT_RELEASE_WEBHOOKS`,
+ * `BOOKKIT_RELEASE_EMAIL_TARGETS`): a JSON array of URLs or of objects with
+ * `url`, `name`, `secret`, `headers`, `enabled`, and `provider` (which only
+ * email deliveries record), or comma-separated URLs. An entry without a URL
+ * is skipped.
+ */
+export const parseDeliveryTargets = (
+	raw: string | null | undefined,
+): Array<DeliveryTarget & { provider?: string }> => {
+	if (!raw) return [];
+	const trimmed = raw.trim();
+	if (!trimmed) return [];
+	try {
+		const parsed: unknown = JSON.parse(trimmed);
+		if (Array.isArray(parsed)) {
+			return parsed.flatMap((entry) => {
+				const target = normalizeTarget(entry);
+				return target ? [target] : [];
+			});
+		}
+	} catch {
+		// Fall through to CSV parsing.
+	}
+	return trimmed
+		.split(",")
+		.map((value) => value.trim())
+		.filter(Boolean)
+		.map((url) => ({ url }));
 };
 
 /**

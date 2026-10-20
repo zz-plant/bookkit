@@ -343,6 +343,47 @@ describe("unsafe links", () => {
 			),
 		).toBe(true);
 	});
+
+	const SAFE = "https://example.com/embed";
+	const EMBEDS = [
+		["iframe", "src", "<iframe src=%s></iframe>"],
+		["embed", "src", "<embed src=%s />"],
+		["object", "data", "<object data=%s>Fallback</object>"],
+		["form", "action", "<form action=%s>Fields</form>"],
+		["button", "formaction", "<button formAction=%s>Send</button>"],
+	] as const;
+
+	for (const [element, attribute, template] of EMBEDS) {
+		it(`names <${element} ${attribute}> with an unsafe or computed address, and what the site does with it`, () => {
+			const findings = checkContentItem(
+				"chapter",
+				chapter(
+					"published",
+					[
+						template.replace("%s", '"javascript:alert(1)"'),
+						"",
+						template.replace("%s", "{target}"),
+						"",
+						template.replace("%s", `"${SAFE}"`),
+					].join("\n"),
+				),
+			).findings.filter((finding) => finding.code === "UNSAFE_LINK");
+			expect(findings).toEqual([
+				{
+					level: "error",
+					code: "UNSAFE_LINK",
+					message: `Chapter has <${element} ${attribute}="javascript:alert(1)"> on line 6, which the site leaves out, keeping only what the <${element}> contains: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages`,
+					fix: `Point ${attribute} at a web address or a page of the book, or remove the <${element}>.`,
+				},
+				{
+					level: "error",
+					code: "UNSAFE_LINK",
+					message: `Chapter has <${element} ${attribute}={target}> on line 8, an address the build cannot check, so the site leaves out the <${element}> and keeps only what it contains`,
+					fix: `Write the address as a plain string, as in ${attribute}="https://example.com".`,
+				},
+			]);
+		});
+	}
 });
 
 describe("retired slugs", () => {

@@ -1,10 +1,15 @@
 import { posix } from "node:path";
-import type { MdxConversion } from "../../packages/astro-bookkit/src/utils/markdown";
+import { SAFE_SCHEME_LIST } from "../../packages/astro-bookkit/src/utils/links";
+import type {
+	MdxConversion,
+	UnsafeLink,
+} from "../../packages/astro-bookkit/src/utils/markdown";
 
 /**
  * What `bookkit import` does to a folder of notes, shared with `bookkit try`
- * so its summary counts what import would do: which notes it skips, and the
- * changes `toMdxBody` makes for a note to compile as MDX, in the same words.
+ * so its summary counts what import would do: which notes it skips, the
+ * changes `toMdxBody` makes for a note to compile as MDX, and the links it
+ * keeps as text, in the same words.
  */
 
 /** A folder's own page: skipped unless `--include-readme`. */
@@ -70,3 +75,41 @@ export const describeConversions = (changes: MdxConversion): string =>
 				`${changes[key]} ${changes[key] === 1 ? one : many}`,
 		)
 		.join(", ");
+
+/** A link import keeps as its text, at a line of its note. */
+export type NoteUnsafeLink = Pick<
+	UnsafeLink,
+	"line" | "href" | "element" | "attribute"
+>;
+
+const LISTED_UNSAFE_LINKS = 10;
+
+/**
+ * The links import keeps as their text, each with its note and line, under
+ * `lead` ("Links kept as text"); nothing when there are none. An element's
+ * address names the element and attribute: `<iframe src> "javascript:…"`.
+ */
+export const describeUnsafeLinks = (
+	lead: string,
+	links: ReadonlyArray<NoteUnsafeLink & { source: string }>,
+): string[] => {
+	if (links.length === 0) return [];
+	const lines = [
+		`${lead}, since a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages (${links.length}):`,
+	];
+	for (const link of links.slice(0, LISTED_UNSAFE_LINKS)) {
+		const href =
+			link.href.length > 60 ? `${link.href.slice(0, 59)}…` : link.href;
+		const where =
+			link.element && link.attribute && link.attribute !== "href"
+				? `<${link.element} ${link.attribute}> `
+				: "";
+		lines.push(
+			`  ${link.source}:${link.line}  ${where}${JSON.stringify(href)}`,
+		);
+	}
+	if (links.length > LISTED_UNSAFE_LINKS) {
+		lines.push(`  … and ${links.length - LISTED_UNSAFE_LINKS} more`);
+	}
+	return lines;
+};

@@ -12,7 +12,11 @@ import {
 	PDFString,
 } from "pdf-lib";
 import { decodeEntities } from "../utils/character-references";
-import { isSafeLink, SAFE_SCHEME_LIST } from "../utils/links";
+import {
+	isAddressAttribute,
+	isSafeLink,
+	SAFE_SCHEME_LIST,
+} from "../utils/links";
 
 /**
  * Structural checks for built exports, deeper than "the file starts with the
@@ -145,6 +149,8 @@ const startsWithStoredMimetype = (bytes: Uint8Array): boolean => {
 const MODIFIED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 const HREF = /\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+const OPENING_TAG = /<([A-Za-z][\w:-]*)(\s[^<>]*)>/g;
+const TAG_ATTRIBUTE = /\s([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
 /** What is wrong with a link whose scheme an export must not link to, or null for a safe link. */
 const unsafeLinkProblem = (href: string): string | null =>
@@ -156,8 +162,9 @@ const unsafeLinkProblem = (href: string): string | null =>
  * What stops an EPUB from opening reliably, or safely: the OCF container,
  * the package metadata EPUB 3 requires, a manifest item, link, or image with
  * no file behind it, an image the manifest does not list, a content
- * document that is not well-formed XHTML, or a link with a scheme that runs
- * code or carries a document (`javascript:`, `vbscript:`, `data:`).
+ * document that is not well-formed XHTML, or a link, embedded document, or
+ * form address with a scheme that runs code or carries a document
+ * (`javascript:`, `vbscript:`, `data:`).
  */
 export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 	const problems: string[] = [];
@@ -252,18 +259,44 @@ export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 			if (!zip.file(target))
 				problems.push(`${path} links to ${href}, which is not in the book`);
 		}
-		for (const [, src] of xhtml.matchAll(/\ssrc="([^"]+)"/g)) {
-			if (/^[a-z][a-z0-9+.-]*:/i.test(src)) {
-				problems.push(
-					`${path} shows ${src} from outside the book; an EPUB carries its images`,
-				);
-				continue;
-			}
-			const target = resolvePath(path, src);
-			if (!zip.file(target)) {
-				problems.push(`${path} shows ${src}, which is not in the book`);
-			} else if (![...manifest.values()].some((item) => item.path === target)) {
-				problems.push(`${path} shows ${src}, which the manifest does not list`);
+		// Images, and the addresses no export writes: an embedded document's
+		// (`<iframe src>`, `<object data>`) or a form's (`action`, `formaction`).
+		for (const [, element, attributes] of xhtml.matchAll(OPENING_TAG)) {
+			for (const [, rawName, double, single] of attributes.matchAll(
+				TAG_ATTRIBUTE,
+			)) {
+				const name = rawName.toLowerCase();
+				const value = double ?? single ?? "";
+				const address = decodeEntities(value);
+				if (
+					name !== "href" &&
+					isAddressAttribute(element, name) &&
+					!isSafeLink(address)
+				) {
+					const shown =
+						address.length > 60 ? `${address.slice(0, 59)}…` : address;
+					problems.push(
+						`${path} has <${element.toLowerCase()} ${name}="${shown}">; an export links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+					);
+					continue;
+				}
+				if (name !== "src" || !value) continue;
+				if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+					problems.push(
+						`${path} shows ${value} from outside the book; an EPUB carries its images`,
+					);
+					continue;
+				}
+				const target = resolvePath(path, value);
+				if (!zip.file(target)) {
+					problems.push(`${path} shows ${value}, which is not in the book`);
+				} else if (
+					![...manifest.values()].some((item) => item.path === target)
+				) {
+					problems.push(
+						`${path} shows ${value}, which the manifest does not list`,
+					);
+				}
 			}
 		}
 	}

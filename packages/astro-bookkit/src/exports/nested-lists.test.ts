@@ -8,6 +8,7 @@ import {
 	PDFDocument,
 	PDFRawStream,
 } from "pdf-lib";
+import { CHILD_TEST_TIMEOUT_MS } from "../../../../scripts/lib/child-process.fixture";
 import { createEpubExport } from "./epub-generator";
 import {
 	chaptersBundle,
@@ -135,13 +136,17 @@ describe("task lists", () => {
 		);
 	});
 
-	it("pass the structural check and epubcheck", async () => {
-		const epub = await createEpubExport(chaptersBundle([["tasks", TASKS]]));
-		expect(await inspectEpub(epub)).toEqual([]);
-		if (process.env.EPUBCHECK_JAR) {
-			expect(epubcheck(epub, scratch, "tasks")).toContain(EPUBCHECK_CLEAN);
-		}
-	}, 60_000);
+	it(
+		"pass the structural check and epubcheck",
+		async () => {
+			const epub = await createEpubExport(chaptersBundle([["tasks", TASKS]]));
+			expect(await inspectEpub(epub)).toEqual([]);
+			if (process.env.EPUBCHECK_JAR) {
+				expect(epubcheck(epub, scratch, "tasks")).toContain(EPUBCHECK_CLEAN);
+			}
+		},
+		CHILD_TEST_TIMEOUT_MS,
+	);
 
 	it("draw a box in the PDF, ticked when done, with the task's text after it", async () => {
 		const pdf = await createPdfExport(chaptersBundle([["tasks", TASKS]]));

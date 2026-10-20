@@ -253,7 +253,7 @@ describe("planImport", () => {
 		expect(links.compile).toEqual({ ok: true });
 		expect(links.unsafeLinks).toEqual([
 			{ line: 6, href: "javascript:alert(1)" },
-			{ line: 7, href: "javascript:alert(2)" },
+			{ line: 7, href: "javascript:alert(2)", element: "a", attribute: "href" },
 			{ line: 7, href: "data:text/html;base64,PHNjcmlwdD4=" },
 			{ line: 9, href: "data:text/html;base64,PHNjcmlwdD4=" },
 		]);
@@ -263,6 +263,54 @@ describe("planImport", () => {
 		}).join("\n");
 		expect(report).toContain(
 			'Links kept as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (4):\n  09-links.md:6  "javascript:alert(1)"\n  09-links.md:7  "javascript:alert(2)"',
+		);
+	});
+
+	it("drops the address of an element that would embed or submit to one, and lists it", async () => {
+		writeFileSync(
+			join(notes, "10-embeds.md"),
+			[
+				"# Embeds",
+				"",
+				'<iframe src="javascript:alert(1)"></iframe>',
+				'<embed src="data:text/html,x">',
+				'<object data="javascript:alert(2)">Fallback</object>',
+				'<form action="javascript:alert(3)"><button formaction="javascript:alert(4)">Go</button></form>',
+				'<IFRAME SRC="vbscript:x"></IFRAME>',
+				"",
+			].join("\n"),
+		);
+		const result = await plan();
+		const embeds = chapter(result, "10-embeds.md");
+
+		// Import keeps none of these elements as HTML: they show as text.
+		expect(embeds.content).toContain("\\<object>Fallback\\</object>");
+		expect(embeds.content).not.toMatch(/javascript|vbscript|data:/i);
+		expect(embeds.compile).toEqual({ ok: true });
+		expect(
+			checkContentItem("chapter", embeds.content).findings.filter(
+				(finding) => finding.code === "UNSAFE_LINK",
+			),
+		).toEqual([]);
+		expect(
+			embeds.unsafeLinks.map(({ element, attribute, line }) => [
+				line,
+				`<${element} ${attribute}>`,
+			]),
+		).toEqual([
+			[3, "<iframe src>"],
+			[4, "<embed src>"],
+			[5, "<object data>"],
+			[6, "<form action>"],
+			[6, "<button formaction>"],
+			[7, "<iframe src>"],
+		]);
+		const report = describeImport(result, {
+			dryRun: true,
+			bookDir: `apps/${BOOK}`,
+		}).join("\n");
+		expect(report).toContain(
+			'  10-embeds.md:3  <iframe src> "javascript:alert(1)"\n  10-embeds.md:4  <embed src> "data:text/html,x"\n  10-embeds.md:5  <object data> "javascript:alert(2)"\n  10-embeds.md:6  <form action> "javascript:alert(3)"\n  10-embeds.md:6  <button formaction> "javascript:alert(4)"\n  10-embeds.md:7  <iframe src> "vbscript:x"',
 		);
 	});
 

@@ -4,10 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { bookDataPath } from "../utils/book-data";
-import { deliveryTargetLabel, withoutTargetUrl } from "./delivery";
-import { sendReleaseEmailHooks } from "./email";
+import {
+	deliveryTargetLabel,
+	parseDeliveryTargets,
+	withoutTargetUrl,
+} from "./delivery";
+import { parseReleaseEmailTargets, sendReleaseEmailHooks } from "./email";
 import type { ReleaseNote } from "./notes";
-import { sendReleaseWebhooks } from "./webhooks";
+import { parseReleaseWebhookTargets, sendReleaseWebhooks } from "./webhooks";
 
 // A Slack-style webhook URL: the path is the credential.
 const SECRET_PATH = "/services/T000/B000/s3cr3t-path";
@@ -24,6 +28,56 @@ const release: ReleaseNote = {
 	sectionSnapshots: {},
 	sectionChangeSource: "manual",
 };
+
+describe("parseDeliveryTargets", () => {
+	const json = JSON.stringify([
+		" https://hooks.example/a ",
+		"",
+		{
+			url: "https://hooks.example/b",
+			name: "team",
+			secret: "s",
+			provider: "postmark",
+			headers: { "X-One": "1", "X-Two": 2 },
+			enabled: false,
+		},
+		{ name: "no url" },
+		{ url: " " },
+		42,
+	]);
+
+	it("reads a JSON array of URLs and targets, skipping entries without a URL", () => {
+		expect(parseDeliveryTargets(json)).toEqual([
+			{ url: "https://hooks.example/a" },
+			{
+				url: "https://hooks.example/b",
+				name: "team",
+				secret: "s",
+				provider: "postmark",
+				headers: { "X-One": "1" },
+				enabled: false,
+			},
+		]);
+	});
+
+	it("reads comma-separated URLs, and nothing from an empty value", () => {
+		expect(
+			parseDeliveryTargets(" https://a.example/x, ,https://b.example/y "),
+		).toEqual([{ url: "https://a.example/x" }, { url: "https://b.example/y" }]);
+		for (const raw of [undefined, null, "", "  "]) {
+			expect(parseDeliveryTargets(raw)).toEqual([]);
+		}
+	});
+
+	it("is how both the webhook and the email variables are read", () => {
+		for (const raw of [json, "https://a.example/x,https://b.example/y"]) {
+			expect(parseReleaseWebhookTargets(raw)).toEqual(
+				parseDeliveryTargets(raw),
+			);
+			expect(parseReleaseEmailTargets(raw)).toEqual(parseDeliveryTargets(raw));
+		}
+	});
+});
 
 describe("deliveryTargetLabel", () => {
 	it("is the target's name, or its URL's scheme and host", () => {

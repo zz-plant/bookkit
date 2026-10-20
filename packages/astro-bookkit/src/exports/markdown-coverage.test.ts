@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { CHILD_TEST_TIMEOUT_MS } from "../../../../scripts/lib/child-process.fixture";
 import { parseFrontmatter } from "./content-parsing";
 import { createEpubExport } from "./epub-generator";
 import {
@@ -178,7 +179,7 @@ describe("Markdown coverage of the exports", () => {
 			}
 			expect(epubcheck(epub, scratch, "coverage")).toContain(EPUBCHECK_CLEAN);
 		},
-		60_000,
+		CHILD_TEST_TIMEOUT_MS,
 	);
 
 	it("decodes character references everywhere but in code, and keeps unknown names as written", () => {

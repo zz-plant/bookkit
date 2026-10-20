@@ -1,0 +1,64 @@
+---
+/**
+ * The author token for the dashboards on /read/analytics, on a server
+ * deployment (`site.runtime: "server"`). Hidden until a dashboard's endpoint
+ * asks for the token, refuses the saved one, or says the server has none; the
+ * page leaves it out of a static build. The field has no name, so the token
+ * cannot end up in a URL, and the script keeps it in this browser
+ * (components/author-access/access.ts).
+ */
+---
+<section
+  class="content-block preview-panel author-access"
+  data-author-access
+  aria-labelledby="author-access-title"
+  hidden
+>
+  <div class="eyebrow">Author access</div>
+  <h2 id="author-access-title">Readers' data on this server</h2>
+  <p class="meta" role="status" data-author-access-message></p>
+  <form class="author-access__form" method="post" data-author-access-form hidden>
+    <label class="author-access__label" for="author-access-token">Author token</label>
+    <div class="preview-link__actions">
+      <input
+        id="author-access-token"
+        class="preview-link__input"
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        required
+        data-author-access-token
+      />
+      <button class="preview-link__copy" type="submit">Save token</button>
+    </div>
+  </form>
+  <button
+    class="preview-link__copy author-access__forget"
+    type="button"
+    data-author-access-forget
+    hidden
+  >
+    Forget the saved token
+  </button>
+</section>
+
+<style>
+  .author-access__form {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  .author-access__label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .author-access__forget {
+    margin-top: var(--space-4);
+  }
+</style>
+
+<script>
+  import "./author-access/client";
+</script>

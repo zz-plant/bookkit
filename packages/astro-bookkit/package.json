@@ -60,6 +60,7 @@
 		"./components/ExportPanel.astro": "./src/components/ExportPanel.astro",
 		"./components/ContentIndexList.astro": "./src/components/ContentIndexList.astro",
 		"./components/AnalyticsDashboard.astro": "./src/components/AnalyticsDashboard.astro",
+		"./components/AuthorAccessPanel.astro": "./src/components/AuthorAccessPanel.astro",
 		"./components/FeedbackDashboard.astro": "./src/components/FeedbackDashboard.astro",
 		"./components/FeedbackWidget.astro": "./src/components/FeedbackWidget.astro",
 		"./components/NextActionPanel.astro": "./src/components/NextActionPanel.astro",

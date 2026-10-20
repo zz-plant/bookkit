@@ -49,3 +49,26 @@ export const corpusScope = (
 		corpusOf: (book) => (sharedSet.has(book) ? "corpus.json" : book),
 	};
 };
+
+/**
+ * The corpus two mechanisms share, where a ruling or a merge can settle
+ * them; otherwise where each one is, in words.
+ */
+export const pairCorpus = (
+	a: string,
+	b: string,
+	holders: ReadonlyArray<{ slug: string; book: string }>,
+	scope: CorpusScope,
+): { corpus: string } | { where: [string, string] } => {
+	const corporaOf = (slug: string) =>
+		new Set(
+			holders.filter((m) => m.slug === slug).map((m) => scope.corpusOf(m.book)),
+		);
+	const corpus = [...corporaOf(a)].find((name) => corporaOf(b).has(name));
+	if (corpus) return { corpus };
+	const name = (slug: string) =>
+		[...corporaOf(slug)]
+			.map((c) => (c === "corpus.json" ? "the shared corpus" : c))
+			.join(", ");
+	return { where: [name(a), name(b)] };
+};

@@ -300,7 +300,7 @@ describe("judging one mechanism at a time", () => {
 			},
 		]);
 		expect(bookkitCheck(waitingGame)).toContain(
-			"judges: the same idea as slow-walk (2 of 2). Bind slow-walk instead",
+			'judges: the same idea as slow-walk (2 of 2). Fold it in: bun run bookkit merge slow-walk waiting-game --reason "<why>"',
 		);
 	});
 
@@ -374,6 +374,9 @@ describe("bookkit judge and bookkit rule", () => {
 		const recorded = bookkit("judge", "record");
 		expect(recorded.status).toBe(0);
 		expect(recorded.output).toContain("Yours to settle (1)");
+		expect(recorded.output).toContain(
+			`bun run bookkit merge ${entry.pair[0]} ${entry.pair[1]} --reason "<why>"`,
+		);
 		expect(recorded.output).toContain(
 			`bun run bookkit rule ${entry.pair[0]} ${entry.pair[1]} --distinct "<reason>"`,
 		);

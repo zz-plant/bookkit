@@ -272,6 +272,29 @@ describe("new:tool, new:mechanism, new:example", () => {
 		).toBe(true);
 	});
 
+	it("writes --definition into a new mechanism, so it is not typed twice", () => {
+		const result = script(
+			"scaffold-mechanism.ts",
+			"--book",
+			"second-book",
+			"--slug",
+			"queue-reset",
+			"--title",
+			"Queue reset",
+			"--definition",
+			'Sending people to the back of the line on any "error".',
+		);
+		expect(result.status).toBe(0);
+		expect(result.output).not.toContain("write the definition");
+		const written = readFileSync(
+			content("mechanisms", "queue-reset.mdx"),
+			"utf8",
+		);
+		expect(written).toContain(
+			'definition: "Sending people to the back of the line on any \\"error\\"."',
+		);
+	});
+
 	it("refuses a book or mechanism that does not exist, creating nothing", () => {
 		const noBook = script(
 			"scaffold-mechanism.ts",

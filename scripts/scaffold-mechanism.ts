@@ -7,16 +7,17 @@ const args = parseScriptArgs(
 	`Create a draft mechanism in apps/<book>/src/content/book/mechanisms/.
 
 Usage:
-  bun run new:mechanism -- --book <book> --slug <slug> [--title "<title>"]
+  bun run new:mechanism -- --book <book> --slug <slug> [--title "<title>"] [--definition "<one sentence>"]
 
 Options:
-  --book <book>       The book app to add it to
-  --slug <slug>       The mechanism's durable identifier
-  --title "<title>"   Its title as readers see it (default: the slug)
-  -h, --help          Show this help
+  --book <book>                 The book app to add it to
+  --slug <slug>                 The mechanism's durable identifier
+  --title "<title>"             Its title as readers see it (default: the slug)
+  --definition "<one sentence>" What it is, in one sentence
+  -h, --help                    Show this help
 
 bun run bookkit new mechanism also checks every book for a mechanism that already fits.`,
-	{ book: "string", slug: "string", title: "string" },
+	{ book: "string", slug: "string", title: "string", definition: "string" },
 	["book", "slug"],
 );
 
@@ -40,12 +41,17 @@ const outPath = join(outDir, `${slug}.mdx`);
 
 const mdx = scaffoldSource(
 	"mechanism",
-	{ slug, title, status: "draft" },
+	{
+		slug,
+		title,
+		status: "draft",
+		definition: args.definition?.trim() || undefined,
+	},
 	"Optional prose: examples, notes, citations. Keep the definition and boundaries above truthful and stable.",
 );
 
 writeFileSafe(outPath, mdx);
 console.log(`Created mechanism: ${outPath}`);
 console.log(
-	`Next: add 1–3 real predictions and at least one test. bun run bookkit check ${outPath} says what each field needs.`,
+	`Next: ${args.definition ? "" : "write the definition, "}add 1–3 real predictions and at least one test. bun run bookkit check ${outPath} says what each field needs.`,
 );

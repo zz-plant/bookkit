@@ -184,10 +184,13 @@ describe("check:corpus with judges' verdicts", () => {
 		const visible = readFileSync(join(dir, "judge-1", "pairs.json"), "utf8");
 		expect(visible).not.toContain("waiting-game");
 		expect(visible).not.toContain('"two"');
-		// Each prompt names its own pairs file, so it can be handed over alone.
+		// Each prompt holds its own copy of the pairs, so it can be handed over alone.
 		const prompt2 = readFileSync(join(dir, "judge-2", "prompt.md"), "utf8");
-		expect(prompt2).toContain("holds 3 pairs");
-		expect(prompt2).toContain(join(dir, "judge-2", "pairs.json"));
+		expect(prompt2).toContain("They are 3 pairs");
+		expect(prompt2).toEndWith(
+			readFileSync(join(dir, "judge-2", "pairs.json"), "utf8"),
+		);
+		expect(prompt2).not.toContain(dir);
 
 		const answers = (relation: string) =>
 			JSON.stringify(
@@ -456,6 +459,116 @@ describe("bookkit judge and bookkit rule", () => {
 				force: true,
 			});
 		}
+	});
+});
+
+describe("bookkit judge with a judge command", () => {
+	// A judge that answers every pair in its prompt, and fails if it can see
+	// anything but its prompt.
+	const FAKE_JUDGE = `import { readdirSync } from "node:fs";
+const prompt = await Bun.stdin.text();
+const seen = readdirSync(".").join(",");
+if (seen !== "prompt.md" || !process.env.BOOKKIT_JUDGE_PROMPT) {
+	console.error(\`not blind: \${seen}\`);
+	process.exit(2);
+}
+const pairs = JSON.parse(prompt.slice(prompt.indexOf("The pairs:") + 10));
+console.log(JSON.stringify(pairs.map((pair) => ({
+	id: pair.id, same_lever: 0.2, same_evidence: 0.1, relation: "same_family", relation_p: 0.6,
+}))));
+`;
+	const judgeCommand = () => {
+		const path = join(workspace, "fake-judge.ts");
+		writeFileSync(path, FAKE_JUDGE);
+		return `'${process.execPath}' '${path}'`;
+	};
+	const bookkit = (env: Record<string, string>, ...args: string[]) => {
+		const result = Bun.spawnSync(
+			[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
+			{
+				cwd: workspace,
+				env: {
+					...process.env,
+					BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
+					BOOKKIT_JUDGE_COMMAND: "",
+					...env,
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
+		return {
+			status: result.exitCode,
+			output: `${result.stdout.toString()}${result.stderr.toString()}`,
+		};
+	};
+	const judging = () => join(workspace, ".bookkit", "judging");
+	const saved = () =>
+		JSON.parse(readFileSync(join(workspace, "corpus-judgments.json"), "utf8"))
+			.judgments as JudgmentRecord[];
+
+	it("asks each judge with --run, each alone, and records the answers", () => {
+		writeRecords([]);
+		rmSync(judging(), { recursive: true, force: true });
+		const asked = bookkit(
+			{},
+			"judge",
+			"waiting-game",
+			"--judge-top",
+			"1",
+			"--run",
+			judgeCommand(),
+		);
+		expect(asked.output).toContain("Asking 3 judge(s), each on its own");
+		expect(asked.output).not.toContain("Save judge n's reply");
+		expect(asked.output).toContain("✓ judge 3");
+		expect(asked.output).toContain("Recorded 3 judge(s) on 1 pair(s)");
+		expect(asked.status).toBe(0);
+		expect(saved()[0].votes).toHaveLength(3);
+	});
+
+	it("keeps a failed judge's output, records nothing, and asks again with judge run", () => {
+		writeRecords([]);
+		rmSync(judging(), { recursive: true, force: true });
+		const failed = bookkit(
+			{ BOOKKIT_JUDGE_COMMAND: "echo 'no idea'" },
+			"judge",
+			"waiting-game",
+			"--judge-top",
+			"1",
+		);
+		expect(failed.status).toBe(1);
+		expect(failed.output).toContain("✗ judge 1");
+		expect(failed.output).toContain("holds no JSON array of answers");
+		expect(failed.output).toContain("Not recorded");
+		expect(failed.output).toContain("bun run bookkit judge run");
+		const [request] = readdirSync(judging());
+		expect(
+			readFileSync(join(judging(), request, "judge-1", "reply.txt"), "utf8"),
+		).toBe("no idea\n");
+		expect(saved()).toEqual([]);
+
+		expect(bookkit({}, "judge", "run").output).toContain(
+			"No judge command. To have bookkit ask them",
+		);
+		const again = bookkit(
+			{ BOOKKIT_JUDGE_COMMAND: judgeCommand() },
+			"judge",
+			"run",
+		);
+		expect(again.status).toBe(0);
+		expect(again.output).toContain("Recorded 3 judge(s) on 1 pair(s)");
+	});
+
+	it("without a judge command, writes the prompts and says how to have them asked", () => {
+		rmSync(judging(), { recursive: true, force: true });
+		writeRecords([]);
+		const asked = bookkit({}, "judge", "waiting-game", "--judge-top", "1");
+		expect(asked.status).toBe(0);
+		expect(asked.output).toContain("Save judge n's reply");
+		expect(asked.output).toContain(
+			"set BOOKKIT_JUDGE_COMMAND to a command that reads a prompt on stdin",
+		);
 	});
 });
 

@@ -15,6 +15,7 @@ export { defaultChapterPageCopy } from "./chapter-copy";
 export type {
 	BookConfig,
 	BookConfigMechanism,
+	BookHomeConfig,
 	RelatedBook,
 } from "./config";
 export type {
@@ -31,6 +32,8 @@ export type {
 export { createBookEntryPoints } from "./entrypoints";
 export type { BookExportHelpersFromConfigOptions } from "./exports";
 export { createBookExportHelpersFromConfig } from "./exports";
+export type { BookHomeCopy } from "./home-copy";
+export { defaultBookHomeCopy, resolveBookHomeCopy } from "./home-copy";
 export type {
 	BookLayoutConfig,
 	BookLayoutOptions,

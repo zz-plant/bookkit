@@ -14,6 +14,7 @@ import { PROJECT_STAMP } from "../../../scripts/lib/project";
 import {
 	scaffoldBook,
 	starterAppFiles,
+	starterTemplateRootIn,
 	titleFromSlug,
 } from "../../../scripts/lib/scaffold-book";
 import { EXTRA_SCRIPT_FILES, vendoredScripts } from "./copied-scripts";
@@ -272,6 +273,8 @@ export const projectBooks = (dir: string): string[] =>
 export type Change = {
 	path: string;
 	action: "added" | "replaced" | "removed" | "unchanged";
+	/** Where the author's edited copy of a replaced file was saved. */
+	savedAs?: string;
 };
 
 /** Writes `content` to `root/rel`, reporting whether it was new or differed. */
@@ -361,24 +364,68 @@ export const writeScripts = (
 	return changes;
 };
 
-/** Copies every shim into each book; returns what changed. */
+/**
+ * What the project's engine shared before an upgrade replaces it: its shim
+ * paths, and each book's starter files as that engine wrote them.
+ */
+export type PreviousEngine = {
+	shims: Set<string>;
+	starterFiles: Record<string, Record<string, string>>;
+};
+
+/** Reads the project's engine; call it before `writeEngine` replaces that engine. */
+export const readPreviousEngine = (
+	dir: string,
+	books: string[],
+): PreviousEngine => {
+	const hasStarter = existsSync(starterTemplateRootIn(dir));
+	return {
+		shims: new Set(listShimPaths(dir)),
+		starterFiles: Object.fromEntries(
+			books.map((book) => [
+				book,
+				hasStarter ? starterAppFiles(dir, book, bookTitle(dir, book)) : {},
+			]),
+		),
+	};
+};
+
+/**
+ * Copies every shim into each book; returns what changed. With `previous`, a
+ * file that engine did not share (such as the home page, once a starter
+ * file) that the author edited is first saved beside it as
+ * `_<name>.before-upgrade`, which Astro does not read.
+ */
 export const writeShims = (
 	source: Source,
 	dir: string,
 	books: string[],
+	previous?: PreviousEngine,
 ): Change[] => {
 	const changes: Change[] = [];
 	const shims = listShimPaths(source.repoRoot);
 	for (const book of books) {
+		const starter = previous?.starterFiles[book] ?? {};
 		for (const shim of shims) {
-			put(
-				dir,
-				`apps/${book}/${shim}`,
-				readFileSync(
-					join(source.repoRoot, ENGINE_DIR, "templates", "book-app", shim),
-				),
-				changes,
+			const rel = `apps/${book}/${shim}`;
+			const content = readFileSync(
+				join(source.repoRoot, ENGINE_DIR, "templates", "book-app", shim),
 			);
+			const current = existsSync(join(dir, rel))
+				? readFileSync(join(dir, rel))
+				: undefined;
+			const editedByAuthor =
+				current &&
+				previous &&
+				!previous.shims.has(shim) &&
+				!current.equals(content) &&
+				current.toString() !== starter[shim];
+			const savedAs = editedByAuthor
+				? rel.replace(/[^/]+$/, (name) => `_${name}.before-upgrade`)
+				: undefined;
+			if (current && savedAs) put(dir, savedAs, current, []);
+			put(dir, rel, content, changes);
+			if (savedAs) changes[changes.length - 1].savedAs = savedAs;
 		}
 	}
 	return changes;
@@ -500,6 +547,12 @@ export const configTitle = (source: string): string | undefined => {
 	}
 };
 
+/** A book's title from its book.config.ts, else one made from its slug. */
+const bookTitle = (dir: string, book: string): string =>
+	configTitle(
+		readFileSync(join(dir, "apps", book, "src", "book.config.ts"), "utf8"),
+	) ?? titleFromSlug(book);
+
 /**
  * Starter files a book does not have yet, such as a TODOS.md that
  * `check:todos` needs and older projects lack. A book's existing files are
@@ -511,13 +564,8 @@ export const writeMissingStarterFiles = (
 ): Change[] => {
 	const changes: Change[] = [];
 	for (const book of books) {
-		const config = readFileSync(
-			join(dir, "apps", book, "src", "book.config.ts"),
-			"utf8",
-		);
-		const title = configTitle(config) ?? titleFromSlug(book);
 		for (const [file, content] of Object.entries(
-			starterAppFiles(dir, book, title),
+			starterAppFiles(dir, book, bookTitle(dir, book)),
 		)) {
 			const rel = `apps/${book}/${file}`;
 			if (!existsSync(join(dir, rel))) put(dir, rel, content, changes);
@@ -647,10 +695,11 @@ export type UpgradeResult = {
 export const upgradeProject = (source: Source, dir: string): UpgradeResult => {
 	const previous = readStamp(dir);
 	const books = projectBooks(dir);
+	const previousEngine = readPreviousEngine(dir, books);
 	const changes = [
 		...writeEngine(source, dir),
 		...writeScripts(source, dir, previous?.scripts),
-		...writeShims(source, dir, books),
+		...writeShims(source, dir, books, previousEngine),
 		...writeMissingStarterFiles(dir, books),
 		...writeAppPackages(source, dir, books),
 		...writeRootFiles(source, dir, `${books[0] ?? "bookkit"}-book`),
@@ -688,6 +737,11 @@ export const summarizeUpgrade = (result: UpgradeResult): string[] => {
 		lines.push(`  ${change.action.padEnd(8)} ${change.path}`);
 	}
 	if (changed.length === 0) lines.push("  Nothing changed.");
+	for (const change of changed.filter((change) => change.savedAs)) {
+		lines.push(
+			`${change.path} is shared by every book from this version on, so your edited copy was replaced and saved as ${change.savedAs}. Move its changes into book.config.ts (a home page's copy goes in \`home\`: kicker and mechanismsCard), then delete the saved file.`,
+		);
+	}
 	if (changed.some((change) => change.path === "bun.lock")) {
 		lines.push(
 			"bun.lock is the repository's now; bun install resolves any package you added yourself again, within its range.",

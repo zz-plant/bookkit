@@ -31,6 +31,8 @@ export type {
 	BookEntryPointsOptions,
 	BookEntrypointModules,
 	BookExportHelpersFromConfigOptions,
+	BookHomeConfig,
+	BookHomeCopy,
 	BookLayoutConfig,
 	BookLayoutOptions,
 	BookLayoutPreviewDisplayState,
@@ -95,6 +97,7 @@ export {
 	createLocalizedReadHubSectionSummaries,
 	createReleaseNoteHelpers,
 	createReleaseNotesFromModules,
+	defaultBookHomeCopy,
 	defaultChapterPageCopy,
 	defaultReadHubCopy,
 	formatTranslationCompleteness,
@@ -104,6 +107,7 @@ export {
 	readRoutePrefixFromPathname,
 	readRoutes,
 	readSectionPath,
+	resolveBookHomeCopy,
 } from "./book";
 export {
 	computeTopologicalOrder,

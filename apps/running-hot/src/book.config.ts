@@ -112,6 +112,14 @@ export const bookConfig = {
 		"attrition by queue",
 		"engineered dissipation",
 	],
+	// Copy on the home page.
+	home: {
+		kicker: "Field guide",
+		mechanismsCard: {
+			title: "Find the pattern",
+			description: "Find where the heat is landing and who is absorbing it.",
+		},
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

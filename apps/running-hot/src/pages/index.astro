@@ -7,10 +7,17 @@ import {
 } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../lib/book-entrypoints";
 import {
+	type BookConfig,
 	formatTranslationCompleteness,
 	readRoutes,
+	resolveBookHomeCopy,
 } from "@bookkit/astro-bookkit";
 import bookConfig from "../book.config";
+
+// Read optional fields (author, home, relatedBooks) through BookConfig, so
+// leaving them out of book.config.ts still type-checks.
+const config: BookConfig = bookConfig;
+const home = resolveBookHomeCopy(config.home);
 
 const chapterIndex = buildLocalizedContentIndex(
 	bookEntryPoints.contentModules.chapters,
@@ -50,7 +57,7 @@ const mechanisms = resolveLocalizedContent(mechanismIndex, {
 const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
-const metaDescription = bookConfig.site?.defaultMeta?.description;
+const metaDescription = config.site.defaultMeta?.description;
 const stats = [
 	{
 		label: "Chapters",
@@ -90,8 +97,8 @@ const startLinks = [
 		href: readRoutes.overview,
 	},
 	{
-		title: "Find the pattern",
-		description: "Find where the heat is landing and who is absorbing it.",
+		title: home.mechanismsCard.title,
+		description: home.mechanismsCard.description,
 		href: readRoutes.mechanisms,
 	},
 	{
@@ -103,10 +110,10 @@ const startLinks = [
 ---
 <BaseLayout title={bookConfig.title}>
   <div class="hero-shell">
-    <p class="hero-kicker">Field guide</p>
+    {home.kicker && <p class="hero-kicker">{home.kicker}</p>}
     <div class="section-header hero-shell__header">
       <h1>{bookConfig.title}</h1>
-      <p class="hero-byline">by {bookConfig.author.name}</p>
+      {config.author && <p class="hero-byline">by {config.author.name}</p>}
       {metaDescription && <p class="lede">{metaDescription}</p>}
     </div>
   </div>
@@ -142,14 +149,15 @@ const startLinks = [
     </div>
   </section>
 
-  <RelatedBooks books={bookConfig.relatedBooks} />
+  <RelatedBooks books={config.relatedBooks} />
   <script>
+    const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     // Empty on a static build, which has no analytics handler.
     const analyticsEndpoint = document.body.dataset.analyticsEndpoint;
     const funnelLinks = document.querySelectorAll("[data-funnel-step]");
     funnelLinks.forEach((link) => {
       link.addEventListener("click", () => {
-        if (!analyticsEndpoint) return;
+        if (isDevHost || !analyticsEndpoint) return;
         const step = link.getAttribute("data-funnel-step");
         if (!step) return;
         const payload = JSON.stringify({

@@ -91,6 +91,30 @@ describe("new:book", () => {
 		).toContain("relatedBooks: [],");
 	});
 
+	it("gets the shared home page, with its copy in book.config.ts", () => {
+		const appDir = join(workspace, "apps", "tide-pool");
+		expect(
+			readFileSync(join(appDir, "src", "pages", "index.astro"), "utf8"),
+		).toBe(
+			readFileSync(
+				join(
+					repo,
+					"packages",
+					"astro-bookkit",
+					"templates",
+					"book-app",
+					"src",
+					"pages",
+					"index.astro",
+				),
+				"utf8",
+			),
+		);
+		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
+		expect(config).toContain('kicker: "",');
+		expect(config).toContain('title: "Browse the mechanisms",');
+	});
+
 	it("gives each book its own starter slugs", () => {
 		const slugs = (book: string) =>
 			readdirSync(

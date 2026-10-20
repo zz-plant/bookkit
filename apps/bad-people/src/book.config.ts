@@ -110,6 +110,15 @@ export const bookConfig = {
 		"recourse cost",
 		"volatility allocation",
 	],
+	// Copy on the home page.
+	home: {
+		kicker: "Field guide",
+		mechanismsCard: {
+			title: "Find the pattern",
+			description:
+				"Match what’s happening to a named pattern, then pick a small, reversible response.",
+		},
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

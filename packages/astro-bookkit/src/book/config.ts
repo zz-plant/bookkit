@@ -21,6 +21,20 @@ export type RelatedBook = {
 };
 
 /**
+ * The home page's copy. Leave out any field, or `home` altogether, for the
+ * default in `defaultBookHomeCopy`.
+ */
+export type BookHomeConfig = {
+	/** A short label above the title, such as "Field guide". Empty for none. */
+	kicker?: string;
+	/** The "Where to start" card that opens the mechanisms index. */
+	mechanismsCard?: {
+		title?: string;
+		description?: string;
+	};
+};
+
+/**
  * Everything a book decides in `src/book.config.ts`. Each part is the type the
  * engine reads it as (layout, runtime, preview access, SEO), so a config that
  * satisfies this type type-checks wherever the app passes it to the engine.
@@ -57,6 +71,8 @@ export type BookConfig = BookLayoutConfig &
 		};
 		mechanisms: readonly BookConfigMechanism[];
 		glossaryFocus: readonly string[];
+		/** Copy on the home page; see `BookHomeConfig`. */
+		home?: BookHomeConfig;
 		/** Books listed under "Other books" on the home page. Leave empty for none. */
 		relatedBooks?: readonly RelatedBook[];
 		/**

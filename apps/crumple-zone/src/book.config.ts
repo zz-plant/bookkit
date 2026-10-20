@@ -193,6 +193,15 @@ export const bookConfig = {
 		"surveillance",
 		"volatocracy",
 	],
+	// Copy on the home page.
+	home: {
+		kicker: "Field guide",
+		mechanismsCard: {
+			title: "Find the pattern",
+			description:
+				"Match what you’re seeing to a named pattern and what to do about it.",
+		},
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

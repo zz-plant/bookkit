@@ -330,7 +330,7 @@ For agents working in this repository, the same tools run over stdio with no dev
 GitHub Actions runs on every push and PR to `main`:
 
 - `bun run lint` — Biome style check
-- `bun run check:types` — every app and package end to end: `.ts` with TypeScript 7, `.astro` with `astro check` (`-- --no-astro` skips the second pass; `-- --tsc` uses TypeScript 5 for the first)
+- `bun run check:types` — every app and package end to end: `.ts` with TypeScript 7, `.astro` with `astro check` (`-- --no-astro` skips the second pass; `-- --tsc` uses TypeScript 5 for the first). A project that passed is skipped while nothing it reads has changed (its folder, the folders it imports, `bun.lock`, the shared tsconfig), so a re-run after an unrelated edit takes about a second; `-- --no-cache` checks everything, as CI always does.
 - `bun run check:separation` — content boundary enforcement
 - `bun run check:architecture` — architecture doc matches the tree (module map, tiers, cycles)
 - `bun run check:todos` — TODO policy check

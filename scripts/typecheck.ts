@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
+import { hashInputs } from "./lib/input-hash";
 
 /**
  * check:types — typechecks every app and package, `.ts` and `.astro` alike,
@@ -11,6 +13,7 @@ import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
  *   bun run check:types                 # TypeScript 7 and astro check
  *   bun run check:types -- --tsc        # TypeScript 5 for the .ts pass (fallback)
  *   bun run check:types -- --no-astro   # .ts only, for a quick local loop
+ *   bun run check:types -- --no-cache   # check every project, even unchanged ones
  *
  * TypeScript 7 is installed under the alias `typescript-native` because the
  * `typescript` package stays on 5.x: scripts/lib/site-config.ts parses
@@ -20,11 +23,18 @@ import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
  * book app, plus each package that ships `.astro` components. Template pages
  * are checked through their copies in each book (check:shims keeps them
  * identical).
+ *
+ * A project that passed is not checked again while nothing it reads has
+ * changed: its folder, the folders it imports from, the lockfile, and the
+ * shared tsconfig (see inputsOf). Passes are recorded in
+ * node_modules/.cache/bookkit-typecheck. CI checks everything every time.
  */
 
 const root = repoRoot();
 const useTsc5 = process.argv.includes("--tsc");
 const skipAstro = process.argv.includes("--no-astro");
+const useRecord = !process.argv.includes("--no-cache") && !process.env.CI;
+const recordDir = join(root, "node_modules", ".cache", "bookkit-typecheck");
 const nativeTsc = join(root, "node_modules", "typescript-native", "bin", "tsc");
 
 if (!useTsc5 && !existsSync(nativeTsc)) {
@@ -65,7 +75,43 @@ if (targets.length === 0) {
 }
 
 type Job = { label: string; kind: "ts" | "astro"; dir: string };
-type JobResult = Job & { status: number; output: string };
+type JobResult = Job & { status: number; output: string; reused?: boolean };
+
+const ROOT_FILES = ["package.json", "bun.lock", "tsconfig.base.json"];
+
+/**
+ * What a project's check reads. A book app imports only itself and the
+ * engine; the engine imports only itself; scripts/ imports the packages, and
+ * create-bookkit imports scripts/. Astro's generated types are gitignored but
+ * read, so an app's .astro/ counts too.
+ */
+const inputsOf = (job: Job): { inputs: string[]; extra: string[] } => {
+	if (job.label.startsWith("apps/")) {
+		return {
+			inputs: [job.label, "packages/astro-bookkit", ...ROOT_FILES],
+			extra: [`${job.label}/.astro`],
+		};
+	}
+	if (job.label === "packages/astro-bookkit") {
+		return { inputs: [job.label, ...ROOT_FILES], extra: [] };
+	}
+	return { inputs: ["packages", "scripts", ...ROOT_FILES], extra: [] };
+};
+
+const recordPath = (job: Job): string => {
+	const { inputs, extra } = inputsOf(job);
+	const key = createHash("sha256")
+		.update(
+			JSON.stringify([
+				job.kind,
+				job.label,
+				job.kind === "ts" ? compiler.label : "astro check",
+				hashInputs(root, inputs, extra),
+			]),
+		)
+		.digest("hex");
+	return join(recordDir, key);
+};
 
 const run = (job: Job, command: string, args: string[], cwd?: string) =>
 	new Promise<JobResult>((resolve) => {
@@ -124,12 +170,29 @@ const queue: Job[] = [
 ];
 const jobs = [...queue];
 const results = new Map<Job, JobResult>();
+const records = new Map<Job, string>();
+if (useRecord) {
+	for (const job of jobs) {
+		const record = recordPath(job);
+		records.set(job, record);
+		if (existsSync(record)) {
+			results.set(job, { ...job, status: 0, output: "", reused: true });
+			queue.splice(queue.indexOf(job), 1);
+		}
+	}
+}
 await Promise.all(
 	Array.from(
 		{ length: Math.min(queue.length, availableParallelism()) },
 		async () => {
 			for (let job = queue.shift(); job; job = queue.shift()) {
-				results.set(job, await runJob(job));
+				const result = await runJob(job);
+				results.set(job, result);
+				const record = records.get(job);
+				if (record && result.status === 0) {
+					mkdirSync(recordDir, { recursive: true });
+					writeFileSync(record, "");
+				}
 			}
 		},
 	),
@@ -144,7 +207,9 @@ const report = (kind: Job["kind"], header: string) => {
 		const result = results.get(job);
 		if (!result) continue;
 		if (result.status === 0) {
-			console.log(`  ✓ ${result.label}`);
+			console.log(
+				`  ✓ ${result.label}${result.reused ? " (unchanged since it passed)" : ""}`,
+			);
 		} else {
 			failed++;
 			console.log(`  ✗ ${result.label}\n${result.output}`);
@@ -156,5 +221,11 @@ report(
 	"astro",
 	`.astro files in ${astroTargets.length} project(s) (astro check)`,
 );
+const reused = [...results.values()].filter((result) => result.reused).length;
+if (reused > 0) {
+	console.log(
+		`\n${reused} of ${jobs.length} checks skipped: nothing they read changed since they passed. --no-cache runs them all.`,
+	);
+}
 
 process.exit(failed === 0 ? 0 : 1);

@@ -85,8 +85,6 @@ export type InlineImage = { alt: string; src: string };
 const CODE_SPAN = "(`+)[\\s\\S]*?\\1";
 /** `![alt](src "title")`: alt, then src. */
 export const MARKDOWN_IMAGE = `!\\[([^\\]]*)\\]\\(\\s*<?([^)\\s>]+)>?(?:\\s+(?:"[^"]*"|'[^']*'))?\\s*\\)`;
-// `[![alt](src)](href)`: the PDF draws the image and drops the link around it.
-const LINKED_IMAGE = `\\[\\s*${MARKDOWN_IMAGE}\\s*\\]\\([^)\\s]+(?:\\s+"[^"]*")?\\)`;
 export const IMG_TAG = "<img\\b[^>]*>";
 
 /** An attribute's value in an HTML tag, with its character references decoded. */
@@ -101,15 +99,10 @@ export const tagAttribute = (tag: string, name: string): string | undefined => {
 	return value === undefined ? undefined : decodeEntities(value);
 };
 
-/**
- * Each image in `text` that is not inside a code span, with where it is.
- * `linked` also takes an image wrapped in a link as one image.
- */
-const findImages = (text: string, linked: boolean) => {
+/** Each image in `text` that is not inside a code span, with where it is. */
+const findImages = (text: string) => {
 	const pattern = new RegExp(
-		[CODE_SPAN, linked ? LINKED_IMAGE : null, MARKDOWN_IMAGE, IMG_TAG]
-			.filter(Boolean)
-			.join("|"),
+		[CODE_SPAN, MARKDOWN_IMAGE, IMG_TAG].join("|"),
 		"gi",
 	);
 	const found: Array<{ index: number; length: number; image: InlineImage }> =
@@ -138,7 +131,7 @@ export const replaceImages = (
 ): string => {
 	let out = "";
 	let at = 0;
-	for (const { index, length, image } of findImages(text, false)) {
+	for (const { index, length, image } of findImages(text)) {
 		out += text.slice(at, index) + render(image);
 		at = index + length;
 	}

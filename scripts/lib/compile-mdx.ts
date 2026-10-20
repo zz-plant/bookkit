@@ -1,4 +1,5 @@
-import { dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve as resolvePath } from "node:path";
 import type { compile as compileType } from "@mdx-js/mdx";
 import type remarkGfmType from "remark-gfm";
 import { FRONTMATTER } from "../../packages/astro-bookkit/src/utils/frontmatter";
@@ -34,7 +35,23 @@ type CompileError = Position & {
 	message?: string;
 };
 
+/**
+ * Whether `dir`, or a folder above it, has a node_modules folder. Where none
+ * does, Bun resolves a package by downloading its latest version into its
+ * cache (auto-install) instead of failing: a check would then compile with a
+ * compiler the book does not use (@astrojs/mdx 8 for a book on 7), fetched
+ * from the network as it runs.
+ */
+const isInstalledAt = (dir: string): boolean => {
+	for (let at = resolvePath(dir); ; at = dirname(at)) {
+		if (existsSync(join(at, "node_modules"))) return true;
+		if (dirname(at) === at) return false;
+	}
+};
+
+/** Where `specifier` resolves from `from`, looking only in installed packages. */
 const resolve = (specifier: string, from: string): string | undefined => {
+	if (!isInstalledAt(from)) return undefined;
 	try {
 		return Bun.resolveSync(specifier, from);
 	} catch {

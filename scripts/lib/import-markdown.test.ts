@@ -15,6 +15,7 @@ import { join } from "node:path";
 
 import { parseFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
 import { checkContentItem } from "../../packages/astro-bookkit/src/validators/content-check";
+import { CHILD_TEST_TIMEOUT_MS, runChild } from "./child-process.fixture";
 import { compileMdx } from "./compile-mdx";
 import {
 	applyImport,
@@ -436,6 +437,35 @@ describe("compileMdx", () => {
 		);
 		expect(result).toMatchObject({ ok: false, line: 7 });
 	});
+
+	it(
+		"uses the installed compiler, downloading nothing, for a book with no node_modules above it",
+		() => {
+			// Bun would resolve the book's @astrojs/mdx by downloading the latest
+			// into this empty cache, as the validate-book tests' scratch books did.
+			const cache = mkdtempSync(join(tmpdir(), "bookkit-empty-cache-"));
+			const book = mkdtempSync(join(tmpdir(), "bookkit-loose-book-"));
+			try {
+				const result = runChild(
+					[
+						process.execPath,
+						"-e",
+						`import { compileMdx } from ${JSON.stringify(join(import.meta.dir, "compile-mdx.ts"))};\nconsole.log(JSON.stringify(await compileMdx("Fine.\\n\\n<details>\\n", ${JSON.stringify(book)})));`,
+					],
+					{ env: { ...process.env, BUN_INSTALL_CACHE_DIR: cache } },
+				);
+				expect(JSON.parse(result.stdout), result.output).toMatchObject({
+					ok: false,
+					line: 3,
+				});
+				expect(readdirSync(cache)).toEqual([]);
+			} finally {
+				rmSync(cache, { recursive: true, force: true });
+				rmSync(book, { recursive: true, force: true });
+			}
+		},
+		CHILD_TEST_TIMEOUT_MS,
+	);
 });
 
 describe("nextSteps", () => {

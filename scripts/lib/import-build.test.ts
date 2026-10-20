@@ -1,25 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import {
-	existsSync,
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	symlinkSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { createBookWorkspace, runBun as run } from "./book-workspace.fixture";
 
 /**
  * `fixtures/import-notes`, imported by the import command into a new book,
  * builds with Astro. The book lives in a scratch workspace that borrows this
  * repo's node_modules, so nothing under apps/ changes.
- *
- * The workspace sits inside the repo (in gitignored .test-workspaces/), not
- * the OS temp dir: Vite resolves the borrowed engine to its real path, and
- * Astro reads an absolute path that shares no directory with the app as
- * relative to the app, so a book under /tmp cannot find the engine's
- * components.
  */
 
 const REPO = join(import.meta.dir, "..", "..");
@@ -29,51 +16,8 @@ const BOOK = "notes-book";
 let workspace: string;
 let appDir: string;
 
-const run = (args: string[], cwd: string) => {
-	const result = Bun.spawnSync([process.execPath, ...args], {
-		cwd,
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	return {
-		exitCode: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
-
 beforeAll(() => {
-	const scratch = join(REPO, ".test-workspaces");
-	mkdirSync(scratch, { recursive: true });
-	workspace = mkdtempSync(join(scratch, "import-build-"));
-	// The engine, its starter template, and dependencies come from this repo.
-	for (const entry of [
-		"packages",
-		"node_modules",
-		"tsconfig.base.json",
-		"biome.json",
-	]) {
-		symlinkSync(join(REPO, entry), join(workspace, entry));
-	}
-	writeFileSync(
-		join(workspace, ".gitignore"),
-		"node_modules/\ndist/\n.astro/\n",
-	);
-	// --no-install: the workspace borrows this repository's node_modules.
-	const scaffold = run(
-		[join(REPO, "scripts", "scaffold-book.ts"), "--book", BOOK, "--no-install"],
-		workspace,
-	);
-	if (scaffold.exitCode !== 0) throw new Error(scaffold.output);
-	appDir = join(workspace, "apps", BOOK);
-	// Link-preview images take seconds and are not what this test is about.
-	const config = join(appDir, "astro.config.mjs");
-	writeFileSync(
-		config,
-		readFileSync(config, "utf8").replace(
-			"bookkit()",
-			"bookkit({ ogImages: false })",
-		),
-	);
+	({ workspace, appDir } = createBookWorkspace("import-build-", BOOK));
 });
 
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));

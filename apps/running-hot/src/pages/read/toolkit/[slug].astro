@@ -63,6 +63,36 @@ const isFallback = missingSlugs.includes(frontmatter.slug);
 const steps = frontmatter.steps ?? [];
 const failureLooksLike = frontmatter.failureLooksLike ?? [];
 const legitimateDemand = frontmatter.legitimateDemand ?? [];
+// A procedure's runbook fields, in the runbook frame's order as the PDF and
+// EPUB print them: owner, trigger, steps, escalation, then the drills.
+const plural = (count: number, unit: string) =>
+	`${count} ${unit}${count === 1 ? "" : "s"}`;
+const factsOf = (...entries: Array<[label: string, value?: string]>) =>
+	entries.flatMap(([label, value]) => (value ? [{ label, value }] : []));
+const ownership = factsOf(
+	["Owner", frontmatter.owner],
+	[
+		"Review",
+		frontmatter.reviewEveryDays
+			? `Every ${plural(frontmatter.reviewEveryDays, "day")}`
+			: undefined,
+	],
+);
+const situations = (frontmatter.runbookSteps ?? []).filter((step) =>
+	Boolean(step.action),
+);
+const escalation = frontmatter.escalation;
+const escalationFacts = factsOf(
+	["To", escalation?.to],
+	["When", escalation?.when],
+	[
+		"Within",
+		escalation?.withinHours
+			? plural(escalation.withinHours, "hour")
+			: undefined,
+	],
+);
+const drills = frontmatter.drills ?? [];
 const requestPath = Astro.url.pathname;
 const localizedReadRootPath = buildLocalizedReadRoutePath(
 	requestPath,
@@ -95,6 +125,16 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
     {frontmatter.timeboxMinutes ?? 10} minutes · for{" "}
     <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{mechanismTitle}</a>
   </p>
+  {ownership.length > 0 && (
+    <dl class="fact-list fact-list--lead">
+      {ownership.map((fact) => (
+        <div class="fact-list__row">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )}
   {frontmatter.trigger && (
     <section class="content-block">
       <h2>When to use this</h2>
@@ -112,6 +152,42 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
           </li>
         ))}
       </ol>
+    </section>
+  )}
+  {situations.length > 0 && (
+    <section class="content-block">
+      <h2>Steps by situation</h2>
+      <dl class="situation-list">
+        {situations.map((step) => (
+          <div class="situation-list__item">
+            <dt>{step.when || "In any situation"}</dt>
+            <dd>{step.action}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )}
+  {escalationFacts.length > 0 && (
+    <section class="content-block">
+      <h2>Escalation</h2>
+      <dl class="fact-list">
+        {escalationFacts.map((fact) => (
+          <div class="fact-list__row">
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )}
+  {drills.length > 0 && (
+    <section class="content-block">
+      <h2>Drills</h2>
+      <ul>
+        {drills.map((drill) => (
+          <li>{drill}</li>
+        ))}
+      </ul>
     </section>
   )}
   {failureLooksLike.length > 0 && (

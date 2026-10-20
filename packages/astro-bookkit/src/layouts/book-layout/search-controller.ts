@@ -37,7 +37,6 @@ export const initializeSearchController = ({
 		"[data-search-close]",
 		HTMLButtonElement,
 	);
-	const content = queryElement(root, "[data-search-content]", HTMLElement);
 	const input = queryElement(root, "[data-search-input]", HTMLInputElement);
 	const results = queryElement(root, "[data-search-results]", HTMLElement);
 	const quickActions = queryElement(
@@ -68,13 +67,38 @@ export const initializeSearchController = ({
 	const getResultLinks = (): HTMLAnchorElement[] =>
 		results ? Array.from(results.querySelectorAll("a.search-panel__item")) : [];
 
+	/**
+	 * The field is a combobox and the results its listbox (WAI-ARIA APG,
+	 * combobox with listbox popup). Focus stays in the field, so
+	 * aria-activedescendant tells a screen reader which result the arrow
+	 * keys selected; aria-selected marks it for the eye.
+	 */
+	const setActiveResult = (index: number) => {
+		const links = getResultLinks();
+		activeIndex = links.length ? index : -1;
+		links.forEach((link, linkIndex) => {
+			link.setAttribute(
+				"aria-selected",
+				linkIndex === activeIndex ? "true" : "false",
+			);
+		});
+		const active = links[activeIndex];
+		if (active) {
+			input?.setAttribute("aria-activedescendant", active.id);
+		} else {
+			input?.removeAttribute("aria-activedescendant");
+		}
+		input?.setAttribute("aria-expanded", links.length ? "true" : "false");
+		return active;
+	};
+
 	const renderResults = (entries: RankedSearchResult[], tokens: string[]) => {
 		if (!results) return;
 		results.replaceChildren();
 
 		if (!entries.length) {
 			empty?.removeAttribute("hidden");
-			activeIndex = -1;
+			setActiveResult(-1);
 			return;
 		}
 
@@ -93,23 +117,28 @@ export const initializeSearchController = ({
 			},
 		);
 
+		let optionIndex = 0;
 		groupedEntries.forEach(([label, items], groupIndex) => {
+			// A group of options in the listbox, named by its label. The label
+			// keeps its heading style but not the heading role, which a listbox
+			// may not contain.
 			const section = document.createElement("div");
 			section.className = "search-panel__group";
+			section.setAttribute("role", "group");
 			const heading = document.createElement("h3");
 			heading.id = `search-group-${groupIndex}`;
+			heading.setAttribute("role", "presentation");
 			heading.textContent = `${label} (${items.length})`;
+			section.setAttribute("aria-labelledby", heading.id);
 			section.appendChild(heading);
 
-			// Each result is an option, so each group's list is their listbox.
 			const list = document.createElement("div");
 			list.className = "search-panel__list";
-			list.setAttribute("role", "listbox");
-			list.setAttribute("aria-labelledby", heading.id);
 			items.forEach((entry) => {
 				const link = document.createElement("a");
 				link.href = toSafeUrl(entry.url);
 				link.className = "search-panel__item";
+				link.id = `search-option-${optionIndex++}`;
 				link.dataset.searchId = entry.id;
 				link.setAttribute("role", "option");
 
@@ -136,14 +165,7 @@ export const initializeSearchController = ({
 			results.appendChild(section);
 		});
 
-		const links = getResultLinks();
-		activeIndex = links.length ? 0 : -1;
-		links.forEach((link, index) => {
-			link.setAttribute(
-				"aria-selected",
-				index === activeIndex ? "true" : "false",
-			);
-		});
+		setActiveResult(0);
 	};
 
 	const runSearch = async (value: string) => {
@@ -154,6 +176,7 @@ export const initializeSearchController = ({
 		const { normalizedQuery, tokens, results: rankedResults } = runResult;
 		if (!normalizedQuery) {
 			results?.replaceChildren();
+			setActiveResult(-1);
 			empty?.setAttribute("hidden", "true");
 			quickActions?.removeAttribute("hidden");
 			updateStatus("Type a word or phrase to find relevant sections.");
@@ -179,17 +202,10 @@ export const initializeSearchController = ({
 	};
 
 	const moveActiveResult = (delta: number) => {
-		const links = getResultLinks();
-		if (!links.length) return;
-		activeIndex = (activeIndex + delta + links.length) % links.length;
-		links.forEach((link, index) => {
-			link.setAttribute(
-				"aria-selected",
-				index === activeIndex ? "true" : "false",
-			);
-			if (index === activeIndex) {
-				link.scrollIntoView({ block: "nearest" });
-			}
+		const count = getResultLinks().length;
+		if (!count) return;
+		setActiveResult((activeIndex + delta + count) % count)?.scrollIntoView({
+			block: "nearest",
 		});
 	};
 

@@ -16,6 +16,10 @@
       <span class="sr-only">Search the book</span>
       <input
         type="search"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded="false"
+        aria-controls="search-results"
         placeholder="Search chapters, terms, and examples"
         autocomplete="off"
         spellcheck="false"
@@ -40,7 +44,13 @@
         <a href="/release-notes">Release notes</a>
       </div>
     </div>
-    <div class="search-panel__results" data-search-results></div>
+    <div
+      class="search-panel__results"
+      id="search-results"
+      role="listbox"
+      aria-label="Search results"
+      data-search-results
+    ></div>
     <div class="search-panel__empty" data-search-empty hidden>
       <strong>No matches.</strong>
       <p class="meta">Try a shorter phrase, or search for a chapter title, mechanism, or glossary term.</p>

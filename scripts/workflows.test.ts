@@ -222,11 +222,13 @@ describe("ci.yml", () => {
 			run.startsWith("bunx playwright install --with-deps"),
 		);
 		const check = runs.indexOf("bun run check:a11y");
+		const browserTests = runs.indexOf("bun run test:browser");
 		expect(steps[cache]?.with?.key).toContain(
 			"steps.playwright.outputs.version",
 		);
 		expect(install).toBeGreaterThan(cache);
 		expect(check).toBeGreaterThan(install);
+		expect(browserTests).toBeGreaterThan(install);
 		// It reads the link-preview cache governance-and-tests saves, and saves none.
 		expect(
 			steps.some(

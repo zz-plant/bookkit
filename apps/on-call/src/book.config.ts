@@ -129,6 +129,9 @@ export const bookConfig = {
 			},
 		],
 	},
+	mechanismsIndex: {
+		lede: "Recurring incident patterns, how to recognize each one, and what to do first.",
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

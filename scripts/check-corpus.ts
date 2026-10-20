@@ -249,9 +249,10 @@ if (judgeRecordDir) {
 	}
 	if (open.length > 0) {
 		console.log(
-			`\nYours to settle (${open.length}): merge each pair into one mechanism, or rule it distinct with a reason that names each one's lever:`,
+			`\nYours to settle (${open.length}): fold each pair into one mechanism (the first slug stays), or rule it distinct with a reason that names each one's lever:`,
 		);
 		for (const [a, b] of open) {
+			console.log(`  bun run bookkit merge ${a} ${b} --reason "<why>"`);
 			console.log(`  bun run bookkit rule ${a} ${b} --distinct "<reason>"`);
 		}
 	} else {
@@ -409,7 +410,7 @@ if (asJson) {
 			`\nDRIFT: "${record.slug}" is shared by ${record.books.join(", ")} but the copies differ in ${record.driftedFields.join(", ")}.`,
 		);
 		console.log(
-			"  → Make the contracts identical, or use different slugs if the books mean different things.",
+			`  → Edit the contract in one book, then: bun run bookkit sync ${record.slug} --from <that book>. Or use different slugs if the books mean different things.`,
 		);
 	}
 	for (const decision of report.staleDecisions) {
@@ -450,7 +451,7 @@ if (asJson) {
 			for (const pair of cluster.pairs) printJudged(pair);
 		});
 		console.log(
-			'\n→ For each cluster, decide: one mechanism (same slug and contract in every book that uses it), or distinct: bun run bookkit rule <a> <b> --distinct "<reason>".',
+			'\n→ For each cluster, decide: one idea, bun run bookkit merge <keep> <drop> --reason "<why>" (one slug and contract in every book); or distinct, bun run bookkit rule <a> <b> --distinct "<reason>".',
 		);
 		const unjudged = report.clusters
 			.flatMap((cluster) => cluster.pairs)
@@ -500,11 +501,11 @@ function printJudged(pair: CorpusPair): void {
 	console.log(`   ${pair.a} ~ ${pair.b}: ${describeCall(pair.judged)}`);
 	if (pair.judged.call === "same-idea") {
 		console.log(
-			`     → likely one mechanism. Merge them, or: bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason naming each lever>"`,
+			`     → likely one mechanism: bun run bookkit merge ${pair.a} ${pair.b} --reason "<why>" (${pair.a} stays); or: bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason naming each lever>"`,
 		);
 	} else if (pair.judged.call === "split") {
 		console.log(
-			`     → the judges disagree; your ruling settles it: merge, or bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason>"`,
+			`     → the judges disagree; your ruling settles it: bun run bookkit merge ${pair.a} ${pair.b} --reason "<why>", or bun run bookkit rule ${pair.a} ${pair.b} --distinct "<reason>"`,
 		);
 	} else {
 		console.log(

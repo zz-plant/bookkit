@@ -1,13 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createBookWorkspace, runBun } from "./lib/book-workspace.fixture";
 
 /**
  * Pages every book shares take their copy from book.config.ts: the home page
- * (templates/book-app/src/pages/index.astro) from `home`, and the reading hub
- * (src/lib/read-hub.ts, read by src/pages/read/index.astro) from `readHub`. A
- * new book sets its own copy for both, builds, and its pages show it.
+ * (templates/book-app/src/pages/index.astro) from `home`, the reading hub
+ * (src/lib/read-hub.ts, read by src/pages/read/index.astro) from `readHub`,
+ * and the mechanisms index (src/pages/read/mechanisms/index.astro) from
+ * `mechanismsIndex`. A new book sets its own copy for each, builds, and its
+ * pages show it.
  */
 
 const BOOK = "page-copy";
@@ -17,14 +19,29 @@ let appDir: string;
 let build: { exitCode: number | null; output: string };
 
 beforeAll(() => {
-	({ workspace, appDir } = createBookWorkspace("home-page-", BOOK));
+	({ workspace, appDir } = createBookWorkspace("page-copy-", BOOK));
 	const configPath = join(appDir, "src", "book.config.ts");
 	const config = readFileSync(configPath, "utf8");
 	const starterHome = config.match(/\thome: \{[\s\S]*?\n\t\},\n/)?.[0];
 	const starterHub = config.match(/\treadHub: \{[\s\S]*?\n\t\},\n/)?.[0];
-	if (!starterHome || !starterHub) {
-		throw new Error(`No home or readHub block in ${configPath}`);
+	const starterIndex = config.match(
+		/\tmechanismsIndex: \{[\s\S]*?\n\t\},\n/,
+	)?.[0];
+	if (!starterHome || !starterHub || !starterIndex) {
+		throw new Error(
+			`No home, readHub or mechanismsIndex block in ${configPath}`,
+		);
 	}
+	// A second mechanism, not in book.config.ts and first by title, so the
+	// urgency order and the tags that tell mechanisms apart show.
+	const mechanisms = join(appDir, "src", "content", "book", "mechanisms");
+	const starter = readdirSync(mechanisms)[0];
+	writeFileSync(
+		join(mechanisms, "a-second-pattern.mdx"),
+		readFileSync(join(mechanisms, starter), "utf8")
+			.replace(/^slug: .*$/m, "slug: a-second-pattern")
+			.replace(/^title: .*$/m, "title: A second pattern"),
+	);
 	writeFileSync(
 		configPath,
 		config
@@ -36,6 +53,14 @@ beforeAll(() => {
 			title: "Find your situation",
 			description: "Start from what you can see.",
 		},
+	},
+`,
+			)
+			.replace(
+				starterIndex,
+				`\tmechanismsIndex: {
+		lede: "The patterns this shore shows.",
+		urgency: { "${BOOK}-starter-mechanism": "urgent" },
 	},
 `,
 			)
@@ -77,6 +102,29 @@ describe("pages with copy in book.config.ts", () => {
 			'<div class="quick-start-grid" aria-label="Where to start"><a class="card quick-start-card quick-start-card--recommended" href="/read/overview"><h2>Walk the shoreline</h2><p class="meta">The overview, in ten minutes.</p></a></div>',
 		);
 		expect(html).not.toContain("Read the chapters in order");
+	});
+
+	it("lists mechanisms by the urgency in book.config.ts, under its lede", () => {
+		const html = readFileSync(
+			join(appDir, "dist", "read", "mechanisms", "index.html"),
+			"utf8",
+		);
+		expect(html).toContain(
+			'<p class="lede">The patterns this shore shows.</p>',
+		);
+		const list = html.slice(
+			html.indexOf("data-list-container"),
+			html.indexOf("<h2>Then pick an action</h2>"),
+		);
+		const titles = [...list.matchAll(/<strong>([^<]+)<\/strong>/g)].map(
+			(match) => match[1],
+		);
+		expect(titles).toEqual(["Starter mechanism", "A second pattern"]);
+		expect(html).toContain(
+			'<span class="eyebrow">urgent</span></div><strong>Starter mechanism</strong>',
+		);
+		expect(html).toContain('data-quick-filter="urgent"');
+		expect(html).toContain("<h2>Then pick an action</h2>");
 	});
 
 	it("shows the kicker and mechanisms card from book.config.ts", () => {

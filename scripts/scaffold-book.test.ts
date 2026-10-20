@@ -139,6 +139,20 @@ describe("new:book", () => {
 		expect(config).toContain('title: "Read the chapters in order",');
 	});
 
+	it("gets the shared mechanisms index, with its copy in book.config.ts", () => {
+		const appDir = join(workspace, "apps", "tide-pool");
+		const page = join("src", "pages", "read", "mechanisms", "index.astro");
+		expect(readFileSync(join(appDir, page), "utf8")).toBe(
+			readFileSync(
+				join(repo, "packages", "astro-bookkit", "templates", "book-app", page),
+				"utf8",
+			),
+		);
+		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
+		expect(config).toContain("mechanismsIndex: {");
+		expect(config).toContain("urgency: {},");
+	});
+
 	it("gives each book its own starter slugs", () => {
 		const slugs = (book: string) =>
 			readdirSync(

@@ -145,6 +145,9 @@ export const bookConfig = {
 			},
 		],
 	},
+	mechanismsIndex: {
+		lede: "Patterns that push institutional heat onto people, and how to recognize each one.",
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

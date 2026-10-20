@@ -41,6 +41,7 @@ export type {
 	BookLayoutState,
 	BookLayoutTranslationNoticeState,
 	BookLayoutVersionDisplayState,
+	BookMechanismsIndexConfig,
 	BookMiddlewareOptions,
 	BookReadHubConfig,
 	BookRuntime,
@@ -53,6 +54,8 @@ export type {
 	ExampleModule,
 	GlossaryModule,
 	MechanismModule,
+	MechanismsIndexCopy,
+	MechanismUrgency,
 	ReadHubBucket,
 	ReadHubConfig,
 	ReadHubContentModule,
@@ -99,6 +102,7 @@ export {
 	createReleaseNotesFromModules,
 	defaultBookHomeCopy,
 	defaultChapterPageCopy,
+	defaultMechanismsIndexCopy,
 	defaultReadHubConfig,
 	formatTranslationCompleteness,
 	getOgImageForPath,
@@ -108,6 +112,7 @@ export {
 	readRoutes,
 	readSectionPath,
 	resolveBookHomeCopy,
+	resolveMechanismsIndexCopy,
 	resolveReadHubConfig,
 } from "./book";
 export {

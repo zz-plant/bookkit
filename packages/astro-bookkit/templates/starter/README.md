@@ -20,4 +20,4 @@ bun run bookkit deploy __BOOK_SLUG__ --dry-run   # check content, build, verify 
 
 ## Which files are yours
 
-Files copied from `packages/astro-bookkit/templates/book-app/` are wrappers every book keeps identical; `bun run check:shims` fails if one drifts. Change them in the template and run `bun run sync:shims`. The home page and the reading hub are among them: their copy is `home` and `readHub` in `src/book.config.ts`. Everything else in this folder (the breadcrumb copy in `src/lib/read-copy.ts`, the mechanism and example indexes) belongs to this book.
+Files copied from `packages/astro-bookkit/templates/book-app/` are wrappers every book keeps identical; `bun run check:shims` fails if one drifts. Change them in the template and run `bun run sync:shims`. The home page, the reading hub and the mechanisms index are among them: their copy is `home`, `readHub` and `mechanismsIndex` in `src/book.config.ts`. Everything else in this folder (the breadcrumb copy in `src/lib/read-copy.ts`, the examples index) belongs to this book.

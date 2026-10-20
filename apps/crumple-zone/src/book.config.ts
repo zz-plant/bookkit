@@ -206,6 +206,9 @@ export const bookConfig = {
 		lede: "Start with the overview, go straight to a problem you have, or look something up.",
 		quickStartCards: [],
 	},
+	mechanismsIndex: {
+		lede: "Patterns that push the cost of system failures onto people.",
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

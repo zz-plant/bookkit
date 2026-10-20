@@ -100,6 +100,13 @@ export const bookConfig = {
 			},
 		],
 	},
+	// The mechanisms index (/read/mechanisms): the line under its title, and
+	// how urgent each mechanism is by slug ("urgent", "high-leverage" or
+	// "stabilize"), which orders the list and adds tag filters.
+	mechanismsIndex: {
+		lede: "The named patterns this book explains, and how to recognize each one.",
+		urgency: {},
+	},
 	// Other books to link from the home page: { title, href, description }.
 	relatedBooks: [],
 } as const satisfies BookConfig;

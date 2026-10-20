@@ -119,7 +119,7 @@ describe("upgradeProject", () => {
 			"apps/garden/src/book.config.ts": read(
 				"apps/garden/src/book.config.ts",
 			).replace('"Garden"', '"The Garden"'),
-			"apps/garden/src/pages/read/mechanisms/index.astro": `${read("apps/garden/src/pages/read/mechanisms/index.astro")}\n<!-- edited -->\n`,
+			"apps/garden/src/pages/read/examples/index.astro": `${read("apps/garden/src/pages/read/examples/index.astro")}\n<!-- edited -->\n`,
 			"scripts/mine.sh": "#!/bin/sh\n",
 		};
 		for (const [rel, content] of Object.entries(authored)) write(rel, content);
@@ -188,6 +188,13 @@ describe("upgradeProject", () => {
 			oldStarter:
 				'export const readHubConfig = { hero: { title: "Reading hub" } };\n',
 			edit: "// The author's own cards.\n",
+		},
+		{
+			what: "mechanisms index",
+			file: "src/pages/read/mechanisms/index.astro",
+			saved: "src/pages/read/mechanisms/_index.astro.before-upgrade",
+			oldStarter: "---\n---\n<h1>Mechanisms</h1>\n",
+			edit: "<p>The author's own urgency order.</p>\n",
 		},
 	])(
 		"a $what from an engine that left it to the book",

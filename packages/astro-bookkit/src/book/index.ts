@@ -16,7 +16,9 @@ export type {
 	BookConfig,
 	BookConfigMechanism,
 	BookHomeConfig,
+	BookMechanismsIndexConfig,
 	BookReadHubConfig,
+	MechanismUrgency,
 	RelatedBook,
 } from "./config";
 export type {
@@ -47,6 +49,11 @@ export type {
 	CreateBookLayoutRenderStateOptions,
 } from "./layout";
 export { createBookLayoutRenderState, createBookLayoutState } from "./layout";
+export type { MechanismsIndexCopy } from "./mechanisms-index-copy";
+export {
+	defaultMechanismsIndexCopy,
+	resolveMechanismsIndexCopy,
+} from "./mechanisms-index-copy";
 export type { BookMiddlewareOptions } from "./middleware";
 export { createBookMiddleware } from "./middleware";
 export {

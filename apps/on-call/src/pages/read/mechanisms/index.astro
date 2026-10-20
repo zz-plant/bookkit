@@ -4,17 +4,25 @@ import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import {
+	type BookConfig,
 	buildTranslationLede,
 	readItemPath,
 	readRoutes,
+	resolveMechanismsIndexCopy,
 } from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
+// Read through BookConfig, so `mechanismsIndex` can be left out and an empty
+// `mechanisms: []` (no element type under `as const`) still type-checks.
+const config: BookConfig = bookConfig;
+const copy = resolveMechanismsIndexCopy(config.mechanismsIndex);
+
 const modules = bookEntryPoints.contentModules.mechanisms;
+// Mechanisms book.config.ts lists are tagged "core".
 const coreMechanismSlugs = new Set<string>(
-	bookConfig.mechanisms.map((mechanism) => mechanism.slug),
+	config.mechanisms.map((mechanism) => mechanism.slug),
 );
-const urgencyBySlug: Record<string, string> = {};
+const urgencyBySlug: Readonly<Record<string, string>> = copy.urgency;
 const urgencyOrder: Record<string, number> = {
 	urgent: 0,
 	"high-leverage": 1,
@@ -81,10 +89,7 @@ const quickFilters = [
 	{ value: "high-leverage", label: "High leverage" },
 	{ value: "core", label: "Core" },
 ].filter((filter) => isDistinguishingTag(filter.value));
-const localizedLede = buildTranslationLede(
-	"Recurring incident patterns, how to recognize each one, and what to do first.",
-	completeness,
-);
+const localizedLede = buildTranslationLede(copy.lede, completeness);
 ---
 <BaseLayout title={`Mechanisms • ${bookConfig.title}`}>
   <ContentIndexList

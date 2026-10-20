@@ -739,7 +739,7 @@ export const summarizeUpgrade = (result: UpgradeResult): string[] => {
 	if (changed.length === 0) lines.push("  Nothing changed.");
 	for (const change of changed.filter((change) => change.savedAs)) {
 		lines.push(
-			`${change.path} is shared by every book from this version on, so your edited copy was replaced and saved as ${change.savedAs}. Move its changes into book.config.ts (the home page's copy goes in \`home\`, the reading hub's lede and cards in \`readHub\`), then delete the saved file.`,
+			`${change.path} is shared by every book from this version on, so your edited copy was replaced and saved as ${change.savedAs}. Move its changes into book.config.ts (the home page's copy goes in \`home\`, the reading hub's lede and cards in \`readHub\`, the mechanisms index's lede and urgency in \`mechanismsIndex\`), then delete the saved file.`,
 		);
 	}
 	if (changed.some((change) => change.path === "bun.lock")) {

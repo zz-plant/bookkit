@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import {
 	chmodSync,
+	mkdirSync,
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
@@ -23,6 +24,7 @@ type Step = {
 	name?: string;
 	uses?: string;
 	run?: string;
+	shell?: string;
 	if?: string;
 	env?: Record<string, string>;
 	with?: Record<string, string>;
@@ -237,6 +239,51 @@ describe("ci.yml", () => {
 					String(step.with?.path).includes("bookkit-og"),
 			),
 		).toBe(false);
+	});
+
+	it("fails the standalone project's job when its build prints a warning, or fails", () => {
+		const steps = workflow.jobs["standalone-project"].steps;
+		const build = steps.find((step) => step.run?.includes("bun run build"));
+		// GitHub's default shell has no pipefail, which would lose the build's status to tee.
+		expect(build?.shell).toBe("bash");
+		const runs = steps.map((step) => step.run ?? "");
+		expect(runs.indexOf(build?.run ?? "")).toBeGreaterThan(
+			runs.findIndex((run) => run.includes("bun install")),
+		);
+		expect(runs.indexOf(build?.run ?? "")).toBeLessThan(
+			runs.findIndex((run) => run.includes("bun run deploy")),
+		);
+
+		// A stand-in bun that prints what a build printed and exits as it did.
+		const bin = join(scratch, "standalone-bin");
+		mkdirSync(bin, { recursive: true });
+		writeFileSync(
+			join(bin, "bun"),
+			'#!/bin/sh\nprintf "%b" "$BUILD_OUTPUT"\nexit "$BUILD_EXIT"\n',
+		);
+		chmodSync(join(bin, "bun"), 0o755);
+		const buildWith = (output: string, exit = 0) =>
+			runStep(build?.run ?? "", {
+				PATH: `${bin}:${process.env.PATH ?? ""}`,
+				RUNNER_TEMP: scratch,
+				BUILD_OUTPUT: output,
+				BUILD_EXIT: String(exit),
+			});
+
+		const clean = buildWith(
+			"@books/field-notes build: 23:21:54 [build] Complete!\\n",
+		);
+		expect(clean.status, clean.output).toBe(0);
+
+		// Vite's chunk-size warning, as Astro prints it in a project's build.
+		const warned = buildWith(
+			"@books/field-notes build: 23:22:23 [WARN] [vite] [plugin builtin:vite-reporter] \\n@books/field-notes build: (!) Some chunks are larger than 500 kB after minification.\\n",
+		);
+		expect(warned.status).toBe(1);
+		expect(warned.output).toContain("::error title=Build warnings::");
+		expect(warned.output).toContain("[WARN] [vite]");
+
+		expect(buildWith("Build failed.\\n", 1).status).toBe(1);
 	});
 
 	it("runs the meaning pass of check:corpus, with the model download allowed and cached, and fails if it did not run", () => {

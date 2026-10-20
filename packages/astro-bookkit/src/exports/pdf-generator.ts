@@ -8,13 +8,19 @@ import {
 	type PDFRef,
 	rgb,
 } from "pdf-lib";
-import { stripMarkdown } from "../utils/markdown";
 import { defaultImageLoader, imageWarning, warnWith } from "./images";
 import {
 	type InlineImage,
-	parseMarkdownBlocks,
-	splitImages,
+	type MarkdownBlock,
+	type MarkdownDocument,
+	parseMarkdown,
 } from "./markdown-blocks";
+import {
+	createNoteNumbers,
+	type InlineNode,
+	type NoteNumbers,
+	parseInline,
+} from "./markdown-inline";
 import { imageAltText } from "./markdown-to-html";
 import {
 	describeExportEntry,
@@ -29,8 +35,17 @@ import {
 	isWinAnsi,
 	type PdfFontChain,
 	type PdfFontFile,
+	type PdfFontStyle,
 	widthOfText,
 } from "./pdf-fonts";
+import {
+	breakCodeLine,
+	layoutTable,
+	type Piece,
+	toWords,
+	widthOfPieces,
+	wrapWords,
+} from "./pdf-layout";
 import type { ExportBundle, ExportEntry, ExportRenderOptions } from "./types";
 
 /**
@@ -183,36 +198,6 @@ const unsupportedTextError = (
 	);
 };
 
-/** Lines no wider than `maxWidth`; a word longer than a line (a URL, an identifier) is split. */
-const wrapText = (
-	text: string,
-	fonts: PdfFontChain,
-	size: number,
-	maxWidth: number,
-): string[] => {
-	const fits = (value: string) => widthOfText(value, fonts, size) <= maxWidth;
-	const lines: string[] = [];
-	let current = "";
-	for (const word of text.split(/\s+/).filter(Boolean)) {
-		const next = current ? `${current} ${word}` : word;
-		if (fits(next)) {
-			current = next;
-			continue;
-		}
-		if (current) lines.push(current);
-		current = word;
-		while (!fits(current)) {
-			const chars = Array.from(current);
-			let cut = chars.length - 1;
-			while (cut > 1 && !fits(chars.slice(0, cut).join(""))) cut -= 1;
-			lines.push(chars.slice(0, cut).join(""));
-			current = chars.slice(cut).join("");
-		}
-	}
-	if (current) lines.push(current);
-	return lines;
-};
-
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
 const MARGIN = 52;
@@ -222,6 +207,11 @@ const HEADING_INK = rgb(0.1, 0.1, 0.1);
 const MUTED = rgb(0.4, 0.4, 0.4);
 const CALLOUT_INK = rgb(0.35, 0.3, 0.7);
 const CALLOUT_FILL = rgb(0.96, 0.96, 1.0);
+const CODE_FILL = rgb(0.95, 0.95, 0.95);
+const TABLE_RULE = rgb(0.75, 0.75, 0.75);
+const TABLE_HEAD_FILL = rgb(0.94, 0.94, 0.94);
+// Table text, cell padding, and the narrowest column worth drawing as a grid.
+const TABLE = { size: 10, lineHeight: 13, padX: 5, padY: 4, minColumn: 36 };
 
 type TextStyle = {
 	fonts: PdfFontChain;
@@ -337,6 +327,19 @@ export const createPdfExport = async (
 		bold: await createPdfFontChain(pdfDoc, "bold", bookFonts),
 		italic: await createPdfFontChain(pdfDoc, "italic", bookFonts),
 	};
+	// Courier joins the PDF only when its text has code, so a PDF without
+	// code embeds exactly the fonts it did before.
+	const monoFonts = new Map<PdfFontStyle, PdfFontChain>();
+	/** The fonts for code in text set in `base`: Courier, or Courier Bold in bold text. */
+	const monoFor = async (base: PdfFontChain): Promise<PdfFontChain> => {
+		const style: PdfFontStyle = base === fonts.bold ? "monoBold" : "mono";
+		let chain = monoFonts.get(style);
+		if (!chain) {
+			chain = await createPdfFontChain(pdfDoc, style, bookFonts);
+			monoFonts.set(style, chain);
+		}
+		return chain;
+	};
 	const body: TextStyle = {
 		fonts: fonts.regular,
 		size: 11,
@@ -369,41 +372,74 @@ export const createPdfExport = async (
 		top: Math.min(PAGE_HEIGHT, y + 24),
 	});
 
-	/** One line of text, each run in the font that has its characters. */
+	/** One line of pieces from `x` on `baseline`, each run in the font that has its characters. */
+	const drawPieces = (
+		line: Piece[],
+		x: number,
+		baseline: number,
+		color: Color,
+	) => {
+		let at = x;
+		for (const piece of line) {
+			for (const run of fontRuns(piece.text, piece.fonts)) {
+				page.drawText(run.text, {
+					x: at,
+					y: baseline + (piece.rise ?? 0),
+					size: piece.size,
+					font: run.font,
+					color,
+				});
+				at += run.font.widthOfTextAtSize(run.text, piece.size);
+			}
+		}
+	};
+
+	/** One line of text in one style, on the current line. */
 	const drawLine = (
 		line: string,
 		x: number,
 		style: Pick<TextStyle, "fonts" | "size" | "color">,
-	) => {
-		let at = x;
-		for (const run of fontRuns(line, style.fonts)) {
-			page.drawText(run.text, {
-				x: at,
-				y,
-				size: style.size,
-				font: run.font,
-				color: style.color,
-			});
-			at += run.font.widthOfTextAtSize(run.text, style.size);
-		}
+	) =>
+		drawPieces(
+			[{ text: line, fonts: style.fonts, size: style.size }],
+			x,
+			y,
+			style.color,
+		);
+
+	/** The band behind a line of a quote or a code block. */
+	const drawFill = (style: TextStyle) => {
+		if (!style.fill) return;
+		page.drawRectangle({
+			x: style.x - 8,
+			y: y - style.lineHeight * 0.35,
+			width: style.width + 16,
+			height: style.lineHeight,
+			color: style.fill,
+		});
 	};
 
-	/** Wrapped text, breaking to a new page between any two lines. */
-	const drawText = async (text: string, style: TextStyle, marker?: string) => {
-		const encoded = encode(text, style.fonts);
-		await style.fonts.prepare(encoded);
-		const lines = wrapText(encoded, style.fonts, style.size, style.width);
+	/** Pieces as the PDF can draw them (see encodePdfText), with the fonts they need embedded. */
+	const preparePieces = async (pieces: Piece[]): Promise<Piece[]> => {
+		const prepared: Piece[] = [];
+		for (const piece of pieces) {
+			const text = encode(piece.text, piece.fonts);
+			await piece.fonts.prepare(text);
+			prepared.push({ ...piece, text });
+		}
+		return prepared;
+	};
+
+	/** Wrapped text in mixed fonts, breaking to a new page between any two lines. */
+	const drawPiecesWrapped = async (
+		pieces: Piece[],
+		style: TextStyle,
+		marker?: string,
+	) => {
+		const lines = wrapWords(toWords(await preparePieces(pieces)), style.width);
 		lines.forEach((line, index) => {
 			ensureSpace(style.lineHeight);
-			if (style.fill) {
-				page.drawRectangle({
-					x: style.x - 8,
-					y: y - style.lineHeight * 0.35,
-					width: style.width + 16,
-					height: style.lineHeight,
-					color: style.fill,
-				});
-			}
+			drawFill(style);
 			if (index === 0 && marker) {
 				page.drawText(marker, {
 					x: style.x - 16,
@@ -413,26 +449,75 @@ export const createPdfExport = async (
 					color: style.color,
 				});
 			}
-			drawLine(line, style.x, style);
+			drawPieces(line, style.x, y, style.color);
 			y -= style.lineHeight;
 		});
 	};
 
+	/** Wrapped text in one style. */
+	const drawText = (text: string, style: TextStyle, marker?: string) =>
+		drawPiecesWrapped(
+			[{ text, fonts: style.fonts, size: style.size }],
+			style,
+			marker,
+		);
+
+	/** The entry being drawn, and the numbers its footnotes have been given. */
+	type Flow = { entry: ExportEntry; notes: NoteNumbers };
+
+	/**
+	 * Inline Markdown as pieces in `style`: code in Courier, a footnote
+	 * reference as a raised number. Emphasis and links keep their words;
+	 * raw HTML and JSX tags are left out. Images come back as they are.
+	 */
+	const flowPieces = async (
+		nodes: InlineNode[],
+		style: TextStyle,
+		flow: Flow,
+	): Promise<Array<Piece | InlineImage>> => {
+		const out: Array<Piece | InlineImage> = [];
+		const walk = async (list: InlineNode[]) => {
+			for (const node of list) {
+				if (node.type === "text") {
+					out.push({ text: node.text, fonts: style.fonts, size: style.size });
+				} else if (node.type === "code") {
+					const mono = await monoFor(style.fonts);
+					out.push({ text: node.text, fonts: mono, size: style.size });
+				} else if (node.type === "noteref") {
+					out.push({
+						text: String(flow.notes.refer(node.label).number),
+						fonts: style.fonts,
+						size: style.size * 0.65,
+						rise: style.size * 0.35,
+					});
+				} else if (node.type === "image") {
+					out.push(node.image);
+				} else if (node.type !== "html") {
+					await walk(node.children);
+				}
+			}
+		};
+		await walk(nodes);
+		return out;
+	};
+
 	const drawHeading = async (
-		text: string,
+		content: string | { nodes: InlineNode[]; flow: Flow },
 		size: number,
 		spaceBelow: number,
 	) => {
 		const lineHeight = size * 1.3;
 		// Keep a heading on the same page as the line after it.
 		ensureSpace(lineHeight + spaceBelow + body.lineHeight);
-		await drawText(stripMarkdown(text), {
+		const style: TextStyle = {
 			...body,
 			fonts: fonts.bold,
 			size,
 			lineHeight,
 			color: HEADING_INK,
-		});
+		};
+		if (typeof content === "string") await drawText(content, style);
+		else await drawProse(content.nodes, style, content.flow);
 		y -= spaceBelow;
 	};
 
@@ -498,53 +583,263 @@ export const createPdfExport = async (
 	 * between the text around it; any other image's alt text stays in the line.
 	 */
 	const drawProse = async (
-		text: string,
+		nodes: InlineNode[],
 		style: TextStyle,
-		entry: ExportEntry,
+		flow: Flow,
 		marker?: string,
 	) => {
-		let pending = "";
+		let pending: Piece[] = [];
 		let lead = marker;
 		const flush = async () => {
-			if (pending.trim()) await drawText(stripMarkdown(pending), style, lead);
-			pending = "";
+			if (pending.some((piece) => piece.text.trim())) {
+				await drawPiecesWrapped(pending, style, lead);
+			}
+			pending = [];
 			lead = undefined;
 		};
-		const parts = splitImages(text);
-		if (parts.length === 1 && typeof parts[0] === "string") {
-			await drawText(stripMarkdown(parts[0]), style, marker);
-			return;
-		}
-		for (const part of parts) {
-			if (typeof part === "string") {
-				pending += part;
+		for (const part of await flowPieces(nodes, style, flow)) {
+			if (!("src" in part)) {
+				pending.push(part);
 				continue;
 			}
-			const pdfImage = await embedImage(part, entry);
+			const pdfImage = await embedImage(part, flow.entry);
 			if (pdfImage) {
 				await flush();
 				drawImage(pdfImage, style);
 			} else if (part.alt.trim()) {
-				pending += ` ${imageAltText(part)} `;
+				pending.push({
+					text: imageAltText(part),
+					fonts: style.fonts,
+					size: style.size,
+				});
 			}
 		}
 		await flush();
 	};
 
+	/** A fenced code block: Courier on a grey band, its line breaks and indentation kept. */
+	const drawCode = async (code: string) => {
+		const style: TextStyle = {
+			...body,
+			fonts: await monoFor(fonts.regular),
+			size: 9.5,
+			lineHeight: 13,
+			x: MARGIN + 8,
+			width: CONTENT_WIDTH - 16,
+			fill: CODE_FILL,
+		};
+		for (const source of code.replaceAll("\t", "    ").split("\n")) {
+			const [line] = await preparePieces([
+				{ text: source, fonts: style.fonts, size: style.size },
+			]);
+			// A line wider than the page continues on the next line.
+			for (const part of breakCodeLine(
+				line.text,
+				style.fonts,
+				style.size,
+				style.width,
+			)) {
+				ensureSpace(style.lineHeight);
+				drawFill(style);
+				drawPieces([{ ...line, text: part }], style.x, y, style.color);
+				y -= style.lineHeight;
+			}
+		}
+	};
+
+	/**
+	 * A table as a grid as wide as its content allows, never wider than the
+	 * text: cells wrap, and the header row repeats on each page the table
+	 * continues to. When a column would be too narrow to read, or a row taller
+	 * than a page, each row is written out as "Header: value" lines instead.
+	 */
+	const drawTable = async (
+		block: Extract<MarkdownBlock, { type: "table" }>,
+		document: MarkdownDocument,
+		flow: Flow,
+	) => {
+		const { size, lineHeight, padX, padY } = TABLE;
+		const cellStyle: TextStyle = { ...body, size, lineHeight };
+		const headStyle: TextStyle = { ...cellStyle, fonts: fonts.bold };
+		const cellPieces = async (text: string, style: TextStyle) => {
+			const pieces: Piece[] = [];
+			const parts = await flowPieces(parseInline(text, document), style, flow);
+			for (const part of parts) {
+				if (!("src" in part)) {
+					pieces.push(part);
+					continue;
+				}
+				warn(
+					imageWarning({
+						format: "PDF",
+						entry: flow.entry,
+						image: part,
+						problem: "is in a table cell, where the PDF does not draw images",
+						fix: "Move the image out of the table to show it in the PDF.",
+					}),
+				);
+				if (part.alt.trim()) {
+					pieces.push({ text: imageAltText(part), fonts: style.fonts, size });
+				}
+			}
+			return preparePieces(pieces);
+		};
+		// In reading order, so footnote references are numbered as they are read.
+		const header: Piece[][] = [];
+		for (const cell of block.header) {
+			header.push(await cellPieces(cell, headStyle));
+		}
+		const rows: Piece[][][] = [];
+		for (const row of block.rows) {
+			const cells: Piece[][] = [];
+			for (const cell of row) cells.push(await cellPieces(cell, cellStyle));
+			rows.push(cells);
+		}
+
+		const layout = layoutTable(
+			[header, ...rows],
+			CONTENT_WIDTH - padX * 2 * header.length,
+			TABLE,
+		);
+		const fitsPages = layout?.heights.every(
+			(height) => layout.heights[0] + height <= PAGE_HEIGHT - MARGIN * 2,
+		);
+
+		if (!layout || !fitsPages) {
+			for (const cells of rows) {
+				for (const [column, pieces] of cells.entries()) {
+					await drawPiecesWrapped(
+						[
+							...header[column],
+							{ text: ": ", fonts: fonts.bold, size },
+							...pieces,
+						],
+						cellStyle,
+					);
+				}
+				page.drawLine({
+					start: { x: MARGIN, y: y + lineHeight - 4 },
+					end: { x: MARGIN + CONTENT_WIDTH, y: y + lineHeight - 4 },
+					thickness: 0.5,
+					color: TABLE_RULE,
+				});
+				y -= 6;
+			}
+			return;
+		}
+
+		const { widths } = layout;
+		const [headLines, ...rowLines] = layout.rows;
+		const [headHeight, ...rowHeights] = layout.heights;
+
+		/** One row of cells, its top edge at `top`. */
+		const drawRow = (
+			cells: Piece[][][],
+			top: number,
+			height: number,
+			fill?: Color,
+		) => {
+			let x = MARGIN;
+			cells.forEach((lines, column) => {
+				const width = widths[column] + padX * 2;
+				page.drawRectangle({
+					x,
+					y: top - height,
+					width,
+					height,
+					borderColor: TABLE_RULE,
+					borderWidth: 0.5,
+					...(fill ? { color: fill } : {}),
+				});
+				lines.forEach((line, index) => {
+					const room = widths[column] - widthOfPieces(line);
+					const align = block.align[column];
+					const offset =
+						align === "center" ? room / 2 : align === "right" ? room : 0;
+					// Each line's text sits in the middle of its line height.
+					const baseline =
+						top -
+						padY -
+						index * lineHeight -
+						(lineHeight + size) / 2 +
+						size * 0.22;
+					drawPieces(line, x + padX + offset, baseline, INK);
+				});
+				x += width;
+			});
+		};
+
+		// The table's top edge sits where the top of a line of text would.
+		let top = y + body.size * 0.75;
+		const startPage = () => {
+			newPage();
+			top = y + body.size * 0.75;
+		};
+		const drawHead = () => {
+			drawRow(headLines, top, headHeight, TABLE_HEAD_FILL);
+			top -= headHeight;
+		};
+		// The header row stays with the first row.
+		if (top - headHeight - (rowHeights[0] ?? 0) < MARGIN) startPage();
+		drawHead();
+		for (const [index, cells] of rowLines.entries()) {
+			const height = rowHeights[index];
+			if (top - height < MARGIN) {
+				startPage();
+				drawHead();
+			}
+			drawRow(cells, top, height);
+			top -= height;
+		}
+		y = top - body.lineHeight;
+	};
+
+	/** The entry's footnotes, numbered as the text refers to them, after its text. */
+	const drawNotes = async (document: MarkdownDocument, flow: Flow) => {
+		const { notes } = flow;
+		if (notes.labels.length === 0) return;
+		await drawHeading("Notes", 12, 6);
+		const style: TextStyle = {
+			...body,
+			size: 10,
+			lineHeight: 14,
+			x: MARGIN + 18,
+			width: CONTENT_WIDTH - 18,
+		};
+		// Notes may refer to further notes, which then join the end of the list.
+		for (let index = 0; index < notes.labels.length; index += 1) {
+			const paragraphs = (document.notes.get(notes.labels[index]) ?? []).filter(
+				Boolean,
+			);
+			for (const [at, text] of paragraphs.entries()) {
+				await drawProse(
+					parseInline(text, document),
+					style,
+					flow,
+					at === 0 ? `${index + 1}.` : undefined,
+				);
+				y -= 3;
+			}
+		}
+	};
+
 	const drawMarkdown = async (entry: ExportEntry) => {
-		for (const block of parseMarkdownBlocks(entry.body)) {
+		const document = parseMarkdown(entry.body);
+		const flow: Flow = { entry, notes: createNoteNumbers() };
+		const inline = (text: string) => parseInline(text, document);
+		for (const block of document.blocks) {
 			if (block.type === "heading") {
 				await drawHeading(
-					block.text,
+					{ nodes: inline(block.text), flow },
 					block.level <= 2 ? 14 : 12,
 					block.level <= 2 ? 8 : 6,
 				);
 			} else if (block.type === "list") {
 				for (const [index, item] of block.items.entries()) {
 					await drawProse(
-						item,
+						inline(item),
 						{ ...body, x: MARGIN + 18, width: CONTENT_WIDTH - 18 },
-						entry,
+						flow,
 						block.ordered ? `${index + 1}.` : "•",
 					);
 					y -= 3;
@@ -552,7 +847,7 @@ export const createPdfExport = async (
 				y -= 3;
 			} else if (block.type === "quote") {
 				await drawProse(
-					block.text,
+					inline(block.text),
 					{
 						...body,
 						fonts: fonts.italic,
@@ -561,14 +856,21 @@ export const createPdfExport = async (
 						width: CONTENT_WIDTH - 28,
 						fill: CALLOUT_FILL,
 					},
-					entry,
+					flow,
 				);
 				y -= 6;
+			} else if (block.type === "code") {
+				await drawCode(block.text);
+				y -= 6;
+			} else if (block.type === "table") {
+				await drawTable(block, document, flow);
+				y -= 6;
 			} else {
-				await drawProse(block.text, body, entry);
+				await drawProse(inline(block.text), body, flow);
 				y -= 6;
 			}
 		}
+		await drawNotes(document, flow);
 	};
 
 	const drawEntry = async (
@@ -658,7 +960,11 @@ export const createPdfExport = async (
 			bundle.title,
 			unsupported,
 			options.pdfFonts !== undefined,
-			new Set(Object.values(fonts).flatMap((chain) => [...chain.unshaped])),
+			new Set(
+				[...Object.values(fonts), ...monoFonts.values()].flatMap((chain) => [
+					...chain.unshaped,
+				]),
+			),
 		);
 	}
 

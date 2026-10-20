@@ -40,6 +40,16 @@ article, .title-page { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem
 .eyebrow { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; margin-bottom: 0.25rem; }
 blockquote { margin: 1rem 0; padding: 0.5rem 1rem; border-left: 3px solid #8f78e6; background: #f5f5ff; }
 code { font-family: "Courier New", monospace; background: #f1f1f1; padding: 0.1rem 0.3rem; border-radius: 4px; }
+pre { background: #f1f1f1; padding: 0.75rem 1rem; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid #c8c8c8; padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
+th { background: #f1f1f1; }
+.align-left { text-align: left; }
+.align-center { text-align: center; }
+.align-right { text-align: right; }
+sup { line-height: 0; }
+.notes { margin-top: 2rem; border-top: 1px solid #c8c8c8; font-size: 0.9rem; }
 img { max-width: 100%; height: auto; }
 .image-alt { font-style: italic; color: #5a5a5a; }
 `;

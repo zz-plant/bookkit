@@ -1,0 +1,38 @@
+---
+title: Markdown in the exports
+summary: Every Markdown construct the PDF and EPUB carry, nested where authors nest them.
+---
+
+{/* An author note: readers never see it. */}
+
+Set `max_retries` and `backoff_ms` before the first page.
+
+Page \<on-call-lead\> or &lt;service-owner&gt; within \<10 minutes.
+
+&#101;xport the timeline, then &#105;mport it into the review &mdash; Caf&eacute; rules apply.
+
+## Tuning `max_retries`
+
+| Signal | Action | Within |
+| :--- | :---: | ---: |
+| `pager` | Classify first | 5 min |
+| Slack ping | Batch it with `/batch` and reply once the queue is empty | 30 min |
+
+Read the [handoff checklist][checklist], the [runbook][], and [Severity].
+
+[checklist]: https://example.com/checklist
+[runbook]: https://example.com/runbook "The runbook"
+[severity]: https://example.com/severity
+
+Every handoff needs an owner.[^owner] Escalate after an hour.[^hour]
+
+[^owner]: See [the ownership guide](https://example.com/owners) and `OWNERS.md`.
+[^hour]: Sixty minutes, by the pager's clock.
+
+- **Set `max_retries` to 3** before paging.
+- _Check `error_rate` first_, then roll back.
+
+```bash
+oncall handoff --to @next \
+  --note "{state}" <<EOF
+```

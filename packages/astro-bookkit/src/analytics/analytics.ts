@@ -1,6 +1,4 @@
-import { appendFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { appendBookRecord, bookDataPath } from "../utils/book-data";
 
 export type ReaderAnalyticsEvent = {
 	type: "pageview" | "engagement";
@@ -16,17 +14,17 @@ export type ReaderAnalyticsEvent = {
 	userAgent?: string | null;
 };
 
-const logPath = join(tmpdir(), "bookkit-reader-analytics.jsonl");
+export const READER_ANALYTICS_FILE = "reader-analytics.jsonl";
 
-export const getReaderAnalyticsLogPath = (): string => logPath;
+/** This book's reader analytics log (see `utils/book-data.ts`). */
+export const getReaderAnalyticsLogPath = (): string =>
+	bookDataPath(READER_ANALYTICS_FILE);
 
 export const recordReaderAnalyticsEvent = async (
 	payload: ReaderAnalyticsEvent,
 ): Promise<void> => {
-	const entry = { ...payload, recordedAt: new Date().toISOString() };
-	try {
-		await appendFile(logPath, `${JSON.stringify(entry)}\n`);
-	} catch (error) {
-		console.warn("Reader analytics log failed", error);
-	}
+	await appendBookRecord(READER_ANALYTICS_FILE, {
+		...payload,
+		recordedAt: new Date().toISOString(),
+	});
 };

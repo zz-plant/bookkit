@@ -8,6 +8,7 @@ import {
 	type ExportRenderOptions,
 	type PdfFontFile,
 } from "../exports";
+import { bookRoot } from "../utils/book-data";
 
 /** `exports` in book.config.ts: the PDF and EPUB downloads. */
 export type BookExportsConfig = {
@@ -68,16 +69,14 @@ const sourceDateEpoch = (): string | undefined => {
 };
 
 const buildFolders = () => {
-	// Set by the bookkit() integration; a plain `bun test` has neither.
-	const fromAstro = typeof import.meta.env === "object";
-	const root =
-		(fromAstro && import.meta.env.BOOKKIT_ROOT) ||
-		globalThis.process?.cwd?.() ||
-		".";
+	const root = bookRoot();
 	return {
 		root,
+		// Set by the bookkit() integration; a plain `bun test` has none.
 		publicDir:
-			(fromAstro && import.meta.env.BOOKKIT_PUBLIC_DIR) || join(root, "public"),
+			(typeof import.meta.env === "object" &&
+				import.meta.env.BOOKKIT_PUBLIC_DIR) ||
+			join(root, "public"),
 	};
 };
 

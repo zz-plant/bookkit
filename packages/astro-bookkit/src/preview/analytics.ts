@@ -1,6 +1,4 @@
-import { appendFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { appendBookRecord, bookDataPath } from "../utils/book-data";
 
 export type PreviewAnalyticsEvent = {
 	type: "preview";
@@ -13,20 +11,17 @@ export type PreviewAnalyticsEvent = {
 	at?: string;
 };
 
-const logPath = join(tmpdir(), "bookkit-preview-analytics.jsonl");
+export const PREVIEW_ANALYTICS_FILE = "preview-analytics.jsonl";
 
 export const recordPreviewEvent = async (
 	payload: PreviewAnalyticsEvent,
 ): Promise<void> => {
-	const entry = {
+	await appendBookRecord(PREVIEW_ANALYTICS_FILE, {
 		...payload,
 		at: payload.at ?? new Date().toISOString(),
-	};
-	try {
-		await appendFile(logPath, `${JSON.stringify(entry)}\n`, "utf8");
-	} catch (error) {
-		console.warn("Preview analytics log failed", error);
-	}
+	});
 };
 
-export const getPreviewAnalyticsLogPath = (): string => logPath;
+/** This book's preview-link log (see `utils/book-data.ts`). */
+export const getPreviewAnalyticsLogPath = (): string =>
+	bookDataPath(PREVIEW_ANALYTICS_FILE);

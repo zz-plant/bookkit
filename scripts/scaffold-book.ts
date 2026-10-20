@@ -17,6 +17,7 @@ Options:
   --title "<title>"         The book's title (default: from the slug)
   --skip-starter-content    Leave the content folders empty
   --no-install              Skip the bun install that links the app and adds it to bun.lock
+  --no-next                 Leave out the next steps (bookkit new book --from imports right after)
   -h, --help                Show this help
 
 The app gets the starter pages (packages/astro-bookkit/templates/starter/), the
@@ -29,6 +30,7 @@ const args = parseScriptArgs(
 		title: "string",
 		"skip-starter-content": "boolean",
 		"no-install": "boolean",
+		"no-next": "boolean",
 	},
 	["book"],
 );
@@ -77,7 +79,8 @@ if (!args["no-install"] && !installed) {
 	);
 }
 
-console.log(`Next:${installed ? "" : `\n  bun install                              link the app and add it to bun.lock`}
+if (!args["no-next"])
+	console.log(`Next:${installed ? "" : `\n  bun install                              link the app and add it to bun.lock`}
   edit apps/${slug}/src/book.config.ts      title, site.url, objectives
   bun run bookkit dev ${slug}               preview it
   bun run bookkit check ${slug}             what the placeholder content still needs`);

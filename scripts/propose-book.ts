@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
 	buildProposalBundle,
@@ -9,13 +9,14 @@ import {
 } from "../packages/astro-bookkit/src";
 import { ensureDir, listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { booksFromArgv } from "./lib/book-args";
+import { planEdges, withPrerequisites } from "./lib/chapter-prerequisites";
 import { loadBookContent } from "./lib/load-book";
 
 const {
 	books: [book],
 } = booksFromArgv(listBookDirs(), {
 	usage:
-		"bun run bookkit propose <book> [--write] [--apply mechanisms|tools|config] [--id <proposal>] [--detect-frame]",
+		"bun run bookkit propose <book> [--write] [--apply mechanisms|tools|edges|config] [--id <proposal>] [--detect-frame]",
 	valueFlags: [
 		"--title",
 		"--causal-stance",
@@ -40,7 +41,7 @@ for (let index = 0; index < process.argv.length; index += 1) {
 	}
 }
 
-const APPLY_KINDS = ["mechanisms", "tools", "config"] as const;
+const APPLY_KINDS = ["mechanisms", "tools", "edges", "config"] as const;
 const applyKinds = new Set<string>();
 for (let index = 0; index < process.argv.length; index += 1) {
 	if (process.argv[index] === "--apply" && process.argv[index + 1]) {
@@ -104,17 +105,14 @@ if (applyKinds.size > 0) {
 	applyTools(acceptedTools, writtenMechanismSlugs);
 }
 
-if (applyKinds.has("mechanisms")) {
+applyEdges(acceptedEdges);
+if (
+	applyKinds.size > 0 &&
+	!applyKinds.has("edges") &&
+	acceptedEdges.length > 0
+) {
 	console.log(
-		`\nAccepted edges (${acceptedEdges.length}) require a manual edit:`,
-	);
-	for (const edge of acceptedEdges) {
-		console.log(
-			`  - ${edge.chapter} → add prerequisite "${edge.introducedIn}"`,
-		);
-	}
-	console.log(
-		"Apply the mechanism proposal first, then edit chapter frontmatter to list these prerequisites.",
+		`\n${acceptedEdges.length} prerequisite edge(s) not written: --apply edges adds them to the chapters' prerequisites.`,
 	);
 }
 
@@ -261,6 +259,32 @@ function applyTools(
 	}
 }
 
+/** Writes accepted edges into the chapters' prerequisites, keeping the reading graph acyclic. */
+function applyEdges(edgesToWrite: ProposalBundle["edges"]): void {
+	if (!applyKinds.has("edges")) return;
+	if (edgesToWrite.length === 0) {
+		console.log("\nNo prerequisite edges to apply.");
+		return;
+	}
+	const plan = planEdges(content.chapters, edgesToWrite);
+	console.log(`\nApplying prerequisite edges (${edgesToWrite.length})...`);
+	for (const chapter of content.chapters) {
+		const adding = plan.add.get(chapter.slug);
+		if (!adding || !chapter.file) continue;
+		writeFileSync(
+			chapter.file,
+			withPrerequisites(readFileSync(chapter.file, "utf8"), adding),
+			"utf8",
+		);
+		console.log(
+			`  ~ ${relative(workspaceRoot, chapter.file)}: prerequisites + ${adding.join(", ")}`,
+		);
+	}
+	for (const { edge, why } of plan.skipped) {
+		console.log(`  ~ skipped ${edge.id} (${why})`);
+	}
+}
+
 function applyConfig(shouldApply: boolean): void {
 	if (!shouldApply) return;
 	ensureDir(proposalsDir);
@@ -291,7 +315,7 @@ function renderMarkdown(bundleToRender: ProposalBundle): string {
 		`Generated ${bundleToRender.generatedAt}. AI proposes; the compiler decides. Materialize accepted proposals with:`,
 		"",
 		"```bash",
-		`bun run bookkit propose ${bundleToRender.book} --apply mechanisms --apply tools --apply config`,
+		`bun run bookkit propose ${bundleToRender.book} --apply mechanisms --apply tools --apply edges --apply config`,
 		"```",
 		"",
 		"## Frame proposal",

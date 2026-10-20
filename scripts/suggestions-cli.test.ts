@@ -101,6 +101,19 @@ beforeAll(() => {
 	writeBook("handoffs", handoffs());
 	writeBook("handoffs-apply", handoffs());
 	writeBook("empty", {});
+	// Three chapters that rely on one mechanism, and one prerequisite.
+	const reliesOn = (slug: string, front: string) =>
+		`---\nslug: ${slug}\ntitle: "${slug}"\nstatus: draft\n${front}mechanisms:\n  - queue-reset\n---\n\nText.\n`;
+	writeBook("edges", {
+		"chapters/01-basics.mdx": reliesOn("basics", ""),
+		"chapters/02-later.mdx": reliesOn("later", ""),
+		"chapters/03-third.mdx": reliesOn("third", "prerequisites: [basics]\n"),
+		"mechanisms/queue-reset.mdx": mechanism(
+			"queue-reset",
+			"Sending people to the back of the line on any error.",
+			"Resets on any error",
+		),
+	});
 	const knowing =
 		"Institutions regularly identify problems they refuse to solve";
 	writeBook("essays", {
@@ -258,6 +271,36 @@ describe("recurring concepts", () => {
 		expect(
 			existsSync(join(content, "toolkit/context-debt-context-debt.mdx")),
 		).toBe(false);
+	});
+});
+
+describe("propose --apply edges", () => {
+	it("writes prerequisites into the chapters, in reading order, without a loop", () => {
+		const shown = run("propose", "edges", "--apply", "mechanisms");
+		expect(shown.output).toContain(
+			"prerequisite edge(s) not written: --apply edges adds them",
+		);
+		const result = run("propose", "edges", "--apply", "edges");
+		expect(result.status).toBe(0);
+		expect(result.output).toContain(
+			"apps/edges/src/content/book/chapters/02-later.mdx: prerequisites + basics",
+		);
+		expect(result.output).toContain(
+			"apps/edges/src/content/book/chapters/03-third.mdx: prerequisites + later",
+		);
+		expect(result.output).toContain("skipped edge:later->basics");
+		const chapters = join(workspace, "apps/edges/src/content/book/chapters");
+		expect(readFileSync(join(chapters, "02-later.mdx"), "utf8")).toContain(
+			"prerequisites:\n  - basics\nmechanisms:",
+		);
+		expect(readFileSync(join(chapters, "03-third.mdx"), "utf8")).toContain(
+			"prerequisites: [basics, later]",
+		);
+		expect(readFileSync(join(chapters, "01-basics.mdx"), "utf8")).not.toContain(
+			"prerequisites",
+		);
+		// Applied once, nothing is left to propose.
+		expect(run("propose", "edges").output).toContain("edges (0)");
 	});
 });
 

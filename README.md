@@ -317,10 +317,10 @@ bun run bookkit merge attrition-by-queue waiting-room --reason "<the lever and e
 ```bash
 bun run bookkit propose <book>                 # review the bundle
 bun run bookkit propose <book> --write          # write bundle artifacts to apps/<book>/proposals/
-bun run bookkit propose <book> --apply mechanisms --apply tools --apply config
+bun run bookkit propose <book> --apply mechanisms --apply tools --apply edges --apply config
 ```
 
-`--apply` materializes approved proposals into the content tree (`mechanisms/`, `toolkit/`, and a config draft under `proposals/`), refusing to overwrite or redefine anything already registered. Frame choice, mechanism identity, and config stay author decisions — the tool proposes and writes draft structure, never a live `book.config.ts`. Pass `--detect-frame` to see what the content implies even when a frame is already declared, and `--id <proposal>` to accept a specific proposal.
+`--apply` materializes approved proposals into the content tree (`mechanisms/`, `toolkit/`, chapters' `prerequisites:` for `--apply edges`, and a config draft under `proposals/`), refusing to overwrite or redefine anything already registered. Edges keep the reading graph acyclic: one that would close a loop is skipped and named. Frame choice, mechanism identity, and config stay author decisions — the tool proposes and writes draft structure, never a live `book.config.ts`. Pass `--detect-frame` to see what the content implies even when a frame is already declared, and `--id <proposal>` to accept a specific proposal.
 
 `bun run check:runbooks [--book <slug>]` is the runbook verification layer: for runbook-frame books it audits control coverage (mechanism → tool → drill → escalation → owner), derives the compliance matrix, and joins release narratives against HEAD coverage to flag drift. Pass `--mode error` to fail on any open coverage item.
 

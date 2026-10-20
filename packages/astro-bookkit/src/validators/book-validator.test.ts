@@ -260,3 +260,71 @@ describe("cross-file checks", () => {
 		expect(check().ok).toBe(true);
 	});
 });
+
+describe("mechanismsIndex.urgency", () => {
+	const mechanism = (slug: string) =>
+		`---\nslug: ${slug}\nstatus: published\ntitle: "${slug}"\ndefinition: "d"\nis: ["a"]\nisNot: ["b"]\npredictions: ["c"]\ntests: ["e"]\n---\n`;
+	const urgency = (status: string, entries: string) =>
+		writeConfig(
+			`\tstatus: "${status}",\n\tmechanismsIndex: {\n\t\turgency: {\n${entries}\t\t},\n\t},\n`,
+		);
+	const urgencyFindings = () =>
+		check().findings.filter(
+			(finding) => finding.field === "mechanismsIndex.urgency",
+		);
+
+	beforeEach(() => {
+		writeBook([
+			["chapters/01-start.mdx", chapter("start")],
+			["mechanisms/delay-as-force.mdx", mechanism("delay-as-force")],
+			["mechanisms/compliance-trap.mdx", mechanism("compliance-trap")],
+		]);
+	});
+
+	it("accepts slugs that name the book's mechanisms", () => {
+		urgency("published", '\t\t\t"delay-as-force": "urgent",\n');
+		expect(check().findings).toEqual([]);
+	});
+
+	it("warns about a slug that names no mechanism in a draft, and says which one was meant", () => {
+		urgency("draft", '\t\t\t"delay-as-forse": "urgent",\n');
+		const findings = urgencyFindings();
+		expect(findings).toHaveLength(1);
+		expect(findings[0]).toMatchObject({
+			level: "warning",
+			code: "UNKNOWN_MECHANISM",
+			message:
+				'mechanismsIndex.urgency names "delay-as-forse", which is not a mechanism in this book, so the mechanisms index ignores it',
+		});
+		expect(findings[0].file).toEndWith("apps/test-book/src/book.config.ts");
+		expect(findings[0].fix).toStartWith('Did you mean "delay-as-force"?');
+		expect(check().ok).toBe(true);
+	});
+
+	it("refuses it in a published book", () => {
+		urgency("published", '\t\t\t"compliance-trapp": "high-leverage",\n');
+		const findings = urgencyFindings();
+		expect(findings.map((finding) => finding.level)).toEqual(["error"]);
+		expect(findings[0].fix).toContain('"compliance-trap"');
+		expect(check().ok).toBe(false);
+	});
+
+	it("points a merged mechanism's slug at the one it was merged into", () => {
+		writeFileSync(
+			join(root, "corpus.json"),
+			JSON.stringify({
+				merged: [
+					{
+						into: "delay-as-force",
+						date: "2026-10-01",
+						before: [{ slug: "slow-walk" }, { slug: "delay-as-force" }],
+					},
+				],
+			}),
+		);
+		urgency("published", '\t\t\t"slow-walk": "urgent",\n');
+		expect(urgencyFindings()[0].fix).toBe(
+			'slow-walk was merged into delay-as-force on 2026-10-01: rename the key to "delay-as-force", or remove it.',
+		);
+	});
+});

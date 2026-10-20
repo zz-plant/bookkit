@@ -107,6 +107,8 @@ const allowDownload = process.argv.includes("--download-model") || undefined;
 const asJson = process.argv.includes("--json");
 const evalRequested = process.argv.includes("--eval");
 const judgePromptDir = optionalArg("--judge-prompt");
+// Set by bookkit judge when it will ask the judges itself.
+const askedBy = optionalArg("--asked-by");
 const judgeRecordDir = optionalArg("--judge-record");
 const judgeFor = optionalArg("--judge-for");
 const judgeCount = Number(optionalArg("--judges") ?? 3);
@@ -574,8 +576,10 @@ function writeJudgeRequestFor(dir: string): void {
 	console.log(
 		`Wrote ${chosen.size} pair(s) to judge in ${dir}: ${flagged.length} flagged without a verdict, ${changed.length} changed since judged, the rest the closest unjudged${judgeFor ? ` to ${judgeFor}` : ""} by ${embedded ? "meaning" : "wording"}.`,
 	);
+	// bookkit judge asks them itself when it has a judge command.
+	if (askedBy) return;
 	console.log(
-		`\nAsk ${prompts.length} judge(s), each in a fresh session (an LLM or a person) that sees nothing but its prompt. Each prompt names its own copy of the pairs, in its own order:\n${prompts.map((prompt) => `  ${prompt}`).join("\n")}\nSave judge n's reply as ${join(dir, "answer-<n>.json")}, then: bun run bookkit judge record`,
+		`\nAsk ${prompts.length} judge(s), each in a fresh session (an LLM or a person) that sees nothing but its prompt. Each prompt holds the pairs, in its own order; paste it as is:\n${prompts.map((prompt) => `  ${prompt}`).join("\n")}\nSave judge n's reply as ${join(dir, "answer-<n>.json")}, then: bun run bookkit judge record`,
 	);
 }
 

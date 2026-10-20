@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-20 — Judges asked and recorded in one command
+
+- **`bookkit judge` asks the judges itself** when it has a judge command: `--run "<command>"`, or `BOOKKIT_JUDGE_COMMAND`, any program that reads a prompt on stdin and prints its reply (an LLM's command-line tool, such as `claude -p`). Each judge is its own run of the command, all at once, in an empty folder of its own, so it sees nothing but its prompt; a reply that answers every pair is saved as `answer-<n>.json` and the answers are recorded. Before, each prompt was handed to a session by hand, each reply saved by hand, then `bookkit judge record`. `--no-run` writes the prompts only.
+- **`bookkit judge run [folder]`** asks again the judges of a request (default: the newest) that have no answer. A reply that fails is kept in `judge-<n>/reply.txt`, and nothing is recorded until every judge has answered.
+- **Each prompt holds its pairs**: `judge-<n>/prompt.md` now ends with that judge's pairs, so it can be pasted into any chat or piped to any command as is, instead of naming a file for the judge to read. `pairs.json` is still written beside it.
+- **`bookkit new mechanism --definition "<one sentence>"`** writes the definition into the new file (it was used only to look for similar mechanisms). At the keyboard, when similar mechanisms are listed, it asks whether to create it anyway instead of asking for a rerun with `--force`.
+- **Migration:** none. A request folder written before this change still records with `judge record`; its prompts name a file, so to have it asked by a command, write a new request.
+
 ## 2026-10-20 — One path from a new mechanism to a ruling
 
 - **`bookkit judge [mechanism]`** writes a blind request for judges under `.bookkit/judging/` (gitignored): one folder per judge, three by default (`--judges <n>`), each with a prompt that names the full path to its own copy of the pairs, in its own order, so it can be handed over as is. With a mechanism it asks about that one's three nearest pairs with no verdict or ruling; without, about the corpus (`check:corpus --judge-prompt`). Before, the request was `bun run check:corpus -- --judge-prompt <dir>` with a folder you chose, often inside the repository, and one `pairs.json` all judges shared.

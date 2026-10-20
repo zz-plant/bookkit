@@ -38,6 +38,7 @@ import {
 	ask,
 	choose,
 	didYouMean,
+	isInteractive,
 	readFocusBook,
 	writeFocusBook,
 } from "./lib/cli";
@@ -59,6 +60,11 @@ import {
 	resolveFromCaller,
 	runPreview,
 } from "./lib/folder-report";
+import {
+	JUDGE_COMMAND_ENV,
+	runJudges,
+	unansweredJudges,
+} from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
 
 const args = process.argv.slice(2);
@@ -299,7 +305,7 @@ switch (command) {
 	}
 
 	case "judge": {
-		process.exit(judge(args.slice(1)));
+		process.exit(await judge(args.slice(1)));
 		break;
 	}
 
@@ -798,11 +804,18 @@ function createNew(kind: string | undefined, rest: string[]) {
 						`  ${match.slug}  "${match.title}"  in ${match.books.join(", ")}  (shares: ${match.sharedWords.join(", ")})`,
 					);
 				}
-				console.log(
-					`\nIf one fits, bind its slug in the chapter instead. If not, rerun with --force to create "${slug}".`,
-				);
-				process.exit(1);
+				// At the keyboard, the answer is a keypress, not a second command.
+				const create = isInteractive()
+					? ask(`\nNone of these fits: create "${slug}"? [y/N]`)
+					: undefined;
+				if (!create || !/^y(es)?$/i.test(create)) {
+					console.log(
+						`\nIf one fits, bind its slug in the chapter instead. If not, ${isInteractive() ? "answer y" : "rerun with --force"} to create "${slug}".`,
+					);
+					process.exit(1);
+				}
 			}
+			const definition = flag("--definition");
 			const status = runScript("scaffold-mechanism.ts", [
 				"--book",
 				book,
@@ -810,10 +823,13 @@ function createNew(kind: string | undefined, rest: string[]) {
 				slug,
 				"--title",
 				title,
+				...(definition ? ["--definition", definition] : []),
 			]);
 			if (status === 0) {
 				console.log(
-					`Then run bun run bookkit check: once the definition is written, it compares meaning across every book. To ask judges whether it is the same idea as its nearest mechanisms: bun run bookkit judge ${slug}`,
+					definition
+						? `Then bun run bookkit judge ${slug}: judges say, blind, whether it is the same idea as its nearest mechanisms (best once is, isNot, and tests are written: a verdict holds for the text it judged).`
+						: `Then run bun run bookkit check: once the definition is written, it compares meaning across every book. To ask judges whether it is the same idea as its nearest mechanisms: bun run bookkit judge ${slug}`,
 				);
 			}
 			process.exit(status);
@@ -1177,10 +1193,10 @@ function judgingDir(): string {
 	return join(repoRoot(), ".bookkit", "judging");
 }
 
-/** The newest request folder (by key.json's time) that has answers in it. */
-function newestAnswered(): { folder: string } | { error: string } {
+/** Request folders, newest first (by key.json's time). */
+function requestFolders(): string[] {
 	const root = judgingDir();
-	const requests = existsSync(root)
+	return existsSync(root)
 		? readdirSync(root)
 				.map((name) => join(root, name))
 				.filter((folder) => existsSync(join(folder, "key.json")))
@@ -1190,6 +1206,11 @@ function newestAnswered(): { folder: string } | { error: string } {
 						statSync(join(a, "key.json")).mtimeMs,
 				)
 		: [];
+}
+
+/** The newest request folder that has answers in it. */
+function newestAnswered(): { folder: string } | { error: string } {
+	const requests = requestFolders();
 	const answered = requests.find((folder) =>
 		readdirSync(folder).some((file) => /^answer.*\.json$/i.test(file)),
 	);
@@ -1202,17 +1223,77 @@ function newestAnswered(): { folder: string } | { error: string } {
 	};
 }
 
+/** The judge command: --run, else the environment's, unless --no-run. */
+function judgeCommand(rest: string[]): string | undefined {
+	if (rest.includes("--no-run")) return undefined;
+	return (
+		flagValue(rest, "--run") ??
+		(process.env[JUDGE_COMMAND_ENV]?.trim() || undefined)
+	);
+}
+
+/** How to have bookkit ask the judges itself. */
+function judgeCommandHint(): string {
+	return `To have bookkit ask them and record the answers: set ${JUDGE_COMMAND_ENV} to a command that reads a prompt on stdin and prints the reply (an LLM's command-line tool), or pass --run "<command>".`;
+}
+
+/**
+ * Asks the judges in `folder` that have not answered, with `command`, then
+ * records the answers once every judge has one.
+ */
+async function askAndRecord(folder: string, command: string): Promise<number> {
+	const waiting = unansweredJudges(folder);
+	if (waiting.length > 0) {
+		console.log(
+			`\nAsking ${waiting.length} judge(s), each on its own, with: ${command}`,
+		);
+		const results = await runJudges(folder, command);
+		for (const result of results) {
+			console.log(
+				result.answer
+					? `  ✓ judge ${result.judge} (${result.seconds}s)`
+					: `  ✗ judge ${result.judge} (${result.seconds}s): ${result.error}`,
+			);
+		}
+		if (results.some((result) => !result.answer)) {
+			console.log(
+				`\nNot recorded: every judge needs an answer. Ask the rest again: bun run bookkit judge run ${relative(process.cwd(), folder) || "."}\n(or save a judge's reply by hand as answer-<n>.json in that folder).`,
+			);
+			return 1;
+		}
+	}
+	console.log("");
+	return runScript("check-corpus.ts", ["--judge-record", folder]);
+}
+
 /**
  * bookkit judge [slug]: a blind request for judges (check:corpus
- * --judge-prompt), in a fresh folder under .bookkit/judging/. bookkit judge
- * record [folder]: reads the answers back (--judge-record).
+ * --judge-prompt), in a fresh folder under .bookkit/judging/; with a judge
+ * command, it asks them and records the answers too. bookkit judge run
+ * [folder]: asks the judges that have not answered. bookkit judge record
+ * [folder]: reads the answers back (--judge-record).
  */
-function judge(rest: string[]): number {
-	if (rest[0] === "record") {
+async function judge(rest: string[]): Promise<number> {
+	if (rest[0] === "record" || rest[0] === "run") {
 		const named =
 			rest[1] && !rest[1].startsWith("--")
 				? resolveFromCaller(rest[1])
 				: undefined;
+		if (rest[0] === "run") {
+			const command = judgeCommand(rest);
+			if (!command) {
+				console.error(`No judge command. ${judgeCommandHint()}`);
+				return 1;
+			}
+			const folder = named ?? requestFolders()[0];
+			if (!folder) {
+				console.error(
+					"No judging requests yet. Start one with bun run bookkit judge [mechanism].",
+				);
+				return 1;
+			}
+			return askAndRecord(folder, command);
+		}
 		const found = named ? { folder: named } : newestAnswered();
 		if ("error" in found) {
 			console.error(found.error);
@@ -1230,7 +1311,8 @@ function judge(rest: string[]): number {
 	for (let n = 2; existsSync(folder); n += 1) {
 		folder = join(judgingDir(), `${slug ?? "corpus"}-${stamp}-${n}`);
 	}
-	return runScript("check-corpus.ts", [
+	const command = judgeCommand(rest);
+	const status = runScript("check-corpus.ts", [
 		"--judge-prompt",
 		folder,
 		...(slug ? ["--judge-for", slug] : []),
@@ -1238,7 +1320,15 @@ function judge(rest: string[]): number {
 		...passed("--judges"),
 		...(rest.includes("--quick") ? ["--no-semantic"] : []),
 		...(rest.includes("--download-model") ? ["--download-model"] : []),
+		...(command ? ["--asked-by", command] : []),
 	]);
+	// Nothing to judge writes no request.
+	if (status !== 0 || !existsSync(join(folder, "key.json"))) return status;
+	if (!command) {
+		console.log(`\n${judgeCommandHint()}`);
+		return 0;
+	}
+	return askAndRecord(folder, command);
 }
 
 /**
@@ -1360,7 +1450,8 @@ Start
 
 Write
   new chapter [book] "<title>"              start the next chapter as a draft
-  new mechanism [book] "<title>"            name a mechanism, after checking every book for one that fits
+  new mechanism [book] "<title>" [--definition "…"]
+                                            name a mechanism, after checking every book for one that fits
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
   new book <slug> [--from <folder>]         a new book app; --from imports a folder of notes into it
@@ -1382,10 +1473,14 @@ Check
                                             --release checks it as a published book, so drafts are errors
   contract [section] [--json]               the fields a mechanism, tool, example, chapter, or glossary entry needs
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
-  judge [mechanism] [--judges 3]            ask judges, blind, whether close mechanisms are the same idea: one
+  judge [mechanism] [--judges 3] [--run "<command>"]
+                                            ask judges, blind, whether close mechanisms are the same idea: one
                                             mechanism's 3 nearest without a verdict, or the corpus's flagged and
-                                            closest pairs; writes a prompt per judge in .bookkit/judging/
-  judge record [folder]                     record their answers (default: the newest request with answers)
+                                            closest pairs; writes a prompt per judge in .bookkit/judging/. With a
+                                            judge command (--run, or BOOKKIT_JUDGE_COMMAND), asks each one and
+                                            records the answers
+  judge run [folder] [--run "<command>"]    ask the judges that have not answered (default: the newest request)
+  judge record [folder]                     record answers saved by hand (default: the newest with answers)
   rule <a> <b> --distinct "<reason>"        rule two mechanisms different ideas, in corpus.json
   similar "<title>" [--definition "…"] [--semantic]
                                             existing mechanisms, in any book, that a new one might duplicate

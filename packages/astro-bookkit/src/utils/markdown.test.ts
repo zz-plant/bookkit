@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { compile } from "@mdx-js/mdx";
 
-import { splitFencedCode, toMdxBody } from "./markdown";
+import {
+	createHeadingSlugger,
+	smartDashes,
+	splitFencedCode,
+	stripMarkdown,
+	toMdxBody,
+} from "./markdown";
 
 // Markdown as real exports write it: placeholders, raw HTML, comments, autolinks.
 const HAZARDS = [
@@ -127,6 +133,100 @@ describe("splitFencedCode", () => {
 			{ code: true, text: "```\nb\n```", line: 1 },
 			{ code: true, text: "~~~\nc\n~~~", line: 4 },
 			{ code: false, text: "d", line: 7 },
+		]);
+	});
+
+	it("reads a fence indented any amount, as MDX does (a third-level list item's)", () => {
+		expect(
+			splitFencedCode(
+				"- a\n  - b\n    - c\n\n      ```sh\n      x\n      ```\nd",
+			),
+		).toEqual([
+			{ code: false, text: "- a\n  - b\n    - c\n", line: 0 },
+			{ code: true, text: "      ```sh\n      x\n      ```", line: 4 },
+			{ code: false, text: "d", line: 7 },
+		]);
+	});
+
+	it("opens no fence at backticks with a backtick after them, and closes none with an info string", () => {
+		expect(splitFencedCode("```inline``` code\ntext")).toEqual([
+			{ code: false, text: "```inline``` code\ntext", line: 0 },
+		]);
+		expect(splitFencedCode("```\na\n```js\nb\n```\nc")).toEqual([
+			{ code: true, text: "```\na\n```js\nb\n```", line: 0 },
+			{ code: false, text: "c", line: 5 },
+		]);
+	});
+});
+
+describe("stripMarkdown", () => {
+	it("keeps the text of code spans, without their backticks", () => {
+		expect(stripMarkdown("Set `max_retries` and `backoff_ms` first.")).toBe(
+			"Set max_retries and backoff_ms first.",
+		);
+		expect(stripMarkdown("``a `b` c`` and `` `tick` ``")).toBe(
+			"a `b` c and `tick`",
+		);
+		expect(stripMarkdown("**Set `__init__` to `*`**")).toBe(
+			"Set __init__ to *",
+		);
+	});
+
+	it("keeps escaped characters, image alt text, and underscores inside words", () => {
+		expect(stripMarkdown("Page \\<on-call-lead\\> about \\*this\\*.")).toBe(
+			"Page <on-call-lead> about *this*.",
+		);
+		expect(stripMarkdown("See ![The board](/b.png) and [docs](/d).")).toBe(
+			"See The board and docs.",
+		);
+		expect(stripMarkdown("Watch error_rate_limit and _emphasis_.")).toBe(
+			"Watch error_rate_limit and emphasis.",
+		);
+	});
+
+	it("leaves tags out, keeping a space where one separates words", () => {
+		expect(
+			stripMarkdown("Press <kbd>Ctrl</kbd>+<kbd>C</kbd>, then<br/>wait."),
+		).toBe("Press Ctrl+C, then wait.");
+		expect(stripMarkdown("<p>One</p><p>two</p>")).toBe("One  two");
+		expect(stripMarkdown("Note:<Callout>check</Callout>")).toBe("Note: check");
+	});
+
+	it("keeps a link's words when its destination holds parentheses", () => {
+		expect(
+			stripMarkdown("See [the wiki](https://example.com/Foo_(bar)) first."),
+		).toBe("See the wiki first.");
+	});
+});
+
+describe("headings as the site slugs them", () => {
+	it("turns runs of hyphens into dashes as smart punctuation does", () => {
+		expect(
+			[
+				"a - b",
+				"a -- b",
+				"a --- b",
+				"a ---- b",
+				"a ----- b",
+				"a ------- b",
+			].map(smartDashes),
+		).toEqual(["a - b", "a – b", "a — b", "a –– b", "a —– b", "a —–– b"]);
+	});
+
+	it("slugs with github-slugger, numbering repeats", () => {
+		const slug = createHeadingSlugger();
+		expect(
+			[
+				smartDashes("Don't -- stop"),
+				"Café & crème — 100% (beta)",
+				"Tuning max_retries",
+				"Tuning max_retries",
+			].map(slug),
+		).toEqual([
+			"dont--stop",
+			"café--crème--100-beta",
+			"tuning-max_retries",
+			"tuning-max_retries-1",
 		]);
 	});
 });

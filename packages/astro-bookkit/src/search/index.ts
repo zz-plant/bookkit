@@ -1,4 +1,5 @@
-import GithubSlugger from "github-slugger";
+import type { MarkdownBlock } from "../exports/markdown-blocks";
+import { childBlocks, parseEntryMarkdown } from "../exports/markdown-headings";
 import {
 	frontmatterTextFields,
 	parseFrontmatter as parseSharedFrontmatter,
@@ -77,44 +78,94 @@ const fieldText = (value: unknown): string[] => {
 	return [];
 };
 
-/** Plain text of Markdown lines, without headings or MDX import/export lines. */
-const plainText = (lines: string[]) =>
-	lines
-		.filter((line) => !/^\s*(#{1,6}\s|import\s|export\s)/.test(line))
-		.map((line) => stripMarkdown(line))
-		.filter(Boolean)
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
+const joinText = (texts: string[]) =>
+	texts.join(" ").replace(/\s+/g, " ").trim();
 
 const summarize = (value: string, maxLength = 160) => {
 	if (value.length <= maxLength) return value;
 	return `${value.slice(0, maxLength - 1).trim()}…`;
 };
 
-const buildSections = (body: string) => {
-	const lines = body.split("\n");
-	const sections: Array<{ heading: string; body: string[] }> = [];
-	let current: { heading: string; body: string[] } | null = null;
+type Section = { heading: string; anchor: string; text: string[] };
 
-	for (const line of lines) {
-		const headingMatch = line.match(/^(#{2,3})\s+(.*)$/);
-		if (headingMatch) {
-			if (current) sections.push(current);
-			const headingText = stripMarkdown(
-				headingMatch[2].replace(/#+\s*$/, ""),
-			).trim();
-			current = { heading: headingText, body: [] };
-			continue;
+/**
+ * A body's text, and its `##` and `###` headings with the text under each,
+ * read with the parse the PDF and EPUB use: code blocks and MDX comments
+ * are not text, and a `##` line inside code is not a heading. Each heading's
+ * anchor is the id the site gives it (`headingIds`), counted over headings
+ * of every level, so a `####` or `#` heading with the same text shifts the
+ * `-1` suffixes as it does on the page. `all` is the text without those
+ * headings and `intro` the text before the first, so a preview never opens
+ * with a section's title.
+ */
+const readBody = (body: string) => {
+	const { document, ids } = parseEntryMarkdown({ body });
+	const all: string[] = [];
+	const intro: string[] = [];
+	const sections: Section[] = [];
+	let current: Section | null = null;
+	const add = (text: string) => {
+		const plain = stripMarkdown(text);
+		if (!plain) return;
+		all.push(plain);
+		(current?.text ?? intro).push(plain);
+	};
+	const read = (blocks: MarkdownBlock[]) => {
+		for (const block of blocks) {
+			const anchor = block.type === "heading" ? ids.get(block) : undefined;
+			if (
+				block.type === "heading" &&
+				anchor &&
+				(block.level === 2 || block.level === 3)
+			) {
+				const heading = stripMarkdown(block.text).trim();
+				current = { heading, anchor, text: [] };
+				sections.push(current);
+				continue;
+			}
+			switch (block.type) {
+				case "heading":
+				case "paragraph":
+				case "quote":
+				case "caption":
+					add(block.text);
+					break;
+				case "list":
+					for (const item of block.items) {
+						add(item.text);
+						read(item.blocks);
+					}
+					break;
+				case "table":
+					for (const cell of [
+						...(block.caption ? [block.caption] : []),
+						...(block.header ?? []),
+						...block.rows.flat(),
+					]) {
+						add(cell);
+					}
+					break;
+				case "details":
+					if (block.summary) add(block.summary);
+					read(block.blocks);
+					break;
+				case "definitions":
+					for (const item of block.items) {
+						if ("term" in item) add(item.term);
+						else read(item.blocks);
+					}
+					break;
+				default:
+					read(childBlocks(block));
+			}
 		}
-		if (current) current.body.push(line);
-	}
-	if (current) sections.push(current);
-	return sections;
+	};
+	read(document.blocks);
+	return { all, intro, sections };
 };
 
-const extractSnippet = (lines: string[]) =>
-	summarize(plainText(lines) || "No summary available.");
+const extractSnippet = (texts: string[]) =>
+	summarize(joinText(texts) || "No summary available.");
 
 // Routes key every section, examples included, by file name; nested example
 // folders only group files by mechanism.
@@ -167,25 +218,20 @@ export const buildSearchEntries = async (
 					? [titlesOfMechanisms.get(fields.mechanism) ?? fields.mechanism]
 					: fieldText(fields[field]),
 			);
-			// Astro's Markdown processor gives headings GitHub-style ids; the
-			// anchors must match them or deep links land at the top of the page.
-			const slugger = new GithubSlugger();
-			const sections = buildSections(body);
-			const sectionEntries = sections.map((section) => {
-				const heading = section.heading || title;
-				const anchor = slugger.slug(heading);
-				const snippet = extractSnippet(section.body);
-				return { heading, anchor, snippet, text: plainText(section.body) };
-			});
+			// Anchors are the ids the site gives the headings, or deep links
+			// land at the top of the page.
+			const { all, intro, sections } = readBody(body);
+			const sectionEntries = sections.map((section) => ({
+				heading: section.heading || title,
+				anchor: section.anchor,
+				snippet: extractSnippet(section.text),
+				text: joinText(section.text),
+			}));
 
 			// The page's own result opens the page at its title, and previews
 			// the line its page leads with (summary, definition, or trigger)
 			// before the start of its body.
-			const lines = body.split("\n");
-			const firstHeading = lines.findIndex((line) => /^#{2,3}\s/.test(line));
-			const intro = plainText(
-				firstHeading === -1 ? lines : lines.slice(0, firstHeading),
-			);
+			const introText = joinText(intro);
 			const lead = [data.summary, data.definition, data.trigger].find(Boolean);
 			entries.push({
 				id: `${source.type}-${slug}-intro`,
@@ -194,12 +240,12 @@ export const buildSearchEntries = async (
 				order: source.order,
 				title,
 				section: null,
-				snippet: summarize(
-					lead || intro || plainText(lines) || "No summary available.",
-				),
+				snippet: lead
+					? summarize(lead)
+					: extractSnippet(introText ? intro : all),
 				url: `${source.urlPrefix}${slug}`,
 				context: title,
-				text: [...shown, intro].filter(Boolean).join(" "),
+				text: [...shown, introText].filter(Boolean).join(" "),
 			});
 
 			sectionEntries.forEach((section) => {

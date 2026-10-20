@@ -28,9 +28,19 @@ describe("extractPageFacts", () => {
 		expect(extractPageFacts(source).wordCount).toBe(22);
 	});
 
-	it("takes the first paragraph long enough to be an opening", () => {
+	it("counts and keeps the words of inline code", () => {
+		const facts = extractPageFacts(
+			"Restart `checkout-api` only after you page the `on-call` lead for `payments`.",
+		);
+		expect(facts.wordCount).toBe(11);
+		expect(facts.excerpt).toBe(
+			"Restart `checkout-api` only after you page the `on-call` lead for `payments`.",
+		);
+	});
+
+	it("takes the first paragraph long enough to be an opening, as Markdown", () => {
 		expect(extractPageFacts(source).excerpt).toBe(
-			"The rollback decision cannot be made safely under load.",
+			"The rollback decision cannot be made **safely** under [load](/read/glossary/load).",
 		);
 	});
 
@@ -49,6 +59,32 @@ title: Stub
 			excerpt: undefined,
 			wordCount: 22,
 		});
+	});
+});
+
+describe("extractPageFacts with tags, escapes, and code", () => {
+	it("counts an escaped placeholder and a tag inside code as words", () => {
+		expect(
+			extractPageFacts(
+				"Replace \\<service-name\\> with the service that pages you, and wrap the timeline in `<details>`.",
+			).wordCount,
+		).toBe(14);
+	});
+
+	it("reads tags as the page shows their words", () => {
+		expect(
+			extractPageFacts(
+				"Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy the alert,<br/>then paste it into the incident log.",
+			).wordCount,
+		).toBe(13);
+	});
+
+	it("skips fenced code however it is indented, and does not count a task's box", () => {
+		expect(
+			extractPageFacts(
+				"- [x] Run it:\n\n    ```sh\n    echo not prose words here\n    ```\n\nDone.",
+			).wordCount,
+		).toBe(3);
 	});
 });
 

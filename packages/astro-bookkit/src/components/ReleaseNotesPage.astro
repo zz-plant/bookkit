@@ -1,6 +1,7 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
 import { createBookLayoutRenderState } from "../book/layout";
+import { readRoutes } from "../book/read-routes";
 import { formatReleaseDate, type ReleaseNote } from "../releases/notes";
 import type { BookVersionEntry } from "../releases/versions";
 
@@ -169,7 +170,15 @@ const renderState = createBookLayoutRenderState({
             <span class="release-chip release-chip--new">New since your last visit</span>
           </div>
           {release.changedSections.length > 0 && (
-            <p class="meta">Changed: {release.changedSections.join(", ")}</p>
+            <p class="meta">
+              Changed:{" "}
+              {release.changedSections.map((section, index) => (
+                <>
+                  {index > 0 && ", "}
+                  <a href={readRoutes[section]}>{section}</a>
+                </>
+              ))}
+            </p>
           )}
           {release.highlights.length > 0 && (
             <ul class="release-highlights">

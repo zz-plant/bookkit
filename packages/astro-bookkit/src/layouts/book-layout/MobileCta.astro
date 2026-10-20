@@ -1,11 +1,17 @@
 ---
-const { isReadRoute = false } = Astro.props;
+const { isReadRoute = false, isReadDetailRoute = false } = Astro.props;
+// "page" only on the hub itself; below it "Read" marks the section the reader is in.
+const readLinkCurrent = isReadRoute
+	? isReadDetailRoute
+		? "true"
+		: "page"
+	: undefined;
 ---
 <nav class="mobile-cta" aria-label="Quick actions" data-mobile-cta>
   <a
     class="mobile-cta__primary"
     href="/read"
-    aria-current={isReadRoute ? "page" : undefined}
+    aria-current={readLinkCurrent}
   >
     Read
   </a>

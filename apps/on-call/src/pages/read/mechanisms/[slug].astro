@@ -10,14 +10,16 @@ import bookConfig from "../../../book.config";
 import Breadcrumbs from "@bookkit/astro-bookkit/components/Breadcrumbs.astro";
 import { getReadPageBreadcrumbCopy } from "../../../lib/read-copy";
 import {
+	actionLinksForMechanisms,
 	bookPageTitle,
 	buildLocalizedReadRoutePath,
+	chapterLinksForMechanism,
 	createBreadcrumbListStructuredDataFromTrail,
 	createDefinedTermStructuredData,
+	exampleLinksForMechanisms,
 	firstMetaDescription,
-	readItemPath,
 	readRoutes,
-	toolkitDisplayName,
+	termLinksForMechanism,
 } from "@bookkit/astro-bookkit";
 
 export async function getStaticPaths() {
@@ -74,23 +76,32 @@ const { entries: toolkitEntries } = resolveLocalizedContent(toolkitIndex, {
 const { entries: exampleEntries } = resolveLocalizedContent(exampleIndex, {
 	locale: Astro.locals?.locale,
 });
-const relatedToolkit = toolkitEntries
-	.map(({ slug, module: toolkitModule }) => ({
-		slug,
-		frontmatter: toolkitModule.frontmatter,
-	}))
-	.filter((entry) => entry.frontmatter.mechanism === frontmatter.slug)
-	.sort(
-		(a, b) =>
-			(a.frontmatter.timeboxMinutes ?? 10) -
-			(b.frontmatter.timeboxMinutes ?? 10),
-	);
-const relatedExamples = exampleEntries
-	.map(({ slug, module: exampleModule }) => ({
-		slug,
-		frontmatter: exampleModule.frontmatter ?? {},
-	}))
-	.filter((entry) => entry.frontmatter.mechanism === frontmatter.slug);
+const relatedToolkit = actionLinksForMechanisms(
+	[frontmatter.slug],
+	toolkitEntries,
+);
+const relatedExamples = exampleLinksForMechanisms(
+	[frontmatter.slug],
+	exampleEntries,
+);
+// Where the book uses this mechanism: chapters that list it, terms that name it.
+const { entries: chapterEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const { entries: glossaryEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.glossary, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const usedInChapters = chapterLinksForMechanism(
+	frontmatter.slug,
+	chapterEntries,
+);
+const namedByTerms = termLinksForMechanism(frontmatter.slug, glossaryEntries);
 const requestPath = Astro.url.pathname;
 const mechanismUrl = new URL(requestPath, Astro.url).toString();
 const localizedReadRootPath = buildLocalizedReadRoutePath(
@@ -143,6 +154,9 @@ const mechanismStructuredData = createDefinedTermStructuredData({
     )}
     {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
       <a class="pill" href="#next-steps">Next steps</a>
+    )}
+    {(usedInChapters.length > 0 || namedByTerms.length > 0) && (
+      <a class="pill" href="#in-the-book">In the book</a>
     )}
   </nav>
 
@@ -201,12 +215,10 @@ const mechanismStructuredData = createDefinedTermStructuredData({
         <>
           <div class="eyebrow">Actions, shortest first</div>
           <div class="stack">
-            {relatedToolkit.map((entry) => (
-              <a class="list-link" href={readItemPath("toolkit", entry.slug)}>
-                <strong>{toolkitDisplayName(entry.frontmatter)}</strong>
-                <span class="meta">
-                  {entry.frontmatter.timeboxMinutes ?? 10} min
-                </span>
+            {relatedToolkit.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+                <span class="meta">{link.meta}</span>
               </a>
             ))}
           </div>
@@ -216,10 +228,39 @@ const mechanismStructuredData = createDefinedTermStructuredData({
         <>
           <div class="eyebrow">Examples</div>
           <div class="stack">
-            {relatedExamples.map((entry) => (
-              <a class="list-link" href={readItemPath("examples", entry.slug)}>
-                <strong>{entry.frontmatter.title ?? "Untitled example"}</strong>
-                {entry.frontmatter.domain && <span class="meta">{entry.frontmatter.domain}</span>}
+            {relatedExamples.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+                {link.meta && <span class="meta">{link.meta}</span>}
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )}
+  {(usedInChapters.length > 0 || namedByTerms.length > 0) && (
+    <section class="content-block" id="in-the-book">
+      <h2>In the book</h2>
+      {usedInChapters.length > 0 && (
+        <>
+          <div class="eyebrow">Chapters that use it</div>
+          <div class="stack">
+            {usedInChapters.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+      {namedByTerms.length > 0 && (
+        <>
+          <div class="eyebrow">Glossary</div>
+          <div class="stack">
+            {namedByTerms.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
               </a>
             ))}
           </div>

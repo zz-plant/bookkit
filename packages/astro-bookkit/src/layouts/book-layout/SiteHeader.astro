@@ -28,6 +28,12 @@ const {
 // The running head is the short title, as at the top of a printed page; subtitles stay on the cover.
 const runningHead = String(bookTitle ?? "").split(/:\s+/)[0];
 const emphasizeReadCta = !isReadRoute;
+// "page" only on the hub itself; below it the link marks the section the reader is in.
+const readLinkCurrent = isReadRoute
+	? isReadDetailRoute
+		? "true"
+		: "page"
+	: undefined;
 const emphasizeDownloadsCta = !isDownloadsRoute;
 const readSectionFromPath = currentPath?.match(/\/read\/([^/]+)/)?.[1] ?? null;
 const readSectionLabels = {
@@ -63,7 +69,7 @@ const activeReadSectionLabel =
               },
             ]}
             href="/read"
-            aria-current={isReadRoute ? "page" : undefined}
+            aria-current={readLinkCurrent}
             aria-keyshortcuts="g r"
           >
             {isReadRoute ? "Reading hub" : "Start reading"}

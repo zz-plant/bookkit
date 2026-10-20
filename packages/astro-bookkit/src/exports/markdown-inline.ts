@@ -1,19 +1,27 @@
+import { smartDashes } from "../utils/markdown";
 import {
-	CHARACTER_REFERENCE,
-	decodeCharacterReference,
-	IMG_TAG,
 	type InlineImage,
 	MARKDOWN_IMAGE,
 	type MarkdownDocument,
 	normalizeLabel,
-	tagAttribute,
 } from "./markdown-blocks";
+import {
+	CHARACTER_REFERENCE,
+	decodeCharacterReference,
+	HTML_TAG,
+	type HtmlTag,
+	IMG_TAG,
+	INLINE_TAGS,
+	readTag,
+	tagAttribute,
+} from "./markdown-html";
 
 /**
  * Inline Markdown as a tree, so the EPUB (as XHTML) and the PDF (as runs of
  * text in its fonts) show the same words: code spans, emphasis, links
  * (inline and reference-style), images, footnote references, backslash
- * escapes, and character references.
+ * escapes, character references, and the inline HTML elements import keeps
+ * (`<kbd>`, `<sup>`, `<br>`…). Other tags are left out and their text kept.
  */
 export type InlineNode =
 	| { type: "text"; text: string }
@@ -23,8 +31,21 @@ export type InlineNode =
 	| { type: "image"; image: InlineImage }
 	/** A footnote reference; `label` is normalized. */
 	| { type: "noteref"; label: string }
-	/** A raw HTML or JSX tag, as written. */
-	| { type: "html"; text: string };
+	/** An inline HTML element import keeps, such as `<kbd>`; `name` is lower case. */
+	| {
+			type: "element";
+			name: string;
+			attributes: Record<string, string>;
+			children: InlineNode[];
+	  }
+	/** `<br>`. */
+	| { type: "break" };
+
+/** A node that holds others. */
+type Parent = Extract<InlineNode, { children: InlineNode[] }>;
+/** An inline HTML tag while its partner is looked for. */
+type TagMark = { type: "tag"; tag: HtmlTag };
+type Held = InlineNode | TagMark;
 
 type Emphasis = "strong" | "em" | "del";
 
@@ -48,8 +69,6 @@ const CLOSES = new Map(
 );
 
 const ASCII_PUNCTUATION = "[!-/:-@[-`{-~]";
-const HTML_TAG =
-	"</?[A-Za-z][\\w.:-]*(?:\\s+[^\\s\"'<>/=]+(?:\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|\\{[^{}]*\\}|[^\\s\"'=<>`]+))?)*\\s*/?>";
 
 // Read left to right, so whichever starts first wins: a backslash escape,
 // a code span (backtick runs of equal length), a character reference, or a tag.
@@ -67,8 +86,9 @@ const IMAGE = new RegExp(
 	`${MARKDOWN_IMAGE}|!\\[([^\\]]*)\\](?:\\[([^\\]]*)\\])?`,
 	"g",
 );
+// A link's destination may hold balanced parentheses (`/wiki/Foo_(bar)`).
 const LINK_OR_NOTE =
-	/\[\^([^\]\s]+)\]|\[([^\]]+)\](?:\(([^)\s]+)(?:\s+"[^"]*")?\)|\[([^\]]*)\])?/g;
+	/\[\^([^\]\s]+)\]|\[([^\]]+)\](?:\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)|\[([^\]]*)\])?/g;
 const UNESCAPE = new RegExp(
 	`\\\\(${ASCII_PUNCTUATION})|${CHARACTER_REFERENCE}`,
 	"g",
@@ -82,17 +102,36 @@ const unescapeText = (value: string) =>
 			escaped ?? decodeCharacterReference(match) ?? match,
 	);
 
+/** A held piece's words: nothing for a tag. */
+const plainText = (node: Held) =>
+	node.type === "tag" ? "" : inlinePlainText([node]);
+
 /** A code span's content: one space trimmed from each end when both have one. */
 const codeText = (code: string) =>
 	/^ [\s\S]*[^ ][\s\S]* $/.test(code) ? code.slice(1, -1) : code;
 
-/** The words of inline nodes, without markup: what a heading's id or an image's alt is made from. */
+/** The words of inline nodes, without markup: what an image's alt is made from. */
 export const inlinePlainText = (nodes: InlineNode[]): string =>
 	nodes
 		.map((node) => {
 			if (node.type === "text" || node.type === "code") return node.text;
 			if (node.type === "image") return node.image.alt;
 			if ("children" in node) return inlinePlainText(node.children);
+			return "";
+		})
+		.join("");
+
+/**
+ * A heading's text as the site slugs it into the heading's id: the text the
+ * page shows, with smart punctuation's dashes in prose (not in code), and
+ * no image alt text.
+ */
+export const headingSlugText = (nodes: InlineNode[]): string =>
+	nodes
+		.map((node) => {
+			if (node.type === "text") return smartDashes(node.text);
+			if (node.type === "code") return node.text;
+			if ("children" in node) return headingSlugText(node.children);
 			return "";
 		})
 		.join("");
@@ -113,23 +152,74 @@ const applyEmphasis = (text: string) => {
 		.replace(/~~([^~]+)~~/g, `${del[0]}$1${del[1]}`);
 };
 
-const markersNest = (text: string): boolean => {
+/**
+ * The inline tags in `text` that pair up, as HTML pairs them: each closing
+ * tag's placeholder index, mapped to its opening tag's. A tag with no
+ * partner in `text` is left out, keeping its content.
+ */
+const pairTags = (text: string, held: Held[]): Map<number, number> => {
+	const partners = new Map<number, number>();
+	const open: Array<{ index: number; name: string }> = [];
+	for (const [, index] of text.matchAll(HELD)) {
+		const node = held[Number(index)];
+		if (node.type !== "tag") continue;
+		if (!node.tag.closing) {
+			open.push({ index: Number(index), name: node.tag.name });
+			continue;
+		}
+		const at = open.map((tag) => tag.name).lastIndexOf(node.tag.name);
+		if (at < 0) continue;
+		partners.set(Number(index), open[at].index);
+		open.length = at;
+	}
+	return partners;
+};
+
+const PIECES = /\uE000(\d+)\uE001|[\uE002-\uE007]/g;
+
+/** Whether the emphasis markers nest, with each other and with the tags that pair. */
+const markersNest = (text: string, held: Held[]): boolean => {
+	const partners = pairTags(text, held);
+	const opens = new Set(partners.values());
 	const open: string[] = [];
-	for (const char of text) {
-		if (OPENS.has(char)) open.push(char);
-		else if (CLOSES.has(char) && open.pop() !== CLOSES.get(char)) return false;
+	for (const [piece, index] of text.matchAll(PIECES)) {
+		if (index === undefined) {
+			if (OPENS.has(piece)) open.push(piece);
+			else if (open.pop() !== CLOSES.get(piece)) return false;
+		} else if (opens.has(Number(index))) {
+			open.push(index);
+		} else if (
+			partners.has(Number(index)) &&
+			open.pop() !== String(partners.get(Number(index)))
+		) {
+			return false;
+		}
 	}
 	return open.length === 0;
 };
 
-/** Emphasis whose markers overlap (`**a _b** c_`) is left as written rather than mis-nested. */
-const emphasize = (text: string) => {
+/** Emphasis whose markers overlap (`**a _b** c_`, `**a <kbd>b** c</kbd>`) is left as written rather than mis-nested. */
+const emphasize = (text: string, held: Held[]) => {
 	const marked = applyEmphasis(text);
-	return markersNest(marked) ? marked : text;
+	return markersNest(marked, held) ? marked : text;
+};
+
+/** The node an inline tag opens: a link for `<a href>`, else the element. */
+const openedBy = (tag: HtmlTag): Parent => {
+	const { href } = tag.attributes;
+	if (tag.name === "a" && href) return { type: "link", href, children: [] };
+	return {
+		type: "element",
+		name: tag.name === "a" ? "span" : tag.name,
+		attributes: tag.name === "a" ? {} : tag.attributes,
+		children: [],
+	};
 };
 
 /** Text holding placeholders and emphasis markers, as nodes. */
-const toNodes = (text: string, held: InlineNode[]): InlineNode[] => {
+const toNodes = (text: string, held: Held[]): InlineNode[] => {
+	const partners = pairTags(text, held);
+	const opens = new Set(partners.values());
 	const root: InlineNode[] = [];
 	const stack: InlineNode[][] = [root];
 	const add = (node: InlineNode) => {
@@ -138,20 +228,27 @@ const toNodes = (text: string, held: InlineNode[]): InlineNode[] => {
 		if (node.type === "text" && last?.type === "text") last.text += node.text;
 		else siblings.push(node.type === "text" ? { ...node } : node);
 	};
+	const enter = (node: Parent) => {
+		add(node);
+		stack.push(node.children);
+	};
 	let at = 0;
 	while (at < text.length) {
 		const char = text[at];
 		if (char === HOLD_OPEN) {
 			const end = text.indexOf(HOLD_CLOSE, at);
-			add(held[Number(text.slice(at + 1, end))]);
+			const index = Number(text.slice(at + 1, end));
+			const node = held[index];
+			if (node.type !== "tag") add(node);
+			else if (opens.has(index)) {
+				enter(openedBy(node.tag));
+			} else if (partners.has(index)) stack.pop();
 			at = end + 1;
 			continue;
 		}
 		const emphasis = OPENS.get(char);
 		if (emphasis) {
-			const children: InlineNode[] = [];
-			add({ type: emphasis, children });
-			stack.push(children);
+			enter({ type: emphasis, children: [] });
 		} else if (CLOSES.has(char)) {
 			stack.pop();
 		} else {
@@ -171,9 +268,9 @@ export const parseInline = (
 	value: string,
 	document: Pick<MarkdownDocument, "links" | "notes">,
 ): InlineNode[] => {
-	const held: InlineNode[] = [];
+	const held: Held[] = [];
 	const sources: string[] = [];
-	const hold = (node: InlineNode, source: string) => {
+	const hold = (node: Held, source: string) => {
 		sources.push(source);
 		return `${HOLD_OPEN}${held.push(node) - 1}${HOLD_CLOSE}`;
 	};
@@ -185,7 +282,7 @@ export const parseInline = (
 			out = out.replace(HELD, (_, index: string) =>
 				as === "source"
 					? sources[Number(index)]
-					: inlinePlainText([held[Number(index)]]),
+					: plainText(held[Number(index)]),
 			);
 		}
 		return out;
@@ -217,15 +314,17 @@ export const parseInline = (
 					: hold({ type: "text", text: decoded }, source);
 			}
 			const src = img === undefined ? undefined : tagAttribute(img, "src");
-			return src
-				? hold(
-						{
-							type: "image",
-							image: { src, alt: tagAttribute(source, "alt") ?? "" },
-						},
-						source,
-					)
-				: hold({ type: "html", text: source }, source);
+			if (src) {
+				const alt = tagAttribute(source, "alt") ?? "";
+				return hold({ type: "image", image: { src, alt } }, source);
+			}
+			const tag = readTag(source);
+			if (tag?.name === "br") return hold({ type: "break" }, source);
+			if (tag && INLINE_TAGS.has(tag.name) && !tag.empty) {
+				return hold({ type: "tag", tag }, source);
+			}
+			// Any other tag is left out; the text around it stays.
+			return hold({ type: "text", text: "" }, source);
 		},
 	);
 	// Before links, which would otherwise take an image's `[alt](src)`.
@@ -258,12 +357,12 @@ export const parseInline = (
 			const link: InlineNode = {
 				type: "link",
 				href: href === undefined ? unescapeText(target) : target,
-				children: toNodes(emphasize(label as string), held),
+				children: toNodes(emphasize(label as string, held), held),
 			};
 			return hold(link, source);
 		},
 	);
-	return toNodes(emphasize(text), held);
+	return toNodes(emphasize(text, held), held);
 };
 
 /**

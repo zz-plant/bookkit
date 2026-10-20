@@ -14,8 +14,16 @@ export type ExportEntry = {
 	kind: ExportEntryKind;
 	slug: string;
 	title: string;
-	/** Markdown: the record's structured fields (definition, steps, escalation…) followed by its body. */
+	/** Markdown: the record's body. */
 	body: string;
+	/**
+	 * Markdown written from the record's fields, shown before and after its
+	 * body as the record's page shows them: a mechanism's definition and "How
+	 * to recognize it", a toolkit action's steps and escalation, a term's
+	 * definition. The page gives these headings no ids, so theirs never take
+	 * one of the body's: a body heading "Steps" keeps `steps`, as on the site.
+	 */
+	fields?: { before?: string; after?: string };
 	description?: string;
 	locale?: string;
 	/** The content file it was read from (its module key); relative image paths start there. */

@@ -137,13 +137,13 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 
 | Module | Tier | Owns |
 | --- | --- | --- |
-| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser, request limits, and the author-token check for API routes |
+| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser, request limits, the author-token check for API routes, and the book's data folder where those routes keep what readers send |
 | `schemas/` | 0 | Zod frontmatter schemas — the record contract for every content section |
 | `styles/` | 0 | `bookkit.css`, the shipped stylesheet |
 | `llm-local/` | 0 | in-browser model adapter (optional dependency) |
 | `embeddings/` | 0 | embedding generation for semantic search |
 | `rerank/` | 0 | result reranking for search |
-| `markdown/` | 1 | heading extraction and slugging; the rehype plugin apps register |
+| `markdown/` | 1 | page facts read from MDX source (the opening paragraph, the word count); the deprecated heading-id rehype plugin |
 | `qa/` | 1 | AI question-answering providers behind the reader Q&A feature, and the limits on what a reader may send them |
 | `analytics/` | 1 | reader analytics events and the append-only log |
 | `feedback/` | 1 | reader feedback capture |

@@ -14,9 +14,10 @@ import {
 	bookPageTitle,
 	buildLocalizedReadRoutePath,
 	createBreadcrumbListStructuredDataFromTrail,
+	exampleLinksForMechanisms,
 	firstMetaDescription,
+	mechanismLinksForTerm,
 	pageFactsForModule,
-	readItemPath,
 	readRoutes,
 } from "@bookkit/astro-bookkit";
 
@@ -66,9 +67,25 @@ const localizedSectionPath = buildLocalizedReadRoutePath(
 const { entries: mechanismEntries } = resolveLocalizedContent(mechanismIndex, {
 	locale: Astro.locals?.locale,
 });
-const matchingMechanism = mechanismEntries.find(
-	(entry) => entry.slug === frontmatter.slug,
+// The mechanisms this term names (its `mechanisms`, else the one sharing its
+// slug), and their examples.
+const termMechanisms = mechanismLinksForTerm(
+	{ slug: Astro.params.slug ?? "", mechanisms: frontmatter.mechanisms },
+	mechanismEntries,
 );
+const { entries: exampleEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.examples, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const termExamples = exampleLinksForMechanisms(
+	termMechanisms.map((link) => link.slug),
+	exampleEntries,
+).map((link) => ({
+	...link,
+	meta: link.meta ? `Example · ${link.meta}` : "Example",
+}));
 const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
 const breadcrumbItems = [
 	{ name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
@@ -91,18 +108,19 @@ const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="eyebrow">Glossary{isFallback ? " · not yet translated" : ""}</div>
   <h1 id={frontmatter.slug}>{frontmatter.term}</h1>
+  <section class="content-block">
+    <Content />
+  </section>
   <NextActionPanel
     variant="compact"
     title="Keep going"
     links={[
-      {
-        href: matchingMechanism ? readItemPath("mechanisms", matchingMechanism.slug) : readRoutes.mechanisms,
-        label: matchingMechanism ? `The ${frontmatter.term} mechanism` : "Mechanisms",
-      },
-      { href: readRoutes.examples, label: "Examples" },
+      ...(termMechanisms.length > 0
+        ? termMechanisms.map((link) => ({ ...link, label: `The ${link.label} mechanism` }))
+        : [{ href: readRoutes.mechanisms, label: "Mechanisms" }]),
+      ...(termExamples.length > 0
+        ? termExamples
+        : [{ href: readRoutes.examples, label: "Examples" }]),
     ]}
   />
-  <section class="content-block">
-    <Content />
-  </section>
 </BaseLayout>

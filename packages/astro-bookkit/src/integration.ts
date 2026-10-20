@@ -98,7 +98,9 @@ export function bookkit(
 						define: {
 							"import.meta.env.BOOKKIT_SERVER_RUNTIME":
 								JSON.stringify(serverRuntime),
-							// Where the PDF and EPUB exports read images and fonts from.
+							// Where the PDF and EPUB exports read images and fonts from,
+							// and where the API routes keep what readers send
+							// (`<root>/.bookkit/`, see utils/book-data.ts).
 							"import.meta.env.BOOKKIT_ROOT": JSON.stringify(
 								fileURLToPath(config.root),
 							),

@@ -1,10 +1,16 @@
-import { createSlugger, stripMarkdown } from "../utils/markdown";
+import { createSlugger } from "../utils/markdown";
 import {
 	type InlineImage,
 	type MarkdownBlock,
-	parseMarkdownBlocks,
-	replaceImages,
+	parseMarkdown,
+	type TableAlign,
 } from "./markdown-blocks";
+import {
+	createNoteNumbers,
+	type InlineNode,
+	inlinePlainText,
+	parseInline,
+} from "./markdown-inline";
 import type { ExportEntryKind } from "./types";
 
 export const escapeHtml = (value: string) =>
@@ -55,102 +61,78 @@ export const xmlId = (value: string): string => {
 	return /^[\p{L}_]/u.test(cleaned) ? cleaned : `_${cleaned}`;
 };
 
-const CODE_SPAN = /`([^`]+)`/g;
-
 /** What a reader sees in place of an image the export cannot carry. */
 export const imageAltText = (image: InlineImage): string =>
 	`[Image: ${image.alt.trim()}]`;
-const LINK = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-// Private-use characters bracket HTML that is set aside while emphasis is applied.
-const HOLD_OPEN = String.fromCharCode(0xe000);
-const HOLD_CLOSE = String.fromCharCode(0xe001);
-const HELD = new RegExp(`${HOLD_OPEN}(\\d+)${HOLD_CLOSE}`, "g");
 
-const applyEmphasis = (html: string) =>
-	html
-		.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-		.replace(
-			/(^|[^\p{L}\p{N}_])__([^_]+)__(?![\p{L}\p{N}_])/gu,
-			"$1<strong>$2</strong>",
-		)
-		.replace(/\*([^*]+)\*/g, "<em>$1</em>")
-		.replace(/(^|[^\p{L}\p{N}_])_([^_]+)_(?![\p{L}\p{N}_])/gu, "$1<em>$2</em>");
-
-const tagsNest = (html: string): boolean => {
-	const open: string[] = [];
-	for (const [, closing, name] of html.matchAll(/<(\/?)(strong|em)>/g)) {
-		if (!closing) open.push(name);
-		else if (open.pop() !== name) return false;
-	}
-	return open.length === 0;
-};
-
-/** Emphasis whose markers overlap (`**a _b** c_`) is left as written rather than mis-nested. */
-const emphasize = (html: string) => {
-	const rendered = applyEmphasis(html);
-	return tagsNest(rendered) ? rendered : html;
-};
+/** The id of footnote `number`, and of the `count`th reference to it; slugged heading ids never hold a ".". */
+const noteId = (number: number) => `fn.${number}`;
+const noteRefId = (number: number, count: number) =>
+	count > 1 ? `fnref.${number}.${count}` : `fnref.${number}`;
 
 /**
- * Inline Markdown as XHTML that is always well formed. Code spans and links
- * are set aside before emphasis is applied, so an underscore in
- * `snake_case` or a URL can never open a tag that closes somewhere else.
+ * Markdown as XHTML that is always well formed, ending with the footnotes
+ * it refers to as EPUB 3 endnotes, each linking back to its references.
  */
-export const renderInline = (
-	value: string,
+export const markdownToHtml = (
+	body: string,
 	resolveLink: LinkResolver = (href) => href,
 	resolveImage: ImageResolver = (image) => image.src,
 ): string => {
-	const held: string[] = [];
-	const hold = (html: string) =>
-		`${HOLD_OPEN}${held.push(html) - 1}${HOLD_CLOSE}`;
-	// Drop any placeholder characters already in the text.
-	let text = value.replaceAll(HOLD_OPEN, "").replaceAll(HOLD_CLOSE, "");
-	text = text.replace(CODE_SPAN, (_, code: string) =>
-		hold(`<code>${escapeHtml(code)}</code>`),
-	);
-	// Before links, which would otherwise take an image's `[alt](src)`.
-	text = replaceImages(text, (image) => {
-		const src = resolveImage(image);
-		if (src !== null) {
-			return hold(
-				`<img src="${escapeHtml(src)}" alt="${escapeHtml(image.alt)}"/>`,
-			);
-		}
-		return image.alt.trim()
-			? hold(
-					`<span class="image-alt">${escapeHtml(imageAltText(image))}</span>`,
-				)
-			: "";
-	});
-	text = text.replace(LINK, (_, label: string, href: string) => {
-		const inner = emphasize(escapeHtml(label));
-		const target = resolveLink(href);
-		return hold(
-			target === null ? inner : `<a href="${escapeHtml(target)}">${inner}</a>`,
-		);
-	});
-	let html = emphasize(escapeHtml(text));
-	// A link label can hold a code span, so restore until nothing is left.
-	while (html.includes(HOLD_OPEN)) {
-		html = html.replace(HELD, (_, index: string) => held[Number(index)]);
-	}
-	return html;
-};
-
-export const markdownToHtml = (
-	body: string,
-	resolveLink?: LinkResolver,
-	resolveImage?: ImageResolver,
-): string => {
+	const document = parseMarkdown(body);
+	const notes = createNoteNumbers();
 	const slugger = createSlugger();
-	const inline = (text: string) =>
-		renderInline(text, resolveLink, resolveImage);
+	const nodesHtml = (nodes: InlineNode[]): string =>
+		nodes.map(nodeHtml).join("");
+	const nodeHtml = (node: InlineNode): string => {
+		switch (node.type) {
+			case "text":
+			case "html":
+				return escapeHtml(node.text);
+			case "code":
+				return `<code>${escapeHtml(node.text)}</code>`;
+			case "strong":
+			case "em":
+			case "del":
+				return `<${node.type}>${nodesHtml(node.children)}</${node.type}>`;
+			case "link": {
+				const inner = nodesHtml(node.children);
+				const target = resolveLink(node.href);
+				return target === null
+					? inner
+					: `<a href="${escapeHtml(target)}">${inner}</a>`;
+			}
+			case "image": {
+				const { image } = node;
+				const src = resolveImage(image);
+				if (src !== null) {
+					return `<img src="${escapeHtml(src)}" alt="${escapeHtml(image.alt)}"/>`;
+				}
+				return image.alt.trim()
+					? `<span class="image-alt">${escapeHtml(imageAltText(image))}</span>`
+					: "";
+			}
+			case "noteref": {
+				const { number, count } = notes.refer(node.label);
+				return `<sup><a id="${noteRefId(number, count)}" href="#${noteId(number)}" epub:type="noteref" role="doc-noteref">${number}</a></sup>`;
+			}
+		}
+	};
+	const inline = (text: string) => nodesHtml(parseInline(text, document));
+	const cells = (tag: "th" | "td", row: string[], align: TableAlign[]) =>
+		row
+			.map(
+				(cell, column) =>
+					`<${tag}${align[column] ? ` class="align-${align[column]}"` : ""}>${inline(cell)}</${tag}>`,
+			)
+			.join("");
+
 	const render = (block: MarkdownBlock): string => {
 		if (block.type === "heading") {
 			const level = Math.min(block.level, 6);
-			const id = xmlId(slugger(stripMarkdown(block.text)));
-			return `<h${level} id="${escapeHtml(id)}">${inline(block.text)}</h${level}>`;
+			const nodes = parseInline(block.text, document);
+			const id = xmlId(slugger(inlinePlainText(nodes)));
+			return `<h${level} id="${escapeHtml(id)}">${nodesHtml(nodes)}</h${level}>`;
 		}
 		if (block.type === "list") {
 			const tag = block.ordered ? "ol" : "ul";
@@ -160,7 +142,43 @@ export const markdownToHtml = (
 		if (block.type === "quote") {
 			return `<blockquote><p>${inline(block.text)}</p></blockquote>`;
 		}
+		if (block.type === "code") {
+			return `<pre><code>${escapeHtml(block.text)}</code></pre>`;
+		}
+		if (block.type === "table") {
+			const { align, header, rows } = block;
+			const head = `<thead><tr>${cells("th", header, align)}</tr></thead>`;
+			const bodyRows = rows
+				.map((row) => `<tr>${cells("td", row, align)}</tr>`)
+				.join("");
+			return `<table>${head}${bodyRows ? `<tbody>${bodyRows}</tbody>` : ""}</table>`;
+		}
 		return `<p>${inline(block.text)}</p>`;
 	};
-	return parseMarkdownBlocks(body).map(render).join("\n");
+	const html = document.blocks.map(render);
+
+	// Notes may refer to further notes, which then join the end of the list.
+	const items: string[] = [];
+	for (let index = 0; index < notes.labels.length; index += 1) {
+		const number = index + 1;
+		const paragraphs = (document.notes.get(notes.labels[index]) ?? [])
+			.filter(Boolean)
+			.map(inline);
+		const backlinks = Array.from(
+			{ length: notes.references(notes.labels[index]) },
+			(_, at) =>
+				`<a href="#${noteRefId(number, at + 1)}" epub:type="backlink" role="doc-backlink">↩${at > 0 ? `<sup>${at + 1}</sup>` : ""}</a>`,
+		).join(" ");
+		if (paragraphs.length === 0) paragraphs.push("");
+		const last = paragraphs.length - 1;
+		paragraphs[last] = [paragraphs[last], backlinks].filter(Boolean).join(" ");
+		const content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
+		items.push(`<li id="${noteId(number)}">${content.join("")}</li>`);
+	}
+	if (items.length > 0) {
+		html.push(
+			`<section class="notes" epub:type="endnotes" role="doc-endnotes"><h2>Notes</h2><ol>${items.join("")}</ol></section>`,
+		);
+	}
+	return html.join("\n");
 };

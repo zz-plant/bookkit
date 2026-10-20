@@ -379,7 +379,7 @@ describe("exports modules", () => {
 		const pdf = await createPdfExport(bundle, options);
 
 		expect((await pdfLines(pdf)).flat()).toContain(
-			"See [Image: the flow] , [Image: the dashboard] , and [Image: the board] .",
+			"See [Image: the flow], [Image: the dashboard], and [Image: the board].",
 		);
 		expect(await drawnImages(pdf)).toEqual([]);
 		expect(warnings).toEqual([

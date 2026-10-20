@@ -101,6 +101,23 @@ describe("PDF and EPUB exports in a build", () => {
 		expect(text).toContain("Κάθε ειδοποίηση χρειάζεται έναν υπεύθυνο.");
 		// The handoff board, from Markdown and from an <img> tag: one image.
 		expect(await imageCount(pdf)).toBe(1);
+		// What import writes into MDX, shown as the notes' readers see it: a
+		// code span, escaped placeholders and braces, the escaped "export", a
+		// table, a reference-style link, fenced code, and a footnote.
+		const prose = text.join(" ");
+		for (const shown of [
+			"Restart {service} only after you page <on-call-lead>. A good handoff takes <10 minutes and costs {nothing}.",
+			"export the timeline before you hand off.",
+			"SignalAction PagerClassify first Slack pingBatch it",
+			"Use the handoff checklist.",
+			'oncall handoff --to @next --note "{state}" <<EOF',
+			"Notes 1.Internal postmortem, March.",
+		]) {
+			expect(prose).toContain(shown);
+		}
+		expect(prose).not.toContain("&#101;");
+		expect(prose).not.toContain("[^1]");
+		expect(prose).not.toContain("| ---");
 
 		const epub = new Uint8Array(readFileSync(dist("exports", "book.epub")));
 		expect(await inspectEpub(epub)).toEqual([]);
@@ -112,6 +129,32 @@ describe("PDF and EPUB exports in a build", () => {
 				?.async("string"),
 		).toContain(
 			'<img src="../images/handoff-board.png" alt="The handoff board in the ops room"/>',
+		);
+		const xhtml = async (slug: string) =>
+			(await zip.file(`OEBPS/text/chapter-${slug}.xhtml`)?.async("string")) ??
+			"";
+		expect(await xhtml("why-handoffs-fail")).toContain(
+			"<p>Restart <code>{service}</code> only after you page &lt;on-call-lead&gt;. A good handoff takes &lt;10 minutes and costs {nothing}.</p>",
+		);
+		expect(await xhtml("why-handoffs-fail")).toContain(
+			"<p>export the timeline before you hand off.</p>",
+		);
+		const rhythm = await xhtml("shift-rhythm");
+		expect(rhythm).toContain(
+			"<table><thead><tr><th>Signal</th><th>Action</th></tr></thead><tbody><tr><td>Pager</td><td>Classify first</td></tr><tr><td>Slack ping</td><td>Batch it</td></tr></tbody></table>",
+		);
+		expect(rhythm).toContain(
+			'<p>Use the <a href="chapter-handoff-checklist.xhtml">handoff checklist</a>.</p>',
+		);
+		expect(rhythm).toContain(
+			"<pre><code>oncall handoff --to @next --note &quot;{state}&quot; &lt;&lt;EOF</code></pre>",
+		);
+		const retro = await xhtml("retro-notes");
+		expect(retro).toContain(
+			'<sup><a id="fnref.1" href="#fn.1" epub:type="noteref" role="doc-noteref">1</a></sup>',
+		);
+		expect(retro).toContain(
+			'<li id="fn.1"><p>Internal postmortem, March. <a href="#fnref.1" epub:type="backlink" role="doc-backlink">↩</a></p></li>',
 		);
 
 		const check = checkBuild();

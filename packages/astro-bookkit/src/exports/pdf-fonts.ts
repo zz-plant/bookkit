@@ -5,7 +5,7 @@ import { engineRequire } from "../utils/engine-require";
 
 /**
  * The PDF's fonts. Text in Windows-1252 (Western European) is drawn in
- * Helvetica, as it always has been. Any other character is drawn in the
+ * Helvetica, as it always has been, and code in Courier. Any other character is drawn in the
  * first font that has it: Noto Sans for Latin Extended, Vietnamese, Greek,
  * and Cyrillic, then the fonts the book adds (`exports.pdfFont`). Those fonts
  * are read only when the text needs them and embedded as subsets, so a
@@ -20,7 +20,7 @@ export type PdfFontFile = {
 	bytes: Uint8Array;
 };
 
-export type PdfFontStyle = "regular" | "bold" | "italic";
+export type PdfFontStyle = "regular" | "bold" | "italic" | "mono" | "monoBold";
 
 /** The scripts the built-in fonts draw, for messages. */
 export const BUILT_IN_PDF_SCRIPTS = "Latin, Greek, and Cyrillic";
@@ -29,6 +29,8 @@ const STANDARD_FONTS: Record<PdfFontStyle, StandardFonts> = {
 	regular: StandardFonts.Helvetica,
 	bold: StandardFonts.HelveticaBold,
 	italic: StandardFonts.HelveticaOblique,
+	mono: StandardFonts.Courier,
+	monoBold: StandardFonts.CourierBold,
 };
 
 // Noto Sans as Fontsource ships it (SIL Open Font License 1.1, see
@@ -48,6 +50,9 @@ const NOTO_STYLES: Record<PdfFontStyle, string> = {
 	regular: "400-normal",
 	bold: "700-normal",
 	italic: "400-italic",
+	// Code outside Windows-1252 falls back to the proportional face.
+	mono: "400-normal",
+	monoBold: "700-normal",
 };
 
 // From the engine's folder, not the bundle's: see utils/engine-require.ts.
@@ -92,7 +97,7 @@ export const isWinAnsi = (char: string): boolean => {
 
 /** One style's fonts, in the order a character is looked up. */
 export type PdfFontChain = {
-	/** Helvetica, or its bold or oblique. */
+	/** Helvetica (or its bold or oblique), or Courier for code. */
 	standard: PDFFont;
 	/** Whether a font after Helvetica has the character and can lay it out. */
 	covers: (char: string) => boolean;

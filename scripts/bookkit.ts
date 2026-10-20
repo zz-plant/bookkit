@@ -1,12 +1,16 @@
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import {
 	existsSync,
+	mkdirSync,
 	readdirSync,
 	readFileSync,
+	renameSync,
+	rmdirSync,
+	rmSync,
 	statSync,
 	writeFileSync,
 } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
 import {
@@ -44,7 +48,7 @@ import {
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
 import { callsFor, nearestTo, readJudgments } from "./lib/corpus-judgments";
 import { addDistinctRuling, findRuling } from "./lib/corpus-rulings";
-import { corpusScope, readCorpusBooks } from "./lib/corpus-scope";
+import { corpusScope, pairCorpus, readCorpusBooks } from "./lib/corpus-scope";
 import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
 import {
 	DEFAULT_EMBEDDING_MODEL_KEY,
@@ -60,6 +64,7 @@ import {
 	runPreview,
 } from "./lib/folder-report";
 import { loadBookContent } from "./lib/load-book";
+import { type FileChange, planMerge, planSync } from "./lib/merge-mechanisms";
 
 const args = process.argv.slice(2);
 // No command: the books, and the commands to write, check, preview, build, and deploy one.
@@ -286,7 +291,7 @@ switch (command) {
 		);
 		if (corpus !== 0) {
 			console.log(
-				'  → For each cluster above: make it one mechanism, or rule the pair distinct: bun run bookkit rule <a> <b> --distinct "<reason>".',
+				'  → For each cluster above: one idea, bun run bookkit merge <keep> <drop> --reason "<why>"; or different ideas, bun run bookkit rule <a> <b> --distinct "<reason>".',
 			);
 		}
 		process.exit(structure === 0 && corpus === 0 ? 0 : 1);
@@ -305,6 +310,16 @@ switch (command) {
 
 	case "rule": {
 		process.exit(rule(args.slice(1)));
+		break;
+	}
+
+	case "merge": {
+		process.exit(merge(args.slice(1)));
+		break;
+	}
+
+	case "sync": {
+		process.exit(sync(args.slice(1)));
 		break;
 	}
 
@@ -1058,7 +1073,7 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 		console.log("  may duplicate (by wording):");
 		for (const match of ownCorpus) console.log(describe(match));
 		console.log(
-			'    Same idea: bind that slug instead. Different: bun run bookkit rule <a> <b> --distinct "<reason>".',
+			`    Same idea: bun run bookkit merge <that slug> ${slug || "<this slug>"} --reason "<why>". Different: bun run bookkit rule <a> <b> --distinct "<reason>".`,
 		);
 	}
 	if (elsewhere.length > 0) {
@@ -1151,8 +1166,8 @@ function printJudged(slug: string, judges: MechanismJudges) {
 	for (const { other, call } of open) {
 		console.log(
 			call.call === "same-idea"
-				? `  judges: the same idea as ${other} (${call.votes} of ${call.votes}). Bind ${other} instead, or: bun run bookkit rule ${slug} ${other} --distinct "<reason>"`
-				: `  judges split on ${other}: same idea ${call.call === "split" ? call.sameIdea : 0} of ${call.votes}. Settle it: bind ${other}, or bun run bookkit rule ${slug} ${other} --distinct "<reason>"`,
+				? `  judges: the same idea as ${other} (${call.votes} of ${call.votes}). Fold it in: bun run bookkit merge ${other} ${slug} --reason "<why>"; or: bun run bookkit rule ${slug} ${other} --distinct "<reason>"`
+				: `  judges split on ${other}: same idea ${call.call === "split" ? call.sameIdea : 0} of ${call.votes}. Settle it: bun run bookkit merge ${other} ${slug} --reason "<why>", or bun run bookkit rule ${slug} ${other} --distinct "<reason>"`,
 		);
 	}
 	if (judges.calls.length > 0 && open.length === 0) {
@@ -1244,14 +1259,14 @@ function judge(rest: string[]): number {
 /**
  * bookkit rule <a> <b> --distinct "<reason>": the author's ruling that two
  * mechanisms in the shared corpus are different ideas, added to corpus.json.
- * Merges stay by hand: they change slugs in every book that uses them.
+ * The other ruling, one idea, is bookkit merge.
  */
 function rule(rest: string[]): number {
 	const usage =
 		'bun run bookkit rule <mechanism> <mechanism> --distinct "<reason>"';
 	if (rest.includes("--same") || rest.includes("--merge")) {
 		console.error(
-			'A merge keeps one slug in every book that uses either mechanism, so it is done by hand: give both files one slug and contract, rebind the chapters, and record it in corpus.json "merged" with both mechanisms as they were. bookkit rule records distinct rulings.',
+			'bookkit rule records distinct rulings. For one idea: bun run bookkit merge <keep> <drop> --reason "<why they are one idea>".',
 		);
 		return 1;
 	}
@@ -1275,27 +1290,20 @@ function rule(rest: string[]): number {
 	const loaded = books.flatMap((book) =>
 		loadBookContent(book).mechanisms.map((m) => ({ ...m, book })),
 	);
-	const corporaOf = (slug: string) =>
-		new Set(
-			loaded.filter((m) => m.slug === slug).map((m) => scope.corpusOf(m.book)),
-		);
 	const slugs = [...new Set(loaded.map((m) => m.slug))];
 	for (const slug of [a, b]) {
 		if (slugs.includes(slug)) continue;
 		console.error(`No mechanism ${slug}.${didYouMean(slug, slugs)}`);
 		return 1;
 	}
-	const corpus = [...corporaOf(a)].find((name) => corporaOf(b).has(name));
-	if (!corpus) {
-		const name = (slug: string) =>
-			[...corporaOf(slug)]
-				.map((c) => (c === "corpus.json" ? "the shared corpus" : c))
-				.join(", ");
+	const found = pairCorpus(a, b, loaded, scope);
+	if ("where" in found) {
 		console.error(
-			`${a} (${name(a)}) and ${b} (${name(b)}) are in different corpora, where similar mechanisms are allowed, so there is nothing to rule. To hold two books to one vocabulary, list both in "books" in corpus.json.`,
+			`${a} (${found.where[0]}) and ${b} (${found.where[1]}) are in different corpora, where similar mechanisms are allowed, so there is nothing to rule. To hold two books to one vocabulary, list both in "books" in corpus.json.`,
 		);
 		return 1;
 	}
+	const { corpus } = found;
 	const shared = loaded.filter((m) => scope.corpusOf(m.book) === corpus);
 	const corpusPath = join(repoRoot(), "corpus.json");
 	const text = existsSync(corpusPath) ? readFileSync(corpusPath, "utf8") : null;
@@ -1347,6 +1355,179 @@ function rule(rest: string[]): number {
 	return 0;
 }
 
+/** Positional arguments, skipping the values of the named flags. */
+function positionals(list: string[], valued: string[]): string[] {
+	const values = new Set(
+		valued.map((name) => list.indexOf(name) + 1).filter((index) => index > 0),
+	);
+	return list.filter(
+		(arg, index) => !arg.startsWith("--") && !values.has(index),
+	);
+}
+
+/** Writes a merge or sync: moves, then edits, then removals. */
+function applyChanges(changes: FileChange[]) {
+	for (const change of changes) {
+		if (change.kind !== "move") continue;
+		mkdirSync(dirname(change.to), { recursive: true });
+		if (change.text === undefined) {
+			renameSync(change.path, change.to);
+		} else {
+			writeFileSync(change.to, change.text);
+			rmSync(change.path);
+		}
+	}
+	for (const change of changes) {
+		if (change.kind === "edit") writeFileSync(change.path, change.text);
+	}
+	for (const change of changes) {
+		if (change.kind === "remove") rmSync(change.path, { force: true });
+	}
+	// A folder a move emptied, such as examples/<drop>/.
+	for (const change of changes) {
+		if (change.kind !== "move") continue;
+		const folder = dirname(change.path);
+		if (existsSync(folder) && readdirSync(folder).length === 0) {
+			rmdirSync(folder);
+		}
+	}
+}
+
+/** One line per change, as paths from the workspace root. */
+function printChanges(changes: FileChange[]) {
+	const at = (path: string) => relative(repoRoot(), path);
+	for (const change of changes) {
+		if (change.kind === "move") {
+			console.log(`  → ${at(change.path)} → ${at(change.to)}`);
+		} else if (change.kind === "edit") {
+			console.log(`  ~ ${at(change.path)}`);
+		} else {
+			console.log(`  - ${at(change.path)}`);
+		}
+	}
+}
+
+/**
+ * bookkit merge <keep> <drop> --reason "<why>": the author's ruling that two
+ * mechanisms are one idea, carried out in every book of their corpus and
+ * recorded in corpus.json (lib/merge-mechanisms.ts).
+ */
+function merge(rest: string[]): number {
+	const usage =
+		'bun run bookkit merge <keep> <drop> --reason "<why they are one idea>" [--definition "<one sentence>"] [--dry-run]';
+	const [keep, drop] = positionals(rest, ["--reason", "--definition"]);
+	if (!keep || !drop) {
+		console.error(
+			`Usage: ${usage}\n<keep> stays, in every book that has either one; <drop> is folded into it.`,
+		);
+		return 1;
+	}
+	const reason = flagValue(rest, "--reason");
+	if (!reason?.trim()) {
+		console.error(
+			"--reason needs why they are one idea, in your words: the lever and the evidence they share. corpus.json keeps it with both mechanisms as they were.",
+		);
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	const definition = flagValue(rest, "--definition");
+	const plan = planMerge({
+		keep,
+		drop,
+		reason,
+		definition,
+		date: new Date().toISOString().slice(0, 10),
+	});
+	if ("error" in plan) {
+		console.error(plan.error);
+		return 1;
+	}
+	const dryRun = rest.includes("--dry-run");
+	console.log(
+		`${dryRun ? "Would merge" : "Merged"} ${drop} into ${keep} in ${plan.books.join(", ")}:`,
+	);
+	printChanges(plan.changes);
+	console.log(
+		`  ~ corpus.json: the merge, with both mechanisms as they were${plan.carried.length > 0 ? `; ${plan.carried.length} ruling(s) on ${drop} now on ${keep}` : ""}`,
+	);
+	const lists = (["is", "isNot", "predictions", "tests"] as const)
+		.map((field) => `${field} ${plan.contract[field].length}`)
+		.join(", ");
+	console.log(
+		`\nOne contract in every copy: ${definition ? "your definition" : `${keep}'s title and definition`}; both mechanisms' items, without repeats (${lists}).`,
+	);
+	for (const ruling of plan.carried) {
+		console.log(
+			`  Ruled distinct, carried over: ${ruling.pair.join(" ~ ")}: ${ruling.reason}`,
+		);
+	}
+	if (plan.carried.length > 0) {
+		console.log(`  Reread those reasons: they were written about ${drop}.`);
+	}
+	for (const note of plan.notes) console.log(`  ${note}`);
+	if (plan.leftovers.length > 0) {
+		console.log(`\nStill naming ${drop} (read these over):`);
+		for (const left of plan.leftovers.slice(0, 12)) {
+			console.log(`  ${left.path}:${left.line}  ${left.text}`);
+		}
+		if (plan.leftovers.length > 12) {
+			console.log(`  … and ${plan.leftovers.length - 12} more`);
+		}
+	}
+	if (dryRun) {
+		console.log("\nNothing written (--dry-run).");
+		return 0;
+	}
+	applyChanges(plan.changes);
+	writeFileSync(plan.corpusPath, plan.corpusText);
+	console.log(
+		`\nLinks to ${drop}'s own pages (/read/mechanisms/${drop}) no longer resolve; for a published book, say so in its release notes.`,
+	);
+	console.log(
+		`To change the shared contract later: edit it in one book, then bun run bookkit sync ${keep}.`,
+	);
+	console.log(
+		"Next: bun run bookkit check, then commit the books and corpus.json together.",
+	);
+	return 0;
+}
+
+/** bookkit sync <slug> [--from <book>]: one contract for every copy. */
+function sync(rest: string[]): number {
+	const [slug] = positionals(rest, ["--from"]);
+	if (!slug) {
+		console.error(
+			"Usage: bun run bookkit sync <mechanism> [--from <book>] [--dry-run]\nCopies one copy's contract (default: the one edited last) to the mechanism's other books in its corpus.",
+		);
+		return 1;
+	}
+	const from = flagValue(rest, "--from");
+	const plan = planSync(slug, from);
+	if ("error" in plan) {
+		console.error(plan.error);
+		return 1;
+	}
+	if (plan.changes.length === 0) {
+		console.log(
+			plan.books.length === 0
+				? `${slug} is in ${plan.from} only; there is nothing to sync.`
+				: `${slug} already reads the same in ${[plan.from, ...plan.books].join(", ")}.`,
+		);
+		return 0;
+	}
+	const dryRun = rest.includes("--dry-run");
+	console.log(
+		`${dryRun ? "Would copy" : "Copied"} ${slug}'s contract from ${plan.from}${from ? "" : " (the copy edited last; --from <book> picks another)"} to:`,
+	);
+	printChanges(plan.changes);
+	if (dryRun) {
+		console.log("\nNothing written (--dry-run).");
+		return 0;
+	}
+	applyChanges(plan.changes);
+	return 0;
+}
+
 function printHelp() {
 	console.log(`Bookkit — write, check, preview, and publish books
 
@@ -1387,6 +1568,11 @@ Check
                                             closest pairs; writes a prompt per judge in .bookkit/judging/
   judge record [folder]                     record their answers (default: the newest request with answers)
   rule <a> <b> --distinct "<reason>"        rule two mechanisms different ideas, in corpus.json
+  merge <keep> <drop> --reason "<why>" [--definition "…"] [--dry-run]
+                                            rule them one idea: <drop> becomes <keep> in every book of the
+                                            corpus (contract, files, links, config) and corpus.json records it
+  sync <mechanism> [--from <book>]          copy one copy's contract (default: the one edited last) to the
+                                            mechanism's other books
   similar "<title>" [--definition "…"] [--semantic]
                                             existing mechanisms, in any book, that a new one might duplicate
   validate [book]                           structure only

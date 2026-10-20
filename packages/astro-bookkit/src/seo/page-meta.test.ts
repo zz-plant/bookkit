@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { extractPageFacts } from "../markdown/pageFacts";
 import {
 	bookPageTitle,
 	firstMetaDescription,
@@ -46,6 +47,24 @@ describe("toMetaDescription", () => {
 	it("keeps the words of inline code", () => {
 		expect(toMetaDescription("Set `max_retries` before paging.")).toBe(
 			"Set max_retries before paging.",
+		);
+	});
+
+	it("keeps an opening paragraph's escaped placeholders, and tags inside code", () => {
+		const { excerpt } = extractPageFacts(
+			"Replace \\<service-name\\> with the service that pages you, and wrap the timeline in `<details>`.",
+		);
+		expect(toMetaDescription(excerpt)).toBe(
+			"Replace <service-name> with the service that pages you, and wrap the timeline in <details>.",
+		);
+	});
+
+	it("reads an opening paragraph's tags as the page shows their words", () => {
+		const { excerpt } = extractPageFacts(
+			"Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy the alert,<br/>then paste it into the incident log.",
+		);
+		expect(toMetaDescription(excerpt)).toBe(
+			"Press Ctrl+C to copy the alert, then paste it into the incident log.",
 		);
 	});
 

@@ -135,6 +135,28 @@ describe("splitFencedCode", () => {
 			{ code: false, text: "d", line: 7 },
 		]);
 	});
+
+	it("reads a fence indented any amount, as MDX does (a third-level list item's)", () => {
+		expect(
+			splitFencedCode(
+				"- a\n  - b\n    - c\n\n      ```sh\n      x\n      ```\nd",
+			),
+		).toEqual([
+			{ code: false, text: "- a\n  - b\n    - c\n", line: 0 },
+			{ code: true, text: "      ```sh\n      x\n      ```", line: 4 },
+			{ code: false, text: "d", line: 7 },
+		]);
+	});
+
+	it("opens no fence at backticks with a backtick after them, and closes none with an info string", () => {
+		expect(splitFencedCode("```inline``` code\ntext")).toEqual([
+			{ code: false, text: "```inline``` code\ntext", line: 0 },
+		]);
+		expect(splitFencedCode("```\na\n```js\nb\n```\nc")).toEqual([
+			{ code: true, text: "```\na\n```js\nb\n```", line: 0 },
+			{ code: false, text: "c", line: 5 },
+		]);
+	});
 });
 
 describe("stripMarkdown", () => {
@@ -160,6 +182,20 @@ describe("stripMarkdown", () => {
 		expect(stripMarkdown("Watch error_rate_limit and _emphasis_.")).toBe(
 			"Watch error_rate_limit and emphasis.",
 		);
+	});
+
+	it("leaves tags out, keeping a space where one separates words", () => {
+		expect(
+			stripMarkdown("Press <kbd>Ctrl</kbd>+<kbd>C</kbd>, then<br/>wait."),
+		).toBe("Press Ctrl+C, then wait.");
+		expect(stripMarkdown("<p>One</p><p>two</p>")).toBe("One  two");
+		expect(stripMarkdown("Note:<Callout>check</Callout>")).toBe("Note: check");
+	});
+
+	it("keeps a link's words when its destination holds parentheses", () => {
+		expect(
+			stripMarkdown("See [the wiki](https://example.com/Foo_(bar)) first."),
+		).toBe("See the wiki first.");
 	});
 });
 

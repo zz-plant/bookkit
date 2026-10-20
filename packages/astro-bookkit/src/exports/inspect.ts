@@ -11,6 +11,8 @@ import {
 	PDFRawStream,
 	PDFString,
 } from "pdf-lib";
+import { decodeEntities } from "./markdown-html";
+import { isSafeLink, SAFE_LINK_SCHEMES } from "./markdown-to-html";
 
 /**
  * Structural checks for built exports, deeper than "the file starts with the
@@ -142,11 +144,24 @@ const startsWithStoredMimetype = (bytes: Uint8Array): boolean => {
 
 const MODIFIED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
+const HREF = /\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+
+const SAFE_SCHEME_LIST = [...SAFE_LINK_SCHEMES]
+	.join(", ")
+	.replace(/, (?=[^,]*$)/, ", and ");
+
+/** What is wrong with a link whose scheme an export must not link to, or null for a safe link. */
+const unsafeLinkProblem = (href: string): string | null =>
+	isSafeLink(href)
+		? null
+		: `links to "${href.length > 60 ? `${href.slice(0, 59)}…` : href}"; an export links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`;
+
 /**
- * What stops an EPUB from opening reliably: the OCF container, the package
- * metadata EPUB 3 requires, a manifest item, link, or image with no file
- * behind it, an image the manifest does not list, or a content document that
- * is not well-formed XHTML.
+ * What stops an EPUB from opening reliably, or safely: the OCF container,
+ * the package metadata EPUB 3 requires, a manifest item, link, or image with
+ * no file behind it, an image the manifest does not list, a content
+ * document that is not well-formed XHTML, or a link with a scheme that runs
+ * code or carries a document (`javascript:`, `vbscript:`, `data:`).
  */
 export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 	const problems: string[] = [];
@@ -228,8 +243,15 @@ export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 		problems.push(
 			...xmlWellFormednessProblems(xhtml).map((p) => `${path} ${p}`),
 		);
-		for (const [, href] of xhtml.matchAll(/\shref="([^"]+)"/g)) {
-			if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("#")) continue;
+		for (const [, double, single] of xhtml.matchAll(HREF)) {
+			const href = decodeEntities(double ?? single ?? "");
+			const unsafe = unsafeLinkProblem(href);
+			if (unsafe) {
+				problems.push(`${path} ${unsafe}`);
+				continue;
+			}
+			if (!href || /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("#"))
+				continue;
 			const target = resolvePath(path, href);
 			if (!zip.file(target))
 				problems.push(`${path} links to ${href}, which is not in the book`);
@@ -429,7 +451,8 @@ export const extractPdfLinks = async (
 
 /**
  * What makes a PDF unusable: it does not load, has no pages or no text,
- * draws text off the page, or links to a named destination it does not have.
+ * draws text off the page, links to a named destination it does not have,
+ * or links to an address with a scheme that runs code (`javascript:`).
  */
 export const inspectPdf = async (bytes: Uint8Array): Promise<string[]> => {
 	let pages: PdfTextRun[][];
@@ -449,6 +472,8 @@ export const inspectPdf = async (bytes: Uint8Array): Promise<string[]> => {
 		problems.push("the PDF has no extractable text");
 	}
 	for (const link of await extractPdfLinks(bytes)) {
+		const unsafe = link.uri === undefined ? null : unsafeLinkProblem(link.uri);
+		if (unsafe) problems.push(`page ${link.page} ${unsafe}`);
 		if (link.destination !== undefined && !destinations.has(link.destination)) {
 			problems.push(
 				`page ${link.page} links to "${link.destination}", which the PDF does not have`,

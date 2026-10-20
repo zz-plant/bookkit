@@ -199,10 +199,6 @@ export {
 } from "./localization";
 export { rehypeBookkitHeadingIds } from "./markdown/headingIds";
 export {
-	extractHeadingsFromMarkdown,
-	type HeadingEntry,
-} from "./markdown/headings";
-export {
 	extractPageFacts,
 	type PageFacts,
 	pageFactsForModule,

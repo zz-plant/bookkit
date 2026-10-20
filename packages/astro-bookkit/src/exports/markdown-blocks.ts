@@ -1,4 +1,4 @@
-import { splitFencedCode } from "../utils/markdown";
+import { FENCE_OPENING, splitFencedCode } from "../utils/markdown";
 import {
 	BLOCK_TAGS,
 	HTML_TAG,
@@ -20,8 +20,16 @@ import {
 /** A column's or block's alignment: a table's delimiter row (`:---`, `:---:`, `---:`), or an HTML `align`. */
 export type TableAlign = "left" | "center" | "right" | null;
 
-/** A list item: its first paragraph's text, then what is nested under it (lists, code, paragraphs). */
-export type ListItem = { text: string; blocks: MarkdownBlock[] };
+/**
+ * A list item: its first paragraph's text, then what is nested under it
+ * (lists, code, paragraphs). A task list item (`- [ ] …`, `- [x] …`) is
+ * `checked` or not, its box left out of `text`.
+ */
+export type ListItem = {
+	text: string;
+	blocks: MarkdownBlock[];
+	checked?: boolean;
+};
 
 /** The HTML elements an export keeps around a run of blocks. */
 export type SectionTag =
@@ -144,7 +152,12 @@ const NUMBERED = /^\d+[.)]\s+(.*)$/;
 // A list item: its indent, marker (and number), the spaces after it, and its text.
 const LIST_ITEM = /^([ \t]*)([-*+]|(\d{1,9})[.)])([ \t]+)(\S.*)$/;
 const QUOTE = /^>\s?(.*)$/;
-const FENCE = /^(\s{0,3})(`{3,}|~{3,})/;
+// A line of three or more `-`, `*`, or `_` (spaces between allowed): a rule.
+const THEMATIC_BREAK = /^[ \t]*([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+// A line of `=` or `-` under a paragraph makes it a heading, level 1 or 2.
+const SETEXT_UNDERLINE = /^[ \t]*(=+|-+)[ \t]*$/;
+// A task list item's box, as GFM reads it: `[ ]`, `[x]`, or `[X]`, then a space and the task.
+const TASK_BOX = /^\[([ xX])\][ \t]+(?=\S)/;
 const LINK_DEFINITION =
 	/^ {0,3}\[(?!\^)((?:[^\\\]]|\\.)+)\]:[ \t]*(?:<([^<>]*)>|(\S+))(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$/;
 const NOTE_DEFINITION = /^ {0,3}\[\^([^\]\s]+)\]:[ \t]*(.*)$/;
@@ -155,7 +168,9 @@ const DELIMITER_CELL = /^:?-+:?$/;
 
 /** A line that starts a block of its own, ending a table or a footnote's paragraph. */
 const startsBlock = (trimmed: string) =>
-	[HEADING, BULLET, NUMBERED, QUOTE].some((pattern) => pattern.test(trimmed));
+	[HEADING, THEMATIC_BREAK, BULLET, NUMBERED, QUOTE].some((pattern) =>
+		pattern.test(trimmed),
+	);
 
 /** The column a line's text starts at, a tab reaching the next multiple of four. */
 const indentOf = (whitespace: string) => {
@@ -186,25 +201,41 @@ const tableAlign = (line: string | undefined): TableAlign[] | null => {
 	});
 };
 
-/** A fenced code segment's content (fence lines dropped, the fence's indent removed), and that indent. */
+/** `line` with up to `columns` columns of its indentation removed, as CommonMark removes a fence's indent from its content. */
+const outdent = (line: string, columns: number) => {
+	let column = 0;
+	let at = 0;
+	while (at < line.length && /[ \t]/.test(line[at])) {
+		const next = line[at] === "\t" ? column + 4 - (column % 4) : column + 1;
+		if (next > columns) break;
+		column = next;
+		at += 1;
+	}
+	return line.slice(at);
+};
+
+/**
+ * A fenced code segment's content (fence lines dropped, the fence's indent
+ * removed from each line), and the column the fence starts at, which says
+ * which list item, if any, it belongs to.
+ */
 const codeBlock = (segment: string) => {
 	const lines = segment.split("\n");
-	const [, indent = "", fence = "```"] = lines[0].match(FENCE) ?? [];
-	const closing =
-		lines.length > 1 ? lines[lines.length - 1].match(FENCE)?.[2] : undefined;
+	const [, whitespace = "", fence = "```"] =
+		lines[0].match(FENCE_OPENING) ?? [];
+	const last = lines.length > 1 ? lines[lines.length - 1].trim() : "";
+	// splitFencedCode ends a segment at its closing fence, or at the end of the body.
 	const closed =
-		closing !== undefined &&
-		closing[0] === fence[0] &&
-		closing.length >= fence.length;
-	const outdent = new RegExp(`^ {0,${indent.length}}`);
+		last.length >= fence.length && [...last].every((char) => char === fence[0]);
+	const indent = indentOf(whitespace);
 	const block: MarkdownBlock = {
 		type: "code",
 		text: lines
 			.slice(1, closed ? -1 : undefined)
-			.map((line) => line.replace(outdent, ""))
+			.map((line) => outdent(line, indent))
 			.join("\n"),
 	};
-	return { block, indent: indentOf(indent) };
+	return { block, indent };
 };
 
 /** Prose, fenced code, or an HTML element holding more of them. */
@@ -346,7 +377,10 @@ const createFlowReader = (definitions: Definitions) => {
 		// Five or more spaces after the marker start indented content, not the text.
 		const content =
 			width - indent - marker.length > 4 ? indent + marker.length + 1 : width;
-		const item: ListItem = { text, blocks: [] };
+		const box = text.match(TASK_BOX);
+		const item: ListItem = box
+			? { text: text.slice(box[0].length), blocks: [], checked: box[1] !== " " }
+			: { text, blocks: [] };
 		const start = ordered ? Number(number) : 1;
 		const newList = (): ListBlock => ({
 			type: "list",
@@ -469,6 +503,23 @@ const createFlowReader = (definitions: Definitions) => {
 				}
 				index -= 1;
 				blocks.push({ type: "table", align, header, rows });
+				continue;
+			}
+			// As CommonMark reads them: an underline makes the paragraph above it a
+			// heading, which takes a slug on the site; else `---` or `***` is a rule.
+			const underline = line.match(SETEXT_UNDERLINE)?.[1];
+			if (underline && current?.type === "paragraph") {
+				open = null;
+				blocks.push({
+					type: "heading",
+					level: underline[0] === "=" ? 1 : 2,
+					text: current.text,
+				});
+				continue;
+			}
+			if (THEMATIC_BREAK.test(line)) {
+				close();
+				blocks.push({ type: "rule" });
 				continue;
 			}
 			const heading = trimmed.match(HEADING);

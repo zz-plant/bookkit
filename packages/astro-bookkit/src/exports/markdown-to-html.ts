@@ -1,14 +1,12 @@
-import { createHeadingSlugger } from "../utils/markdown";
-import {
-	type InlineImage,
-	type ListItem,
-	type MarkdownBlock,
-	parseMarkdown,
-	type TableAlign,
+import type {
+	InlineImage,
+	ListItem,
+	MarkdownBlock,
+	TableAlign,
 } from "./markdown-blocks";
+import { type EntryMarkdown, parseEntryMarkdown } from "./markdown-headings";
 import {
 	createNoteNumbers,
-	headingSlugText,
 	type InlineNode,
 	parseInline,
 } from "./markdown-inline";
@@ -27,6 +25,40 @@ export type LinkResolver = (href: string) => string | null;
 
 /** A URL with a scheme (`https:`, `mailto:`), which no export rewrites. */
 export const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+/** The schemes an export links to. A link with any other scheme keeps only its words. */
+export const SAFE_LINK_SCHEMES: ReadonlySet<string> = new Set([
+	"http",
+	"https",
+	"mailto",
+	"tel",
+	"ftp",
+]);
+
+/**
+ * The scheme of a link, lower case, as a browser reads it: leading spaces
+ * and control characters (U+0000 to U+0020) skipped, and tabs and line
+ * breaks anywhere ignored, so `java\tscript:` is `javascript`. Null for a
+ * link without one (`#x`, `/read/…`, `notes.md`).
+ */
+export const linkScheme = (href: string): string | null =>
+	href
+		.replace(/[\t\n\r]/g, "")
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: a browser skips these before the scheme
+		.replace(/^[\u0000- ]+/, "")
+		.match(HAS_SCHEME)?.[0]
+		.slice(0, -1)
+		.toLowerCase() ?? null;
+
+/**
+ * Whether an export may link to `href`: a link without a scheme, or one in
+ * `SAFE_LINK_SCHEMES`. `javascript:`, `vbscript:`, `data:`, and `file:`
+ * links (any other scheme) are not followed: their text stays, unlinked.
+ */
+export const isSafeLink = (href: string): boolean => {
+	const scheme = linkScheme(href);
+	return scheme === null || SAFE_LINK_SCHEMES.has(scheme);
+};
 
 // Read UI sections, so a link to /read/<section>/<slug> can point inside an export.
 const SECTION_KINDS: Record<string, ExportEntryKind> = {
@@ -102,15 +134,18 @@ const alignClass = (align: TableAlign | undefined) =>
  * Markdown as XHTML that is always well formed and valid where EPUB readers
  * check it, ending with the footnotes it refers to as EPUB 3 endnotes, each
  * linking back to its references. Headings get the ids the site gives them.
+ * `markdown` is a body, or an entry's body with the Markdown written from
+ * its fields around it.
  */
 export const markdownToHtml = (
-	body: string,
+	markdown: string | EntryMarkdown,
 	resolveLink: LinkResolver = (href) => href,
 	resolveImage: ImageResolver = (image) => image.src,
 ): string => {
-	const document = parseMarkdown(body);
+	const { document, ids } = parseEntryMarkdown(
+		typeof markdown === "string" ? { body: markdown } : markdown,
+	);
 	const notes = createNoteNumbers();
-	const slugger = createHeadingSlugger();
 	// A link inside a link would not be valid XHTML; the inner one keeps its words.
 	let inLink = false;
 	const nodesHtml = (nodes: InlineNode[]): string =>
@@ -140,7 +175,10 @@ export const markdownToHtml = (
 			}
 			case "link": {
 				const target = inLink ? null : resolveLink(node.href);
-				if (target === null) return nodesHtml(node.children);
+				// Whatever the resolver returns, a script or data link is never written.
+				if (target === null || !isSafeLink(target)) {
+					return nodesHtml(node.children);
+				}
 				inLink = true;
 				const inner = nodesHtml(node.children);
 				inLink = false;
@@ -177,8 +215,11 @@ export const markdownToHtml = (
 			.join("");
 	const blocksHtml = (blocks: MarkdownBlock[]) =>
 		blocks.map(render).filter(Boolean).join("");
+	// A task's box is a glyph, which shows wherever text does; not every reading system draws form controls.
+	const taskBox = (item: ListItem) =>
+		item.checked === undefined ? "" : `${item.checked ? "☑" : "☐"} `;
 	const itemHtml = (item: ListItem) =>
-		`<li>${inline(item.text)}${blocksHtml(item.blocks)}</li>`;
+		`<li>${taskBox(item)}${inline(item.text)}${blocksHtml(item.blocks)}</li>`;
 
 	const render = (block: MarkdownBlock): string => {
 		switch (block.type) {
@@ -186,7 +227,8 @@ export const markdownToHtml = (
 				const level = Math.min(block.level, 6);
 				const nodes = parseInline(block.text, document);
 				// The site gives a heading written as an HTML tag no id.
-				const id = block.html ? "" : xmlId(slugger(headingSlugText(nodes)));
+				const siteId = ids.get(block);
+				const id = siteId === undefined ? "" : xmlId(siteId);
 				return `<h${level}${id ? ` id="${escapeHtml(id)}"` : ""}>${nodesHtml(nodes).trim()}</h${level}>`;
 			}
 			case "list": {

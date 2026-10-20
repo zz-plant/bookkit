@@ -83,6 +83,21 @@ const section = (heading: string, content: string) =>
 const joinBlocks = (...blocks: Array<string | undefined>) =>
 	blocks.filter(Boolean).join("\n\n");
 
+/** What a record's fields add around its body, or nothing when they add nothing. */
+const fieldsOf = (before: string, after = ""): Pick<ExportEntry, "fields"> =>
+	before || after
+		? {
+				fields: {
+					...(before ? { before } : {}),
+					...(after ? { after } : {}),
+				},
+			}
+		: {};
+
+/** An entry's Markdown as one document: its fields' Markdown around its body. */
+export const entryMarkdown = (entry: ExportEntry): string =>
+	joinBlocks(entry.fields?.before, entry.body, entry.fields?.after);
+
 const plural = (count: number, unit: string) =>
 	`${count} ${unit}${count === 1 ? "" : "s"}`;
 
@@ -133,11 +148,8 @@ const mechanismEntry = (
 		kind: "mechanism",
 		slug,
 		title: text(data, "title") ?? slug,
-		body: joinBlocks(
-			definition,
-			body,
-			section("How to recognize it", recognize),
-		),
+		body,
+		...fieldsOf(definition ?? "", section("How to recognize it", recognize)),
 		description: definition,
 		locale: text(data, "locale"),
 		source,
@@ -198,16 +210,21 @@ const actionEntry = ({
 				title: text(data, "title"),
 				slug,
 			}),
-			body: joinBlocks(
-				lede,
-				section("When to use this", trigger ? oneLine(trigger) : ""),
-				section("Steps", numbered(list(data, "steps"))),
-				section("Steps by situation", bullets(branches)),
-				section("Escalation", bullets(escalationLines)),
-				section("Drills", bullets(list(data, "drills"))),
-				section("Failure looks like", bullets(list(data, "failureLooksLike"))),
-				section("Legitimate demand", bullets(list(data, "legitimateDemand"))),
-				body,
+			body,
+			...fieldsOf(
+				joinBlocks(
+					lede,
+					section("When to use this", trigger ? oneLine(trigger) : ""),
+					section("Steps", numbered(list(data, "steps"))),
+					section("Steps by situation", bullets(branches)),
+					section("Escalation", bullets(escalationLines)),
+					section("Drills", bullets(list(data, "drills"))),
+					section(
+						"Failure looks like",
+						bullets(list(data, "failureLooksLike")),
+					),
+					section("Legitimate demand", bullets(list(data, "legitimateDemand"))),
+				),
 			),
 			description: trigger,
 			locale: text(data, "locale"),
@@ -281,7 +298,8 @@ export const buildExportParts = (
 				kind: "glossary",
 				slug,
 				title: text(data, "term") ?? slug,
-				body: joinBlocks(text(data, "definition"), body),
+				body,
+				...fieldsOf(text(data, "definition") ?? ""),
 				description: text(data, "definition"),
 				locale: text(data, "locale"),
 				source,
@@ -300,7 +318,8 @@ export const buildExportParts = (
 				kind: "example",
 				slug,
 				title: text(data, "title") ?? slug,
-				body: joinBlocks(lede, body),
+				body,
+				...fieldsOf(lede),
 				description: text(data, "summary"),
 				locale: text(data, "locale"),
 				source,

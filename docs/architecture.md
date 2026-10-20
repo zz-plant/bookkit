@@ -143,7 +143,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `llm-local/` | 0 | in-browser model adapter (optional dependency) |
 | `embeddings/` | 0 | embedding generation for semantic search |
 | `rerank/` | 0 | result reranking for search |
-| `markdown/` | 1 | heading extraction and slugging; the rehype plugin apps register |
+| `markdown/` | 1 | page facts read from MDX source (the opening paragraph, the word count); the deprecated heading-id rehype plugin |
 | `qa/` | 1 | AI question-answering providers behind the reader Q&A feature, and the limits on what a reader may send them |
 | `analytics/` | 1 | reader analytics events and the append-only log |
 | `feedback/` | 1 | reader feedback capture |

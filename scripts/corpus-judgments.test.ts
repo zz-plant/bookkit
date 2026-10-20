@@ -3,8 +3,10 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readdirSync,
 	readFileSync,
 	rmSync,
+	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -88,6 +90,14 @@ const writeRecords = (records: unknown[]) =>
 
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-judgments-"));
+	// bookkit runs its helper scripts from the workspace's scripts/.
+	mkdirSync(join(workspace, "scripts"));
+	for (const entry of readdirSync(join(repoRoot(), "scripts"))) {
+		symlinkSync(
+			join(repoRoot(), "scripts", entry),
+			join(workspace, "scripts", entry),
+		);
+	}
 	writeFileSync(
 		join(workspace, "corpus.json"),
 		JSON.stringify({ books: ["one", "two"], distinct: [] }),
@@ -156,15 +166,28 @@ describe("check:corpus with judges' verdicts", () => {
 		const prompt = checkCorpus("--judge-prompt", dir, "--judge-top", "3");
 		expect(prompt.status).toBe(0);
 		expect(prompt.output).toContain("Wrote 3 pair(s) to judge");
-		const pairs = JSON.parse(readFileSync(join(dir, "pairs.json"), "utf8"));
+		const pairsOf = (judge: number) =>
+			JSON.parse(
+				readFileSync(join(dir, `judge-${judge}`, "pairs.json"), "utf8"),
+			) as Array<{ id: string }>;
+		const pairs = pairsOf(1);
 		expect(pairs).toHaveLength(3);
+		// Each judge gets the same pairs, under the same ids.
+		for (const judge of [2, 3]) {
+			expect(
+				pairsOf(judge)
+					.map((pair) => pair.id)
+					.sort(),
+			).toEqual(pairs.map((pair) => pair.id).sort());
+		}
 		// Blind: the judge sees titles and definitions, not slugs or books.
-		const visible = readFileSync(join(dir, "pairs.json"), "utf8");
+		const visible = readFileSync(join(dir, "judge-1", "pairs.json"), "utf8");
 		expect(visible).not.toContain("waiting-game");
 		expect(visible).not.toContain('"two"');
-		expect(readFileSync(join(dir, "prompt.md"), "utf8")).toContain(
-			"holds 3 pairs",
-		);
+		// Each prompt names its own pairs file, so it can be handed over alone.
+		const prompt2 = readFileSync(join(dir, "judge-2", "prompt.md"), "utf8");
+		expect(prompt2).toContain("holds 3 pairs");
+		expect(prompt2).toContain(join(dir, "judge-2", "pairs.json"));
 
 		const answers = (relation: string) =>
 			JSON.stringify(
@@ -217,13 +240,14 @@ describe("check:corpus with judges' verdicts", () => {
 });
 
 describe("judging one mechanism at a time", () => {
-	const bookkitCheck = (file: string) => {
+	const bookkitCheck = (file: string, ...flags: string[]) => {
 		const result = Bun.spawnSync(
 			[
 				process.execPath,
 				join(repoRoot(), "scripts", "bookkit.ts"),
 				"check",
 				file,
+				...flags,
 			],
 			{
 				cwd: workspace,
@@ -263,7 +287,7 @@ describe("judging one mechanism at a time", () => {
 	it("bookkit check on a mechanism says when its closest pairs have no verdict", () => {
 		writeRecords([]);
 		expect(bookkitCheck(waitingGame)).toContain(
-			"--judge-prompt <dir> --judge-for waiting-game",
+			"Ask: bun run bookkit judge waiting-game",
 		);
 	});
 
@@ -291,10 +315,144 @@ describe("judging one mechanism at a time", () => {
 			},
 		]);
 		const output = bookkitCheck(waitingGame);
-		expect(output).toContain(
-			"judges: no verdict yet on tidy-desk, among its 3 nearest by wording.",
+		expect(output).toContain("Ask: bun run bookkit judge waiting-game");
+		const json = JSON.parse(bookkitCheck(`${waitingGame}`, "--json"));
+		expect(json.judged.unasked).toEqual(["tidy-desk"]);
+		expect(json.judged.nearestBy).toBe("wording");
+	});
+});
+
+describe("bookkit judge and bookkit rule", () => {
+	const bookkit = (...args: string[]) => {
+		const result = Bun.spawnSync(
+			[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
+			{
+				cwd: workspace,
+				env: {
+					...process.env,
+					BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			},
 		);
-		expect(output).toContain("--judge-for waiting-game");
+		return {
+			status: result.exitCode,
+			output: `${result.stdout.toString()}${result.stderr.toString()}`,
+		};
+	};
+	const judging = () => join(workspace, ".bookkit", "judging");
+
+	it("judge writes a request under .bookkit/judging, and judge record reads the newest answered one", () => {
+		writeRecords([]);
+		rmSync(judging(), { recursive: true, force: true });
+		expect(bookkit("judge", "record").output).toContain(
+			"No judging requests yet",
+		);
+		const asked = bookkit("judge", "waiting-game", "--judge-top", "1");
+		expect(asked.status).toBe(0);
+		const [request] = readdirSync(judging());
+		expect(request).toStartWith("waiting-game-");
+		const folder = join(judging(), request);
+		expect(asked.output).toContain(join(folder, "judge-3", "prompt.md"));
+		expect(asked.output).toContain("then: bun run bookkit judge record");
+		expect(bookkit("judge", "record").output).toContain("No answers yet in");
+
+		const [entry] = JSON.parse(readFileSync(join(folder, "key.json"), "utf8"));
+		writeFileSync(
+			join(folder, "answer-1.json"),
+			JSON.stringify([
+				{
+					id: entry.id,
+					same_lever: 0.8,
+					same_evidence: 0.8,
+					relation: "same_idea",
+					relation_p: 0.7,
+				},
+			]),
+		);
+		const recorded = bookkit("judge", "record");
+		expect(recorded.status).toBe(0);
+		expect(recorded.output).toContain("Yours to settle (1)");
+		expect(recorded.output).toContain(
+			`bun run bookkit rule ${entry.pair[0]} ${entry.pair[1]} --distinct "<reason>"`,
+		);
+	});
+
+	it("rule writes a distinct ruling to corpus.json, once, with a reason", () => {
+		const corpusPath = join(workspace, "corpus.json");
+		const before = readFileSync(corpusPath, "utf8");
+		expect(
+			bookkit("rule", "waiting-game", "slow-walk", "--distinct").output,
+		).toContain("--distinct needs the reason");
+		expect(
+			bookkit("rule", "waiting-game", "slow-wlak", "--distinct", "x").output,
+		).toContain("Did you mean slow-walk?");
+		const ruled = bookkit(
+			"rule",
+			"waiting-game",
+			"slow-walk",
+			"--distinct",
+			"Stalling until they quit is not slowing the paperwork.",
+		);
+		expect(ruled.status).toBe(0);
+		expect(ruled.output).toContain("Ruled waiting-game ~ slow-walk distinct");
+		expect(JSON.parse(readFileSync(corpusPath, "utf8")).distinct).toEqual([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				reason: "Stalling until they quit is not slowing the paperwork.",
+			},
+		]);
+		const again = bookkit(
+			"rule",
+			"slow-walk",
+			"waiting-game",
+			"--distinct",
+			"y",
+		);
+		expect(again.status).toBe(1);
+		expect(again.output).toContain("already ruled distinct");
+		writeFileSync(corpusPath, before);
+	});
+
+	it("rule settles a pair inside a book outside the shared corpus, and refuses a pair across corpora", () => {
+		// "three" is not in corpus.json "books": check:corpus checks it on its own.
+		const dir = join(workspace, "apps", "three", "src/content/book/mechanisms");
+		mkdirSync(dir, { recursive: true });
+		const own = (slug: string, definition: string) =>
+			writeFileSync(
+				join(dir, `${slug}.mdx`),
+				`---\nslug: ${slug}\ntitle: "${slug}"\ndefinition: "${definition}"\n---\n`,
+			);
+		own("queue-reset", "Sending people to the back of the line on any error.");
+		own("form-loop", "Asking for the same form again after each reply.");
+		const corpusPath = join(workspace, "corpus.json");
+		const before = readFileSync(corpusPath, "utf8");
+		try {
+			const within = bookkit(
+				"rule",
+				"queue-reset",
+				"form-loop",
+				"--distinct",
+				"Losing your place is not being asked again.",
+			);
+			expect(within.status).toBe(0);
+			const across = bookkit(
+				"rule",
+				"queue-reset",
+				"waiting-game",
+				"--distinct",
+				"x",
+			);
+			expect(across.status).toBe(1);
+			expect(across.output).toContain("are in different corpora");
+		} finally {
+			writeFileSync(corpusPath, before);
+			rmSync(join(workspace, "apps", "three"), {
+				recursive: true,
+				force: true,
+			});
+		}
 	});
 });
 

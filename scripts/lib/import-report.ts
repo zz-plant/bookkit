@@ -1,5 +1,5 @@
-import type { MdxConversion } from "../../packages/astro-bookkit/src/utils/markdown";
 import { type FileAction, type ImportPlan, WRITES } from "./import-markdown";
+import { describeConversions, sumConversions } from "./import-rules";
 
 const LISTED_LINKS = 10;
 
@@ -113,27 +113,13 @@ export const describeImport = (
 		}
 	}
 
-	const total = (key: keyof MdxConversion) =>
-		plan.chapters.reduce((sum, chapter) => sum + chapter.changes[key], 0);
-	const conversions = [
-		[total("html"), "HTML tag kept as HTML", "HTML tags kept as HTML"],
-		[
-			total("htmlComments"),
-			"HTML comment made an MDX comment",
-			"HTML comments made MDX comments",
-		],
-		[total("autolinks"), "<autolink> made a link", "<autolinks> made links"],
-		[total("braces"), "brace escaped", "braces escaped"],
-		[total("tags"), "tag-like < escaped", "tag-like < escaped"],
-		[total("esm"), "import/export line escaped", "import/export lines escaped"],
-	] as const;
-	if (conversions.some(([count]) => count > 0)) {
+	const conversions = describeConversions(
+		sumConversions(plan.chapters.map((chapter) => chapter.changes)),
+	);
+	if (conversions) {
 		lines.push(
 			"",
-			`Converted so every chapter compiles as MDX: ${conversions
-				.filter(([count]) => count > 0)
-				.map(([count, one, many]) => `${count} ${count === 1 ? one : many}`)
-				.join(", ")}.`,
+			`Converted so every chapter compiles as MDX: ${conversions}.`,
 		);
 	}
 	const asText = plan.chapters.filter((chapter) => chapter.htmlAsText);

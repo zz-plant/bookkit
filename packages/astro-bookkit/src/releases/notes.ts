@@ -1,4 +1,5 @@
 import type { MDXInstance } from "astro";
+import { formatCalendarDate } from "../utils/calendar-date";
 
 /** The component an MDX module renders as `<Content />`. */
 type MdxContent = MDXInstance<Record<string, unknown>>["default"];
@@ -173,15 +174,13 @@ export const createLatestSectionChangeMap = (
 	return latestBySection;
 };
 
-export const formatReleaseDate = (value: string): string => {
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return value;
-	return new Intl.DateTimeFormat("en-US", {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	}).format(date);
-};
+/**
+ * "February 10, 2026" for a release dated "2026-02-10", wherever the book is
+ * built: a release date is a calendar date, not an instant. Text that names
+ * no date is returned as written.
+ */
+export const formatReleaseDate = (value: string | Date): string =>
+	formatCalendarDate(value) ?? String(value);
 
 export const escapeXml = (value: string): string => {
 	return value

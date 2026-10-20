@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { formatCalendarDate } from "../utils/calendar-date";
 import type { ExportBundle, ExportEntry, ExportEntryKind } from "./types";
 
 /**
@@ -61,15 +62,6 @@ export const parseExportDate = (value?: string): Date | undefined => {
 export const toEpubTimestamp = (date: Date): string =>
 	`${date.toISOString().slice(0, 19)}Z`;
 
-/** "February 10, 2026", read in UTC so the build machine's time zone cannot shift the day. */
-export const formatExportDate = (date: Date): string =>
-	new Intl.DateTimeFormat("en-US", {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-		timeZone: "UTC",
-	}).format(date);
-
 /** The label above an entry's title, as the read UI's eyebrow; chapters carry none. */
 export const EXPORT_KIND_LABELS: Record<ExportEntryKind, string | null> = {
 	chapter: null,
@@ -95,11 +87,11 @@ export const describeExportEntry = (entry: ExportEntry): string =>
 export const formatExportEdition = (
 	bundle: Pick<ExportBundle, "draft" | "version" | "updatedAt">,
 ): string => {
-	const date = parseExportDate(bundle.updatedAt);
 	return [
 		bundle.draft ? "Draft" : null,
 		bundle.version ? `Version ${bundle.version}` : null,
-		date ? formatExportDate(date) : null,
+		// The release's calendar date, as the release notes page shows it.
+		bundle.updatedAt ? formatCalendarDate(bundle.updatedAt) : null,
 	]
 		.filter(Boolean)
 		.join(" · ");

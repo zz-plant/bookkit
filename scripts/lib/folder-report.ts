@@ -7,6 +7,12 @@ import {
 	previewFolder,
 } from "../../packages/astro-bookkit/src/proposals";
 import { listBookDirs, repoRoot, slugify } from "../_lib";
+import {
+	countConversions,
+	describeConversions,
+	importSkipReason,
+	sumConversions,
+} from "./import-rules";
 
 /**
  * `bookkit try <dir>` and `bookkit check <dir>`: Bookkit on a folder it does
@@ -127,6 +133,21 @@ const printFindings = (preview: FolderPreview, onlyFailing: boolean) => {
 	}
 };
 
+/**
+ * What import would change in the notes it imports (not a README or a
+ * SUMMARY.md) so they compile as MDX, counted and worded as `bookkit import`
+ * reports it; null when nothing would change.
+ */
+export const mdxConversionSummary = (preview: FolderPreview): string | null => {
+	const changes = preview.documents.flatMap((doc) =>
+		doc.mdx && countConversions(doc.mdx) > 0 && !importSkipReason(doc.path)
+			? [doc.mdx]
+			: [],
+	);
+	if (changes.length === 0) return null;
+	return `Import would convert ${plural(changes.length, "document")} so ${changes.length === 1 ? "it compiles" : "they compile"} as MDX: ${describeConversions(sumConversions(changes))}.`;
+};
+
 export const printTry = (target: string, preview: FolderPreview) => {
 	const label = target.replace(/\/$/, "");
 	console.log(`\nBOOKKIT TRY · ${label}  (read-only: nothing was written)\n`);
@@ -207,17 +228,8 @@ export const printTry = (target: string, preview: FolderPreview) => {
 		printFindings({ ...preview, documents: contract }, true);
 	}
 
-	const needsMdx = prose.filter(
-		(doc) =>
-			doc.mdx &&
-			doc.mdx.htmlComments + doc.mdx.braces + doc.mdx.autolinks + doc.mdx.tags >
-				0,
-	);
-	if (needsMdx.length > 0) {
-		console.log(
-			`\n${plural(needsMdx.length, "document")} ${needsMdx.length === 1 ? "uses" : "use"} {braces}, <tags>, HTML comments, or <autolinks>; import converts them so they compile as MDX.`,
-		);
-	}
+	const conversions = mdxConversionSummary(preview);
+	if (conversions) console.log(`\n${conversions}`);
 
 	const slug = slugify(basename(resolveFromCaller(target))) || "my-book";
 	const title = slug
@@ -247,9 +259,10 @@ export const printTry = (target: string, preview: FolderPreview) => {
 		console.log(
 			`\nMake it a book (writes apps/${slug}/; your folder is untouched)`,
 		);
-		console.log(`  bun run bookkit new-book --book ${slug} --title "${title}"`);
-		console.log(`  bun run bookkit import --book ${slug} --dir ${label}`);
-		console.log(`  bun run bookkit propose --book ${slug}`);
+		console.log(
+			`  bun run bookkit new book ${slug} --title "${title}" --from ${label}`,
+		);
+		console.log(`  bun run bookkit propose ${slug}`);
 	}
 	console.log("");
 };

@@ -119,6 +119,31 @@ export const bookConfig = {
 				"Match what’s happening to a named pattern, then pick a small, reversible response.",
 		},
 	},
+	readHub: {
+		lede: "Start with the overview, go straight to a problem you have, or look something up.",
+		quickStartCards: [
+			{
+				title: "Read the overview",
+				description: "What the book covers and how it’s organized.",
+				href: "/read/overview",
+				recommended: true,
+				funnelStep: "new_reader_overview",
+			},
+			{
+				title: "Spot delay used as force",
+				description:
+					"How delay gets used as pressure, and how to recognize it.",
+				href: "/read/mechanisms/delay-as-force",
+				funnelStep: "new_reader_mechanism",
+			},
+			{
+				title: "Run a deadline countermove",
+				description: "A ten-minute response that needs no one’s permission.",
+				href: "/read/toolkit/coercive-waiting--deadline-countermove",
+				funnelStep: "new_reader_toolkit",
+			},
+		],
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

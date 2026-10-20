@@ -115,6 +115,30 @@ describe("new:book", () => {
 		expect(config).toContain('title: "Browse the mechanisms",');
 	});
 
+	it("gets the shared reading hub, with its copy in book.config.ts", () => {
+		const appDir = join(workspace, "apps", "tide-pool");
+		expect(
+			readFileSync(join(appDir, "src", "lib", "read-hub.ts"), "utf8"),
+		).toBe(
+			readFileSync(
+				join(
+					repo,
+					"packages",
+					"astro-bookkit",
+					"templates",
+					"book-app",
+					"src",
+					"lib",
+					"read-hub.ts",
+				),
+				"utf8",
+			),
+		);
+		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
+		expect(config).toContain("readHub: {");
+		expect(config).toContain('title: "Read the chapters in order",');
+	});
+
 	it("gives each book its own starter slugs", () => {
 		const slugs = (book: string) =>
 			readdirSync(

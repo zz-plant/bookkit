@@ -106,7 +106,7 @@ Book apps are deliberately thin. Three things cannot move into the engine:
 - `src/pages/**` — Astro discovers routes by filename.
 - the MCP route's `import.meta.url` hand-off.
 
-Everything else is a re-export. Canonical wrapper contents live in `packages/astro-bookkit/templates/book-app/**`; every file there is a shim, held identical across books by `bun run check:shims` (`bun run sync:shims` to update them). The files a book may change (read hub, mechanism and example indexes, `book.config.ts`) start from `packages/astro-bookkit/templates/starter/**`, which `bun run new:book` and create-bookkit copy; `book.config.ts` is typed by the engine's `BookConfig`. The home page is a shim: its copy is `home` in `book.config.ts`.
+Everything else is a re-export. Canonical wrapper contents live in `packages/astro-bookkit/templates/book-app/**`; every file there is a shim, held identical across books by `bun run check:shims` (`bun run sync:shims` to update them). The files a book may change (breadcrumb copy, mechanism and example indexes, `book.config.ts`) start from `packages/astro-bookkit/templates/starter/**`, which `bun run new:book` and create-bookkit copy; `book.config.ts` is typed by the engine's `BookConfig`. The home page and the reading hub are shims: their copy is `home` and `readHub` in `book.config.ts`.
 
 ---
 
@@ -137,14 +137,14 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 
 | Module | Tier | Owns |
 | --- | --- | --- |
-| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser |
+| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser, request limits, and the author-token check for API routes |
 | `schemas/` | 0 | Zod frontmatter schemas — the record contract for every content section |
 | `styles/` | 0 | `bookkit.css`, the shipped stylesheet |
 | `llm-local/` | 0 | in-browser model adapter (optional dependency) |
 | `embeddings/` | 0 | embedding generation for semantic search |
-| `qa/` | 0 | AI question-answering providers behind the reader Q&A feature |
 | `rerank/` | 0 | result reranking for search |
 | `markdown/` | 1 | heading extraction and slugging; the rehype plugin apps register |
+| `qa/` | 1 | AI question-answering providers behind the reader Q&A feature, and the limits on what a reader may send them |
 | `analytics/` | 1 | reader analytics events and the append-only log |
 | `feedback/` | 1 | reader feedback capture |
 | `preview/` | 1 | preview links and their access state |

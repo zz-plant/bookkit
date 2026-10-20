@@ -1,9 +1,14 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
 import { createBookMcpEndpoint } from "./endpoint";
 
-const createFixtureEndpoint = () => {
+// Most tests here cover what the tools return, so they call them as under
+// `bookkit dev`; "tool calls on a deployed server" covers who may call them.
+const AS_DEV_SERVER = { isDev: () => true };
+
+const createFixtureEndpoint = (toolCallAuth = AS_DEV_SERVER) => {
 	return createBookMcpEndpoint({
+		toolCallAuth,
 		bookTitle: "Fixture Book",
 		contentRawModules: {
 			chapters: {
@@ -312,6 +317,7 @@ describe("createBookMcpEndpoint", () => {
 
 	it("returns actionable tool payload when validate_book is missing book context", async () => {
 		const endpoint = createBookMcpEndpoint({
+			toolCallAuth: AS_DEV_SERVER,
 			bookTitle: "No Slug",
 			contentRawModules: {
 				chapters: {},
@@ -619,5 +625,108 @@ describe("createBookMcpEndpoint", () => {
 		expect(body.error.code).toBe(-32700);
 		expect(body.error.message).toContain("not valid JSON");
 		expect(body.error.message).toContain("JSON-RPC 2.0 request object");
+	});
+});
+
+describe("tool calls on a deployed server", () => {
+	const TOKEN = "t".repeat(40);
+	const deployed = () => createFixtureEndpoint({ isDev: () => false });
+	const post = (body: unknown, headers: Record<string, string> = {}) =>
+		new Request("https://book.example/api/mcp.json", {
+			method: "POST",
+			headers: { "content-type": "application/json", ...headers },
+			body: typeof body === "string" ? body : JSON.stringify(body),
+		});
+	const listMechanisms = {
+		jsonrpc: "2.0",
+		id: 9,
+		method: "tools/call",
+		params: { name: "bookkit.list_mechanisms", arguments: {} },
+	};
+	let saved: string | undefined;
+	let logged: ReturnType<typeof spyOn>;
+
+	beforeEach(() => {
+		saved = process.env.BOOKKIT_AUTHOR_TOKEN;
+		logged = spyOn(console, "error").mockImplementation(() => {});
+	});
+	afterEach(() => {
+		if (saved === undefined) delete process.env.BOOKKIT_AUTHOR_TOKEN;
+		else process.env.BOOKKIT_AUTHOR_TOKEN = saved;
+		logged.mockRestore();
+	});
+
+	it("refuses tool calls when the server has no author token, and says why in the log only", async () => {
+		delete process.env.BOOKKIT_AUTHOR_TOKEN;
+		const response = await deployed().POST({
+			request: post(listMechanisms, { authorization: `Bearer ${TOKEN}` }),
+		});
+		const body = (await response.json()) as {
+			id: number;
+			error: { code: number; message: string };
+		};
+
+		expect(response.status).toBe(500);
+		expect(body.id).toBe(9);
+		expect(body.error.message).not.toContain("BOOKKIT_AUTHOR_TOKEN");
+		expect(String(logged.mock.calls[0]?.[0])).toContain(
+			"BOOKKIT_AUTHOR_TOKEN is not set",
+		);
+	});
+
+	it("refuses a missing or wrong token with 401, also inside a batch", async () => {
+		process.env.BOOKKIT_AUTHOR_TOKEN = TOKEN;
+		for (const request of [
+			post(listMechanisms),
+			post(listMechanisms, { authorization: `Bearer ${"x".repeat(40)}` }),
+			post(listMechanisms, { authorization: TOKEN }),
+			post([{ jsonrpc: "2.0", id: 1, method: "ping" }, listMechanisms], {
+				authorization: "Bearer nope",
+			}),
+		]) {
+			const response = await deployed().POST({ request });
+			const body = (await response.json()) as { error: { code: number } };
+			expect(response.status).toBe(401);
+			expect(response.headers.get("www-authenticate")).toContain("Bearer");
+			expect(body.error.code).toBe(-32001);
+		}
+	});
+
+	it("runs a tool call that carries the token", async () => {
+		process.env.BOOKKIT_AUTHOR_TOKEN = TOKEN;
+		const response = await deployed().POST({
+			request: post(listMechanisms, { authorization: `Bearer ${TOKEN}` }),
+		});
+		const body = (await response.json()) as {
+			result: { structuredContent: { ok: boolean } };
+		};
+
+		expect(response.status).toBe(200);
+		expect(body.result.structuredContent.ok).toBe(true);
+	});
+
+	it("serves resources and the tool list without a token", async () => {
+		delete process.env.BOOKKIT_AUTHOR_TOKEN;
+		for (const method of ["resources/list", "tools/list", "ping"]) {
+			const response = await deployed().POST({
+				request: post({ jsonrpc: "2.0", id: 1, method }),
+			});
+			expect(response.status).toBe(200);
+			expect(
+				((await response.json()) as { result?: unknown }).result,
+			).toBeDefined();
+		}
+	});
+
+	it("refuses a body over 2 MB before parsing it", async () => {
+		const response = await deployed().POST({
+			request: post(
+				JSON.stringify({ ...listMechanisms, pad: "x".repeat(2 * 1024 * 1024) }),
+			),
+		});
+		const body = (await response.json()) as { error: { message: string } };
+
+		expect(response.status).toBe(413);
+		expect(body.error.message).toContain("larger than 2097152 bytes");
 	});
 });

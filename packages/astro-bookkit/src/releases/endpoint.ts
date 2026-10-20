@@ -1,3 +1,4 @@
+import { authorOnly } from "../utils/author-token";
 import { jsonResponse } from "../utils/http";
 import {
 	parseReleaseEmailTargets,
@@ -53,7 +54,7 @@ const resolveWebhookTargets = (
 	rawTargets?: ReleaseWebhookTarget[],
 	rawEnv?: string | null,
 ): ReleaseWebhookTarget[] => {
-	if (rawTargets && rawTargets.length) return rawTargets;
+	if (rawTargets?.length) return rawTargets;
 	return parseReleaseWebhookTargets(rawEnv);
 };
 
@@ -61,7 +62,7 @@ const resolveEmailTargets = (
 	rawTargets?: ReleaseEmailTarget[],
 	rawEnv?: string | null,
 ): ReleaseEmailTarget[] => {
-	if (rawTargets && rawTargets.length) return rawTargets;
+	if (rawTargets?.length) return rawTargets;
 	return parseReleaseEmailTargets(rawEnv);
 };
 
@@ -81,6 +82,84 @@ export const createReleaseNotesRssEndpoint = ({
 	};
 };
 
+type DeliveryResult = {
+	target: { url: string; name?: string };
+	status: "success" | "failure";
+	statusCode?: number;
+	error?: string;
+};
+
+/**
+ * What the caller sees of each delivery: the target's name, or the host of its
+ * URL. A target's secret, headers, and full URL (a Slack or provider webhook
+ * URL is itself a credential) stay on the server.
+ */
+const describeDelivery = (result: DeliveryResult) => {
+	let target = result.target.name;
+	if (!target) {
+		try {
+			target = new URL(result.target.url).host;
+		} catch {
+			target = "unnamed target";
+		}
+	}
+	return {
+		target,
+		status: result.status,
+		statusCode: result.statusCode,
+		error: result.error,
+	};
+};
+
+/**
+ * POST sends the latest release to every configured target. Only the author or
+ * their CI may trigger it: the request must carry BOOKKIT_AUTHOR_TOKEN (see
+ * utils/author-token), under `astro dev` too, since it sends real messages.
+ */
+const createReleaseSendEndpoint = <T extends { url: string; name?: string }>({
+	route,
+	modules,
+	readTargets,
+	noTargetsError,
+	send,
+}: {
+	route: string;
+	modules: Record<string, ReleaseModule>;
+	readTargets: () => T[];
+	noTargetsError: string;
+	send: (
+		release: ReturnType<typeof createReleaseNotes>[number],
+		targets: T[],
+	) => Promise<DeliveryResult[]>;
+}) => ({
+	POST: authorOnly(
+		async (_context: { request: Request }) => {
+			const targets = readTargets();
+			if (!targets.length) {
+				return jsonResponse({ ok: false, error: noTargetsError }, 400);
+			}
+
+			const [latest] = createReleaseNotes(modules);
+			if (!latest) {
+				return jsonResponse(
+					{ ok: false, error: "No releases available." },
+					404,
+				);
+			}
+
+			const results = await send(latest, targets);
+			return jsonResponse({
+				ok: true,
+				delivered: results.map(describeDelivery),
+			});
+		},
+		{ route },
+	),
+});
+
+const readEnv = (name: string): string | undefined =>
+	typeof process !== "undefined" ? process.env[name] : undefined;
+
 export const createReleaseWebhookEndpoint = ({
 	modules,
 	book,
@@ -89,41 +168,18 @@ export const createReleaseWebhookEndpoint = ({
 	modules: Record<string, ReleaseModule>;
 	book?: ReleaseEndpointOptions["book"];
 	webhookTargets?: ReleaseWebhookTarget[];
-}) => {
-	return {
-		POST: async () => {
-			const targets = resolveWebhookTargets(
+}) =>
+	createReleaseSendEndpoint({
+		route: "POST /api/release-webhook.json",
+		modules,
+		readTargets: () =>
+			resolveWebhookTargets(
 				webhookTargets,
-				typeof process !== "undefined"
-					? process.env.BOOKKIT_RELEASE_WEBHOOKS
-					: undefined,
-			);
-			if (!targets.length) {
-				return jsonResponse(
-					{ ok: false, error: "No webhook targets configured." },
-					400,
-				);
-			}
-
-			const releases = createReleaseNotes(modules);
-			const [latest] = releases;
-			if (!latest) {
-				return jsonResponse(
-					{ ok: false, error: "No releases available." },
-					404,
-				);
-			}
-
-			const results = await sendReleaseWebhooks({
-				release: latest,
-				book,
-				targets,
-			});
-
-			return jsonResponse({ ok: true, delivered: results });
-		},
-	};
-};
+				readEnv("BOOKKIT_RELEASE_WEBHOOKS"),
+			),
+		noTargetsError: "No webhook targets configured.",
+		send: (release, targets) => sendReleaseWebhooks({ release, book, targets }),
+	});
 
 export const createReleaseEmailEndpoint = ({
 	modules,
@@ -133,38 +189,16 @@ export const createReleaseEmailEndpoint = ({
 	modules: Record<string, ReleaseModule>;
 	book?: ReleaseEndpointOptions["book"];
 	emailTargets?: ReleaseEmailTarget[];
-}) => {
-	return {
-		POST: async () => {
-			const targets = resolveEmailTargets(
+}) =>
+	createReleaseSendEndpoint({
+		route: "POST /api/release-email.json",
+		modules,
+		readTargets: () =>
+			resolveEmailTargets(
 				emailTargets,
-				typeof process !== "undefined"
-					? process.env.BOOKKIT_RELEASE_EMAIL_TARGETS
-					: undefined,
-			);
-			if (!targets.length) {
-				return jsonResponse(
-					{ ok: false, error: "No email targets configured." },
-					400,
-				);
-			}
-
-			const releases = createReleaseNotes(modules);
-			const [latest] = releases;
-			if (!latest) {
-				return jsonResponse(
-					{ ok: false, error: "No releases available." },
-					404,
-				);
-			}
-
-			const results = await sendReleaseEmailHooks({
-				release: latest,
-				book,
-				targets,
-			});
-
-			return jsonResponse({ ok: true, delivered: results });
-		},
-	};
-};
+				readEnv("BOOKKIT_RELEASE_EMAIL_TARGETS"),
+			),
+		noTargetsError: "No email targets configured.",
+		send: (release, targets) =>
+			sendReleaseEmailHooks({ release, book, targets }),
+	});

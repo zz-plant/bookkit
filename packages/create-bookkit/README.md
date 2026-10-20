@@ -39,8 +39,8 @@ bun run bookkit help           # every command
 | Path | Owner |
 | --- | --- |
 | `apps/<book>/src/content/book/**` | You: chapters, mechanisms, toolkit, examples, glossary, releases. |
-| `apps/<book>/src/book.config.ts` | You: the book's frame, objectives and constraints, and the home page's copy (`home`), typed by `BookConfig`. |
-| `apps/<book>/src/lib/read-hub.ts`, the mechanism and example indexes, `README.md`, `TODOS.md` | You. These start from the engine's starter template. |
+| `apps/<book>/src/book.config.ts` | You: the book's frame, objectives and constraints, and the copy of the home page (`home`) and reading hub (`readHub`), typed by `BookConfig`. |
+| `apps/<book>/src/lib/read-copy.ts`, the mechanism and example indexes, `README.md`, `TODOS.md` | You. These start from the engine's starter template. |
 | The other files in `apps/<book>/` | The engine: wrappers every book keeps identical. `bun run check:shims` fails if one drifts. |
 | `packages/astro-bookkit/` | The engine, copied from the repository with its optional dependencies. |
 | `scripts/` | The `bookkit` CLI and the checks, with every module they import. |
@@ -64,7 +64,7 @@ bun run packages/create-bookkit/src/index.ts ../my-book --upgrade
 - `tsconfig.base.json` and `bun.lock`
 - the script and dependency entries it manages in `package.json`
 
-It prints every file it changes. It never writes book content, `book.config.ts` or a book's own pages. A file a book owned before and the engine now shares, such as the home page, is replaced too; if you had edited it, your copy is saved beside it as `_<name>.before-upgrade` (for the home page, move its copy into `home` in `book.config.ts`). When a starter file a newer engine expects is missing, such as `TODOS.md`, it adds that file without replacing any existing one. It refuses a folder that is not a Bookkit project. Afterwards, run `bun install` and `bun run verify -- --all`.
+It prints every file it changes. It never writes book content, `book.config.ts` or a book's own pages. A file a book owned before and the engine now shares, such as the home page or `src/lib/read-hub.ts`, is replaced too; if you had edited it, your copy is saved beside it as `_<name>.before-upgrade` (move the home page's copy into `home` in `book.config.ts`, and the reading hub's lede and cards into `readHub`). When a starter file a newer engine expects is missing, such as `TODOS.md`, it adds that file without replacing any existing one. It refuses a folder that is not a Bookkit project. Afterwards, run `bun install` and `bun run verify -- --all`.
 
 ## Runbook frame
 

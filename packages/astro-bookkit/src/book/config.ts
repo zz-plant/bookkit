@@ -1,6 +1,7 @@
 import type { PreviewAccessConfig } from "../preview/access";
 import type { BookSeoConfig } from "../seo/config";
 import type { BookLayoutConfig } from "./layout";
+import type { ReadHubQuickStartCard } from "./read-hub";
 import type { BookRuntimeConfig } from "./runtime";
 
 /** A mechanism the book commits to covering, as `book.config.ts` lists it. */
@@ -32,6 +33,17 @@ export type BookHomeConfig = {
 		title?: string;
 		description?: string;
 	};
+};
+
+/**
+ * The reading hub's copy (/read). Leave out any field, or `readHub`
+ * altogether, for the default in `defaultReadHubConfig`.
+ */
+export type BookReadHubConfig = {
+	/** The line under the "Reading hub" title. */
+	lede?: string;
+	/** The "Where to start" cards, in order. An empty list shows none. */
+	quickStartCards?: readonly ReadHubQuickStartCard[];
 };
 
 /**
@@ -73,6 +85,8 @@ export type BookConfig = BookLayoutConfig &
 		glossaryFocus: readonly string[];
 		/** Copy on the home page; see `BookHomeConfig`. */
 		home?: BookHomeConfig;
+		/** Copy on the reading hub; see `BookReadHubConfig`. */
+		readHub?: BookReadHubConfig;
 		/** Books listed under "Other books" on the home page. Leave empty for none. */
 		relatedBooks?: readonly RelatedBook[];
 		/**

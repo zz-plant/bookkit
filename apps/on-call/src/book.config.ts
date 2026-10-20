@@ -104,6 +104,31 @@ export const bookConfig = {
 				"Mid-incident? Match what you’re seeing to a pattern and its first safe action.",
 		},
 	},
+	readHub: {
+		lede: "Start with the overview, go straight to a problem you have, or look something up.",
+		quickStartCards: [
+			{
+				title: "Read the overview",
+				description: "What the book covers and how it’s organized.",
+				href: "/read/overview",
+				recommended: true,
+				funnelStep: "new_reader_overview",
+			},
+			{
+				title: "Learn incident triage",
+				description: "Why an alert without a severity has no safe next action.",
+				href: "/read/mechanisms/incident-triage",
+				funnelStep: "new_reader_mechanism",
+			},
+			{
+				title: "Classify an alert",
+				description:
+					"The ten-minute procedure for the first minutes of a page.",
+				href: "/read/toolkit/classify-alert-severity",
+				funnelStep: "new_reader_toolkit",
+			},
+		],
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

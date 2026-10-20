@@ -16,6 +16,7 @@ export type {
 	BookConfig,
 	BookConfigMechanism,
 	BookHomeConfig,
+	BookReadHubConfig,
 	RelatedBook,
 } from "./config";
 export type {
@@ -80,6 +81,10 @@ export {
 	createDefaultReadHubSections,
 	createLocalizedReadHubSectionSummaries,
 } from "./read-hub";
+export {
+	defaultReadHubConfig,
+	resolveReadHubConfig,
+} from "./read-hub-config";
 export type { ReadHubCopy } from "./read-hub-copy";
 export { defaultReadHubCopy } from "./read-hub-copy";
 export type { ReadIndexKey } from "./read-routes";

@@ -18,6 +18,11 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 - **Hints** that said "bind that slug instead" or "merge them" now give the `bookkit merge` command: `bookkit check <mechanism file>`, the corpus report, and `judge record`'s pairs to settle. `bookkit rule --same` points at `merge`.
 - **Migration:** none. A merge removes `/read/mechanisms/<drop>` and `/read/glossary/<drop>`, as a hand merge did; for a published book, say so in its release notes.
 
+## 2026-10-20 — propose writes prerequisite edges
+
+- **`bookkit propose <book> --apply edges`** writes accepted prerequisite edges into the chapters' `prerequisites:`, in the list's own layout (a chapter without one gets it before `mechanisms:`). Before, `--apply mechanisms` printed the edges and "edit chapter frontmatter to list these prerequisites". The reading graph stays acyclic: an edge that would close a loop is skipped and named, and when two chapters would each require the other, the later one in reading order requires the earlier. Another `--apply` without `edges` says how many edges were left unwritten. The proposal bundle's command lists `--apply edges`.
+- **Migration:** none.
+
 ## 2026-10-20 — One path from a new mechanism to a ruling
 
 - **`bookkit judge [mechanism]`** writes a blind request for judges under `.bookkit/judging/` (gitignored): one folder per judge, three by default (`--judges <n>`), each with a prompt that names the full path to its own copy of the pairs, in its own order, so it can be handed over as is. With a mechanism it asks about that one's three nearest pairs with no verdict or ruling; without, about the corpus (`check:corpus --judge-prompt`). Before, the request was `bun run check:corpus -- --judge-prompt <dir>` with a folder you chose, often inside the repository, and one `pairs.json` all judges shared.

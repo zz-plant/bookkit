@@ -14,7 +14,7 @@ For commands see [`README.md`](./README.md). For how the system is structured �
 4. For release-critical work, also run:
    - `bun run validate:release`
    - `bun run check:upgrade -- --release`
-5. If you changed the reader UI (`components/`, `layouts/`, `styles/`, or a page template), run `bun run check:a11y`. It builds every book and runs axe-core over each page type in light and dark, at desktop and phone widths, failing on serious or critical violations. It needs Playwright's Chromium once: `bunx playwright install chromium`. CI runs it in its own job.
+5. If you changed the reader UI (`components/`, `layouts/`, `styles/`, or a page template), run `bun run check:a11y`. It builds every book and runs axe-core over each page type in light and dark, at desktop and phone widths, failing on serious or critical violations. It needs Playwright's Chromium once: `bunx playwright install chromium`. If you changed search, also run `bun run test:browser`, which drives the search panel by keyboard. CI runs both in their own job.
 
 ### Pre-flight: classify the change before coding
 
@@ -204,6 +204,6 @@ GitHub Actions runs on every push and PR to `main` with the full quality gate:
 9. `bun run build:all` — static build of every book
 10. `bun run check:build` — every `dist/` is deployable (no lockout pages, real exports, SEO artifacts, one site URL)
 
-A separate job runs `bun run check:a11y` (axe-core over every page type and the open panels, light and dark, desktop and phone).
+A separate job runs `bun run check:a11y` (axe-core over every page type and the open panels, light and dark, desktop and phone) and `bun run test:browser` (the search panel driven by keyboard).
 
 PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

@@ -130,6 +130,12 @@ jobs:
       - name: Accessibility (every book)
         run: bun run check:a11y
 
+      # Keyboard behaviour axe cannot see: the search combobox's
+      # aria-activedescendant follows the arrow keys, and Enter opens the
+      # selected result (scripts/search-panel.browser.ts).
+      - name: Search keyboard (browser test)
+        run: bun run test:browser
+
   # The meaning pass of check:corpus, which verify leaves out (it compares
   # wording only): mechanisms in different books that say the same thing in
   # other words. The embedding model (about 550 MB) is cached between runs.

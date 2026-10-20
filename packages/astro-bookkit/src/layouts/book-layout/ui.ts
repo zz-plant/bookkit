@@ -9,6 +9,7 @@ import {
 	queryAllElements,
 	queryElement,
 } from "./dom";
+import { initializeResumeReading } from "./resume-reading";
 import { searchQueryFromPath } from "./search-from-path";
 import { getSharedIndexStore } from "./shared-index";
 import { deferredLocalStorage as storage } from "./storage";
@@ -191,6 +192,15 @@ if (headerRoot && hasReaderControls) {
 		});
 	});
 }
+
+// --- Resume reading: a chapter page records itself; home and the hub offer it ---
+// Loaded with the page, not as an island, so the link shows without a
+// second request moving the page under the reader.
+initializeResumeReading({
+	root: document,
+	storage,
+	storageKey: `${analyticsKeyPrefix}.reader.lastChapter`,
+});
 
 // --- Mobile nav island ---
 if (headerRoot && mobileCtaRoot) {

@@ -76,6 +76,11 @@ const chapterLink = (entry: CrossLinkEntry<ChapterFrontmatter>): CrossLink => ({
 	label: entry.module.frontmatter?.title ?? entry.slug,
 });
 
+/** Every chapter as a link, in reading order: what "Continue" and "Chapter N of M" count from. */
+export const chapterLinksInReadingOrder = (
+	entries: readonly CrossLinkEntry<ChapterFrontmatter>[],
+): CrossLink[] => chapterReadingOrder(entries).map(chapterLink);
+
 /** The chapters a chapter lists under `prerequisites`, in reading order. */
 export const prerequisiteChapterLinks = (
 	prerequisites: unknown,

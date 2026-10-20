@@ -39,6 +39,8 @@ const showChangeMarkers =
       {hero.eyebrow && <div class="eyebrow">{hero.eyebrow}</div>}
       <h1>{hero.title}</h1>
       {hero.lede && <p class="lede">{hero.lede}</p>}
+      {/* Where the reader left off, and whether the book is a draft. */}
+      <slot name="status" />
     </div>
     {hero.quickLinks.length > 0 && (
     <div class="read-hero__quicklinks" aria-label={hero.quickLinksAriaLabel ?? "Quick ways to start"} data-funnel-group="read-start">

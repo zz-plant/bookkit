@@ -123,7 +123,7 @@ export const bookConfig = {
 		lede: "Start with the overview, go straight to a problem you have, or look something up.",
 		quickStartCards: [
 			{
-				title: "Read the overview",
+				title: "About this book",
 				description: "What the book covers and how it’s organized.",
 				href: "/read/overview",
 				recommended: true,

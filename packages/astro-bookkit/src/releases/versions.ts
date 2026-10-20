@@ -73,3 +73,22 @@ export const buildVersionPath = (
 	const normalizedBase = basePath === "/" ? "" : basePath;
 	return `/${prefixSegment}/${entry.version}${normalizedBase}`;
 };
+
+/** An older version's entry in the release notes, whose card has this id. */
+export const releaseNotesEntryPath = (version: string): string =>
+	`/release-notes#release-${version}`;
+
+/**
+ * Where a link to `entry` goes from `pathname`: for the latest version, the
+ * same page; for an older one, what changed in it. A book keeps one copy of
+ * its content, so `/v/<version>/` would show today's pages under an old
+ * version number, and a static build has no page there at all.
+ */
+export const versionHref = (
+	pathname: string,
+	entry: BookVersionEntry,
+	options: VersionPathOptions = {},
+): string =>
+	entry.isLatest
+		? buildVersionPath(pathname, entry, options)
+		: releaseNotesEntryPath(entry.version);

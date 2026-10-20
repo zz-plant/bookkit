@@ -15,7 +15,7 @@ bun run bookkit deploy __BOOK_SLUG__ --dry-run   # check content, build, verify 
 
 ## Replace first
 
-- `src/book.config.ts`: the title, `site.url`, objectives, frame intent, and causal stance. The placeholder text shows on the overview page until you do.
+- `src/book.config.ts`: the title, `site.url`, objectives, frame intent, and causal stance. The placeholder text shows on the About this book page (`/read/overview`) until you do.
 - The starter files in `src/content/book/`: one overview chapter, mechanism, tool, example, glossary term, and release note. Each empty field carries a comment saying what it needs; `bun run bookkit check <file>` lists what is still missing.
 
 ## Which files are yours

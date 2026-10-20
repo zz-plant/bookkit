@@ -4,8 +4,10 @@ import bookConfig from "../../book.config";
 import { bookEntryPoints } from "../../lib/book-entrypoints";
 import {
 	type BookConfig,
+	bookPageTitle,
 	readItemPath,
 	readRoutes,
+	readSectionTitles,
 } from "@bookkit/astro-bookkit";
 
 // Read through BookConfig: under `as const`, an empty `mechanisms: []` has no element type.
@@ -20,10 +22,10 @@ const mechanismTitles = new Map(
 		.map((module) => [module.frontmatter?.slug, module.frontmatter?.title]),
 );
 ---
-<BaseLayout title={`Overview • ${bookConfig.title}`}>
+<BaseLayout title={bookPageTitle(readSectionTitles.overview, bookConfig.title)}>
   <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
-    <h1>Overview</h1>
+    <h1>{readSectionTitles.overview}</h1>
     <p class="lede">What the book sets out to do, how it approaches the problem, and the rules it follows.</p>
   </div>
   <section class="content-block">

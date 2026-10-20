@@ -1,6 +1,13 @@
 ---
 import VersionSwitcher from "../../components/VersionSwitcher.astro";
 import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
+import {
+	MENU_READ_SECTIONS,
+	readRoutes,
+	readSectionCurrent,
+	readSectionOfPath,
+	readSectionTitles,
+} from "../../book/read-routes";
 
 const {
 	bookTitle,
@@ -14,6 +21,7 @@ const {
 	localeEntries,
 	versionEntries,
 	currentPath,
+	sectionPath = currentPath ?? "/",
 	resolvedVersion,
 	versionPrefix,
 	versionArchivePath,
@@ -35,22 +43,16 @@ const readLinkCurrent = isReadRoute
 		: "page"
 	: undefined;
 const emphasizeDownloadsCta = !isDownloadsRoute;
-const readSectionFromPath = currentPath?.match(/\/read\/([^/]+)/)?.[1] ?? null;
-const readSectionLabels = {
-	overview: "Overview",
-	chapters: "Chapters",
-	mechanisms: "Mechanisms",
-	toolkit: "Toolkit",
-	examples: "Examples",
-	glossary: "Glossary",
-	tools: "Author tools",
-};
+// The section the page is in, without its locale or version prefix.
+const readSection = isReadRoute ? readSectionOfPath(sectionPath) : null;
 const activeReadSectionLabel =
-	isReadRoute && readSectionFromPath
-		? (readSectionLabels[
-				readSectionFromPath as keyof typeof readSectionLabels
-			] ?? null)
-		: null;
+	readSection && readSection !== "root" ? readSectionTitles[readSection] : null;
+const sectionLinks = MENU_READ_SECTIONS.map((key) => ({
+	key,
+	href: readRoutes[key],
+	label: readSectionTitles[key],
+	current: readSectionCurrent(key, sectionPath),
+}));
 ---
       <header class="site-header">
         <div class="site-brand">
@@ -104,6 +106,12 @@ const activeReadSectionLabel =
               <span aria-hidden="true" class="site-nav__toggle-icon">▾</span>
             </button>
             <div class="site-nav__overflow" data-site-nav-overflow hidden>
+              <div class="site-nav__group site-nav__group--sections">
+                <p class="site-nav__group-label">Sections</p>
+                {sectionLinks.map((link) => (
+                  <a href={link.href} aria-current={link.current}>{link.label}</a>
+                ))}
+              </div>
               <div class="site-nav__group site-nav__group--reader">
                 <p class="site-nav__group-label">Updates</p>
                 <a href="/release-notes" aria-keyshortcuts="g n">Release notes</a>

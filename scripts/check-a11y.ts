@@ -19,7 +19,8 @@ import { booksFromArgv } from "./lib/book-args";
 /**
  * Runs axe-core in Chromium over one page of each type in a built book (see
  * PAGE_TYPES in scripts/lib/a11y.ts) and over the home page with each panel
- * open (menu, search results, keyboard shortcuts), in light and dark, at
+ * open (menu, search results, "Continue" after a chapter, keyboard
+ * shortcuts), in light and dark, at
  * desktop and phone widths. Fails on serious or critical violations and
  * prints the others as warnings. axe-core and Playwright are pinned, the
  * pages are fixed, and nothing outside the local server loads, so every run
@@ -94,10 +95,36 @@ const PANELS: {
 		},
 	},
 	{
+		// "Continue: <chapter>", shown once the reader has opened a chapter.
+		label: "continue reading",
+		open: async (page) => {
+			const chapter = await page.evaluate(
+				() =>
+					JSON.parse(
+						document.querySelector<HTMLElement>("[data-resume-reading]")
+							?.dataset.resumeChapters ?? "[]",
+					)[0]?.href as string | undefined,
+			);
+			if (!chapter) return;
+			const home = page.url();
+			await page.goto(new URL(chapter, home).href, {
+				waitUntil: "networkidle",
+			});
+			await page.goto(home, { waitUntil: "networkidle" });
+			await page.waitForSelector("[data-resume-reading]:not([hidden])");
+		},
+	},
+	{
 		label: "keyboard shortcuts",
 		open: async (page, variant) => {
-			await openMenu(page, variant);
-			await page.click("[data-kbd-toggle]");
+			// A touch-only phone's menu leaves the button out; a keyboard
+			// attached to it still opens the panel with "?".
+			if (variant.mobile) {
+				await page.keyboard.press("?");
+			} else {
+				await openMenu(page, variant);
+				await page.click("[data-kbd-toggle]");
+			}
 			await page.waitForSelector("[data-kbd-panel]:not([hidden])");
 		},
 	},

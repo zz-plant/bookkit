@@ -23,19 +23,19 @@ function starterPlaceholders(root: string) {
 		{
 			field: "objectives.readerStart",
 			key: "readerStart",
-			shown: "shows on the overview page",
+			shown: "shows on the About this book page (/read/overview)",
 			meaning: "who the reader is before the first page",
 		},
 		{
 			field: "objectives.readerEnd",
 			key: "readerEnd",
-			shown: "shows on the overview page",
+			shown: "shows on the About this book page (/read/overview)",
 			meaning: "what the reader can do after the last page",
 		},
 		{
 			field: "objectives.transformation",
 			key: "transformation",
-			shown: "shows on the overview page",
+			shown: "shows on the About this book page (/read/overview)",
 			meaning: "the change between the two, in one sentence",
 		},
 		{
@@ -46,7 +46,7 @@ function starterPlaceholders(root: string) {
 		{
 			field: "causalStance",
 			key: "causalStance",
-			shown: "shows on the overview page",
+			shown: "shows on the About this book page (/read/overview)",
 			meaning: "the book's core claim about what causes the problem it covers",
 		},
 	];

@@ -130,10 +130,12 @@ jobs:
       - name: Accessibility (every book)
         run: bun run check:a11y
 
-      # Keyboard behaviour axe cannot see: the search combobox's
+      # Behaviour axe cannot see: the search combobox's
       # aria-activedescendant follows the arrow keys, and Enter opens the
-      # selected result (scripts/search-panel.browser.ts).
-      - name: Search keyboard (browser test)
+      # selected result (scripts/search-panel.browser.ts); "Continue" on the
+      # home page and hub, the touch-only menu, and the heading keys
+      # (scripts/reader-wayfinding.browser.ts).
+      - name: Search and reading keys (browser tests)
         run: bun run test:browser
 
   # The meaning pass of check:corpus, which verify leaves out (it compares

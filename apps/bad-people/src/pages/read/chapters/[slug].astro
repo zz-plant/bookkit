@@ -17,7 +17,8 @@ import {
 	actionLinksForMechanisms,
 	bookPageTitle,
 	buildLocalizedReadRoutePath,
-	chapterReadingOrder,
+	chapterLinksInReadingOrder,
+	chapterPositionLabel,
 	createBreadcrumbListStructuredDataFromTrail,
 	defaultChapterPageCopy,
 	firstMetaDescription,
@@ -82,13 +83,9 @@ const mechanismTitleBySlug = new Map(
 		mechanismModule.frontmatter?.title ?? slug,
 	]),
 );
-// Reading order is the author's: an explicit `order`, else the numbered file order the index preserves.
-const chapterOrder = chapterReadingOrder(entries).map(
-	({ slug, module: chapterModule }) => ({
-		slug,
-		title: chapterModule.frontmatter?.title ?? "Untitled chapter",
-	}),
-);
+// Reading order is the author's: an explicit `order`, else the numbered file
+// order. The index lists chapters in the same order, drafts included.
+const chapterOrder = chapterLinksInReadingOrder(entries);
 // What to read first, and the actions for the mechanisms this chapter uses.
 const prerequisites = prerequisiteChapterLinks(
 	frontmatter.prerequisites,
@@ -143,6 +140,9 @@ const robots = isThinPage(pageFacts?.wordCount, bookConfig.site)
 	? THIN_PAGE_ROBOTS
 	: undefined;
 const chapterEyebrow = [
+	currentIndex >= 0
+		? chapterPositionLabel(currentIndex + 1, chapterOrder.length)
+		: null,
 	frontmatter.status === "published" ? null : (frontmatter.status ?? "draft"),
 	isFallback ? "not yet translated" : null,
 ]
@@ -157,7 +157,7 @@ const chapterEyebrow = [
 >
   <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
   <div class="chapter-shell">
-    <article>
+    <article data-resume-chapter={frontmatter.slug}>
       {chapterEyebrow && <div class="eyebrow">{chapterEyebrow}</div>}
       <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
       {prerequisites.length > 0 && (
@@ -202,15 +202,15 @@ const chapterEyebrow = [
 
   <nav class="chapter-pagination" aria-label="Chapter navigation">
     {previousChapter ? (
-      <a class="chapter-pagination__card chapter-pagination__card--prev" href={readItemPath("chapters", previousChapter.slug)}>
+      <a class="chapter-pagination__card chapter-pagination__card--prev" href={previousChapter.href}>
         <span class="chapter-pagination__label">← Previous chapter</span>
-        <span class="chapter-pagination__title">{previousChapter.title}</span>
+        <span class="chapter-pagination__title">{previousChapter.label}</span>
       </a>
     ) : <div />}
     {nextChapter ? (
-      <a class="chapter-pagination__card chapter-pagination__card--next" href={readItemPath("chapters", nextChapter.slug)}>
+      <a class="chapter-pagination__card chapter-pagination__card--next" href={nextChapter.href}>
         <span class="chapter-pagination__label">Next chapter →</span>
-        <span class="chapter-pagination__title">{nextChapter.title}</span>
+        <span class="chapter-pagination__title">{nextChapter.label}</span>
       </a>
     ) : <div />}
   </nav>

@@ -5,9 +5,10 @@ export type StorageLike = Pick<Storage, "getItem" | "setItem">;
  * storage, reading that property throws a SecurityError; deferring it to here
  * lets the helpers below catch it instead of the importing module failing.
  */
-export const deferredLocalStorage: StorageLike = {
+export const deferredLocalStorage: StorageLike & Pick<Storage, "removeItem"> = {
 	getItem: (key) => window.localStorage.getItem(key),
 	setItem: (key, value) => window.localStorage.setItem(key, value),
+	removeItem: (key) => window.localStorage.removeItem(key),
 };
 
 export const readStoredValue = (
@@ -30,6 +31,17 @@ export const writeStoredValue = (
 		storage.setItem(key, value);
 	} catch {
 		// Ignore storage write failures so UI initialization keeps running.
+	}
+};
+
+export const removeStoredValue = (
+	storage: Pick<Storage, "removeItem">,
+	key: string,
+): void => {
+	try {
+		storage.removeItem(key);
+	} catch {
+		// Blocked storage has nothing to remove.
 	}
 };
 

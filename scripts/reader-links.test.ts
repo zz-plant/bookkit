@@ -226,10 +226,12 @@ describe.each(BOOKS)("%s", (book) => {
 			[...html.matchAll(/<a [^>]*href="\/read"[^>]*>/g)]
 				.map((match) => match[0].match(/aria-current="([^"]+)"/)?.[1])
 				.filter(Boolean);
-		expect(current(page(book, "/read/"))).toEqual(["page", "page"]);
+		// The header link, the menu's Sections link, and the phone bar.
+		expect(current(page(book, "/read/"))).toEqual(["page", "page", "page"]);
 		const chapter = chapters()[0]?.slug;
 		const html = page(book, `/read/chapters/${chapter}/`);
-		// The header link and the phone bar mark the section; the breadcrumb's last item is the page.
+		// The header link and the phone bar mark the section (the menu marks
+		// Chapters instead); the breadcrumb's last item is the page.
 		expect(current(html)).toEqual(["true", "true"]);
 		expect(html).toMatch(/<nav class="breadcrumb"[\s\S]*?aria-current="page"/);
 	});

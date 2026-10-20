@@ -3,7 +3,7 @@ import {
 	resolveLocalizedContent,
 } from "../localization/content";
 import type { ReleaseSectionSlug } from "../releases/notes";
-import { readRoutes } from "./read-routes";
+import { readRoutes, readSectionTitles } from "./read-routes";
 
 export type ReadHubSectionKey = ReleaseSectionSlug | "overview";
 
@@ -207,7 +207,7 @@ export const createDefaultReadHubSections = (
 	latestChanges: ReadHubLatestChangeMap = {},
 ): ReadHubSection[] => [
 	{
-		title: "Overview",
+		title: readSectionTitles.overview,
 		description: "What the book is for, how it is framed, and its limits.",
 		href: readRoutes.overview,
 		count: 1,

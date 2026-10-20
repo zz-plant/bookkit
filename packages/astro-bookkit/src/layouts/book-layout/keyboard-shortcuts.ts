@@ -19,6 +19,19 @@ type KeyboardShortcutsOptions = {
 	qa: QaController | null;
 };
 
+/**
+ * What `[` and `]` step through: the page's own section headings. Headings
+ * in the sidebar (a chapter's contents and downloads), in navigation, and in
+ * "Keep going" are labels for links, not sections of the page.
+ */
+const JUMP_HEADINGS = "h2, h3";
+const NOT_JUMP_HEADINGS = "aside, nav, .next-steps";
+
+const jumpHeadings = (root: ParentNode): HTMLElement[] =>
+	Array.from(root.querySelectorAll<HTMLElement>(JUMP_HEADINGS)).filter(
+		(heading) => !heading.closest(NOT_JUMP_HEADINGS),
+	);
+
 export const shouldSkipKeyboardShortcut = ({
 	key,
 	editableTarget,
@@ -87,9 +100,7 @@ export const initializeKeyboardShortcuts = ({
 	qa,
 }: KeyboardShortcutsOptions): void => {
 	const help = initializeHelpPanel(root, toggleButton);
-	const headings = mainRoot
-		? Array.from(mainRoot.querySelectorAll("h2, h3"))
-		: [];
+	const headings = mainRoot ? jumpHeadings(mainRoot) : [];
 	const prefersReducedMotion = window.matchMedia(
 		"(prefers-reduced-motion: reduce)",
 	).matches;
@@ -236,7 +247,7 @@ export const initializeKeyboardShortcuts = ({
 				entries.forEach((entry) => {
 					entry.target.classList.toggle("is-in-viewport", entry.isIntersecting);
 					if (entry.isIntersecting) {
-						activeHeadingIndex = headings.indexOf(entry.target as Element);
+						activeHeadingIndex = headings.indexOf(entry.target as HTMLElement);
 					}
 				});
 			},

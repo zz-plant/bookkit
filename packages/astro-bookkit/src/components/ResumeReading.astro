@@ -1,0 +1,22 @@
+---
+import type { ResumeChapter } from "../layouts/book-layout/resume-reading";
+
+/**
+ * "Continue: <chapter>" for a reader who has opened a chapter on this
+ * device, with a way to forget it. Hidden until the page script finds a
+ * saved chapter among `chapters` (layouts/book-layout/resume-reading.ts),
+ * so a first visit, or a browser that blocks storage, shows nothing.
+ */
+export type Props = { chapters: ResumeChapter[] };
+
+const { chapters } = Astro.props;
+---
+{chapters.length > 0 && (
+  <p class="resume-reading" data-resume-reading data-resume-chapters={JSON.stringify(chapters)} hidden>
+    <a class="resume-reading__link" data-resume-link>Continue: <span data-resume-title></span></a>
+    <span class="resume-reading__note">
+      Saved on this device.
+      <button type="button" class="resume-reading__clear" data-resume-clear aria-label="Clear saved place">Clear</button>
+    </span>
+  </p>
+)}

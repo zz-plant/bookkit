@@ -36,4 +36,51 @@ describe("reading hub copy", () => {
 			defaultReadHubConfig.quickStartCards,
 		);
 	});
+
+	it("ends the default cards with chapter 1, after About this book and the chapter list", () => {
+		const hub = resolveReadHubConfig(undefined, {
+			firstChapter: {
+				title: "Own the incident",
+				href: "/read/chapters/overview",
+				summary: "Who owns an alert, and when.",
+			},
+		});
+		expect(
+			hub.quickStartCards?.map(({ title, href, description }) => [
+				title,
+				href,
+				description,
+			]),
+		).toEqual([
+			[
+				"About this book",
+				"/read/overview",
+				"What the book sets out to do, its approach, and its ground rules.",
+			],
+			[
+				"Read the chapters in order",
+				"/read/chapters",
+				"The full argument, start to finish.",
+			],
+			[
+				"Start with chapter 1: Own the incident",
+				"/read/chapters/overview",
+				"Who owns an alert, and when.",
+			],
+		]);
+		// A book with no chapters yet gets the first two.
+		expect(resolveReadHubConfig({}).quickStartCards).toHaveLength(2);
+	});
+
+	it("keeps a book's own cards as they are, with no chapter card added", () => {
+		const own = [
+			{ title: "Classify an alert", description: "d", href: "/read/toolkit/x" },
+		];
+		expect(
+			resolveReadHubConfig(
+				{ quickStartCards: own },
+				{ firstChapter: { title: "One", href: "/read/chapters/one" } },
+			).quickStartCards,
+		).toEqual(own);
+	});
 });

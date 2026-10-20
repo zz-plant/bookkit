@@ -1,0 +1,15 @@
+---
+import { draftCopy } from "../book/chapter-copy";
+
+/**
+ * One line on the home page and the reading hub of a book whose status is
+ * draft (or unset), in the chapter index's words for what a draft is.
+ */
+export type Props = { status?: string };
+
+const { status } = Astro.props;
+const isDraft = (status ?? "draft") === "draft";
+---
+{isDraft && (
+  <p class="meta book-draft-note"><strong class="book-draft-note__status">{draftCopy.book}</strong> {draftCopy.meaning}</p>
+)}

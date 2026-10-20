@@ -2,8 +2,8 @@ import type { BookConfig } from "@bookkit/astro-bookkit";
 
 // The author's decisions for this book. Every field is described on the
 // BookConfig type (packages/astro-bookkit/src/book/config.ts). The text values
-// below are placeholders: they show on the book's overview page until you
-// replace them.
+// below are placeholders: they show on the book's About this book page
+// (/read/overview) until you replace them.
 export const bookConfig = {
 	slug: "__BOOK_SLUG__",
 	title: "__BOOK_TITLE__",
@@ -74,31 +74,12 @@ export const bookConfig = {
 		},
 	},
 	// Copy on the reading hub (/read): the line under its title, and the
-	// "Where to start" cards in order ({ title, description, href,
+	// "Where to start" cards. Leave quickStartCards out for the default ones
+	// (About this book, the chapter list, and "Start with chapter 1: <its
+	// title>"), or list your own in order ({ title, description, href,
 	// recommended?, funnelStep? }); an empty list shows none.
 	readHub: {
-		lede: "Start with the overview, read the chapters in order, or look something up.",
-		quickStartCards: [
-			{
-				title: "Read the overview",
-				description: "What the book covers and how it’s organized.",
-				href: "/read/overview",
-				recommended: true,
-				funnelStep: "new_reader_overview",
-			},
-			{
-				title: "Read the chapters in order",
-				description: "The full argument, start to finish.",
-				href: "/read/chapters",
-				funnelStep: "new_reader_chapters",
-			},
-			{
-				title: "Browse the mechanisms",
-				description: "The named patterns this book explains.",
-				href: "/read/mechanisms",
-				funnelStep: "new_reader_mechanisms",
-			},
-		],
+		lede: "See what the book sets out to do, start at chapter 1, or look something up.",
 	},
 	// The mechanisms index (/read/mechanisms): the line under its title, and
 	// how urgent each mechanism is by slug ("urgent", "high-leverage" or

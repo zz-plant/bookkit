@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import { repoRoot } from "../_lib";
 import { planGates, REPRESENTATIVE_BOOK } from "./verify-plan";
 
 const books = ["bad-people", "on-call", "running-hot"];
@@ -104,5 +106,19 @@ describe("planGates", () => {
 			"concepts",
 			"build:all",
 		]);
+	});
+});
+
+describe("verify --skip", () => {
+	it("leaves out the gate it names, as deploy does with build:all", () => {
+		const list = (...args: string[]) =>
+			Bun.spawnSync(
+				[process.execPath, join(repoRoot(), "scripts", "verify.ts"), ...args],
+				{ cwd: repoRoot(), stdout: "pipe" },
+			).stdout.toString();
+		expect(list("--all", "--list")).toContain("build every book");
+		const skipped = list("--all", "--list", "--skip", "build:all");
+		expect(skipped).not.toContain("build every book");
+		expect(skipped).toContain("types");
 	});
 });

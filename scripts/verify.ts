@@ -13,6 +13,7 @@ import { failedWorkspaces } from "./lib/workspace-output";
  *   bun run verify                    # changes since origin/main, committed or not
  *   bun run verify -- --base <ref>    # compare against another ref
  *   bun run verify -- --all           # every gate CI runs
+ *   bun run verify -- --skip <gate>   # leave one out, by id (--list --json shows ids)
  *   bun run verify -- --list          # show the plan, run nothing
  *   bun run verify -- --json          # one JSON summary on stdout
  *
@@ -67,12 +68,19 @@ if (!all && !base) {
 	process.exit(1);
 }
 
+// --skip <id>: a caller that runs a gate its own way (deploy builds the
+// books it publishes) leaves it out.
+const skipped = new Set(
+	process.argv.flatMap((arg, index) =>
+		process.argv[index - 1] === "--skip" ? [arg] : [],
+	),
+);
 const gates = planGates(
 	all ? null : changed,
 	listBookDirs(),
 	(file) => existsSync(join(root, file)),
 	isStandaloneProject(root) ? "project" : "workspace",
-);
+).filter((gate) => !skipped.has(gate.id));
 
 const describeScope = () =>
 	all

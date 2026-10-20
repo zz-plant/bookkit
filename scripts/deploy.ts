@@ -24,12 +24,14 @@ import { domainNotice, liveSitemapUrl } from "./lib/deploy-domain";
  * bookkit deploy — publishes books to Cloudflare Workers, all or none.
  *
  * 1. Checks, for every book before any is published: `verify --all` (what CI
- *    runs), then each book's build, check:build, and its page count against
- *    the live sitemap. One failure and nothing is published.
+ *    runs, less its build of every book), then each deployed book's build,
+ *    check:build, and its page count against the live sitemap. One failure
+ *    and nothing is published.
  * 2. Publishes each book with wrangler; the version message names the commit.
  *
  * Uncommitted changes in the books being deployed, or outside apps/, are
- * refused unless --allow-dirty. A book that passes gets a stamp beside its
+ * refused unless --allow-dirty; a --dry-run rehearses them anyway, and says
+ * a real deploy would refuse them. A book that passes gets a stamp beside its
  * dist/ (commit + digest); --no-build publishes that stamped dist/ without
  * verifying or building again, and refuses one stamped at another commit or
  * changed since.
@@ -136,30 +138,51 @@ const gitState: GitState | null = "error" in git ? null : git;
 const gitError = "error" in git ? git.error : null;
 const changes = gitState?.dirty ?? [];
 const uncommitted = gitState === null || changes.length > 0;
-if (uncommitted && !allowDirty) {
+/** A few of the changes, so the advice is not buried under all of them. */
+const listChanges = (limit = 10) => [
+	...changes.slice(0, limit).map((line) => `  ${line}`),
+	...(changes.length > limit
+		? [`  … and ${changes.length - limit} more (git status lists them)`]
+		: []),
+];
+// A dry run rehearses uncommitted work; it stamps nothing, so nothing
+// rehearsed this way can be published with --no-build.
+const rehearsingUncommitted = uncommitted && !allowDirty && dryRun;
+if (uncommitted && !allowDirty && !dryRun) {
 	console.error(
 		gitState === null
 			? `Refusing to deploy: ${gitError}. Deploy records the commit it publishes; commit the books to git, or pass --allow-dirty to publish without one.`
 			: [
-					"Refusing to deploy: these uncommitted changes would be published, or be missing from what is published:",
-					...changes.map((line) => `  ${line}`),
-					"Commit or stash them and rerun, or pass --allow-dirty to publish the working tree as it is.",
+					`Refusing to deploy: ${changes.length} uncommitted change(s) would be published, or be missing from what is published. Commit or stash them and rerun, or pass --allow-dirty to publish the working tree as it is.`,
+					...listChanges(),
 				].join("\n"),
 	);
 	process.exit(1);
 }
-if (uncommitted) {
+if (rehearsingUncommitted) {
+	console.warn(
+		[
+			"",
+			`Rehearsing uncommitted work: a real deploy refuses ${gitState === null ? "a folder that is not a git checkout" : `these ${changes.length} change(s)`} until they are committed (or with --allow-dirty).`,
+			...(gitState === null ? [] : listChanges(5)),
+		].join("\n"),
+	);
+} else if (uncommitted) {
 	console.warn(
 		[
 			"",
 			"WARNING: --allow-dirty: publishing work that is in no commit. It cannot be rebuilt or rolled back from git.",
-			...(gitState === null
-				? [`  ${gitError}`]
-				: changes.map((line) => `  ${line}`)),
+			...(gitState === null ? [`  ${gitError}`] : listChanges()),
 			`The version message on Cloudflare says "${versionMessage(gitState, true)}".`,
 			"",
 		].join("\n"),
 	);
+}
+if (skipBuild && rehearsingUncommitted) {
+	console.error(
+		"--no-build publishes a dist/ an earlier deploy run stamped, and a dry run of uncommitted work stamps none. Commit, then deploy.",
+	);
+	process.exit(1);
 }
 if (skipBuild && gitState === null) {
 	console.error(
@@ -235,11 +258,16 @@ if (skipBuild) {
 		"\nSkipping verify --all and the build (--no-build): publishing the dist/ an earlier deploy run checked and stamped.",
 	);
 } else {
-	console.log("\n── verify --all (the checks CI runs)\n");
-	const verify = spawnSync(process.execPath, ["run", "verify", "--", "--all"], {
-		cwd: root,
-		stdio: "inherit",
-	});
+	// Every check CI runs, except building every book: the books being
+	// deployed are built and checked below.
+	console.log(
+		"\n── verify --all (the checks CI runs; the books deployed are built below)\n",
+	);
+	const verify = spawnSync(
+		process.execPath,
+		["run", "verify", "--", "--all", "--skip", "build:all"],
+		{ cwd: root, stdio: "inherit" },
+	);
 	if (verify.status !== 0) {
 		for (const outcome of outcomes) {
 			outcome.unchecked = "not checked: verify --all failed first";
@@ -319,7 +347,12 @@ for (const outcome of outcomes) {
 	}
 	console.log(`\nPages: ${outcome.pages}`);
 
-	if (outcome.problems.length === 0 && !skipBuild && gitState) {
+	if (
+		outcome.problems.length === 0 &&
+		!skipBuild &&
+		gitState &&
+		!rehearsingUncommitted
+	) {
 		writeStamp(appDir, {
 			book,
 			commit: gitState.commit,
@@ -360,7 +393,10 @@ const headline = () => {
 		if (!dryRun) {
 			return `Published ${outcomes.length} book(s), each version tagged "${message}".`;
 		}
-		return `All ${outcomes.length} book(s) passed. To publish exactly these builds: bun run bookkit deploy ${selected.join(" ")} --no-build`;
+		const publish = rehearsingUncommitted
+			? `Commit your changes, then publish: bun run bookkit deploy ${selected.join(" ")}`
+			: `To publish exactly these builds: bun run bookkit deploy ${selected.join(" ")} --no-build${allowDirty ? " --allow-dirty" : ""}`;
+		return `All ${outcomes.length} book(s) passed. ${publish}\n(Publishing needs a Cloudflare login once: bunx wrangler login, or CLOUDFLARE_API_TOKEN in the environment.)`;
 	}
 	const cause = `wrangler failed for ${failed.join(", ")} (its output is above)`;
 	if (dryRun) return `${cause}.`;

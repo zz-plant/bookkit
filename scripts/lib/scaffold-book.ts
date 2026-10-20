@@ -50,6 +50,8 @@ export type ScaffoldBookOptions = {
 	title: string;
 	/** Leave the content folders empty (default false). */
 	skipStarterContent?: boolean;
+	/** The frame's slug (default intervention), as `bookkit try` detected it. */
+	frame?: string;
 	/** Date of the starter release note, YYYY-MM-DD (default today). */
 	today?: string;
 };
@@ -92,11 +94,41 @@ export const starterAppFiles = (
 	);
 };
 
+/** A frame by slug; no slug is the template's, intervention. */
+export const frameNamed = (slug = "intervention") => {
+	const frame = defaultFrames.find((candidate) => candidate.slug === slug);
+	if (!frame) {
+		throw new Error(
+			`No frame "${slug}". Frames: ${defaultFrames.map((candidate) => candidate.slug).join(", ")}.`,
+		);
+	}
+	return frame;
+};
+
+/** book.config.ts with the template's frame (intervention) swapped for `frame`. */
+const withFrame = (
+	source: string,
+	frame: (typeof defaultFrames)[number],
+): string => {
+	if (frame.slug === "intervention") return source;
+	const block = /(frame: \{\s*slug: )"intervention",(\s*steps: )\[[^\]]*\]/;
+	if (!block.test(source)) {
+		throw new Error(
+			"The starter book.config.ts has no frame block to set; set frame in book.config.ts by hand.",
+		);
+	}
+	return source.replace(
+		block,
+		`$1"${frame.slug}",$2[${frame.steps.map((step) => JSON.stringify(step.id)).join(", ")}]`,
+	);
+};
+
 export const scaffoldBook = (
 	options: ScaffoldBookOptions,
 ): ScaffoldBookResult => {
 	const { root, slug, title } = options;
 	const appDir = join(root, "apps", slug);
+	const frame = frameNamed(options.frame);
 	const templateDir = starterTemplateRootIn(root);
 	if (!existsSync(templateDir)) {
 		throw new Error(
@@ -119,7 +151,12 @@ export const scaffoldBook = (
 	for (const [file, content] of Object.entries(
 		starterAppFiles(root, slug, title),
 	)) {
-		write(join(appDir, file), content);
+		write(
+			join(appDir, file),
+			file === join("src", "book.config.ts")
+				? withFrame(content, frame)
+				: content,
+		);
 	}
 	for (const file of syncShimTemplatesToBook(slug, root)) {
 		files.push(`apps/${slug}/${file}`);
@@ -145,7 +182,7 @@ Each folder holds one kind of record. \`bun run bookkit contract <section>\` lis
 	);
 	if (!options.skipStarterContent) {
 		for (const [path, content] of Object.entries(
-			starterContent(slug, title, options.today),
+			starterContent(slug, title, options.today, frame.slug),
 		)) {
 			write(join(contentRoot, path), content);
 		}
@@ -159,11 +196,10 @@ export const starterContent = (
 	book: string,
 	title: string,
 	today = new Date().toISOString().slice(0, 10),
+	frameSlug?: string,
 ): Record<string, string> => {
 	const slugs = starterSlugs(book);
-	const frame =
-		defaultFrames.find((candidate) => candidate.slug === "intervention") ??
-		defaultFrames[0];
+	const frame = frameNamed(frameSlug);
 	const overviewBody = frame.steps
 		.map(
 			(step) =>

@@ -260,7 +260,7 @@ export const printTry = (target: string, preview: FolderPreview) => {
 			`\nMake it a book (writes apps/${slug}/; your folder is untouched)`,
 		);
 		console.log(
-			`  bun run bookkit new book ${slug} --title "${title}" --from ${label}`,
+			`  bun run bookkit new book ${slug} --title "${title}"${frame.slug === "intervention" ? "" : ` --frame ${frame.slug}`} --from ${label}`,
 		);
 		console.log(`  bun run bookkit propose ${slug}`);
 	}

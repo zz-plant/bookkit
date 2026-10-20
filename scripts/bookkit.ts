@@ -1268,24 +1268,35 @@ function rule(rest: string[]): number {
 		console.error(`Name two different mechanisms; got ${a} twice.`);
 		return 1;
 	}
+	// A ruling settles a pair within one corpus: the shared one (corpus.json
+	// "books"), or a book outside it, which check:corpus checks on its own.
 	const books = listBookDirs();
 	const scope = corpusScope(books, readCorpusBooks());
-	const shared = scope.shared.flatMap(
-		(book) => loadBookContent(book).mechanisms,
+	const loaded = books.flatMap((book) =>
+		loadBookContent(book).mechanisms.map((m) => ({ ...m, book })),
 	);
-	const slugs = [...new Set(shared.map((m) => m.slug))];
+	const corporaOf = (slug: string) =>
+		new Set(
+			loaded.filter((m) => m.slug === slug).map((m) => scope.corpusOf(m.book)),
+		);
+	const slugs = [...new Set(loaded.map((m) => m.slug))];
 	for (const slug of [a, b]) {
 		if (slugs.includes(slug)) continue;
-		const elsewhere = scope.separate.some((book) =>
-			loadBookContent(book).mechanisms.some((m) => m.slug === slug),
-		);
+		console.error(`No mechanism ${slug}.${didYouMean(slug, slugs)}`);
+		return 1;
+	}
+	const corpus = [...corporaOf(a)].find((name) => corporaOf(b).has(name));
+	if (!corpus) {
+		const name = (slug: string) =>
+			[...corporaOf(slug)]
+				.map((c) => (c === "corpus.json" ? "the shared corpus" : c))
+				.join(", ");
 		console.error(
-			elsewhere
-				? `${slug} is in a book outside the shared corpus (corpus.json "books"), and rulings apply to the shared corpus only.`
-				: `No mechanism ${slug} in the shared corpus.${didYouMean(slug, slugs)}`,
+			`${a} (${name(a)}) and ${b} (${name(b)}) are in different corpora, where similar mechanisms are allowed, so there is nothing to rule. To hold two books to one vocabulary, list both in "books" in corpus.json.`,
 		);
 		return 1;
 	}
+	const shared = loaded.filter((m) => scope.corpusOf(m.book) === corpus);
 	const corpusPath = join(repoRoot(), "corpus.json");
 	const text = existsSync(corpusPath) ? readFileSync(corpusPath, "utf8") : null;
 	let distinct: Array<{ pair: [string, string]; reason: string }> = [];

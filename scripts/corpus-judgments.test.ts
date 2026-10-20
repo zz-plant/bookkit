@@ -414,6 +414,46 @@ describe("bookkit judge and bookkit rule", () => {
 		expect(again.output).toContain("already ruled distinct");
 		writeFileSync(corpusPath, before);
 	});
+
+	it("rule settles a pair inside a book outside the shared corpus, and refuses a pair across corpora", () => {
+		// "three" is not in corpus.json "books": check:corpus checks it on its own.
+		const dir = join(workspace, "apps", "three", "src/content/book/mechanisms");
+		mkdirSync(dir, { recursive: true });
+		const own = (slug: string, definition: string) =>
+			writeFileSync(
+				join(dir, `${slug}.mdx`),
+				`---\nslug: ${slug}\ntitle: "${slug}"\ndefinition: "${definition}"\n---\n`,
+			);
+		own("queue-reset", "Sending people to the back of the line on any error.");
+		own("form-loop", "Asking for the same form again after each reply.");
+		const corpusPath = join(workspace, "corpus.json");
+		const before = readFileSync(corpusPath, "utf8");
+		try {
+			const within = bookkit(
+				"rule",
+				"queue-reset",
+				"form-loop",
+				"--distinct",
+				"Losing your place is not being asked again.",
+			);
+			expect(within.status).toBe(0);
+			const across = bookkit(
+				"rule",
+				"queue-reset",
+				"waiting-game",
+				"--distinct",
+				"x",
+			);
+			expect(across.status).toBe(1);
+			expect(across.output).toContain("are in different corpora");
+		} finally {
+			writeFileSync(corpusPath, before);
+			rmSync(join(workspace, "apps", "three"), {
+				recursive: true,
+				force: true,
+			});
+		}
+	});
 });
 
 describe("corpus-judgments helpers", () => {

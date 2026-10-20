@@ -1613,6 +1613,11 @@ a.card:hover h3 {
 	color: var(--color-rubric);
 }
 
+/* The current page is in ink, as the primary nav and the action bar mark it. */
+.breadcrumb [aria-current="page"] {
+	color: var(--color-ink);
+}
+
 .next-steps {
 	margin-top: var(--space-7);
 	padding-top: var(--space-4);

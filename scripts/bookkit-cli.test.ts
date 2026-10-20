@@ -105,3 +105,72 @@ describe("bookkit exit codes", () => {
 		expect(result.output).not.toContain("Could not run");
 	});
 });
+
+describe("bookkit new and check with a current book", () => {
+	let workspace: string;
+
+	beforeAll(() => {
+		workspace = mkdtempSync(join(tmpdir(), "bookkit-new-"));
+		mkdirSync(join(workspace, "apps", "a-book", "src", "content", "book"), {
+			recursive: true,
+		});
+		mkdirSync(join(workspace, "apps", "b-book"), { recursive: true });
+		mkdirSync(join(workspace, "scripts"));
+		for (const entry of readdirSync(join(repoRoot(), "scripts"))) {
+			symlinkSync(
+				join(repoRoot(), "scripts", entry),
+				join(workspace, "scripts", entry),
+			);
+		}
+		expect(bookkit(workspace, ["use", "a-book"]).status).toBe(0);
+	});
+
+	afterAll(() => {
+		rmSync(workspace, { recursive: true, force: true });
+	});
+
+	it("takes the title as the title when --definition follows it", () => {
+		const result = bookkit(workspace, [
+			"new",
+			"mechanism",
+			"Queue reset",
+			"--definition",
+			"Sending people to the back of the line on any error.",
+		]);
+		expect(result.output).not.toContain("not found");
+		expect(result.status).toBe(0);
+		expect(
+			readdirSync(
+				join(
+					workspace,
+					"apps",
+					"a-book",
+					"src",
+					"content",
+					"book",
+					"mechanisms",
+				),
+			),
+		).toEqual(["queue-reset.mdx"]);
+	});
+
+	it("names an option new does not have, instead of reading it as a title", () => {
+		const result = bookkit(workspace, [
+			"new",
+			"chapter",
+			"Who holds the lever",
+			"--aftr",
+			"intro",
+		]);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain("new chapter has no option --aftr.");
+	});
+
+	it("check with no book checks the current one", () => {
+		const result = bookkit(workspace, ["check", "--quick"]);
+		expect(result.output).toContain(
+			"(a-book is the current book; add --all for every book.)",
+		);
+		expect(result.output).toContain("Structure of a-book");
+	});
+});

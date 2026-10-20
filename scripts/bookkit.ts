@@ -50,7 +50,11 @@ import { compileFinding, compileMdx } from "./lib/compile-mdx";
 import { callsFor, nearestTo, readJudgments } from "./lib/corpus-judgments";
 import { addDistinctRuling, findRuling } from "./lib/corpus-rulings";
 import { corpusScope, pairCorpus, readCorpusBooks } from "./lib/corpus-scope";
-import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
+import {
+	DEFAULT_DEV_PORT,
+	foregroundServer,
+	runDevServer,
+} from "./lib/dev-server";
 import {
 	DEFAULT_EMBEDDING_MODEL_KEY,
 	EMBEDDING_MODELS,
@@ -173,7 +177,10 @@ switch (command) {
 				),
 			);
 		} else {
-			await printStatus();
+			const named = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+			await printStatus(
+				named ? requireBook(named, "bun run bookkit status [book]") : undefined,
+			);
 		}
 		process.exit(0);
 		break;
@@ -275,8 +282,17 @@ switch (command) {
 			checkFolder(target, args.slice(2));
 			break;
 		}
-		const book = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
-		if (book) requireBook(book, "bun run bookkit check [book]");
+		// No book: the current one (bookkit use), unless --all.
+		const book =
+			args[1] && !args[1].startsWith("--")
+				? args[1]
+				: args.includes("--all")
+					? undefined
+					: (focusBook ?? undefined);
+		if (book) requireBook(book, "bun run bookkit check [book] [--all]");
+		if (book && book === focusBook && args[1] !== book) {
+			console.log(`(${book} is the current book; add --all for every book.)`);
+		}
 		const quick = args.includes("--quick");
 		console.log(`\n🔎 Structure${book ? ` of ${book}` : " of every book"}\n`);
 		const structure = book
@@ -409,10 +425,44 @@ switch (command) {
 				? requireBook(named, usage)
 				: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
 		if (control) {
+			// First the server `bookkit dev` runs in another terminal.
+			const running = foregroundServer(targetBook);
+			if (running && control === "stop") {
+				process.kill(running.pid, "SIGTERM");
+				console.log(
+					`Stopped the dev server for ${targetBook} on port ${running.port}.`,
+				);
+				process.exit(0);
+			}
+			if (running && control === "status") {
+				console.log(
+					`The dev server for ${targetBook} is running: http://localhost:${running.port}/ (bun run bookkit dev stop ${targetBook} stops it).`,
+				);
+				process.exit(0);
+			}
+			if (running) {
+				console.log(
+					`The dev server for ${targetBook} runs in the foreground of another terminal; its log is there.`,
+				);
+				process.exit(0);
+			}
+			// Then one astro dev moved to the background itself. Astro answers
+			// in JSON when it detects an agent; print just its message.
 			const result = spawnSync("bunx", ["astro", "dev", control], {
 				cwd: join(repoRoot(), "apps", targetBook),
-				stdio: "inherit",
+				stdio: ["inherit", "pipe", "inherit"],
 			});
+			for (const line of result.stdout?.toString().split("\n") ?? []) {
+				if (!line.trim()) continue;
+				try {
+					const parsed = JSON.parse(line) as { message?: unknown };
+					console.log(
+						typeof parsed.message === "string" ? parsed.message : line,
+					);
+				} catch {
+					console.log(line);
+				}
+			}
 			process.exit(exitCodeOf(result, `astro dev ${control}`));
 		}
 		const portArg = flagValue(args, "--port");
@@ -439,7 +489,19 @@ switch (command) {
 				["run", "--filter", `@books/${targetBook}`, "build"],
 				{ cwd: repoRoot(), stdio: "inherit" },
 			);
-			process.exit(exitCodeOf(result, `the ${targetBook} build`));
+			const status = exitCodeOf(result, `the ${targetBook} build`);
+			// After Astro's log, where the book went and what to do with it.
+			const dist = join("apps", targetBook, "dist");
+			const exportsDir = join(repoRoot(), dist, "exports");
+			if (status === 0) {
+				const files = ["book.pdf", "book.epub"].filter((file) =>
+					existsSync(join(exportsDir, file)),
+				);
+				console.log(
+					`\n✓ Built ${targetBook} in ${dist}${files.length > 0 ? `; ${files.map((file) => join(dist, "exports", file)).join(" and ")}` : ""}.\nNext: bun run bookkit deploy ${targetBook} --dry-run rehearses publishing it.`,
+				);
+			}
+			process.exit(status);
 		} else {
 			console.log("\n📦 Building all workspace books...\n");
 			const result = spawnSync(
@@ -567,7 +629,8 @@ switch (command) {
 	}
 }
 
-async function printStatus() {
+/** Your books, and the commands for one: `book`, else the current one. */
+async function printStatus(book?: string) {
 	if (books.length === 0) {
 		console.log(
 			"\nBOOKKIT · no books yet\n\nStart one:  bun run bookkit new book <slug>\nOr see what your own notes would become:  bun run bookkit try <folder>\n",
@@ -587,7 +650,7 @@ async function printStatus() {
 		const title = shortBookTitle(s.title);
 		const chapters = `${s.chapters} chapter${s.chapters === 1 ? "" : "s"}${s.stubChapters.length > 0 ? ` (${s.stubChapters.length} stub${s.stubChapters.length === 1 ? "" : "s"})` : ""}`;
 		console.log(
-			`  ${s.book.padEnd(nameWidth)}  ${(title.length > titleWidth ? `${title.slice(0, titleWidth - 1)}…` : title).padEnd(titleWidth)}  ${s.status.padEnd(9)}  ${chapters} · ${s.mechanisms} mechanisms · ${s.tools} tools`,
+			`  ${s.book.padEnd(nameWidth)}  ${(title.length > titleWidth ? `${title.slice(0, titleWidth - 1)}…` : title).padEnd(titleWidth)}  ${s.status.padEnd(9)}  ${chapters} · ${s.mechanisms} mechanism${s.mechanisms === 1 ? "" : "s"} · ${s.tools} tool${s.tools === 1 ? "" : "s"}`,
 		);
 	}
 	if (summaries.some((s) => s.stubChapters.length > 0)) {
@@ -599,12 +662,13 @@ async function printStatus() {
 	// The commands for one book, from first chapter to publishing. With no
 	// current book, a single book stands in; otherwise they name <book>.
 	const focus =
-		summaries.find((summary) => summary.book === focusBook) ??
+		summaries.find((summary) => summary.book === (book ?? focusBook)) ??
 		(summaries.length === 1 ? summaries[0] : undefined);
-	const book = focus?.book ?? "<book>";
+	const focusName = focus?.book ?? "<book>";
 	const stub = focus?.stubChapters[0];
+	const moreStubs = focus?.stubChapters.slice(1) ?? [];
 	const stubPath = stub
-		? join("apps", book, "src", "content", "book", "chapters", stub)
+		? join("apps", focusName, "src", "content", "book", "chapters", stub)
 		: undefined;
 	const stubWords = stubPath
 		? extractPageFacts(readFileSync(join(repoRoot(), stubPath), "utf8"))
@@ -612,36 +676,40 @@ async function printStatus() {
 		: 0;
 	const steps: Array<[string, string, string]> = [
 		stubPath
-			? ["write", stubPath, `the next stub (${stubWords} words so far)`]
+			? [
+					"write",
+					stubPath,
+					`the next stub (${stubWords} words so far)${moreStubs.length > 0 ? `; then ${moreStubs.map((file) => file.replace(/\.mdx?$/, "")).join(", ")}` : ""}`,
+				]
 			: [
 					"write",
-					`bun run bookkit new chapter ${book} "<title>"`,
+					`bun run bookkit new chapter ${focusName} "<title>"`,
 					"start the next chapter",
 				],
 		[
 			"check",
-			`bun run bookkit check ${book}`,
+			`bun run bookkit check ${focusName}`,
 			"errors to fix before anyone reads it",
 		],
 		[
 			"preview",
-			`bun run bookkit dev ${book}`,
+			`bun run bookkit dev ${focusName}`,
 			"the site in your browser; it updates as you save",
 		],
 		[
 			"build",
-			`bun run bookkit build ${book}`,
-			`the site, PDF, and EPUB, in apps/${book}/dist`,
+			`bun run bookkit build ${focusName}`,
+			`the site, PDF, and EPUB, in apps/${focusName}/dist`,
 		],
 		[
 			"deploy",
-			`bun run bookkit deploy ${book} --dry-run`,
+			`bun run bookkit deploy ${focusName} --dry-run`,
 			"checks, builds, and rehearses; drop --dry-run to publish to Cloudflare",
 		],
 	];
 	console.log(
 		focus
-			? `\nYour book: ${book}${focus.book === focusBook ? "" : " (the only one)"}`
+			? `\nYour book: ${focusName}${focus.book === focusBook || focus.book === book ? "" : " (the only one)"}`
 			: "\nName your book in each command, or set it once with bun run bookkit use <book>:",
 	);
 	// Short commands share a column; a long one puts its note on the next line.
@@ -683,11 +751,40 @@ function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
 }
 
 function createNew(kind: string | undefined, rest: string[]) {
-	const positional = rest.filter((arg) => !arg.startsWith("--"));
-	const flag = (name: string) => {
-		const index = rest.indexOf(name);
-		return index >= 0 ? rest[index + 1] : undefined;
+	/** Flags of `bookkit new` that take a value, per kind; the rest are switches. */
+	const NEW_FLAGS: Record<string, { valued: string[]; switches: string[] }> = {
+		chapter: { valued: [], switches: [] },
+		mechanism: { valued: ["--definition"], switches: ["--force"] },
+		tool: { valued: [], switches: [] },
+		example: { valued: [], switches: [] },
+		book: {
+			valued: ["--title", "--from"],
+			switches: ["--skip-starter-content", "--no-install"],
+		},
 	};
+
+	const known = NEW_FLAGS[kind ?? ""];
+	// A flag's value is not a title or a book: "--definition <sentence>".
+	const positional = positionals(
+		rest,
+		Object.values(NEW_FLAGS).flatMap((flags) => flags.valued),
+	);
+	if (known) {
+		const unknown = rest.find(
+			(arg) =>
+				arg.startsWith("--") &&
+				!known.valued.includes(arg) &&
+				!known.switches.includes(arg),
+		);
+		if (unknown) {
+			const options = [...known.valued, ...known.switches];
+			console.error(
+				`new ${kind} has no option ${unknown}.${options.length > 0 ? ` Its options: ${options.join(", ")}.` : ""}${didYouMean(unknown, options)}`,
+			);
+			process.exit(1);
+		}
+	}
+	const flag = (name: string) => flagValue(rest, name);
 
 	// Without a kind, ask which (only at a terminal; scripts get the usage).
 	const resolvedKind =
@@ -876,8 +973,8 @@ function createNew(kind: string | undefined, rest: string[]) {
 			const mechanism = mechanismOf(book, own[0], usage);
 			const domain = required(
 				own[1],
-				"Domain (the setting, e.g. Housing):",
-				usage,
+				"Domain (the setting it happens in, e.g. Housing):",
+				`${usage}\n<domain> is the setting the example happens in, such as Housing or Workplace; examples are grouped by it.`,
 			);
 			const title = required(own[2], "Example title:", usage);
 			process.exit(
@@ -910,15 +1007,18 @@ function createNew(kind: string | undefined, rest: string[]) {
 				);
 				process.exit(1);
 			}
-			const scaffoldArgs = rest
-				.slice(1)
-				.filter((_, index) => index !== fromIndex - 1 && index !== fromIndex);
+			const scaffoldArgs = rest.filter(
+				(arg, index) =>
+					arg !== slug && index !== fromIndex && index !== fromIndex + 1,
+			);
 			const created = runScript("scaffold-book.ts", [
 				"--book",
 				slug,
 				...scaffoldArgs,
 				...(from ? ["--no-next"] : []),
 			]);
+			// The new book is the one being worked on now.
+			if (created === 0) writeFocusBook(slug);
 			if (created !== 0 || !from) process.exit(created);
 			console.log(`\nImporting ${from} into ${slug}:`);
 			process.exit(
@@ -944,7 +1044,7 @@ function createNew(kind: string | undefined, rest: string[]) {
   new mechanism [book] "<title>" [--definition "…"]     checks every book for one that already fits
   new tool [book] <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
   new example [book] <mechanism-slug> <domain> "<title>"
-  new book <slug> [--title "<title>"]
+  new book <slug> [--title "<title>"] [--from <folder of notes>]
 
 [book] defaults to the current one (bun run bookkit use <book>). At a terminal, anything left out is asked for.`);
 			process.exit(1);
@@ -1088,6 +1188,9 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 	if (ownCorpus.length > 0) {
 		console.log("  may duplicate (by wording):");
 		for (const match of ownCorpus) console.log(describe(match));
+	}
+	// A pair you ruled on needs nothing more.
+	if (ownCorpus.some((match) => !match.ruledDistinct)) {
 		console.log(
 			`    Same idea: bun run bookkit merge <that slug> ${slug || "<this slug>"} --reason "<why>". Different: bun run bookkit rule <a> <b> --distinct "<reason>".`,
 		);
@@ -1637,11 +1740,11 @@ Write
   new example [book] <mechanism> <domain> "<title>"
   new book <slug> [--from <folder>]         a new book app; --from imports a folder of notes into it
   import [book] --dir <path> [--dry-run]    turn a folder of Markdown notes into chapters; --dry-run shows the plan
-  propose [book] [--apply …]                draft mechanisms, tools, and config from a book's text
+  propose [book] [--apply all|…]            draft mechanisms, tools, edges, and config from a book's text
 
 Check
-  status [--json]                           chapters, stubs, mechanisms, and tools per book
-  check [book] [--quick] [--download-model]
+  status [book] [--json]                    chapters, stubs, mechanisms, and tools per book
+  check [book] [--all] [--quick] [--download-model]
                                             structure, plus mechanisms that overlap across books; the
                                             meaning pass needs a 550 MB model, downloaded once with
                                             consent (--quick compares wording only)
@@ -1674,7 +1777,7 @@ Check
 
 Preview and publish
   dev [book] [--port <n>]                   local preview with live reload; runs until stopped
-  dev stop|status|logs [book]               control a dev server astro dev left in the background
+  dev stop|status|logs [book]               stop or find a dev server bookkit dev (or astro dev) left running
   build [book] [--all]                      build one book (no book: the current one, or all)
   deploy [book...] [--all] [--dry-run] [--no-build]
                                             verify, build, and check each book, then publish all or none;

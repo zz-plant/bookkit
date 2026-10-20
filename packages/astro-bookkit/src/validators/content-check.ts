@@ -633,7 +633,7 @@ const unknownMechanismFix = (
 	const valid = [...known].filter(isValidSlug);
 	const close = nearest(slug, valid);
 	return close.length > 0
-		? `Use an existing mechanism slug; closest: ${close.join(", ")}. If it is a new idea, add mechanisms/${slug}.mdx first (run find_similar_mechanisms before coining one).`
+		? `Use an existing mechanism slug; closest: ${close.join(", ")}. If it is a new idea, add mechanisms/${slug}.mdx first (bun run bookkit similar, or the find_similar_mechanisms tool, finds one that already fits).`
 		: `Use one of this book's mechanism slugs (${valid.sort().join(", ") || "none yet"}), or add mechanisms/${slug}.mdx first.`;
 };
 

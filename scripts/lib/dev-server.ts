@@ -1,5 +1,11 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { connect } from "node:net";
 import { constants } from "node:os";
 import { join } from "node:path";
@@ -64,6 +70,33 @@ export const portInUseMessage = (book: string, port: number): string => {
 	].join("\n");
 };
 
+/**
+ * Where `bookkit dev` records the server it runs in the foreground, so that
+ * `bookkit dev stop` and `dev status` from another terminal find it.
+ */
+const foregroundLock = (book: string): string =>
+	join(repoRoot(), ".bookkit", "dev", `${book}.json`);
+
+/** The dev server `bookkit dev` is running for `book`, if its process is alive. */
+export const foregroundServer = (
+	book: string,
+): { pid: number; port: number } | null => {
+	const lockFile = foregroundLock(book);
+	if (!existsSync(lockFile)) return null;
+	try {
+		const lock = JSON.parse(readFileSync(lockFile, "utf8"));
+		if (typeof lock.pid !== "number" || typeof lock.port !== "number") {
+			return null;
+		}
+		process.kill(lock.pid, 0);
+		return { pid: lock.pid, port: lock.port };
+	} catch {
+		// Its process is gone: the lock is stale.
+		rmSync(lockFile, { force: true });
+		return null;
+	}
+};
+
 /** Runs the dev server for `book` until it stops; resolves to the exit status. */
 export const runDevServer = async (
 	book: string,
@@ -79,11 +112,21 @@ export const runDevServer = async (
 	const child = spawn(
 		runtime,
 		[join(import.meta.dir, "astro-dev.mjs"), appDir, String(port)],
-		{ cwd: appDir, stdio: "inherit" },
+		{
+			cwd: appDir,
+			stdio: "inherit",
+			// The workspace pins Astro; its "upgrade available" notice would ask
+			// an author to change a version they do not own.
+			env: { ...process.env, ASTRO_DISABLE_UPDATE_CHECK: "true" },
+		},
 	);
 	for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
 		process.on(signal, () => child.kill(signal));
 	}
+	const lockFile = foregroundLock(book);
+	mkdirSync(join(lockFile, ".."), { recursive: true });
+	writeFileSync(lockFile, JSON.stringify({ pid: process.pid, port }));
+	child.once("exit", () => rmSync(lockFile, { force: true }));
 	return new Promise((resolve) => {
 		child.once("error", (error) => {
 			console.error(

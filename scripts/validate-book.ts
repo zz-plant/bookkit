@@ -129,7 +129,37 @@ if (args.json) {
 				? `${item.message}: ${join(workspaceRoot, item.file)}`
 				: item.message,
 		);
-		for (const line of groupFindingsByFile(lines)) console.log(`- ${line}`);
+		// Each line's fixes, once each: those of the warnings it groups.
+		const fixesFor = (line: string): string[] => [
+			...new Set(
+				warnings
+					.filter(
+						(item, index) =>
+							line === lines[index] ||
+							(item.file !== undefined &&
+								line.startsWith(
+									`${relative(workspaceRoot, join(workspaceRoot, item.file))}:`,
+								)),
+					)
+					.flatMap((item) => (item.fix ? [item.fix] : [])),
+			),
+		];
+		let manyFixes = false;
+		for (const line of groupFindingsByFile(lines)) {
+			console.log(`- ${line}`);
+			const fixes = fixesFor(line);
+			// One fix in full; a file missing several fields gets one note below.
+			if (fixes.length === 1) {
+				console.log(`  fix: ${fixes[0].replace(/\n/g, "\n  ")}`);
+			} else if (fixes.length > 1) {
+				manyFixes = true;
+			}
+		}
+		if (manyFixes) {
+			console.log(
+				"  (For a file missing several fields, bun run bookkit check <file> says what each one needs.)",
+			);
+		}
 	}
 	if (errors.length > 0) {
 		// Every error on its own line, with what to change.

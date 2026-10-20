@@ -145,8 +145,25 @@ describe("bookkit dev", () => {
 		expect(body.error.message).toContain("not valid JSON");
 	});
 
-	it("stops the server and frees the port on SIGTERM", async () => {
-		dev.kill("SIGTERM");
+	it("dev status and dev stop, from another command, find it and stop it with SIGTERM", async () => {
+		const control = (action: string) =>
+			Bun.spawnSync(
+				[
+					process.execPath,
+					"run",
+					join(repoRoot(), "scripts", "bookkit.ts"),
+					"dev",
+					action,
+					BOOK,
+				],
+				{ cwd: repoRoot(), env: AGENT_ENV, stdout: "pipe", stderr: "pipe" },
+			).stdout.toString();
+		expect(control("status")).toContain(
+			`The dev server for ${BOOK} is running: http://localhost:${port}/`,
+		);
+		expect(control("stop")).toContain(
+			`Stopped the dev server for ${BOOK} on port ${port}.`,
+		);
 		const code = await Promise.race([
 			dev.exited,
 			Bun.sleep(15_000).then(() => "still running"),

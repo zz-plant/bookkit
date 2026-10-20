@@ -1,12 +1,17 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { parseFrontmatter } from "./content-parsing";
 import { createEpubExport } from "./epub-generator";
+import {
+	EPUBCHECK_CLEAN,
+	epubcheck,
+	missingInOrder,
+	pdfPages,
+} from "./fixtures/pdf-text";
 import { extractPdfText, inspectEpub, inspectPdf } from "./inspect";
 import { markdownToHtml } from "./markdown-to-html";
 import { createPdfExport } from "./pdf-generator";
@@ -38,38 +43,6 @@ const chapter = (body: string, title = "Coverage"): ExportBundle => ({
 	],
 });
 const coverage = chapter(fixture.body, fixture.data.title);
-
-/**
- * Each page's text in drawing order: runs on one baseline joined, a new line
- * where the baseline moves by more than a raised note number does.
- */
-const pdfPages = async (bytes: Uint8Array) =>
-	(await extractPdfText(bytes)).map((runs) => {
-		let text = "";
-		let baseline: number | undefined;
-		for (const run of runs) {
-			if (baseline !== undefined && Math.abs(run.y - baseline) > 5) {
-				text += "\n";
-			}
-			if (baseline === undefined || Math.abs(run.y - baseline) > 5) {
-				baseline = run.y;
-			}
-			text += run.text;
-		}
-		return text;
-	});
-
-/** The strings `text` lacks, each looked for after the one before it. */
-const missingInOrder = (text: string, expected: string[]) => {
-	const missing: string[] = [];
-	let from = 0;
-	for (const part of expected) {
-		const at = text.indexOf(part, from);
-		if (at === -1) missing.push(part);
-		else from = at + part.length;
-	}
-	return missing;
-};
 
 /** Markdown syntax that must never reach a reader. */
 const RAW_MARKDOWN = [
@@ -131,7 +104,8 @@ describe("Markdown coverage of the exports", () => {
 		).toEqual([]);
 		expect(RAW_MARKDOWN.filter((raw) => text.includes(raw))).toEqual([]);
 
-		// Code is drawn in Courier, bold in a heading; prose stays in Helvetica.
+		// Code is drawn in Courier, bold in a heading or bold text and oblique in
+		// italic text; prose stays in Helvetica.
 		const loaded = await PDFDocument.load(pdf, { updateMetadata: false });
 		const fonts = loaded.context
 			.enumerateIndirectObjects()
@@ -141,6 +115,7 @@ describe("Markdown coverage of the exports", () => {
 		expect(fonts).toEqual([
 			"Courier",
 			"Courier-Bold",
+			"Courier-Oblique",
 			"Helvetica",
 			"Helvetica-Bold",
 			"Helvetica-Oblique",
@@ -201,16 +176,7 @@ describe("Markdown coverage of the exports", () => {
 			]) {
 				expect(xhtml).toContain(element);
 			}
-			const file = join(scratch, "coverage.epub");
-			writeFileSync(file, epub);
-			const result = spawnSync(
-				process.env.JAVA ?? "java",
-				["-jar", process.env.EPUBCHECK_JAR ?? "", "--usage", file],
-				{ encoding: "utf8" },
-			);
-			expect(`${result.stdout}${result.stderr}`).toContain(
-				"Messages: 0 fatals / 0 errors / 0 warnings / 0 infos / 0 usages",
-			);
+			expect(epubcheck(epub, scratch, "coverage")).toContain(EPUBCHECK_CLEAN);
 		},
 		60_000,
 	);

@@ -43,6 +43,12 @@ describe("toMetaDescription", () => {
 		);
 	});
 
+	it("keeps the words of inline code", () => {
+		expect(toMetaDescription("Set `max_retries` before paging.")).toBe(
+			"Set max_retries before paging.",
+		);
+	});
+
 	it("cuts long text at a word boundary with an ellipsis", () => {
 		const long = `${"word ".repeat(60)}end`;
 		const description = toMetaDescription(long) ?? "";

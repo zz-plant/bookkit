@@ -4,10 +4,12 @@ import {
 	PDFArray,
 	PDFDict,
 	PDFDocument,
+	PDFHexString,
 	PDFName,
 	type PDFObject,
 	type PDFPage,
 	PDFRawStream,
+	PDFString,
 } from "pdf-lib";
 
 /**
@@ -260,8 +262,8 @@ const contentStreams = (pdf: PDFDocument, contents: PDFObject | undefined) => {
 	);
 };
 
-/** One text run drawn on a page, at its baseline position. */
-export type PdfTextRun = { x: number; y: number; text: string };
+/** One text run drawn on a page, at its baseline position, and the font it is drawn in (its BaseFont). */
+export type PdfTextRun = { x: number; y: number; text: string; font: string };
 
 const latin1 = (bytes: Uint8Array) => new TextDecoder("latin1").decode(bytes);
 
@@ -279,9 +281,16 @@ const hexBytes = (hex: string) =>
 const pageFontDecoders = (pdf: PDFDocument, page: PDFPage) => {
 	const winAnsi = new TextDecoder("windows-1252");
 	const decoders = new Map<string, (hex: string) => string>();
+	const baseFonts = new Map<string, string>();
 	const fonts = page.node.Resources()?.lookupMaybe(PDFName.of("Font"), PDFDict);
 	for (const [name, ref] of fonts?.entries() ?? []) {
 		const font = pdf.context.lookup(ref);
+		if (font instanceof PDFDict) {
+			baseFonts.set(
+				name.toString(),
+				font.get(PDFName.of("BaseFont"))?.toString().slice(1) ?? "",
+			);
+		}
 		const toUnicode =
 			font instanceof PDFDict &&
 			font.get(PDFName.of("Subtype"))?.toString() === "/Type0"
@@ -309,7 +318,7 @@ const pageFontDecoders = (pdf: PDFDocument, page: PDFPage) => {
 				.join(""),
 		);
 	}
-	return decoders;
+	return { decoders, baseFonts };
 };
 
 /**
@@ -322,9 +331,10 @@ export const extractPdfText = async (
 ): Promise<PdfTextRun[][]> => {
 	const pdf = await PDFDocument.load(bytes, { updateMetadata: false });
 	return pdf.getPages().map((page) => {
-		const decoders = pageFontDecoders(pdf, page);
+		const { decoders, baseFonts } = pageFontDecoders(pdf, page);
 		const runs: PdfTextRun[] = [];
 		let decode = decoders.values().next().value ?? (() => "");
+		let font = "";
 		let x = 0;
 		let y = 0;
 		for (const stream of contentStreams(pdf, page.node.Contents())) {
@@ -334,11 +344,12 @@ export const extractPdfText = async (
 			)) {
 				if (match[1] !== undefined) {
 					decode = decoders.get(match[1]) ?? decode;
+					font = baseFonts.get(match[1]) ?? font;
 				} else if (match[4] === undefined) {
 					x = Number(match[2]);
 					y = Number(match[3]);
 				} else {
-					runs.push({ x, y, text: decode(match[4]) });
+					runs.push({ x, y, text: decode(match[4]), font });
 				}
 			}
 		}
@@ -346,14 +357,89 @@ export const extractPdfText = async (
 	});
 };
 
-/** What makes a PDF unusable: it does not load, has no pages or no text, or draws text off the page. */
+/** A link on a page: where it is, and where it goes (a web address, or a named destination). */
+export type PdfLink = {
+	/** 1-based. */
+	page: number;
+	rect: number[];
+	uri?: string;
+	destination?: string;
+};
+
+const pdfText = (object: PDFObject | undefined) =>
+	object instanceof PDFHexString || object instanceof PDFString
+		? object.decodeText()
+		: undefined;
+
+/** The named destinations in a PDF's name tree (`/Names /Dests`). */
+export const pdfDestinationNames = (pdf: PDFDocument): Set<string> => {
+	const names = new Set<string>();
+	const visit = (node: PDFObject | undefined) => {
+		const dict = node instanceof PDFDict ? node : undefined;
+		if (!dict) return;
+		const pairs = dict.lookupMaybe(PDFName.of("Names"), PDFArray);
+		for (let index = 0; pairs && index < pairs.size(); index += 2) {
+			const name = pdfText(pairs.get(index));
+			if (name !== undefined) names.add(name);
+		}
+		const kids = dict.lookupMaybe(PDFName.of("Kids"), PDFArray);
+		for (let index = 0; kids && index < kids.size(); index += 1) {
+			visit(kids.lookup(index));
+		}
+	};
+	const tree = pdf.catalog.lookupMaybe(PDFName.of("Names"), PDFDict);
+	visit(tree?.lookup(PDFName.of("Dests")));
+	return names;
+};
+
+/** The link annotations on each page that open a web address or go to a named destination. */
+export const extractPdfLinks = async (
+	bytes: Uint8Array,
+): Promise<PdfLink[]> => {
+	const pdf = await PDFDocument.load(bytes, { updateMetadata: false });
+	return pdf.getPages().flatMap((page, index) => {
+		const annots = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray);
+		const links: PdfLink[] = [];
+		for (let at = 0; annots && at < annots.size(); at += 1) {
+			const annot = annots.lookup(at);
+			if (!(annot instanceof PDFDict)) continue;
+			if (annot.get(PDFName.of("Subtype"))?.toString() !== "/Link") continue;
+			const action = annot.lookupMaybe(PDFName.of("A"), PDFDict);
+			const rect =
+				annot
+					.lookupMaybe(PDFName.of("Rect"), PDFArray)
+					?.asArray()
+					.map((value) => Number(value.toString())) ?? [];
+			const uri = pdfText(action?.lookup(PDFName.of("URI")));
+			const destination = pdfText(
+				action?.lookup(PDFName.of("D")) ?? annot.lookup(PDFName.of("Dest")),
+			);
+			if (uri !== undefined || destination !== undefined) {
+				links.push({
+					page: index + 1,
+					rect,
+					...(uri !== undefined ? { uri } : {}),
+					...(destination !== undefined ? { destination } : {}),
+				});
+			}
+		}
+		return links;
+	});
+};
+
+/**
+ * What makes a PDF unusable: it does not load, has no pages or no text,
+ * draws text off the page, or links to a named destination it does not have.
+ */
 export const inspectPdf = async (bytes: Uint8Array): Promise<string[]> => {
 	let pages: PdfTextRun[][];
 	let sizes: Array<{ width: number; height: number }>;
+	let destinations: Set<string>;
 	try {
 		pages = await extractPdfText(bytes);
 		const pdf = await PDFDocument.load(bytes, { updateMetadata: false });
 		sizes = pdf.getPages().map((page) => page.getSize());
+		destinations = pdfDestinationNames(pdf);
 	} catch (error) {
 		return [`not a readable PDF: ${String(error)}`];
 	}
@@ -361,6 +447,13 @@ export const inspectPdf = async (bytes: Uint8Array): Promise<string[]> => {
 	const problems: string[] = [];
 	if (pages.every((runs) => runs.every((run) => !run.text.trim()))) {
 		problems.push("the PDF has no extractable text");
+	}
+	for (const link of await extractPdfLinks(bytes)) {
+		if (link.destination !== undefined && !destinations.has(link.destination)) {
+			problems.push(
+				`page ${link.page} links to "${link.destination}", which the PDF does not have`,
+			);
+		}
 	}
 	pages.forEach((runs, index) => {
 		const { width, height } = sizes[index];

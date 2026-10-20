@@ -1,3 +1,5 @@
+import GithubSlugger from "github-slugger";
+
 export const createSlugger = () => {
 	const used = new Map<string, number>();
 	return (value: string) => {
@@ -16,17 +18,77 @@ export const createSlugger = () => {
 	};
 };
 
+/**
+ * Heading ids as the site gives them: Astro's Markdown processor slugs each
+ * heading's text with github-slugger, one slugger per page, so a repeated
+ * heading gets `-1`, `-2`. Pass the text as the page shows it: code spans
+ * as written, other text through `smartDashes`.
+ */
+export const createHeadingSlugger = () => {
+	const slugger = new GithubSlugger();
+	return (text: string) => slugger.slug(text);
+};
+
+/**
+ * Runs of hyphens as the en and em dashes smart punctuation makes of them
+ * (CommonMark's rules, which Astro applies to prose but not to code): `--`
+ * is an en dash, `---` an em dash, and longer runs mix them, em dashes first.
+ */
+export const smartDashes = (text: string): string =>
+	text.replace(/-{2,}/g, ({ length }) => {
+		const [em, en] =
+			length % 3 === 0
+				? [length / 3, 0]
+				: length % 2 === 0
+					? [0, length / 2]
+					: length % 3 === 2
+						? [(length - 2) / 3, 1]
+						: [(length - 4) / 3, 2];
+		return "\u2014".repeat(em) + "\u2013".repeat(en);
+	});
+
+// A code span, or a backslash escape (`\<name\>`, `\*`).
+const LITERAL_TEXT = /(`+)([\s\S]*?[^`])\1(?!`)|\\([!-/:-@[-`{-~])/g;
+const HELD_TEXT = /\uE000(\d+)\uE001/g;
+
+/**
+ * Markdown as plain text, for search entries and page descriptions. Code
+ * spans keep their text without the backticks, escaped characters keep
+ * their character, an image keeps its alt text, and underscores inside a
+ * word (`snake_case`) are not read as emphasis.
+ */
 export const stripMarkdown = (value: string) => {
-	return value
-		.replace(/`{1,3}[^`]*`{1,3}/g, "")
-		.replace(/\[(.*?)\]\([^)]*\)/g, "$1")
+	const literal: string[] = [];
+	// Code and escapes are set aside first, so no other rule reaches into them.
+	const held = value
+		.replace(/[\uE000\uE001]/g, "")
+		.replace(
+			LITERAL_TEXT,
+			(_, _ticks?: string, code?: string, escaped?: string) => {
+				// As CommonMark reads a code span: one space off each end when both have one.
+				const text =
+					code === undefined
+						? (escaped as string)
+						: /^ [\s\S]*[^ ][\s\S]* $/.test(code)
+							? code.slice(1, -1)
+							: code;
+				literal.push(text);
+				return `\uE000${literal.length - 1}\uE001`;
+			},
+		);
+	return held
+		.replace(/!?\[(.*?)\]\([^)]*\)/g, "$1")
 		.replace(/\*\*(.*?)\*\*/g, "$1")
 		.replace(/\*(.*?)\*/g, "$1")
-		.replace(/_{1,3}(.*?)_{1,3}/g, "$1")
+		.replace(
+			/(^|[^\p{L}\p{N}_])_{1,3}([^_]+?)_{1,3}(?![\p{L}\p{N}_])/gu,
+			"$1$2",
+		)
 		.replace(/~~(.*?)~~/g, "$1")
 		.replace(/<[^>]+>/g, "")
 		.replace(/^\s*[-*+]\s+/g, "")
 		.replace(/^\s*\d+\.\s+/g, "")
+		.replace(HELD_TEXT, (_, index: string) => literal[Number(index)])
 		.trim();
 };
 
@@ -70,8 +132,17 @@ const HTML_TAG =
 const HTML_ATTRIBUTE =
 	/([^\s"'<>/=]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
 
-const VOID_ELEMENTS = new Set(["br", "col", "hr", "img", "source", "wbr"]);
-const BLOCK_ELEMENTS = new Set([
+/** Void elements: they never have content or a closing tag. */
+export const VOID_ELEMENTS: ReadonlySet<string> = new Set([
+	"br",
+	"col",
+	"hr",
+	"img",
+	"source",
+	"wbr",
+]);
+/** Elements that start a block of their own. */
+export const BLOCK_ELEMENTS: ReadonlySet<string> = new Set([
 	"article",
 	"aside",
 	"blockquote",
@@ -107,8 +178,11 @@ const BLOCK_ELEMENTS = new Set([
 	"tr",
 	"ul",
 ]);
-/** Elements `html: "jsx"` keeps: presentational HTML that Markdown notes use. */
-const KEPT_ELEMENTS = new Set([
+/**
+ * Elements `html: "jsx"` keeps: presentational HTML that Markdown notes use.
+ * The site renders them, and the PDF and EPUB exports render the same set.
+ */
+export const KEPT_ELEMENTS: ReadonlySet<string> = new Set([
 	...VOID_ELEMENTS,
 	...BLOCK_ELEMENTS,
 	"a",

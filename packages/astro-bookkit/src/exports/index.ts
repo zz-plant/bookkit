@@ -17,8 +17,9 @@ export type {
 	FileImageLoaderOptions,
 } from "./images";
 export { createFileImageLoader, sniffImageType } from "./images";
-export type { PdfTextRun } from "./inspect";
+export type { PdfLink, PdfTextRun } from "./inspect";
 export {
+	extractPdfLinks,
 	extractPdfText,
 	inspectEpub,
 	inspectPdf,

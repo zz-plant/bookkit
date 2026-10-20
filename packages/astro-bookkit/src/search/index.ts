@@ -1,9 +1,12 @@
-import GithubSlugger from "github-slugger";
 import {
 	frontmatterTextFields,
 	parseFrontmatter as parseSharedFrontmatter,
 } from "../utils/frontmatter";
-import { stripMarkdown } from "../utils/markdown";
+import {
+	createHeadingSlugger,
+	smartDashes,
+	stripMarkdown,
+} from "../utils/markdown";
 
 export type SearchContentSource = {
 	type: string;
@@ -39,17 +42,25 @@ const summarize = (value: string, maxLength = 160) => {
 
 const buildSections = (body: string) => {
 	const lines = body.split("\n");
-	const sections: Array<{ heading: string; body: string[] }> = [];
-	let current: { heading: string; body: string[] } | null = null;
+	type Section = { heading: string; slugText: string; body: string[] };
+	const sections: Section[] = [];
+	let current: Section | null = null;
 
 	for (const line of lines) {
 		const headingMatch = line.match(/^(#{2,3})\s+(.*)$/);
 		if (headingMatch) {
 			if (current) sections.push(current);
-			const headingText = stripMarkdown(
-				headingMatch[2].replace(/#+\s*$/, ""),
-			).trim();
-			current = { heading: headingText, body: [] };
+			const raw = headingMatch[2].replace(/#+\s*$/, "");
+			// The site slugs a heading as it shows it: smart punctuation's dashes
+			// in prose, code as written.
+			const shown = raw.replace(/(`+)[\s\S]*?\1|[^`]+/g, (part) =>
+				part.startsWith("`") ? part : smartDashes(part),
+			);
+			current = {
+				heading: stripMarkdown(raw).trim(),
+				slugText: stripMarkdown(shown).trim(),
+				body: [],
+			};
 			continue;
 		}
 		if (current) current.body.push(line);
@@ -96,11 +107,11 @@ export const buildSearchEntries = async (
 			const title = data[source.titleKey] || data.title || slug;
 			// Astro's Markdown processor gives headings GitHub-style ids; the
 			// anchors must match them or deep links land at the top of the page.
-			const slugger = new GithubSlugger();
+			const headingId = createHeadingSlugger();
 			const sections = buildSections(body);
 			const sectionEntries = sections.map((section) => {
 				const heading = section.heading || title;
-				const anchor = slugger.slug(heading);
+				const anchor = headingId(section.heading ? section.slugText : title);
 				const snippet = extractSnippet(section.body);
 				return { heading, anchor, snippet };
 			});

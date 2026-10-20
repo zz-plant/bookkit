@@ -4,7 +4,12 @@
  * buffers) are initialized once and passed to islands that request them.
  */
 import { createBufferedTracker } from "./analytics-buffer";
-import { initializeHeadingAnchors, queryElement } from "./dom";
+import {
+	initializeHeadingAnchors,
+	queryAllElements,
+	queryElement,
+} from "./dom";
+import { searchQueryFromPath } from "./search-from-path";
 import { getSharedIndexStore } from "./shared-index";
 import { deferredLocalStorage as storage } from "./storage";
 
@@ -57,6 +62,33 @@ let searchController: ReturnType<
 	typeof import("./search-controller").initializeSearchController
 > | null = null;
 
+/**
+ * Buttons that open search from the page (the 404 page has one), with the
+ * query in `data-search-query`, or with the words of the address when they
+ * carry `data-search-from-path`.
+ */
+const wireSearchButtons = (controller: {
+	open: (query?: string) => Promise<void>;
+}) => {
+	for (const button of queryAllElements(
+		document,
+		"[data-search-open]",
+		HTMLButtonElement,
+	)) {
+		const query =
+			button.dataset.searchQuery ??
+			("searchFromPath" in button.dataset
+				? searchQueryFromPath(window.location.pathname)
+				: "");
+		if (query && "searchFromPath" in button.dataset) {
+			button.textContent = `Search for “${query}”`;
+		}
+		button.addEventListener("click", () => {
+			void controller.open(query);
+		});
+	}
+};
+
 const recordSearchEvent = createBufferedTracker(
 	storage,
 	`${analyticsKeyPrefix}.search.analytics`,
@@ -66,14 +98,16 @@ const recordSearchEvent = createBufferedTracker(
 if (searchPanelRoot && (searchToggle || mobileSearchToggle)) {
 	const searchPromise = import("./search-controller").then(
 		({ initializeSearchController }) => {
-			searchController = initializeSearchController({
+			const controller = initializeSearchController({
 				root: searchPanelRoot,
 				toggleButton: searchToggle,
 				mobileToggleButton: mobileSearchToggle,
 				indexStore: getSharedIndexStore(),
 				recordEvent: recordSearchEvent,
 			});
-			return searchController;
+			searchController = controller;
+			wireSearchButtons(controller);
+			return controller;
 		},
 	);
 	controllerPromises.push(searchPromise);

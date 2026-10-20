@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { SearchEntry } from "../../search/index";
-import { buildRankedResults } from "./search-ranking";
+import { buildRankedResults, groupRankedResults } from "./search-ranking";
 
 const entries: SearchEntry[] = [
 	{
@@ -54,5 +54,59 @@ describe("search ranking", () => {
 			"glossary-transfer-intro",
 			"chapters-compliance-intro",
 		]);
+	});
+});
+
+describe("search groups", () => {
+	// An action titled with the query, and chapter sections that mention it.
+	const index: SearchEntry[] = [
+		...["Why triage first", "The triage loop"].map((section) => ({
+			id: `chapters-triage-${section}`,
+			type: "chapters",
+			label: "Chapters",
+			order: 1,
+			title: section,
+			section,
+			snippet: "Classify severity when the pager fires.",
+			url: "/read/chapters/triage",
+			context: "Triage and escalation",
+		})),
+		{
+			id: "toolkit-classify-alert-severity-intro",
+			type: "toolkit",
+			label: "Toolkit",
+			order: 3,
+			title: "Classify severity",
+			section: null,
+			snippet: "A pager alert fires and no one has stated what it means.",
+			url: "/read/toolkit/classify-alert-severity",
+			context: "Classify severity",
+			text: "Classify as sev-1 and name an owner in the incident thread.",
+		},
+	];
+
+	it("puts the section with the best match first, whatever the section", () => {
+		const { results } = buildRankedResults(index, "severity");
+		expect(
+			groupRankedResults(results).map(({ label, items }) => [
+				label,
+				items.length,
+			]),
+		).toEqual([
+			["Toolkit", 1],
+			["Chapters", 2],
+		]);
+	});
+
+	it("matches the words a page shows beyond its preview", () => {
+		const { results } = buildRankedResults(index, "sev-1");
+		expect(results.map((entry) => entry.id)).toEqual([
+			"toolkit-classify-alert-severity-intro",
+		]);
+	});
+
+	it("ranks a word in a page's lead line above the same word in a section", () => {
+		const { results } = buildRankedResults(index, "pager");
+		expect(results[0]?.id).toBe("toolkit-classify-alert-severity-intro");
 	});
 });

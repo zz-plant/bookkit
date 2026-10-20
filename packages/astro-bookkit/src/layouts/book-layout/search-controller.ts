@@ -1,7 +1,7 @@
 import { appendHighlightedText, queryElement, toSafeUrl } from "./dom";
 import { createQueryEngine } from "./query-engine";
 import type { SearchIndexStore } from "./search-index-store";
-import type { RankedSearchResult } from "./search-ranking";
+import { groupRankedResults, type RankedSearchResult } from "./search-ranking";
 
 export type SearchEventPayload = {
 	type: "query" | "zero_results" | "click";
@@ -11,7 +11,8 @@ export type SearchEventPayload = {
 };
 
 export type SearchController = {
-	open: () => Promise<void>;
+	/** Opens the panel; with `initialQuery`, searches for it. */
+	open: (initialQuery?: string) => Promise<void>;
 	close: () => void;
 	toggle: () => void;
 	isOpen: () => boolean;
@@ -103,22 +104,8 @@ export const initializeSearchController = ({
 		}
 
 		empty?.setAttribute("hidden", "true");
-		const grouped = entries.reduce((groupMap, entry) => {
-			const key = entry.label ?? entry.type;
-			groupMap.set(key, [...(groupMap.get(key) ?? []), entry]);
-			return groupMap;
-		}, new Map<string, typeof entries>());
-
-		const groupedEntries = Array.from(grouped.entries()).sort(
-			([, aItems], [, bItems]) => {
-				const aOrder = aItems[0]?.order ?? 999;
-				const bOrder = bItems[0]?.order ?? 999;
-				return aOrder - bOrder;
-			},
-		);
-
 		let optionIndex = 0;
-		groupedEntries.forEach(([label, items], groupIndex) => {
+		groupRankedResults(entries).forEach(({ label, items }, groupIndex) => {
 			// A group of options in the listbox, named by its label. The label
 			// keeps its heading style but not the heading role, which a listbox
 			// may not contain.
@@ -209,7 +196,8 @@ export const initializeSearchController = ({
 		});
 	};
 
-	const open = async () => {
+	const open = async (initialQuery?: string) => {
+		if (initialQuery) query = initialQuery;
 		lastFocused =
 			document.activeElement instanceof HTMLElement
 				? document.activeElement

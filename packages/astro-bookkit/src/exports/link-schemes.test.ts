@@ -88,6 +88,71 @@ describe("unsafe links in the EPUB", () => {
 	});
 });
 
+// Elements that embed a document or submit a form, each to an address that
+// runs code; the exports render none of these elements, only what they hold.
+const EMBEDS = [
+	'<iframe src="javascript:alert(1)"></iframe>',
+	'<embed src="vbscript:msgbox(1)" />',
+	'<object data="data:text/html;base64,PHNjcmlwdD4=">object words</object>',
+	'<form action="&#106;avascript:alert(2)">form words</form>',
+	'<button formaction="javascript:alert(3)">button words</button>',
+].join("\n\n");
+
+describe("embedded documents and forms in the exports", () => {
+	it("keep what they contain, and none of their addresses, in the EPUB", async () => {
+		const epub = await createEpubExport(chaptersBundle([["a", EMBEDS]]));
+		expect(await inspectEpub(epub)).toEqual([]);
+		const chapter = articleBody(await epubChapter(epub, "a"));
+		expect(chapter).not.toMatch(
+			/script|data:|<(iframe|embed|object|form|button)\b/,
+		);
+		for (const words of ["object words", "form words", "button words"]) {
+			expect(chapter).toContain(words);
+		}
+	});
+
+	it("keep what they contain, and none of their addresses, in the PDF", async () => {
+		const pdf = await createPdfExport(chaptersBundle([["a", EMBEDS]]));
+		expect(await inspectPdf(pdf)).toEqual([]);
+		expect(await extractPdfLinks(pdf)).toEqual([]);
+	});
+
+	it("are reported by the structural check when a file has one anyway", async () => {
+		const epub = await createEpubExport(chaptersBundle([["a", "x"]]));
+		const zip = await JSZip.loadAsync(epub);
+		const path = "OEBPS/text/chapter-a.xhtml";
+		const xhtml = (await zip.file(path)?.async("string")) ?? "";
+		zip.file(
+			path,
+			xhtml.replace(
+				"<p>x</p>",
+				[
+					'<iframe src="javascript:alert(1)"></iframe>',
+					'<embed src="vbscript:x"/>',
+					"<object data='&#106;avascript:alert(2)'>o</object>",
+					'<form action="data:text/html,x"><button formaction="javascript:alert(3)">b</button></form>',
+					'<form action="https://example.com/f">ok</form>',
+				].join(""),
+			),
+		);
+		const tampered = await zip.generateAsync({
+			type: "uint8array",
+			mimeType: "application/epub+zip",
+		});
+		const rule =
+			"an export links only to http, https, mailto, tel, and ftp addresses and to its own pages";
+		expect(
+			(await inspectEpub(tampered)).filter((problem) => problem.includes(rule)),
+		).toEqual([
+			`${path} has <iframe src="javascript:alert(1)">; ${rule}`,
+			`${path} has <embed src="vbscript:x">; ${rule}`,
+			`${path} has <object data="javascript:alert(2)">; ${rule}`,
+			`${path} has <form action="data:text/html,x">; ${rule}`,
+			`${path} has <button formaction="javascript:alert(3)">; ${rule}`,
+		]);
+	});
+});
+
 describe("unsafe links in the PDF", () => {
 	it("keep their words without a link", async () => {
 		const pdf = await createPdfExport(

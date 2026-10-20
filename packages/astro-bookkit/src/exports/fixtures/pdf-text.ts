@@ -1,7 +1,7 @@
-import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import JSZip from "jszip";
+import { runChild } from "../../../../../scripts/lib/child-process.fixture";
 import { extractPdfText } from "../inspect";
 import type { ExportBundle, ExportEntry } from "../types";
 
@@ -77,18 +77,20 @@ export const articleBody = (xhtml: string) =>
 		.trim();
 
 /**
- * epubcheck's summary line for `epub`, run with `--usage`, when
- * EPUBCHECK_JAR names the official W3C release (Java from JAVA or PATH).
+ * What epubcheck prints for `epub`, run with `--usage`, when EPUBCHECK_JAR
+ * names the official W3C release (Java from JAVA or PATH). It runs with
+ * `runChild`'s deadline, so a test that calls it takes CHILD_TEST_TIMEOUT_MS.
  */
 export const epubcheck = (epub: Uint8Array, scratch: string, name: string) => {
 	const file = join(scratch, `${name}.epub`);
 	writeFileSync(file, epub);
-	const result = spawnSync(
+	return runChild([
 		process.env.JAVA ?? "java",
-		["-jar", process.env.EPUBCHECK_JAR ?? "", "--usage", file],
-		{ encoding: "utf8" },
-	);
-	return `${result.stdout}${result.stderr}`;
+		"-jar",
+		process.env.EPUBCHECK_JAR ?? "",
+		"--usage",
+		file,
+	]).output;
 };
 
 export const EPUBCHECK_CLEAN =

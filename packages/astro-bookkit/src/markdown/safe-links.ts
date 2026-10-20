@@ -1,12 +1,20 @@
-import { isSafeLink, stringLiteralValue } from "../utils/links";
+import {
+	isAddressAttribute,
+	isSafeLink,
+	stringLiteralValue,
+} from "../utils/links";
 
 /**
  * The site's pages keep only links `isSafeLink` allows, as the PDF and EPUB
  * do: a Markdown link, or a reference to a definition, whose address would
  * run code or open a document it carries (`javascript:`, `vbscript:`,
- * `data:`) becomes its text, and so does an HTML element in MDX (`<a>`,
- * `<area>`) with such an `href`. So does one with an `href={…}` that is not
- * a plain string: the build cannot check what it will be.
+ * `data:`) becomes its text. So does an HTML element in MDX with such an
+ * address in an attribute `isAddressAttribute` names: an `<a href>` or
+ * `<area href>`, an `<iframe src>`, `<embed src>`, or `<object data>`, a
+ * `<form action>`, or a `formaction`. It becomes what it contains: a link
+ * its words, an `<object>` its fallback, an `<iframe>` or `<embed>` nothing.
+ * So does one whose address is an expression (`src={…}`) that is not a
+ * plain string: the build cannot check what it will be.
  *
  * It runs on the Markdown tree (mdast), before HTML exists, because Astro 7's
  * default processor, Sätteri, runs no rehype plugins passed to `mdx()`.
@@ -28,33 +36,34 @@ type JsxAttribute = {
 	value?: string | null | { type: string; value: string };
 };
 
-/** The address an `href` holds, or null for an expression the build cannot read. */
-const hrefOf = (value: JsxAttribute["value"]): string | null => {
+/** The address an attribute holds, or null for an expression the build cannot read. */
+const addressOf = (value: JsxAttribute["value"]): string | null => {
 	if (value === null || value === undefined) return "";
 	return typeof value === "string" ? value : stringLiteralValue(value.value);
 };
 
-/** Whether an attribute is an `href` the page must not keep. */
-const isUnsafeHref = (attribute: JsxAttribute): boolean => {
-	if (attribute.type !== "mdxJsxAttribute") return false;
-	if (attribute.name?.toLowerCase() !== "href") return false;
-	const href = hrefOf(attribute.value);
-	return href === null || !isSafeLink(href);
+/** Whether an attribute of `element` holds an address the page must not keep. */
+const isUnsafeAddress = (element: string, attribute: JsxAttribute): boolean => {
+	if (attribute.type !== "mdxJsxAttribute" || !attribute.name) return false;
+	if (!isAddressAttribute(element, attribute.name)) return false;
+	const address = addressOf(attribute.value);
+	return address === null || !isSafeLink(address);
 };
 
 /**
  * Whether a node is a link the page must not keep: a Markdown link to an
- * unsafe address, or an HTML element with an unsafe `href`. A capitalized
- * JSX name is a component, whose props are not links.
+ * unsafe address, or an HTML element with an unsafe address. A capitalized
+ * JSX name is a component, whose props are not addresses.
  */
 const isUnsafeLink = (node: MdastNode): boolean => {
 	if (node.type === "link") return isUnsafeUrl(node);
 	if (node.type !== "mdxJsxTextElement" && node.type !== "mdxJsxFlowElement") {
 		return false;
 	}
-	return (
-		Boolean(node.name && /^[a-z]/.test(node.name)) &&
-		(node.attributes ?? []).some(isUnsafeHref)
+	const element = node.name;
+	if (!element || !/^[a-z]/.test(element)) return false;
+	return (node.attributes ?? []).some((attribute) =>
+		isUnsafeAddress(element, attribute),
 	);
 };
 
@@ -75,14 +84,55 @@ const unsafeDefinitions = (ctx: VisitorContext): Set<string> => {
 	return ctx.data[UNSAFE_DEFINITIONS] as Set<string>;
 };
 
-const keepTextOfUnsafeLink = (node: MdastNode, ctx: VisitorContext) => {
-	if (isUnsafeLink(node)) ctx.replaceNode(node, [...(node.children ?? [])]);
+/** Whether a node goes, leaving what it contains: a link, reference, or element. */
+const mustGo = (node: MdastNode, definitions: ReadonlySet<string>): boolean =>
+	isUnsafeLink(node) ||
+	(node.type === "linkReference" && definitions.has(node.identifier ?? ""));
+
+/**
+ * `nodes` with each unsafe definition removed, and each link, reference, or
+ * element that must go replaced by what it contains, at any depth: a button
+ * inside a form that goes is checked too. The same array when nothing
+ * changes.
+ */
+const keptNodes = (
+	nodes: MdastNode[],
+	definitions: ReadonlySet<string>,
+): MdastNode[] => {
+	let changed = false;
+	const kept = nodes.flatMap((node): MdastNode[] => {
+		if (node.type === "definition" && isUnsafeUrl(node)) {
+			changed = true;
+			return [];
+		}
+		if (mustGo(node, definitions)) {
+			changed = true;
+			return keptNodes([...(node.children ?? [])], definitions);
+		}
+		if (!node.children) return [node];
+		const children = keptNodes(node.children, definitions);
+		if (children === node.children) return [node];
+		changed = true;
+		return [{ ...node, children }];
+	});
+	return changed ? kept : nodes;
+};
+
+/**
+ * Replaces a link or element that must go with what it contains. Sätteri
+ * does not visit the nodes a replacement brings, so they are cleaned here.
+ */
+const keepContents = (node: MdastNode, ctx: VisitorContext) => {
+	const definitions = unsafeDefinitions(ctx);
+	if (!mustGo(node, definitions)) return;
+	ctx.replaceNode(node, keptNodes([...(node.children ?? [])], definitions));
 };
 
 /**
  * Sätteri mdast plugins. The first pass removes unsafe definitions and notes
  * them, since a reference may come before its definition; the second turns
- * links and references to them into their text.
+ * links and references to them into their text, and elements with unsafe
+ * addresses into what they contain.
  */
 export const safeLinksMdastPlugins = [
 	{
@@ -95,14 +145,10 @@ export const safeLinksMdastPlugins = [
 	},
 	{
 		name: "bookkit:safe-links",
-		link: keepTextOfUnsafeLink,
-		linkReference(node: MdastNode, ctx: VisitorContext) {
-			if (unsafeDefinitions(ctx).has(node.identifier ?? "")) {
-				ctx.replaceNode(node, [...(node.children ?? [])]);
-			}
-		},
-		mdxJsxTextElement: keepTextOfUnsafeLink,
-		mdxJsxFlowElement: keepTextOfUnsafeLink,
+		link: keepContents,
+		linkReference: keepContents,
+		mdxJsxTextElement: keepContents,
+		mdxJsxFlowElement: keepContents,
 	},
 ];
 
@@ -116,18 +162,7 @@ export const remarkSafeLinks = () => (tree: MdastNode) => {
 		node.children?.forEach(collect);
 	};
 	collect(tree);
-	const clean = (node: MdastNode) => {
-		if (!node.children) return;
-		node.children = node.children.flatMap((child) => {
-			clean(child);
-			if (child.type === "definition" && isUnsafeUrl(child)) return [];
-			const unsafeLink =
-				isUnsafeLink(child) ||
-				(child.type === "linkReference" && unsafe.has(child.identifier ?? ""));
-			return unsafeLink ? (child.children ?? []) : [child];
-		});
-	};
-	clean(tree);
+	if (tree.children) tree.children = keptNodes(tree.children, unsafe);
 };
 
 /** The Markdown processor in an Astro config (`markdown.processor`), as far as this reads it. */

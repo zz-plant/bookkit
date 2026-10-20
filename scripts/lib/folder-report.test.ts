@@ -11,8 +11,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { previewFolder } from "../../packages/astro-bookkit/src/proposals";
-import { mdxConversionSummary, readFolder } from "./folder-report";
+import {
+	mdxConversionSummary,
+	readFolder,
+	unsafeLinksSummary,
+} from "./folder-report";
 import { planImport } from "./import-markdown";
+import { describeImport } from "./import-report";
 import {
 	countConversions,
 	describeConversions,
@@ -110,5 +115,72 @@ describe("bookkit try's MDX summary", () => {
 		const folder = readFolder(tree({ "a.md": "# A\n\nPlain prose." }));
 		if ("error" in folder) throw new Error(folder.error);
 		expect(mdxConversionSummary(previewFolder(folder.files))).toBeNull();
+	});
+});
+
+describe("bookkit try's unsafe links", () => {
+	it("lists the links import would keep as text, with the lines import names, leaving out what import skips", async () => {
+		const workspace = mkdtempSync(join(tmpdir(), "bookkit-try-links-"));
+		try {
+			const notes = join(workspace, "notes");
+			mkdirSync(notes, { recursive: true });
+			writeFileSync(
+				join(notes, "01-links.md"),
+				[
+					"---",
+					"title: Links",
+					"---",
+					"# Links",
+					"",
+					"Run [the script](javascript:alert(1)) or [read it](https://example.com).",
+					'<iframe src="data:text/html,x"></iframe>',
+					'<form action="javascript:alert(2)">Fields</form>',
+					"",
+				].join("\n"),
+			);
+			// Import skips a README, so its link is not listed.
+			writeFileSync(
+				join(notes, "README.md"),
+				"[skipped](javascript:alert(3))\n",
+			);
+			mkdirSync(
+				join(workspace, "apps", "notes-book", "src", "content", "book"),
+				{ recursive: true },
+			);
+
+			const folder = readFolder(notes);
+			if ("error" in folder) throw new Error(folder.error);
+			const summary = unsafeLinksSummary(previewFolder(folder.files));
+			expect(summary).toEqual([
+				"Links import would keep as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (3):",
+				'  01-links.md:6  "javascript:alert(1)"',
+				'  01-links.md:7  <iframe src> "data:text/html,x"',
+				'  01-links.md:8  <form action> "javascript:alert(2)"',
+			]);
+
+			const report = describeImport(
+				await planImport({
+					workspaceRoot: workspace,
+					book: "notes-book",
+					sourceDir: notes,
+				}),
+				{ dryRun: true, bookDir: "apps/notes-book" },
+			);
+			const listed = report.indexOf(
+				summary[0].replace("Links import would keep", "Links kept"),
+			);
+			expect(listed).toBeGreaterThan(-1);
+			expect(report.slice(listed + 1, listed + summary.length)).toEqual(
+				summary.slice(1),
+			);
+		} finally {
+			rmSync(workspace, { recursive: true, force: true });
+		}
+	});
+
+	it("says nothing when no note has one", () => {
+		const folder = readFolder(tree({ "a.md": "# A\n\n[web](https://x.y)" }));
+		if ("error" in folder) throw new Error(folder.error);
+		expect(unsafeLinksSummary(previewFolder(folder.files))).toEqual([]);
 	});
 });

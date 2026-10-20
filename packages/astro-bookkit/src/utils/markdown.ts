@@ -1,6 +1,6 @@
 import GithubSlugger from "github-slugger";
 import { decodeEntities } from "./character-references";
-import { isSafeLink, stringLiteralValue } from "./links";
+import { isAddressAttribute, isSafeLink, stringLiteralValue } from "./links";
 
 export const createSlugger = () => {
 	const used = new Map<string, number>();
@@ -277,15 +277,27 @@ export const splitFencedCode = (markdown: string): MarkdownSegment[] => {
 
 /** A link in Markdown or MDX source whose address `isSafeLink` refuses. */
 export type UnsafeLink = {
-	/** Where it is in the source: the whole link, the definition's line, or the `href` attribute. */
+	/** Where it is in the source: the whole link, the definition's line, or the attribute. */
 	start: number;
 	end: number;
 	/** What keeps its words in place of it: a link's text, or nothing. */
 	text: string;
-	/** The address, decoded; an `href={…}` expression as written. */
+	/** The address, decoded; a `src={…}` expression as written, braces included. */
 	href: string;
+	/** For an HTML element's address, the element and attribute, lower case: `iframe` and `src`. */
+	element?: string;
+	attribute?: string;
 	/** 1-based line in the source. */
 	line: number;
+};
+
+export type FindUnsafeLinksOptions = {
+	/**
+	 * How tag names read: `jsx` (the default, for MDX), where a capitalized
+	 * name is a component whose props are not addresses; or `html`, for
+	 * Markdown notes, where `<IFRAME SRC>` is an element, as HTML reads it.
+	 */
+	tags?: "jsx" | "html";
 };
 
 /** Code, HTML comments, and MDX comments blanked out, keeping every offset. */
@@ -347,21 +359,25 @@ const DEFINITION =
 // `[text][label]`, `[label][]`, or `[label]`, not followed by `(` or `:`.
 const REFERENCE =
 	/(?<![!\]\\])\[((?:[^\]\\\n]|\\.)+)\](?:\[((?:[^\]\\\n]|\\.)*)\])?(?![(:[])/g;
-// An HTML element's opening tag (a capitalized name is a component).
+// An HTML element's opening tag and its name; `\<` is text, not a tag.
 const ELEMENT_TAG =
-	/<[a-z][\w-]*(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}|[^\s"'=<>`]+))?)*\s*\/?>/g;
-const HREF_ATTRIBUTE =
-	/\s+href\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\}|([^\s"'=<>`]+))/gi;
+	/(?<!\\)<([A-Za-z][\w-]*)(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}|[^\s"'=<>`]+))?)*\s*\/?>/g;
+const TAG_ATTRIBUTE =
+	/\s+([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\}|([^\s"'=<>`]+))/g;
 
 /**
  * The links in Markdown or MDX source that the site and the exports keep
  * only as text (see `isSafeLink`), in source order: inline links, reference
- * links and their definitions, and `href` attributes on HTML elements,
- * including an `href={…}` that is not a plain string. Code and comments are
- * not read. A pattern match, not a parse: the build drops these links from
- * the parsed page whatever this finds.
+ * links and their definitions, and the addresses of HTML elements
+ * (`isAddressAttribute`: `href`, `<iframe src>`, `<form action>`, …),
+ * including one written as an expression that is not a plain string. Code,
+ * comments, and escaped tags (`\<a`) are not read. A pattern match, not a
+ * parse: the build drops these from the parsed page whatever this finds.
  */
-export const findUnsafeLinks = (markdown: string): UnsafeLink[] => {
+export const findUnsafeLinks = (
+	markdown: string,
+	options: FindUnsafeLinksOptions = {},
+): UnsafeLink[] => {
 	const masked = maskNonProse(markdown);
 	const lineAt = (index: number) => markdown.slice(0, index).split("\n").length;
 	const found: Omit<UnsafeLink, "line">[] = [];
@@ -407,9 +423,12 @@ export const findUnsafeLinks = (markdown: string): UnsafeLink[] => {
 	}
 
 	for (const tag of masked.matchAll(ELEMENT_TAG)) {
+		const element = tag[1];
+		if (options.tags !== "html" && !/^[a-z]/.test(element)) continue;
 		const tagStart = tag.index ?? 0;
-		for (const attribute of tag[0].matchAll(HREF_ATTRIBUTE)) {
-			const [, double, single, expression, bare] = attribute;
+		for (const attribute of tag[0].matchAll(TAG_ATTRIBUTE)) {
+			const [, name, double, single, expression, bare] = attribute;
+			if (!isAddressAttribute(element, name)) continue;
 			const href =
 				expression === undefined
 					? decodeEntities(double ?? single ?? bare ?? "")
@@ -421,6 +440,8 @@ export const findUnsafeLinks = (markdown: string): UnsafeLink[] => {
 				end: start + attribute[0].length,
 				text: "",
 				href: href ?? `{${expression}}`,
+				element: element.toLowerCase(),
+				attribute: name.toLowerCase(),
 			});
 		}
 	}
@@ -639,7 +660,9 @@ export const toMdxBody = (
 	source: string,
 	options: MdxBodyOptions = {},
 ): { body: string; changes: MdxConversion; unsafeLinks: UnsafeLink[] } => {
-	const unsafeLinks = findUnsafeLinks(source);
+	// Notes are Markdown, whose tag names HTML reads in any case; the tags
+	// import keeps are written in lower case.
+	const unsafeLinks = findUnsafeLinks(source, { tags: "html" });
 	const markdown = withoutUnsafeLinks(source, unsafeLinks);
 	const changes: MdxConversion = {
 		htmlComments: 0,

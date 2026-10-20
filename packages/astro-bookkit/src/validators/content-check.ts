@@ -7,9 +7,9 @@ import {
 	mechanismSchema,
 	toolkitSchema,
 } from "../schemas";
-import { parseFrontmatter } from "../utils/frontmatter";
+import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import { SAFE_SCHEME_LIST } from "../utils/links";
-import { findUnsafeLinks } from "../utils/markdown";
+import { findUnsafeLinks, type UnsafeLink } from "../utils/markdown";
 
 /**
  * What each kind of content file must contain to compile, and a checker that
@@ -502,6 +502,41 @@ export type ContentCheckContext = {
 	format?: "mdx" | "md";
 };
 
+/**
+ * What an unsafe link finding says: a link keeps its words on the site, and
+ * an element with an unsafe address (`<iframe src>`, `<form action>`, …)
+ * keeps only what it contains.
+ */
+const unsafeLinkFinding = (
+	label: string,
+	link: UnsafeLink,
+	line: number,
+): Pick<ContentFinding, "message" | "fix"> => {
+	const computed = link.href.startsWith("{");
+	const attribute = link.attribute ?? "href";
+	if (!link.element || attribute === "href") {
+		return computed
+			? {
+					message: `${label} has a link on line ${line} whose address is an expression (href=${link.href}), which the build cannot check, so the site shows only its words`,
+					fix: 'Write the address as a plain string, as in href="https://example.com".',
+				}
+			: {
+					message: `${label} links to ${JSON.stringify(link.href)} on line ${line}, which the site shows only as words: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+					fix: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
+				};
+	}
+	const tag = `<${link.element} ${attribute}=${computed ? link.href : JSON.stringify(link.href)}>`;
+	return computed
+		? {
+				message: `${label} has ${tag} on line ${line}, an address the build cannot check, so the site leaves out the <${link.element}> and keeps only what it contains`,
+				fix: `Write the address as a plain string, as in ${attribute}="https://example.com".`,
+			}
+		: {
+				message: `${label} has ${tag} on line ${line}, which the site leaves out, keeping only what the <${link.element}> contains: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+				fix: `Point ${attribute} at a web address or a page of the book, or remove the <${link.element}>.`,
+			};
+};
+
 /** Body text outside code, where an HTML comment would reach the MDX compiler. */
 const proseOutsideCode = (body: string): string =>
 	body.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "").replace(/`[^`\n]*`/g, "");
@@ -879,19 +914,13 @@ export const checkContentItem = (
 		}
 	}
 
-	const linesBeforeBody = source.slice(0, bodyStart).split("\n").length - 1;
-	for (const link of findUnsafeLinks(body)) {
-		const line = linesBeforeBody + link.line;
-		const computed = link.href.startsWith("{");
+	const bodyLine = linesBeforeBody(source, body);
+	const tags = context.format === "md" ? "html" : "jsx";
+	for (const link of findUnsafeLinks(body, { tags })) {
 		findings.push({
 			level: released ? "error" : "warning",
 			code: "UNSAFE_LINK",
-			message: computed
-				? `${label} has a link on line ${line} whose address is an expression (href=${link.href}), which the build cannot check, so the site shows only its words`
-				: `${label} links to ${JSON.stringify(link.href)} on line ${line}, which the site shows only as words: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
-			fix: computed
-				? 'Write the address as a plain string, as in href="https://example.com".'
-				: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
+			...unsafeLinkFinding(label, link, bodyLine + link.line),
 		});
 	}
 

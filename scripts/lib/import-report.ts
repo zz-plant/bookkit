@@ -1,6 +1,9 @@
-import { SAFE_SCHEME_LIST } from "../../packages/astro-bookkit/src/utils/links";
 import { type FileAction, type ImportPlan, WRITES } from "./import-markdown";
-import { describeConversions, sumConversions } from "./import-rules";
+import {
+	describeConversions,
+	describeUnsafeLinks,
+	sumConversions,
+} from "./import-rules";
 
 const LISTED_LINKS = 10;
 
@@ -130,23 +133,13 @@ export const describeImport = (
 		);
 	}
 
-	const unsafeLinks = plan.chapters.flatMap((chapter) =>
-		chapter.unsafeLinks.map((link) => ({ source: chapter.source, ...link })),
+	const unsafeLinks = describeUnsafeLinks(
+		"Links kept as text",
+		plan.chapters.flatMap((chapter) =>
+			chapter.unsafeLinks.map((link) => ({ source: chapter.source, ...link })),
+		),
 	);
-	if (unsafeLinks.length > 0) {
-		lines.push(
-			"",
-			`Links kept as text, since a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages (${unsafeLinks.length}):`,
-		);
-		for (const link of unsafeLinks.slice(0, LISTED_LINKS)) {
-			const href =
-				link.href.length > 60 ? `${link.href.slice(0, 59)}…` : link.href;
-			lines.push(`  ${link.source}:${link.line}  ${JSON.stringify(href)}`);
-		}
-		if (unsafeLinks.length > LISTED_LINKS) {
-			lines.push(`  … and ${unsafeLinks.length - LISTED_LINKS} more`);
-		}
-	}
+	if (unsafeLinks.length > 0) lines.push("", ...unsafeLinks);
 
 	if (plan.orphans.length > 0) {
 		lines.push(

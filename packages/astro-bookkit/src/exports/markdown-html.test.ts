@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CHILD_TEST_TIMEOUT_MS } from "../../../../scripts/lib/child-process.fixture";
 import { KEPT_ELEMENTS } from "../utils/markdown";
 import { createEpubExport } from "./epub-generator";
 import {
@@ -251,23 +252,27 @@ describe("HTML import keeps, in the EPUB", () => {
 		);
 	});
 
-	it("is valid XHTML, and passes epubcheck when it is available", async () => {
-		const body = [
-			...EPUB_CASES.map(([, markdown]) => markdown),
-			...DROPPED_CASES.map(([markdown]) => markdown),
-		].join("\n\n");
-		const epub = await createEpubExport(chaptersBundle([["html", body]]), {
-			loadImage: () => ({ problem: "is a test image", fix: "none" }),
-			onWarning: () => {},
-		});
-		expect(await inspectEpub(epub)).toEqual([]);
-		expect(articleBody(await epubChapter(epub, "html"))).toContain(
-			'<div class="details">',
-		);
-		if (process.env.EPUBCHECK_JAR) {
-			expect(epubcheck(epub, scratch, "html")).toContain(EPUBCHECK_CLEAN);
-		}
-	}, 60_000);
+	it(
+		"is valid XHTML, and passes epubcheck when it is available",
+		async () => {
+			const body = [
+				...EPUB_CASES.map(([, markdown]) => markdown),
+				...DROPPED_CASES.map(([markdown]) => markdown),
+			].join("\n\n");
+			const epub = await createEpubExport(chaptersBundle([["html", body]]), {
+				loadImage: () => ({ problem: "is a test image", fix: "none" }),
+				onWarning: () => {},
+			});
+			expect(await inspectEpub(epub)).toEqual([]);
+			expect(articleBody(await epubChapter(epub, "html"))).toContain(
+				'<div class="details">',
+			);
+			if (process.env.EPUBCHECK_JAR) {
+				expect(epubcheck(epub, scratch, "html")).toContain(EPUBCHECK_CLEAN);
+			}
+		},
+		CHILD_TEST_TIMEOUT_MS,
+	);
 });
 
 describe("HTML import keeps, in the PDF", () => {

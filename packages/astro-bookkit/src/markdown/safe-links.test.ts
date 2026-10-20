@@ -40,6 +40,61 @@ describe("safe links in the site's pages", () => {
 		expect(code).toContain("data:image/png");
 	});
 
+	// Each element that embeds a document or submits a form, with an unsafe
+	// address, a computed one, and a web address; and what it contains.
+	const EMBEDS = [
+		["<iframe src>", "<iframe src=%s></iframe>", ""],
+		["<embed src>", "Before <embed src=%s /> after.", "Before"],
+		["<object data>", "<object data=%s>object words</object>", "object words"],
+		["<form action>", "<form action=%s>form words</form>", "form words"],
+		[
+			"formaction",
+			"<button formAction=%s>button words</button>",
+			"button words",
+		],
+	] as const;
+
+	const compiled = async (mdx: string) =>
+		String(
+			await compile(mdx, {
+				remarkPlugins: [remarkSafeLinks],
+				jsxImportSource: "astro",
+			}),
+		);
+
+	for (const [attribute, template, words] of EMBEDS) {
+		it(`leaves out an element whose ${attribute} runs code or is computed, keeping what it contains`, async () => {
+			for (const address of [
+				'"javascript:alert(1)"',
+				'"&#106;avascript:alert(1)"',
+				"'data:text/html,x'",
+				"{target}",
+			]) {
+				const code = await compiled(template.replace("%s", address));
+				expect(code, address).not.toMatch(/javascript|data:text|target/);
+				expect(code, address).not.toMatch(
+					/"(iframe|embed|object|form|button)"/,
+				);
+				if (words) expect(code, address).toContain(`"${words}`);
+			}
+		});
+
+		it(`keeps an element whose ${attribute} is a web address`, async () => {
+			const code = await compiled(
+				template.replace("%s", '"https://example.com/embed"'),
+			);
+			expect(code).toContain('"https://example.com/embed"');
+		});
+	}
+
+	it("leaves out an unsafe element inside another one", async () => {
+		const code = await compiled(
+			'<form action="javascript:alert(1)">\n  <button formAction="vbscript:x">inner</button>\n</form>',
+		);
+		expect(code).not.toMatch(/javascript|vbscript|"form"|"button"/);
+		expect(code).toContain('"inner"');
+	});
+
 	it("is added to the book's processor once, and to none it does not know", () => {
 		// The shape satteri() from @astrojs/markdown-satteri returns.
 		const processor = {

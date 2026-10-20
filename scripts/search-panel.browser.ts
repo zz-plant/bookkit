@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { type Browser, chromium, type Page } from "playwright";
-import { repoRoot } from "./_lib";
-import { resolveDistFile } from "./lib/a11y";
+import type { Browser, Page } from "playwright";
+import {
+	type BuiltBook,
+	CLOSE_TIMEOUT_MS,
+	OPEN_TIMEOUT_MS,
+	openBuiltBook,
+} from "./lib/browser.fixture";
 
 /**
  * The search field is a WAI-ARIA combobox over a listbox of results, so a
@@ -21,45 +22,17 @@ const QUERY = "rollback";
 /** Each case loads a page and waits for the search index. */
 const CASE_TIMEOUT = 30_000;
 
-let outDir: string;
-let server: ReturnType<typeof Bun.serve>;
+let book: BuiltBook | undefined;
+let origin: string;
 let browser: Browser;
 let page: Page;
 
 beforeAll(async () => {
-	outDir = mkdtempSync(join(tmpdir(), "bookkit-search-panel-"));
-	const build = Bun.spawnSync(
-		[process.execPath, "run", "build", "--outDir", outDir],
-		{
-			cwd: join(repoRoot(), "apps", BOOK),
-			stdout: "pipe",
-			stderr: "pipe",
-		},
-	);
-	if (build.exitCode !== 0) {
-		throw new Error(
-			`Building ${BOOK} failed:\n${build.stdout.toString()}${build.stderr.toString()}`,
-		);
-	}
-	server = Bun.serve({
-		hostname: "127.0.0.1",
-		port: 0,
-		fetch(request) {
-			// As a static host serves a book: 404.html for an address with no page.
-			const file = resolveDistFile(outDir, new URL(request.url).pathname);
-			return file
-				? new Response(Bun.file(file))
-				: new Response(Bun.file(join(outDir, "404.html")), { status: 404 });
-		},
-	});
-	browser = await chromium.launch();
-}, 240_000);
+	book = await openBuiltBook(BOOK);
+	({ origin, browser } = book);
+}, OPEN_TIMEOUT_MS);
 
-afterAll(async () => {
-	await browser?.close();
-	server?.stop(true);
-	rmSync(outDir, { recursive: true, force: true });
-}, CASE_TIMEOUT);
+afterAll(() => book?.close(), CLOSE_TIMEOUT_MS);
 
 const field = () => page.locator("[data-search-input]");
 const options = () => page.locator("#search-results [role=option]");
@@ -72,7 +45,7 @@ const selectedIds = () =>
 /** Opens search on the home page and types the query, once the field has focus. */
 const search = async (query: string) => {
 	page = await browser.newPage();
-	await page.goto(`http://127.0.0.1:${server.port}/`, {
+	await page.goto(`${origin}/`, {
 		waitUntil: "networkidle",
 	});
 	await page.click("[data-search-toggle]");
@@ -88,7 +61,7 @@ describe("search panel", () => {
 		"is a combobox controlling the results listbox, collapsed until there are results",
 		async () => {
 			page = await browser.newPage();
-			await page.goto(`http://127.0.0.1:${server.port}/`);
+			await page.goto(`${origin}/`);
 			expect(await field().getAttribute("role")).toBe("combobox");
 			expect(await field().getAttribute("aria-controls")).toBe(
 				"search-results",
@@ -230,7 +203,7 @@ describe("finding a procedure", () => {
 		async () => {
 			page = await browser.newPage();
 			const response = await page.goto(
-				`http://127.0.0.1:${server.port}/read/toolkit/classify-severity/`,
+				`${origin}/read/toolkit/classify-severity/`,
 				{ waitUntil: "networkidle" },
 			);
 			expect(response?.status()).toBe(404);

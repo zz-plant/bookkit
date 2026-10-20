@@ -1,15 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import type { Browser, BrowserContext, Page } from "playwright";
 import {
-	type Browser,
-	type BrowserContext,
-	chromium,
-	type Page,
-} from "playwright";
-import { repoRoot } from "./_lib";
-import { resolveDistFile } from "./lib/a11y";
+	type BuiltBook,
+	CLOSE_TIMEOUT_MS,
+	OPEN_TIMEOUT_MS,
+	openBuiltBook,
+} from "./lib/browser.fixture";
 
 /**
  * What a reader's browser does with the wayfinding the pages carry, against
@@ -24,41 +20,16 @@ const BOOK = "on-call";
 const CHAPTER = "/read/chapters/rollback-first";
 const CASE_TIMEOUT = 30_000;
 
-let outDir: string;
-let server: ReturnType<typeof Bun.serve>;
+let book: BuiltBook | undefined;
 let browser: Browser;
 let origin: string;
 
 beforeAll(async () => {
-	outDir = mkdtempSync(join(tmpdir(), "bookkit-wayfinding-"));
-	const build = Bun.spawnSync(
-		[process.execPath, "run", "build", "--outDir", outDir],
-		{ cwd: join(repoRoot(), "apps", BOOK), stdout: "pipe", stderr: "pipe" },
-	);
-	if (build.exitCode !== 0) {
-		throw new Error(
-			`Building ${BOOK} failed:\n${build.stdout.toString()}${build.stderr.toString()}`,
-		);
-	}
-	server = Bun.serve({
-		hostname: "127.0.0.1",
-		port: 0,
-		fetch(request) {
-			const file = resolveDistFile(outDir, new URL(request.url).pathname);
-			return file
-				? new Response(Bun.file(file))
-				: new Response(Bun.file(join(outDir, "404.html")), { status: 404 });
-		},
-	});
-	origin = `http://127.0.0.1:${server.port}`;
-	browser = await chromium.launch();
-}, 240_000);
+	book = await openBuiltBook(BOOK);
+	({ origin, browser } = book);
+}, OPEN_TIMEOUT_MS);
 
-afterAll(async () => {
-	await browser?.close();
-	server?.stop(true);
-	rmSync(outDir, { recursive: true, force: true });
-}, CASE_TIMEOUT);
+afterAll(() => book?.close(), CLOSE_TIMEOUT_MS);
 
 /** A page in a new context, failing the case on any script error. */
 const open = async (

@@ -153,6 +153,76 @@ describe("embedded documents and forms in the exports", () => {
 	});
 });
 
+// Attributes no address check can vouch for: the exports leave out each
+// element and keep what it holds, as the site does. The animated link's own
+// address is a web address, which stays once its animation is gone.
+const UNCHECKABLE = [
+	'<iframe srcdoc="<script>alert(1)</script>"></iframe>',
+	'<iframe {...{ src: "javascript:alert(2)" }}></iframe>',
+	'<a {...{ href: "javascript:alert(3)" }}>spread words</a> and <a href="https://example.com/" {...{ href: "javascript:alert(4)" }}>override words</a>',
+	'<kbd {...props}>kbd words</kbd> <img {...{ src: "pic.png" }} alt="spread image" />',
+	'<svg><a xlink:href="javascript:alert(5)"><text>svg words</text></a></svg>',
+	'<svg><a href="https://example.com/"><animate attributeName="href" values="javascript:alert(6)" /><text>animated words</text></a></svg>',
+].join("\n\n");
+const UNCHECKABLE_WORDS = [
+	"spread words and override words",
+	"kbd words",
+	"svg words",
+	"animated words",
+];
+
+describe("srcdoc, spreads, and animated addresses in the exports", () => {
+	it("are left out of the EPUB, which keeps what they hold", async () => {
+		const epub = await createEpubExport(chaptersBundle([["a", UNCHECKABLE]]));
+		expect(await inspectEpub(epub)).toEqual([]);
+		const chapter = articleBody(await epubChapter(epub, "a"));
+		expect(chapter).not.toMatch(
+			/script|srcdoc|\.\.\.|xlink|<(iframe|kbd|img|animate)\b/,
+		);
+		for (const words of UNCHECKABLE_WORDS) expect(chapter).toContain(words);
+		expect(chapter.match(/<a\b[^>]*>/g)).toEqual([
+			'<a href="https://example.com/">',
+		]);
+	});
+
+	it("are left out of the PDF", async () => {
+		const pdf = await createPdfExport(chaptersBundle([["a", UNCHECKABLE]]));
+		expect(await inspectPdf(pdf)).toEqual([]);
+		expect((await extractPdfLinks(pdf)).map((link) => link.uri)).toEqual([
+			"https://example.com/",
+		]);
+	});
+
+	it("are reported by the structural check when an EPUB has one anyway", async () => {
+		const epub = await createEpubExport(chaptersBundle([["a", "x"]]));
+		const zip = await JSZip.loadAsync(epub);
+		const path = "OEBPS/text/chapter-a.xhtml";
+		const xhtml = (await zip.file(path)?.async("string")) ?? "";
+		zip.file(
+			path,
+			xhtml.replace(
+				"<p>x</p>",
+				[
+					'<iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>',
+					'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href="javascript:alert(2)"><animate attributeName="href" values="javascript:alert(3)"/><text>t</text></a></svg>',
+				].join(""),
+			),
+		);
+		const tampered = await zip.generateAsync({
+			type: "uint8array",
+			mimeType: "application/epub+zip",
+		});
+		const reported = (await inspectEpub(tampered)).filter((problem) =>
+			problem.startsWith(`${path} has <`),
+		);
+		expect(reported).toEqual([
+			`${path} has <iframe srcdoc="<script>alert(1)</script>">; an export holds no document written into an attribute`,
+			`${path} has <a xlink:href="javascript:alert(2)">; an export links only to http, https, mailto, tel, and ftp addresses and to its own pages`,
+			`${path} has <animate attributename="href">; an export links only to http, https, mailto, tel, and ftp addresses and to its own pages`,
+		]);
+	});
+});
+
 describe("unsafe links in the PDF", () => {
 	it("keep their words without a link", async () => {
 		const pdf = await createPdfExport(

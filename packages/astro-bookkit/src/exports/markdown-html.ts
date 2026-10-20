@@ -2,6 +2,7 @@ import { decodeEntities } from "../utils/character-references";
 import {
 	BLOCK_ELEMENTS,
 	KEPT_ELEMENTS,
+	SPREAD,
 	VOID_ELEMENTS,
 } from "../utils/markdown";
 
@@ -12,9 +13,8 @@ import {
  * while keeping its text.
  */
 
-/** An HTML or JSX tag (`<kbd>`, `</details>`, `<img src="…" />`); JSX values in braces are allowed. */
-export const HTML_TAG =
-	"</?[A-Za-z][\\w.:-]*(?:\\s+[^\\s\"'<>/=]+(?:\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|\\{[^{}]*\\}|[^\\s\"'=<>`]+))?)*\\s*/?>";
+/** An HTML or JSX tag (`<kbd>`, `</details>`, `<img src="…" />`); JSX values in braces, and spreads, are allowed. */
+export const HTML_TAG = `</?[A-Za-z][\\w.:-]*(?:\\s+(?:${SPREAD}|[^\\s"'<>/=]+(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|\\{[^{}]*\\}|[^\\s"'=<>\`]+))?))*\\s*/?>`;
 export const IMG_TAG = "<img\\b[^>]*>";
 
 const TAG_PARTS = /^<(\/?)([A-Za-z][\w.:-]*)([\s\S]*?)(\/?)>$/;
@@ -35,11 +35,16 @@ export type HtmlTag = {
 	attributes: Record<string, string>;
 };
 
-/** The parts of a tag `HTML_TAG` matched. */
+/**
+ * The parts of a tag `HTML_TAG` matched; null for one with a spread
+ * attribute (`<a {...props}>`), whose attributes no export can read. Such a
+ * tag is left out and what it holds kept, as the site does.
+ */
 export const readTag = (source: string): HtmlTag | null => {
 	const match = source.match(TAG_PARTS);
 	if (!match) return null;
 	const [, closing, name, rawAttributes, selfClosing] = match;
+	if (/\{\s*\.\.\./.test(rawAttributes)) return null;
 	const attributes: Record<string, string> = {};
 	for (const [
 		,

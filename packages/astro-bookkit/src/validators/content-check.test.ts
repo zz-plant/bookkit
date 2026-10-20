@@ -386,6 +386,83 @@ describe("unsafe links", () => {
 	}
 });
 
+describe("attributes the build cannot check", () => {
+	const findings = (status: string, body: string) =>
+		checkContentItem(
+			"chapter",
+			`---\nslug: drills\ntitle: "Drills"\nstatus: ${status}\n---\n${body}`,
+		).findings.filter((finding) => finding.code === "UNSAFE_LINK");
+	const BODY = [
+		'<iframe srcdoc="<script>alert(1)</script>"></iframe>',
+		"",
+		'<iframe {...{ src: "javascript:alert(2)" }}></iframe> <a {...props}>words</a>',
+		"",
+		'<svg><a xlink:href="javascript:alert(3)"><text>svg</text></a></svg>',
+		"",
+		'<svg><a href="https://example.com/"><animate attributeName="href" values="javascript:alert(4)" /><set attributeName={name} /></a></svg>',
+		"",
+		`<iframe srcdoc="${"<p>long</p>".repeat(8)}"></iframe> <Figure {...props} />`,
+	].join("\n");
+
+	it("names a srcdoc, a spread, an SVG link, and an animation of an address, with the line and the fix", () => {
+		expect(
+			findings("published", BODY).map(({ level, message, fix }) => ({
+				level,
+				message,
+				fix,
+			})),
+		).toEqual([
+			{
+				level: "error",
+				message:
+					'Chapter has <iframe srcdoc="<script>alert(1)</script>"> on line 6, a document written into the page that would run with the page\'s own rights, so the site leaves out the <iframe> and keeps only what it contains',
+				fix: "Point src at a web address or a page of the book in place of srcdoc, or remove the <iframe>.",
+			},
+			{
+				level: "error",
+				message:
+					'Chapter has <iframe {...{ src: "javascript:alert(2)" }}> on line 8, a spread whose attributes the build cannot check, so the site leaves out the <iframe> and keeps only what it contains',
+				fix: 'Write each attribute out with a plain string value, as in href="https://example.com".',
+			},
+			{
+				level: "error",
+				message:
+					"Chapter has <a {...props}> on line 8, a spread whose attributes the build cannot check, so the site leaves out the <a> and keeps only what it contains",
+				fix: 'Write each attribute out with a plain string value, as in href="https://example.com".',
+			},
+			{
+				level: "error",
+				message:
+					'Chapter has <a xlink:href="javascript:alert(3)"> on line 10, which the site leaves out, keeping only what the <a> contains: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
+				fix: "Point xlink:href at a web address or a page of the book, or remove the <a>.",
+			},
+			{
+				level: "error",
+				message:
+					'Chapter has <animate attributeName="href"> on line 12, which changes an address after the page loads, past the check of the link itself, so the site leaves out the <animate> and keeps only what it contains',
+				fix: "Animate an attribute other than href, or remove the <animate>.",
+			},
+			{
+				level: "error",
+				message:
+					"Chapter has <set attributeName={name}> on line 12, which may change an address the build cannot check, so the site leaves out the <set> and keeps only what it contains",
+				fix: 'Write the attribute name as a plain string, as in attributeName="opacity".',
+			},
+			{
+				level: "error",
+				message: `Chapter has <iframe srcdoc="${"<p>long</p>".repeat(8).slice(0, 59)}…"> on line 14, a document written into the page that would run with the page's own rights, so the site leaves out the <iframe> and keeps only what it contains`,
+				fix: "Point src at a web address or a page of the book in place of srcdoc, or remove the <iframe>.",
+			},
+		]);
+	});
+
+	it("is a warning in a draft, as an unsafe link is", () => {
+		expect(
+			new Set(findings("draft", BODY).map((finding) => finding.level)),
+		).toEqual(new Set(["warning"]));
+	});
+});
+
 describe("retired slugs", () => {
 	it("points a reference to a merged-away slug at its replacement", () => {
 		const retiredSlugs = retiredSlugsFromCorpus({

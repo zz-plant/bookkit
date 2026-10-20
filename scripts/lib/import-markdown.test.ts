@@ -315,6 +315,86 @@ describe("planImport", () => {
 		);
 	});
 
+	it("keeps a video or a map embedded from the web, as YouTube, Vimeo, and Google Maps hand them out", async () => {
+		const youtube =
+			'<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=abc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
+		const vimeo =
+			'<iframe src="https://player.vimeo.com/video/76979871?h=8272103f6e" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+		const maps =
+			'<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.9!2d-73.98!3d40.75" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
+		// The address last in the tag: as text, GFM read it on through the `\\`
+		// of `\\</iframe>`, and the chapter did not compile.
+		const short = '<iframe src="https://www.youtube.com/embed/abc"></iframe>';
+		writeFileSync(
+			join(notes, "11-videos.md"),
+			[
+				"# Videos",
+				"",
+				youtube,
+				"",
+				vimeo,
+				'<p><a href="https://vimeo.com/76979871">The New Vimeo Player</a> from <a href="https://vimeo.com/staff">Vimeo</a>.</p>',
+				"",
+				maps,
+				"",
+				short,
+				"",
+				'<iframe srcdoc="<script>alert(1)</script>" src="https://example.com/embed"></iframe>',
+				"",
+				'<iframe src="javascript:alert(2)"></iframe>',
+				"",
+			].join("\n"),
+		);
+		const videos = chapter(await plan(), "11-videos.md");
+		expect(videos.compile).toEqual({ ok: true });
+		expect(videos.htmlAsText).toBe(false);
+		for (const embed of [youtube, vimeo, maps, short]) {
+			expect(videos.content).toContain(embed);
+		}
+		expect(videos.content).toContain(
+			'<iframe src="https://example.com/embed"></iframe>',
+		);
+		// The unsafe one shows as text without its address.
+		expect(videos.content).toContain("\\<iframe>\\</iframe>");
+		expect(videos.content).not.toMatch(/javascript|srcdoc|<script/i);
+		expect(
+			checkContentItem("chapter", videos.content).findings.filter(
+				(finding) => finding.code === "UNSAFE_LINK",
+			),
+		).toEqual([]);
+		expect(
+			videos.unsafeLinks.map(({ line, element, attribute }) => [
+				line,
+				`<${element} ${attribute}>`,
+			]),
+		).toEqual([
+			[12, "<iframe srcdoc>"],
+			[14, "<iframe src>"],
+		]);
+	});
+
+	it("compiles an address followed by a placeholder or an escaped tag", async () => {
+		writeFileSync(
+			join(notes, "12-api.md"),
+			[
+				"# API",
+				"",
+				"GET https://api.example.com/users/<id> to read one.",
+				"",
+				'<video src="https://example.com/clip.mp4"></video>',
+				"",
+			].join("\n"),
+		);
+		const api = chapter(await plan(), "12-api.md");
+		expect(api.compile).toEqual({ ok: true });
+		expect(api.content).toContain(
+			"GET https\\://api.example.com/users/\\<id> to read one.",
+		);
+		expect(api.content).toContain(
+			'\\<video src="https\\://example.com/clip.mp4">\\</video>',
+		);
+	});
+
 	it("writes nothing when only planned (--dry-run)", async () => {
 		await plan();
 		expect(readdirSync(chaptersDir)).toEqual(["00-overview.mdx"]);

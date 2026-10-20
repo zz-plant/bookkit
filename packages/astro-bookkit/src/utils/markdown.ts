@@ -1,6 +1,6 @@
 import GithubSlugger from "github-slugger";
 import { decodeEntities } from "./character-references";
-import { isAddressAttribute, isSafeLink, stringLiteralValue } from "./links";
+import { isSafeLink, isUnsafeAttribute, stringLiteralValue } from "./links";
 
 export const createSlugger = () => {
 	const used = new Map<string, number>();
@@ -133,12 +133,13 @@ export type MdxConversion = {
 export type MdxBodyOptions = {
 	/**
 	 * Raw HTML: `escape` (the default) shows it as text. `jsx` keeps common
-	 * elements (`<details>`, `<kbd>`, `<img>`, tables, …) as HTML: void tags
-	 * are closed, attribute values quoted, and a block tag that opens on one
-	 * line and closes on another gets a line of its own. Tags it cannot pair,
-	 * other elements, and event-handler attributes are escaped. MDX is stricter
-	 * than HTML about where a block may open and close, so compile the result
-	 * and fall back to `escape` if it fails.
+	 * elements (`<details>`, `<kbd>`, `<img>`, tables, …) and embedded pages
+	 * (`EMBEDDED_ELEMENTS`) as HTML: void tags are closed, attribute values
+	 * quoted, and a block tag that opens on one line and closes on another
+	 * gets a line of its own. Tags it cannot pair, other elements, and
+	 * event-handler attributes are escaped. MDX is stricter than HTML about
+	 * where a block may open and close, so compile the result and fall back
+	 * to `escape` if it fails.
 	 */
 	html?: "escape" | "jsx";
 };
@@ -241,6 +242,15 @@ export const KEPT_ELEMENTS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Embedded pages `html: "jsx"` keeps as HTML too, when they have a `src`:
+ * a video or a map (`<iframe src="https://www.youtube.com/embed/…">`). The
+ * site shows them; the PDF and EPUB, which cannot, leave them out. An
+ * unsafe source is gone before then (`findUnsafeLinks`), and one without a
+ * source shows as text.
+ */
+const EMBEDDED_ELEMENTS: ReadonlySet<string> = new Set(["iframe"]);
+
+/**
  * Splits Markdown into runs of prose and fenced code, in order. Code runs
  * to a closing fence of the same character, at least as long as the one
  * that opened it, or to the end.
@@ -282,9 +292,12 @@ export type UnsafeLink = {
 	end: number;
 	/** What keeps its words in place of it: a link's text, or nothing. */
 	text: string;
-	/** The address, decoded; a `src={…}` expression as written, braces included. */
+	/** The address, decoded; a `src={…}` expression or a spread as written, braces included. */
 	href: string;
-	/** For an HTML element's address, the element and attribute, lower case: `iframe` and `src`. */
+	/**
+	 * For an HTML element's attribute, the element and attribute, lower case:
+	 * `iframe` and `src`, or `iframe` and `srcdoc`. A spread is `{...}`.
+	 */
 	element?: string;
 	attribute?: string;
 	/** 1-based line in the source. */
@@ -359,20 +372,28 @@ const DEFINITION =
 // `[text][label]`, `[label][]`, or `[label]`, not followed by `(` or `:`.
 const REFERENCE =
 	/(?<![!\]\\])\[((?:[^\]\\\n]|\\.)+)\](?:\[((?:[^\]\\\n]|\\.)*)\])?(?![(:[])/g;
+/** A spread attribute in MDX (`{...props}`, `{...{ src: "…" }}`), braces nested up to three deep, as a pattern. */
+export const SPREAD = String.raw`\{\s*\.\.\.(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}`;
 // An HTML element's opening tag and its name; `\<` is text, not a tag.
-const ELEMENT_TAG =
-	/(?<!\\)<([A-Za-z][\w-]*)(?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}|[^\s"'=<>`]+))?)*\s*\/?>/g;
-const TAG_ATTRIBUTE =
-	/\s+([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\}|([^\s"'=<>`]+))/g;
+const ELEMENT_TAG = new RegExp(
+	String.raw`(?<!\\)<([A-Za-z][\w-]*)(?:\s+(?:${SPREAD}|[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}|[^\s"'=<>\`]+))?))*\s*\/?>`,
+	"g",
+);
+const TAG_ATTRIBUTE = new RegExp(
+	String.raw`\s+(?:(${SPREAD})|([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\}|([^\s"'=<>\`]+)))`,
+	"g",
+);
 
 /**
  * The links in Markdown or MDX source that the site and the exports keep
  * only as text (see `isSafeLink`), in source order: inline links, reference
- * links and their definitions, and the addresses of HTML elements
- * (`isAddressAttribute`: `href`, `<iframe src>`, `<form action>`, …),
- * including one written as an expression that is not a plain string. Code,
- * comments, and escaped tags (`\<a`) are not read. A pattern match, not a
- * parse: the build drops these from the parsed page whatever this finds.
+ * links and their definitions, and the attributes of HTML elements
+ * `isUnsafeAttribute` refuses (`href`, `<iframe src>`, `<form action>`,
+ * `<iframe srcdoc>`, …), including an address written as an expression that
+ * is not a plain string. In MDX (`tags: "jsx"`), a spread attribute on an
+ * element (`<a {...props}>`) is one too. Code, comments, and escaped tags
+ * (`\<a`) are not read. A pattern match, not a parse: the build drops these
+ * from the parsed page whatever this finds.
  */
 export const findUnsafeLinks = (
 	markdown: string,
@@ -424,23 +445,31 @@ export const findUnsafeLinks = (
 
 	for (const tag of masked.matchAll(ELEMENT_TAG)) {
 		const element = tag[1];
-		if (options.tags !== "html" && !/^[a-z]/.test(element)) continue;
+		const jsx = options.tags !== "html";
+		if (jsx && !/^[a-z]/.test(element)) continue;
 		const tagStart = tag.index ?? 0;
 		for (const attribute of tag[0].matchAll(TAG_ATTRIBUTE)) {
-			const [, name, double, single, expression, bare] = attribute;
-			if (!isAddressAttribute(element, name)) continue;
-			const href =
-				expression === undefined
-					? decodeEntities(double ?? single ?? bare ?? "")
-					: stringLiteralValue(expression);
-			if (href !== null && isSafeLink(href)) continue;
+			const [, spread, name, double, single, expression, bare] = attribute;
 			const start = tagStart + (attribute.index ?? 0);
-			found.push({
+			const at = {
 				start,
 				end: start + attribute[0].length,
 				text: "",
-				href: href ?? `{${expression}}`,
 				element: element.toLowerCase(),
+			};
+			if (spread !== undefined) {
+				// In a Markdown note braces are text: `{...x}` spreads nothing in HTML.
+				if (jsx) found.push({ ...at, href: spread, attribute: "{...}" });
+				continue;
+			}
+			const value =
+				expression === undefined
+					? decodeEntities(double ?? single ?? bare ?? "")
+					: stringLiteralValue(expression);
+			if (!isUnsafeAttribute(element, name, value)) continue;
+			found.push({
+				...at,
+				href: value ?? `{${expression}}`,
 				attribute: name.toLowerCase(),
 			});
 		}
@@ -458,8 +487,11 @@ export const findUnsafeLinks = (
 		.map((link) => ({ ...link, line: lineAt(link.start) }));
 };
 
-/** `markdown` with each unsafe link replaced by its text. */
-const withoutUnsafeLinks = (
+/**
+ * `markdown` with each unsafe link replaced by its text, and each unsafe
+ * attribute of an element removed, given `findUnsafeLinks(markdown)`.
+ */
+export const withoutUnsafeLinks = (
 	markdown: string,
 	links: readonly UnsafeLink[],
 ): string =>
@@ -489,17 +521,23 @@ const tagAsJsx = (
 	selfClosing: string,
 ): string | null => {
 	const name = rawName.toLowerCase();
-	if (!KEPT_ELEMENTS.has(name)) return null;
+	const embedded = EMBEDDED_ELEMENTS.has(name);
+	if (!KEPT_ELEMENTS.has(name) && !embedded) return null;
 	if (closing) return rawAttributes.trim() ? null : `</${name}>`;
 	const attributes: string[] = [];
+	let source = false;
 	for (const [, key, value] of rawAttributes.matchAll(HTML_ATTRIBUTE)) {
 		if (!/^[A-Za-z_:][-A-Za-z0-9_:.]*$/.test(key) || /^on/i.test(key)) {
 			return null;
 		}
+		source ||=
+			key.toLowerCase() === "src" &&
+			Boolean(value?.replace(/^(["'])([\s\S]*)\1$/, "$2").trim());
 		if (value === undefined) attributes.push(key);
 		else if (/^["']/.test(value)) attributes.push(`${key}=${value}`);
 		else attributes.push(`${key}="${value}"`);
 	}
+	if (embedded && !source) return null;
 	const open = [name, ...attributes].join(" ");
 	return VOID_ELEMENTS.has(name) || selfClosing ? `<${open} />` : `<${open}>`;
 };
@@ -528,7 +566,20 @@ const pairTags = (tokens: TagToken[]): void => {
 	}
 };
 
-/** Escapes text that is neither code, a comment, nor a kept tag. */
+/**
+ * A bare `https://…` or `www.…` that runs into an escaped `<`. GFM reads
+ * such an address up to the next space or `<`, a `\` included, so in
+ * `https://example.com/\<id>` the address takes the `\` and MDX reads
+ * `<id>` as a tag: the file does not compile. With its `:` (or the `.` of
+ * `www.`) escaped, the address does not start there; it reads the same.
+ */
+const AUTOLINK_INTO_TAG =
+	/(?<![A-Za-z])https?(?=:\/\/[^\s<]*\\<)|(?<=^|[\s(*_~[\]])www(?=\.[^\s<]*\\<)/gi;
+
+/**
+ * Escapes text that is neither code, a comment, nor a kept tag, including
+ * the `:` of an address that runs into an escaped `<` (`AUTOLINK_INTO_TAG`).
+ */
 const escapeText = (text: string, counts: MdxConversion): string =>
 	text
 		.replace(/<(https?:\/\/[^\s<>]+)>/g, (_, url: string) => {
@@ -543,7 +594,8 @@ const escapeText = (text: string, counts: MdxConversion): string =>
 		.replace(/<(?![ \t\n])/g, () => {
 			counts.tags += 1;
 			return "\\<";
-		});
+		})
+		.replace(AUTOLINK_INTO_TAG, (scheme) => `${scheme}\\`);
 
 type ProsePiece =
 	| { kind: "code"; text: string }
@@ -607,16 +659,28 @@ const tokenizeProse = (
 /** Writes a tokenized run of prose back out as MDX. */
 const writeProse = (pieces: ProsePiece[], counts: MdxConversion): string => {
 	let out = "";
+	// Text and escaped tags in a row are escaped together, so an address in
+	// one and the `<` that ends it in the next are seen as one run.
+	let text = "";
+	const writeText = () => {
+		out += escapeText(text, counts);
+		text = "";
+	};
 	pieces.forEach((piece, index) => {
+		if (
+			piece.kind === "text" ||
+			(piece.kind === "tag" &&
+				(piece.token.jsx === null || !piece.token.paired))
+		) {
+			text += piece.text;
+			return;
+		}
+		writeText();
 		if (piece.kind === "code") {
 			out += piece.text;
 		} else if (piece.kind === "comment") {
 			counts.htmlComments += 1;
 			out += `{/*${piece.inner.replace(/\*\//g, "* /")}*/}`;
-		} else if (piece.kind === "text") {
-			out += escapeText(piece.text, counts);
-		} else if (piece.token.jsx === null || !piece.token.paired) {
-			out += escapeText(piece.text, counts);
 		} else {
 			const { token } = piece;
 			if (token.jsx !== "<br />") counts.html += 1;
@@ -639,6 +703,7 @@ const writeProse = (pieces: ProsePiece[], counts: MdxConversion): string => {
 			if (ownLine && rest.trim()) out += `\n${indent}`;
 		}
 	});
+	writeText();
 	// A line starting with `import` or `export` is code to MDX.
 	return out.replace(/^(i)(?=mport[ \t])|^(e)(?=xport[ \t])/gm, (letter) => {
 		counts.esm += 1;

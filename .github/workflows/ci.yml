@@ -84,8 +84,13 @@ jobs:
   # each panel open, in light and dark at desktop and phone widths
   # (scripts/check-a11y.ts). Fails on serious or critical violations. Its own
   # job, so it runs beside the gates instead of after them.
+  #
+  # Both steps drive Chromium, which a loaded runner can leave hanging. The
+  # job takes about 2 minutes, so its limits fail a stuck run within
+  # minutes instead of at GitHub's 6 hours.
   accessibility:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -128,6 +133,7 @@ jobs:
           restore-keys: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-
 
       - name: Accessibility (every book)
+        timeout-minutes: 15
         run: bun run check:a11y
 
       # Behaviour axe cannot see: the search combobox's
@@ -135,7 +141,10 @@ jobs:
       # selected result (scripts/search-panel.browser.ts); "Continue" on the
       # home page and hub, the touch-only menu, and the heading keys
       # (scripts/reader-wayfinding.browser.ts).
+      # A case may run twice (scripts/lib/browser.fixture.ts), so the step's
+      # limit leaves room for a slow run; it takes about 25 s.
       - name: Search and reading keys (browser tests)
+        timeout-minutes: 15
         run: bun run test:browser
 
   # The meaning pass of check:corpus, which verify leaves out (it compares

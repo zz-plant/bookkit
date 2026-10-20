@@ -60,6 +60,23 @@ const EMBEDS = [
 	'<form action="https://example.com/subscribe"><button formAction="javascript:alert(14)">inner words</button></form>',
 ];
 const KEPT_EMBED = '<iframe src="https://example.com/embed"></iframe>';
+// Attributes no address check can vouch for: a document in srcdoc, a spread,
+// SVG's xlink:href, and an animation that rewrites a link's address.
+const UNCHECKABLE = [
+	'<iframe srcdoc="<script>alert(15)</script>"></iframe>',
+	'<iframe src="https://example.com/frame" srcDoc={"<script>alert(16)</script>"}></iframe>',
+	'<iframe {...{ src: "javascript:alert(17)" }}></iframe>',
+	'<a {...{ href: "javascript:alert(18)" }}>spread words</a> <a {...props}>props words</a> <a href="https://example.com/" {...{ href: "javascript:alert(19)" }}>override words</a>',
+	'<svg><a xlink:href="javascript:alert(20)"><text>svg words</text></a></svg>',
+	'<svg><a href="https://example.com/svg"><animate attributeName="href" values="javascript:alert(21)" /><set attributeName={name} to="javascript:alert(22)" /><text>animated words</text></a></svg>',
+];
+// Embeds as YouTube, Vimeo, and Google Maps hand them out, the way import
+// writes them: the page keeps them.
+const VIDEOS = [
+	'<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=abc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>',
+	'<iframe src="https://player.vimeo.com/video/76979871?h=8272103f6e" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
+	'<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.9!2d-73.98!3d40.75" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>',
+];
 
 let workspace: string;
 let page: string;
@@ -93,6 +110,12 @@ beforeAll(() => {
 			...EMBEDS.flatMap((embed) => [embed, ""]),
 			KEPT_EMBED,
 			"",
+			"## Uncheckable",
+			"",
+			...UNCHECKABLE.flatMap((line) => [line, ""]),
+			"## Videos",
+			"",
+			...VIDEOS.flatMap((line) => [line, ""]),
 		].join("\n"),
 	);
 	build = buildBook(appDir);
@@ -134,12 +157,12 @@ describe("a page with links that run code or carry a document", () => {
 		}
 		expect(page).not.toMatch(/<(object|embed)\b|formaction/i);
 		// The ones kept; the iframe with a computed source is left out too.
-		expect(page.match(/<iframe\b/g)).toEqual(["<iframe"]);
+		const start = page.indexOf('<h2 id="embeds">');
+		const embeds = page.slice(start, page.indexOf("<h2", start + 1));
+		expect(embeds.match(/<iframe\b/g)).toEqual(["<iframe"]);
 		expect(page.match(/<form\b[^>]*>/g)).toEqual([
 			'<form action="https://example.com/subscribe">',
 		]);
-		const start = page.indexOf('<h2 id="embeds">');
-		const embeds = page.slice(start, page.indexOf("</section>", start));
 		expect(embeds).not.toContain("<button");
 		for (const words of ["object words", "form words", "link"]) {
 			expect(embeds).toContain(`\n${words}\n`);
@@ -150,6 +173,42 @@ describe("a page with links that run code or carry a document", () => {
 		);
 		expect(embeds).toContain("<p>Before  after button words.</p>");
 		expect(embeds).toContain(KEPT_EMBED);
+	});
+
+	it("leaves out an element with a srcdoc, a spread, an SVG link, or an animated address, keeping what it holds", () => {
+		const start = page.indexOf('<h2 id="uncheckable">');
+		const section = page.slice(start, page.indexOf("<h2", start + 1));
+		expect(start).toBeGreaterThan(-1);
+		expect(section).not.toMatch(
+			/srcdoc|xlink|<(iframe|animate|set)\b|alert|components=/i,
+		);
+		for (const words of [
+			"spread words",
+			"props words",
+			"override words",
+			"svg words",
+			"animated words",
+		]) {
+			expect(section).toContain(words);
+		}
+		expect(section).toContain('<a href="https://example.com/svg">');
+	});
+
+	it("keeps a video or a map embedded from the web, with its attributes", () => {
+		const start = page.indexOf('<h2 id="videos">');
+		const section = page.slice(start, page.indexOf("</section>", start));
+		expect(
+			[...section.matchAll(/<iframe [^>]*>/g)].map(
+				([tag]) => tag.match(/src="([^"]*)"/)?.[1],
+			),
+		).toEqual([
+			"https://www.youtube.com/embed/dQw4w9WgXcQ?si=abc",
+			"https://player.vimeo.com/video/76979871?h=8272103f6e",
+			"https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.9!2d-73.98!3d40.75",
+		]);
+		expect(section).toContain('title="YouTube video player"');
+		expect(section).toContain("allowfullscreen");
+		expect(section).toContain('referrerpolicy="no-referrer-when-downgrade"');
 	});
 
 	it("keeps its other links", () => {

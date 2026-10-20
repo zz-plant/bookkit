@@ -24,12 +24,18 @@ type Step = {
 	name?: string;
 	uses?: string;
 	run?: string;
+	"timeout-minutes"?: number;
 	shell?: string;
 	if?: string;
 	env?: Record<string, string>;
 	with?: Record<string, string>;
 };
-type Job = { if?: string; env?: Record<string, string>; steps: Step[] };
+type Job = {
+	if?: string;
+	env?: Record<string, string>;
+	"timeout-minutes"?: number;
+	steps: Step[];
+};
 type Workflow = {
 	on: Record<string, unknown>;
 	env?: Record<string, string>;
@@ -170,6 +176,31 @@ describe("ci.yml", () => {
 	const deploy = steps.findIndex((step) =>
 		step.run?.includes("bun run bookkit deploy --all --dry-run"),
 	);
+
+	it("limits how long Chromium may run, in each job and step that drives it", () => {
+		const drivesChromium = (step: Step) =>
+			/bun run (check:a11y|test:browser)\b/.test(step.run ?? "");
+		const jobs = Object.entries(workflow.jobs).filter(([, job]) =>
+			job.steps.some(drivesChromium),
+		);
+		expect(jobs.map(([id]) => id)).toEqual(["accessibility"]);
+		for (const [id, job] of jobs) {
+			expect({ id, limit: job["timeout-minutes"] }).toEqual({
+				id,
+				limit: expect.any(Number),
+			});
+			for (const step of job.steps.filter(drivesChromium)) {
+				const limit = step["timeout-minutes"] ?? Number.POSITIVE_INFINITY;
+				expect({
+					step: step.name,
+					limited: limit < (job["timeout-minutes"] ?? 0),
+				}).toEqual({
+					step: step.name,
+					limited: true,
+				});
+			}
+		}
+	});
 
 	it("runs on pull requests and pushes to main", () => {
 		expect(workflow.on).toEqual({

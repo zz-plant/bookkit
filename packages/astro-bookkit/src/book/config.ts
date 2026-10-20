@@ -46,6 +46,26 @@ export type BookReadHubConfig = {
 	quickStartCards?: readonly ReadHubQuickStartCard[];
 };
 
+/** How soon a reader facing a mechanism should act on it. */
+export type MechanismUrgency = "urgent" | "high-leverage" | "stabilize";
+
+/**
+ * The mechanisms index's copy (/read/mechanisms). Leave out any field, or
+ * `mechanismsIndex` altogether, for the default in
+ * `defaultMechanismsIndexCopy`.
+ */
+export type BookMechanismsIndexConfig = {
+	/** The line under the "Mechanisms" title. */
+	lede?: string;
+	/**
+	 * Urgency by mechanism slug. The index lists urgent mechanisms first, then
+	 * high-leverage, then stabilize, then the rest, each group by title; it
+	 * tags each entry with its level and offers a filter for each level that
+	 * not every mechanism shares.
+	 */
+	urgency?: Readonly<Record<string, MechanismUrgency>>;
+};
+
 /**
  * Everything a book decides in `src/book.config.ts`. Each part is the type the
  * engine reads it as (layout, runtime, preview access, SEO), so a config that
@@ -87,6 +107,8 @@ export type BookConfig = BookLayoutConfig &
 		home?: BookHomeConfig;
 		/** Copy on the reading hub; see `BookReadHubConfig`. */
 		readHub?: BookReadHubConfig;
+		/** Copy and urgency on the mechanisms index; see `BookMechanismsIndexConfig`. */
+		mechanismsIndex?: BookMechanismsIndexConfig;
 		/** Books listed under "Other books" on the home page. Leave empty for none. */
 		relatedBooks?: readonly RelatedBook[];
 		/**

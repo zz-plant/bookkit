@@ -3,13 +3,36 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
 import { bookEntryPoints } from "../../../lib/book-entrypoints";
-import { buildTranslationLede, readItemPath } from "@bookkit/astro-bookkit";
+import {
+	type BookConfig,
+	buildTranslationLede,
+	readItemPath,
+	readRoutes,
+	resolveMechanismsIndexCopy,
+} from "@bookkit/astro-bookkit";
 import bookConfig from "../../../book.config";
 
+// Read through BookConfig, so `mechanismsIndex` can be left out and an empty
+// `mechanisms: []` (no element type under `as const`) still type-checks.
+const config: BookConfig = bookConfig;
+const copy = resolveMechanismsIndexCopy(config.mechanismsIndex);
+
 const modules = bookEntryPoints.contentModules.mechanisms;
+// Mechanisms book.config.ts lists are tagged "core".
 const coreMechanismSlugs = new Set<string>(
-	bookConfig.mechanisms.map((mechanism) => mechanism.slug),
+	config.mechanisms.map((mechanism) => mechanism.slug),
 );
+const urgencyBySlug: Readonly<Record<string, string>> = copy.urgency;
+const urgencyOrder: Record<string, number> = {
+	urgent: 0,
+	"high-leverage": 1,
+	stabilize: 2,
+};
+const summarizeMeta = (value: string) => {
+	const firstSentence = value.split(/(?<=[.!?])\s+/)[0] ?? value;
+	if (firstSentence.length <= 110) return firstSentence;
+	return `${firstSentence.slice(0, 107).replace(/\s+\S*$/, "")}…`;
+};
 const { items: mechanismItems, completeness } = createLocalizedContentList(
 	modules,
 	{
@@ -17,32 +40,76 @@ const { items: mechanismItems, completeness } = createLocalizedContentList(
 		locale: Astro.locals?.locale,
 		mapEntry: ({ slug, module, isFallback }) => {
 			const frontmatter = module.frontmatter ?? {};
+			const urgency = urgencyBySlug[slug] ?? null;
 			const tags = [
+				urgency,
 				coreMechanismSlugs.has(slug) ? "core" : null,
 				isFallback ? "fallback" : null,
-			].filter((tag): tag is string => tag !== null);
+			].filter(Boolean);
+			const definition =
+				typeof frontmatter.definition === "string"
+					? frontmatter.definition
+					: "";
 			return {
 				href: readItemPath("mechanisms", slug),
 				title: frontmatter.title ?? "Untitled mechanism",
-				badges: tags,
-				meta: frontmatter.definition ?? "",
+				eyebrow: tags.join(" • "),
+				meta: summarizeMeta(definition),
 			};
 		},
-		sort: (a, b) => a.title.localeCompare(b.title),
+		sort: (a, b) => {
+			const urgencyA =
+				urgencyOrder[a.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
+			const urgencyB =
+				urgencyOrder[b.eyebrow?.split(" • ")[0] ?? "stabilize"] ?? 99;
+			if (urgencyA !== urgencyB) return urgencyA - urgencyB;
+			return a.title.localeCompare(b.title);
+		},
 	},
 );
-const localizedLede = buildTranslationLede(
-	"Patterns that push institutional heat onto people, and how to recognize each one.",
-	completeness,
-);
+// A tag that every mechanism carries doesn't help anyone choose between them,
+// so it is neither shown on the list nor offered as a filter.
+const tagCounts = new Map<string, number>();
+for (const item of mechanismItems) {
+	for (const tag of item.eyebrow?.split(" • ") ?? []) {
+		if (tag) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+	}
+}
+const isDistinguishingTag = (tag: string) => {
+	const count = tagCounts.get(tag) ?? 0;
+	return count > 0 && count < mechanismItems.length;
+};
+const listedMechanisms = mechanismItems.map((item) => ({
+	...item,
+	eyebrow:
+		item.eyebrow?.split(" • ").filter(isDistinguishingTag).join(" • ") || null,
+}));
+const quickFilters = [
+	{ value: "urgent", label: "Urgent" },
+	{ value: "high-leverage", label: "High leverage" },
+	{ value: "core", label: "Core" },
+].filter((filter) => isDistinguishingTag(filter.value));
+const localizedLede = buildTranslationLede(copy.lede, completeness);
 ---
 <BaseLayout title={`Mechanisms • ${bookConfig.title}`}>
   <ContentIndexList
     title="Mechanisms"
     lede={localizedLede}
-    items={mechanismItems}
-    filterMode="always"
+    items={listedMechanisms}
     filterPlaceholder="Filter by name or definition"
-    alphaMode="auto"
-  />
+    alphaMode={false}
+    quickFilters={quickFilters}
+  >
+    <Fragment slot="after-list">
+      <section class="content-block index-tail">
+        <div>
+          <h2>Then pick an action</h2>
+          <p class="meta">Each mechanism links to toolkit actions that take ten minutes or less.</p>
+        </div>
+        <div class="link-group">
+          <a class="button" href={readRoutes.toolkit}>Toolkit</a>
+        </div>
+      </section>
+    </Fragment>
+  </ContentIndexList>
 </BaseLayout>

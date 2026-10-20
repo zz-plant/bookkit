@@ -106,7 +106,7 @@ Book apps are deliberately thin. Three things cannot move into the engine:
 - `src/pages/**` — Astro discovers routes by filename.
 - the MCP route's `import.meta.url` hand-off.
 
-Everything else is a re-export. Canonical wrapper contents live in `packages/astro-bookkit/templates/book-app/**`; every file there is a shim, held identical across books by `bun run check:shims` (`bun run sync:shims` to update them). The files a book may change (breadcrumb copy, mechanism and example indexes, `book.config.ts`) start from `packages/astro-bookkit/templates/starter/**`, which `bun run new:book` and create-bookkit copy; `book.config.ts` is typed by the engine's `BookConfig`. The home page and the reading hub are shims: their copy is `home` and `readHub` in `book.config.ts`.
+Everything else is a re-export. Canonical wrapper contents live in `packages/astro-bookkit/templates/book-app/**`; every file there is a shim, held identical across books by `bun run check:shims` (`bun run sync:shims` to update them). The files a book may change (breadcrumb copy, the examples index, `book.config.ts`) start from `packages/astro-bookkit/templates/starter/**`, which `bun run new:book` and create-bookkit copy; `book.config.ts` is typed by the engine's `BookConfig`. The home page, the reading hub and the mechanisms index are shims: their copy is `home`, `readHub` and `mechanismsIndex` in `book.config.ts`.
 
 ---
 

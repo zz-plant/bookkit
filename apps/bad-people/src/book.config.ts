@@ -144,6 +144,17 @@ export const bookConfig = {
 			},
 		],
 	},
+	mechanismsIndex: {
+		lede: "Patterns that explain how harm stays normalized, and how to recognize each one.",
+		urgency: {
+			"delay-as-force": "urgent",
+			"compliance-trap": "urgent",
+			"transfer-success": "urgent",
+			"bureaucracy-moral-technology": "high-leverage",
+			"reputation-membrane": "high-leverage",
+			"reversal-capacity": "stabilize",
+		},
+	},
 	// Linked from the home page under "Other books".
 	relatedBooks: [
 		{

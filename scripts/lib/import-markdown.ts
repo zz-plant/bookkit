@@ -98,6 +98,8 @@ export type PlannedChapter = {
 	changes: MdxConversion;
 	/** Raw HTML is shown as text: kept as HTML, the chapter did not compile. */
 	htmlAsText: boolean;
+	/** Links kept as their text, since the site would not link them; `line` is in the note. */
+	unsafeLinks: Array<{ line: number; href: string }>;
 	/** Source frontmatter fields the chapter schema has no place for. */
 	leftOut: string[];
 	compile: MdxCompileResult;
@@ -575,9 +577,18 @@ export const planImport = async (
 	const matched = new Set<string>();
 	for (const note of notes) {
 		let body = rewriteLinks(note, note.body);
+		// The note's lines before the converted body, so a line in it names the note's.
+		let linesBefore = note.bodyLine;
 		if (note.dropLeadingHeading) {
 			const heading = firstHeading(body);
-			if (heading?.leading) body = body.slice(heading.length).trim();
+			if (heading?.leading) {
+				const rest = body.slice(heading.length);
+				const kept = rest.trim();
+				linesBefore += lineCount(
+					body.slice(0, heading.length + rest.indexOf(kept)),
+				);
+				body = kept;
+			}
 		}
 		if (note.invalid) {
 			problems.push({
@@ -586,7 +597,9 @@ export const planImport = async (
 				message: `frontmatter does not parse (${note.invalid.reason}); kept in the chapter as an MDX comment`,
 			});
 			// An HTML comment, which the MDX conversion turns into an MDX comment.
-			body = `<!--\n${note.invalid.yaml.replace(/-->/g, "-- >").trim()}\n-->\n\n${body}`;
+			const comment = `<!--\n${note.invalid.yaml.replace(/-->/g, "-- >").trim()}\n-->\n\n`;
+			linesBefore -= lineCount(comment);
+			body = `${comment}${body}`;
 		}
 		const summary =
 			text(note.data.summary) ??
@@ -661,6 +674,10 @@ export const planImport = async (
 			content,
 			changes: converted.changes,
 			htmlAsText,
+			unsafeLinks: converted.unsafeLinks.map(({ line, href }) => ({
+				line: linesBefore + line,
+				href,
+			})),
 			leftOut: Object.keys(note.data).filter((key) => !MAPPED_FIELDS.has(key)),
 			compile: compiled,
 		});

@@ -1,6 +1,7 @@
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
+import { addSafeLinks } from "./markdown/safe-links";
 import { writeBookIcons } from "./seo/book-icons";
 import type { BookSeoConfig } from "./seo/config";
 import { writeOgImages } from "./seo/og-render";
@@ -58,8 +59,8 @@ export const optionalDependencies = () => ({
 
 /**
  * Astro integration for Bookkit book applications.
- * Configures Vite SSR bundling and the optional dependencies, decides which
- * API routes run on demand, and
+ * Configures Vite SSR bundling and the optional dependencies, keeps unsafe
+ * links out of the book's pages, decides which API routes run on demand, and
  * after a build writes the site's icons (see `seo/book-icons.ts`) and each
  * page's link-preview image (see `seo/og-image.ts`).
  *
@@ -79,10 +80,17 @@ export function bookkit(
 	return {
 		name: "@bookkit/astro-bookkit",
 		hooks: {
-			"astro:config:setup": ({ command, config, updateConfig }) => {
+			"astro:config:setup": ({ command, config, logger, updateConfig }) => {
 				if (command === "build" && serverRuntime && !config.adapter) {
 					throw new Error(
 						'site.runtime is "server" in src/book.config.ts, so the API routes run on demand, which needs an adapter. Add one to astro.config.mjs (for example @astrojs/node), or remove site.runtime to build a static site.',
+					);
+				}
+				// Pages keep only the links the exports keep (see markdown/safe-links.ts).
+				const processor = config.markdown?.processor;
+				if (processor && !addSafeLinks(processor)) {
+					logger.warn(
+						`markdown.processor "${processor.name}" in astro.config.mjs is not one Bookkit can add its link check to, so links to javascript:, vbscript:, and data: addresses in the book's content are kept. Remove markdown.processor to use Astro's default.`,
 					);
 				}
 				apiRoutesOnDemand = command === "dev" || serverRuntime;

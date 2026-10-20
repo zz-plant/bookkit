@@ -10,6 +10,7 @@ import {
 	type PDFRef,
 	rgb,
 } from "pdf-lib";
+import { HAS_SCHEME, isSafeLink } from "../utils/links";
 import { defaultImageLoader, imageWarning, warnWith } from "./images";
 import type {
 	InlineImage,
@@ -24,9 +25,7 @@ import {
 	parseInline,
 } from "./markdown-inline";
 import {
-	HAS_SCHEME,
 	imageAltText,
-	isSafeLink,
 	readLinkTarget,
 	readSectionOf,
 } from "./markdown-to-html";

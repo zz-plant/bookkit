@@ -8,8 +8,8 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { buildExportParts } from "../packages/astro-bookkit/src/exports/content-parsing";
 import { createFileImageLoader } from "../packages/astro-bookkit/src/exports/images";
-import { HAS_SCHEME } from "../packages/astro-bookkit/src/exports/markdown-to-html";
 import type { ExportEntry } from "../packages/astro-bookkit/src/exports/types";
+import { HAS_SCHEME } from "../packages/astro-bookkit/src/utils/links";
 import { ensureDir, listBookDirs, repoRoot } from "./_lib";
 import { loadBookConfig } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";

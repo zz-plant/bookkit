@@ -4,16 +4,14 @@ import {
 	dropMdxComments,
 	replaceImages,
 } from "../../packages/astro-bookkit/src/exports/markdown-blocks";
-import {
-	HAS_SCHEME,
-	readLinkTarget,
-} from "../../packages/astro-bookkit/src/exports/markdown-to-html";
+import { readLinkTarget } from "../../packages/astro-bookkit/src/exports/markdown-to-html";
 import type {
 	ExportEntry,
 	ExportEntryKind,
 	ExportPart,
 } from "../../packages/astro-bookkit/src/exports/types";
 import { formatFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
+import { HAS_SCHEME } from "../../packages/astro-bookkit/src/utils/links";
 import { splitFencedCode } from "../../packages/astro-bookkit/src/utils/markdown";
 
 /**

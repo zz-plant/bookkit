@@ -5,6 +5,7 @@ import {
 	bookkit,
 	optionalDependencies,
 } from "./integration";
+import { safeLinksMdastPlugins } from "./markdown/safe-links";
 
 type Command = "dev" | "build";
 
@@ -88,6 +89,39 @@ describe("bookkit() integration", () => {
 		expect(define["import.meta.env.BOOKKIT_PUBLIC_DIR"]).toBe(
 			'"/book/static/"',
 		);
+	});
+
+	it("adds the safe-link rules to the book's Markdown processor, and says when it cannot", () => {
+		const hooks = bookkit().hooks as Record<
+			string,
+			(params: Record<string, unknown>) => void
+		>;
+		const setUpWith = (processor: { name: string; options: object }) => {
+			const warnings: string[] = [];
+			hooks["astro:config:setup"]({
+				command: "build",
+				config: {
+					root: new URL("file:///book/"),
+					srcDir: new URL("file:///book/src/"),
+					publicDir: new URL("file:///book/static/"),
+					markdown: { processor },
+				},
+				logger: { warn: (message: string) => warnings.push(message) },
+				updateConfig: () => {},
+			});
+			return warnings;
+		};
+
+		// The shape satteri() from @astrojs/markdown-satteri returns.
+		const processor = {
+			name: "satteri",
+			options: { mdastPlugins: [], hastPlugins: [], features: {} },
+		};
+		expect(setUpWith(processor)).toEqual([]);
+		expect(processor.options.mdastPlugins).toEqual(safeLinksMdastPlugins);
+		expect(setUpWith({ name: "custom", options: {} })).toEqual([
+			"markdown.processor \"custom\" in astro.config.mjs is not one Bookkit can add its link check to, so links to javascript:, vbscript:, and data: addresses in the book's content are kept. Remove markdown.processor to use Astro's default.",
+		]);
 	});
 
 	it("drops a dependency's module-level directive warning, whichever bundler words it", () => {

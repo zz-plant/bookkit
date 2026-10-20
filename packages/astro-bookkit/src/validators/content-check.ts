@@ -8,6 +8,8 @@ import {
 	toolkitSchema,
 } from "../schemas";
 import { parseFrontmatter } from "../utils/frontmatter";
+import { SAFE_SCHEME_LIST } from "../utils/links";
+import { findUnsafeLinks } from "../utils/markdown";
 
 /**
  * What each kind of content file must contain to compile, and a checker that
@@ -462,6 +464,7 @@ export type ContentFindingCode =
 	| "UNKNOWN_MECHANISM"
 	| "UNKNOWN_PREREQUISITE"
 	| "BROKEN_LINK"
+	| "UNSAFE_LINK"
 	| "DRAFT_IN_RELEASE"
 	| "MDX_HTML_COMMENT";
 
@@ -849,9 +852,9 @@ export const checkContentItem = (
 		}
 	}
 
+	// Lines are counted in the whole file, so they match the author's editor.
+	const bodyStart = source.trimEnd().length - body.length;
 	if (context.slugs) {
-		// Lines are counted in the whole file, so they match the author's editor.
-		const bodyStart = source.trimEnd().length - body.length;
 		for (const match of maskCode(body).matchAll(READ_LINK)) {
 			const [, path, sectionPath, rawSlug] = match;
 			const target = READ_SECTIONS[sectionPath.toLowerCase()];
@@ -874,6 +877,22 @@ export const checkContentItem = (
 				fix: unknownSlugFix(slug, target, slugs),
 			});
 		}
+	}
+
+	const linesBeforeBody = source.slice(0, bodyStart).split("\n").length - 1;
+	for (const link of findUnsafeLinks(body)) {
+		const line = linesBeforeBody + link.line;
+		const computed = link.href.startsWith("{");
+		findings.push({
+			level: released ? "error" : "warning",
+			code: "UNSAFE_LINK",
+			message: computed
+				? `${label} has a link on line ${line} whose address is an expression (href=${link.href}), which the build cannot check, so the site shows only its words`
+				: `${label} links to ${JSON.stringify(link.href)} on line ${line}, which the site shows only as words: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+			fix: computed
+				? 'Write the address as a plain string, as in href="https://example.com".'
+				: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
+		});
 	}
 
 	if (

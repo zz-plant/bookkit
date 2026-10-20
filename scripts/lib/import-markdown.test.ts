@@ -226,6 +226,46 @@ describe("planImport", () => {
 		expect(result.problems.map((p) => p.source)).toContain("08-broken.md");
 	});
 
+	it("keeps a link that would run code or carry a document as its text, and lists it with its line", async () => {
+		writeFileSync(
+			join(notes, "09-links.md"),
+			[
+				"---",
+				"title: Links",
+				"---",
+				"# Links",
+				"",
+				"Run [the script](javascript:alert(1)) or [read it](https://example.com).",
+				'Open <a href="&#106;avascript:alert(2)">the box</a> or [the page][page].',
+				"",
+				"[page]: data:text/html;base64,PHNjcmlwdD4=",
+				"",
+			].join("\n"),
+		);
+		const result = await plan();
+		const links = chapter(result, "09-links.md");
+
+		expect(links.content).toContain(
+			"Run the script or [read it](https://example.com).",
+		);
+		expect(links.content).toContain("Open <a>the box</a> or the page.");
+		expect(links.content).not.toMatch(/javascript|data:/);
+		expect(links.compile).toEqual({ ok: true });
+		expect(links.unsafeLinks).toEqual([
+			{ line: 6, href: "javascript:alert(1)" },
+			{ line: 7, href: "javascript:alert(2)" },
+			{ line: 7, href: "data:text/html;base64,PHNjcmlwdD4=" },
+			{ line: 9, href: "data:text/html;base64,PHNjcmlwdD4=" },
+		]);
+		const report = describeImport(result, {
+			dryRun: true,
+			bookDir: `apps/${BOOK}`,
+		}).join("\n");
+		expect(report).toContain(
+			'Links kept as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (4):\n  09-links.md:6  "javascript:alert(1)"\n  09-links.md:7  "javascript:alert(2)"',
+		);
+	});
+
 	it("writes nothing when only planned (--dry-run)", async () => {
 		await plan();
 		expect(readdirSync(chaptersDir)).toEqual(["00-overview.mdx"]);

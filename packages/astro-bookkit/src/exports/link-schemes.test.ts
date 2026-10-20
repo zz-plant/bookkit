@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import JSZip from "jszip";
 import { PDFDocument, PDFString } from "pdf-lib";
+import { isSafeLink, linkScheme } from "../utils/links";
 import { createEpubExport } from "./epub-generator";
 import { articleBody, chaptersBundle, epubChapter } from "./fixtures/pdf-text";
 import { extractPdfLinks, inspectEpub, inspectPdf } from "./inspect";
-import { isSafeLink, linkScheme, markdownToHtml } from "./markdown-to-html";
+import { markdownToHtml } from "./markdown-to-html";
 import { createPdfExport } from "./pdf-generator";
 
 /**

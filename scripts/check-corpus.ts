@@ -9,7 +9,6 @@ import {
 	decidePair,
 	describeCall,
 	evaluateJudgments,
-	lexicalMechanismSimilarity,
 } from "../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { didYouMean } from "./lib/cli";
@@ -18,6 +17,7 @@ import {
 	JUDGMENTS_FILE,
 	matchJudgments,
 	mergeRecords,
+	pairCloseness,
 	readAnswers,
 	readJudgments,
 	votesOn,
@@ -531,12 +531,7 @@ function writeJudgeRequestFor(dir: string): void {
 				continue;
 			const ia = mechanisms.indexOf(a);
 			const ib = mechanisms.indexOf(b);
-			const score = embedded
-				? embedded[ia].reduce(
-						(sum, value, k) => sum + value * embedded[ib][k],
-						0,
-					)
-				: lexicalMechanismSimilarity(a, b).combined;
+			const score = pairCloseness(a, b, embedded?.[ia], embedded?.[ib]);
 			candidates.push({ a: a.slug, b: b.slug, score });
 		}
 	}

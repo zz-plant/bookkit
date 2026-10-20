@@ -14,6 +14,7 @@ import {
 	JUDGE_RELATIONS,
 	type JudgeRelation,
 	type JudgeVote,
+	lexicalMechanismSimilarity,
 	type PairCall,
 	type PairJudgment,
 } from "../../packages/astro-bookkit/src/suggestions";
@@ -176,6 +177,45 @@ export const matchJudgments = (
 	for (const key of current.keys()) changed.delete(key);
 	return { current: [...current.values()], changed: [...changed.values()] };
 };
+
+/**
+ * How close two mechanisms are, for choosing which pairs to ask judges about:
+ * the cosine of their vectors when both have one, else how alike their
+ * wording is. `--judge-for` and `bookkit check` rank with this.
+ */
+export const pairCloseness = (
+	a: CorpusMechanism,
+	b: CorpusMechanism,
+	vectorA?: ArrayLike<number> | null,
+	vectorB?: ArrayLike<number> | null,
+): number => {
+	if (!vectorA || !vectorB) return lexicalMechanismSimilarity(a, b).combined;
+	let dot = 0;
+	for (let i = 0; i < vectorA.length; i += 1) dot += vectorA[i] * vectorB[i];
+	return dot;
+};
+
+/** A mechanism's nearest others, closest first (see pairCloseness). */
+export const nearestTo = (
+	target: CorpusMechanism,
+	others: readonly CorpusMechanism[],
+	count: number,
+	vectorOf?: (mechanism: CorpusMechanism) => ArrayLike<number> | null,
+): CorpusMechanism[] =>
+	others
+		.filter((other) => other.slug !== target.slug)
+		.map((other) => ({
+			other,
+			closeness: pairCloseness(
+				target,
+				other,
+				vectorOf?.(target),
+				vectorOf?.(other),
+			),
+		}))
+		.sort((x, y) => y.closeness - x.closeness)
+		.slice(0, count)
+		.map(({ other }) => other);
 
 /** The judges' calls on one mechanism's pairs, as the texts read now; same idea and splits first. */
 export const callsFor = (

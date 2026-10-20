@@ -225,7 +225,16 @@ describe("judging one mechanism at a time", () => {
 				"check",
 				file,
 			],
-			{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+			{
+				cwd: workspace,
+				// No model and no stored vectors: nearest by wording, on any machine.
+				env: {
+					...process.env,
+					BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			},
 		);
 		return `${result.stdout.toString()}${result.stderr.toString()}`;
 	};
@@ -269,6 +278,23 @@ describe("judging one mechanism at a time", () => {
 		expect(bookkitCheck(waitingGame)).toContain(
 			"judges: the same idea as slow-walk (2 of 2). Bind slow-walk instead",
 		);
+	});
+
+	it("bookkit check names a near mechanism with no verdict, though another pair has one", () => {
+		// tidy-desk shares no wording with waiting-game, so no wording match
+		// lists it; it is still among the three nearest, and unjudged.
+		writeRecords([
+			{
+				pair: ["waiting-game", "slow-walk"],
+				texts: [textHash(text("waiting-game")), textHash(text("slow-walk"))],
+				votes: [vote("same_family")],
+			},
+		]);
+		const output = bookkitCheck(waitingGame);
+		expect(output).toContain(
+			"judges: no verdict yet on tidy-desk, among its 3 nearest by wording.",
+		);
+		expect(output).toContain("--judge-for waiting-game");
 	});
 });
 

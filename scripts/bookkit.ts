@@ -4,6 +4,11 @@ import { join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
 import {
+	type CorpusMechanism,
+	corpusEmbeddingText,
+	type PairCall,
+} from "../packages/astro-bookkit/src/suggestions";
+import {
 	CONTENT_SECTIONS,
 	type ContentSection,
 	contentContract,
@@ -31,8 +36,14 @@ import {
 	writeFocusBook,
 } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
-import { callsFor, readJudgments } from "./lib/corpus-judgments";
+import { callsFor, nearestTo, readJudgments } from "./lib/corpus-judgments";
+import { corpusScope, readCorpusBooks } from "./lib/corpus-scope";
 import { DEFAULT_DEV_PORT, runDevServer } from "./lib/dev-server";
+import {
+	DEFAULT_EMBEDDING_MODEL_KEY,
+	EMBEDDING_MODELS,
+	embedTexts,
+} from "./lib/embed-text";
 import {
 	isBookContentPath,
 	printFolderCheck,
@@ -228,7 +239,11 @@ switch (command) {
 
 	case "check": {
 		if (args[1] && /\.mdx?$/.test(args[1]) && isBookContentPath(args[1])) {
-			await checkOneFile(args[1], args.includes("--json"));
+			await checkOneFile(
+				args[1],
+				args.includes("--json"),
+				args.includes("--quick"),
+			);
 			break;
 		}
 		// Any other file or folder: check it where it is, without a book app.
@@ -926,7 +941,7 @@ function checkFolder(target: string, rest: string[]) {
 	process.exit(preview.errors === 0 ? 0 : 1);
 }
 
-async function checkOneFile(path: string, asJson: boolean) {
+async function checkOneFile(path: string, asJson: boolean, quick = false) {
 	const checked = checkContentFile(path);
 	if ("error" in checked) {
 		console.error(checked.error);
@@ -964,7 +979,9 @@ async function checkOneFile(path: string, asJson: boolean) {
 	const slug =
 		typeof result.frontmatter?.slug === "string" ? result.frontmatter.slug : "";
 	const judged =
-		section === "mechanism" && slug ? judgedForMechanism(slug) : [];
+		section === "mechanism" && slug
+			? await judgedForMechanism(slug, book, quick)
+			: null;
 	if (asJson) {
 		console.log(
 			JSON.stringify(
@@ -1008,20 +1025,44 @@ async function checkOneFile(path: string, asJson: boolean) {
 		);
 		for (const match of elsewhere) console.log(describe(match));
 	}
-	if (section === "mechanism" && slug) printJudged(slug, judged, ownCorpus);
+	if (judged) printJudged(slug, judged);
 	process.exit(result.ok ? 0 : 1);
 }
 
+type MechanismJudges = {
+	calls: Array<{ other: string; call: PairCall; ruledDistinct: boolean }>;
+	/** Of its 3 nearest mechanisms in its corpus, those with no verdict and no ruling. */
+	unasked: string[];
+	nearestBy: "meaning" | "wording";
+};
+
 /**
  * Judges' calls on a mechanism's pairs (corpus-judgments.json), as its text
- * reads now, each marked when corpus.json already rules the pair distinct.
+ * reads now, and which of its 3 nearest in its corpus have neither a verdict
+ * nor a ruling: by meaning when check:corpus has stored every vector, else by
+ * wording. An edited mechanism has no current verdicts, so its nearest are
+ * unjudged under either ranking; the ranking matters only for unchanged
+ * text, whose vectors are stored. --judge-for ranks the same way.
  */
-function judgedForMechanism(slug: string) {
+async function judgedForMechanism(
+	slug: string,
+	book: string,
+	quick: boolean,
+): Promise<MechanismJudges> {
 	const read = readJudgments(repoRoot());
-	if ("error" in read || read.records.length === 0) return [];
-	const mechanisms = listBookDirs().flatMap(
-		(other) => loadBookContent(other).mechanisms,
-	);
+	const records = "error" in read ? [] : read.records;
+	const books = listBookDirs();
+	const scope = corpusScope(books, readCorpusBooks());
+	const corpus = books
+		.filter((other) => scope.corpusOf(other) === scope.corpusOf(book))
+		.flatMap((other) =>
+			loadBookContent(other).mechanisms.map((m) => ({ ...m, book: other })),
+		);
+	const unique = [
+		...new Map(
+			corpus.filter((m) => m.definition.trim()).map((m) => [m.slug, m]),
+		).values(),
+	];
 	let distinct: Array<{ pair: [string, string] }> = [];
 	try {
 		const corpusPath = join(repoRoot(), "corpus.json");
@@ -1030,21 +1071,39 @@ function judgedForMechanism(slug: string) {
 	} catch {
 		// check:corpus reports an unreadable corpus.json.
 	}
-	return callsFor(slug, read.records, mechanisms).map((judged) => ({
+	const ruled = (other: string) =>
+		distinct.some(({ pair }) => pair.includes(slug) && pair.includes(other));
+	const calls = callsFor(slug, records, corpus).map((judged) => ({
 		...judged,
-		ruledDistinct: distinct.some(
-			({ pair }) => pair.includes(slug) && pair.includes(judged.other),
-		),
+		ruledDistinct: ruled(judged.other),
 	}));
+	const target = unique.find((m) => m.slug === slug);
+	if (!target) return { calls, unasked: [], nearestBy: "wording" };
+	let vectorOf: ((m: CorpusMechanism) => Float32Array | null) | undefined;
+	if (!quick) {
+		const embedded = await embedTexts(
+			unique.map(corpusEmbeddingText),
+			EMBEDDING_MODELS[DEFAULT_EMBEDDING_MODEL_KEY],
+			// Stored vectors only: loading the model would cost seconds per edit.
+			{ storedOnly: true, interactive: false, log: () => {} },
+		);
+		if (embedded.ok) {
+			const bySlug = new Map(
+				unique.map((m, index) => [m.slug, embedded.vectors[index]]),
+			);
+			vectorOf = (m) => bySlug.get(m.slug) ?? null;
+		}
+	}
+	const judgedOthers = new Set(calls.map(({ other }) => other));
+	const unasked = nearestTo(target, unique, 3, vectorOf)
+		.map((m) => m.slug)
+		.filter((other) => !judgedOthers.has(other) && !ruled(other));
+	return { calls, unasked, nearestBy: vectorOf ? "meaning" : "wording" };
 }
 
-function printJudged(
-	slug: string,
-	judged: ReturnType<typeof judgedForMechanism>,
-	ownCorpus: Array<{ slug: string; ruledDistinct?: string }>,
-) {
+function printJudged(slug: string, judges: MechanismJudges) {
 	// A pair the author ruled on is settled, whatever the judges said.
-	const open = judged.filter(
+	const open = judges.calls.filter(
 		({ call, ruledDistinct }) => call.call !== "distinct" && !ruledDistinct,
 	);
 	for (const { other, call } of open) {
@@ -1054,19 +1113,15 @@ function printJudged(
 				: `  judges split on ${other}: same idea ${call.call === "split" ? call.sameIdea : 0} of ${call.votes}. Your ruling settles it.`,
 		);
 	}
-	if (judged.length > 0 && open.length === 0) {
+	if (judges.calls.length > 0 && open.length === 0) {
 		console.log(
-			`  judges: compared it with ${judged.length} mechanism(s); none is open (not the same idea, or you ruled the pair).`,
+			`  judges: compared it with ${judges.calls.length} mechanism(s); none is open (not the same idea, or you ruled the pair).`,
 		);
 	}
 	// Verdicts follow the text, so an edited definition starts with none.
-	const judgedOthers = new Set(judged.map(({ other }) => other));
-	const unasked = ownCorpus.filter(
-		(match) => !match.ruledDistinct && !judgedOthers.has(match.slug),
-	);
-	if (judged.length === 0 || unasked.length > 0) {
+	if (judges.unasked.length > 0) {
 		console.log(
-			`  judges: no verdict yet on its closest pairs. Ask about its 3 nearest: bun run check:corpus -- --judge-prompt <dir> --judge-for ${slug}`,
+			`  judges: no verdict yet on ${judges.unasked.join(", ")}, among its 3 nearest by ${judges.nearestBy}. Ask about them: bun run check:corpus -- --judge-prompt <dir> --judge-for ${slug}`,
 		);
 	}
 }
@@ -1097,8 +1152,9 @@ Check
                                             structure, plus mechanisms that overlap across books; the
                                             meaning pass needs a 550 MB model, downloaded once with
                                             consent (--quick compares wording only)
-  check <file.mdx> [--json]                 one content file: each finding with its field and fix; for a
-                                            mechanism, similar ones and the judges' calls on it
+  check <file.mdx> [--json] [--quick]       one content file: each finding with its field and fix; for a
+                                            mechanism, similar ones, the judges' calls on it, and which of
+                                            its 3 nearest have no verdict (--quick: nearest by wording)
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame
                                             section once --frame is given; exits 1 on an error (for CI)

@@ -20,7 +20,7 @@ import { setDefaultTimeout } from "bun:test";
 /** No command a test runs takes this long, even on a loaded machine; a build has its own. */
 export const CHILD_DEADLINE_MS = 60_000;
 
-/** An Astro build of a book: about 4 s idle, and many times that beside other builds. */
+/** An Astro build of a book: about 4 s idle, 8 s with three at once beside 10 busy loops. */
 export const BUILD_DEADLINE_MS = 180_000;
 
 /** Per test: a hung child is killed and reported before the runner gives up. */

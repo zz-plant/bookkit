@@ -3,6 +3,16 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-20 — Chapters, releases, and exports by command
+
+- **`bookkit new chapter "<title>" --after <chapter>`** puts the chapter right after the one named: in the numbering gap when there is one, else renumbering the files after it (and the import manifest that names them). Before, a new chapter could only go at the end.
+- **`bookkit rename chapter [book] <slug> <new-slug> [--title "…"] [--dry-run]`** changes a chapter's slug, its file name when the name carries the slug, other chapters' `prerequisites:`, and `/read/chapters/` links in the book's files, and lists lines that still name the old slug.
+- **A prerequisite that comes after its chapter in reading order** (file order, or `order:`) is a warning (`PREREQUISITE_ORDER`), so a reorder that breaks the reading graph shows up.
+- **`bookkit new release [book] "<title>" [--version x.y.z]`** starts `releases/<date>-<slug>.mdx` at the next minor version. `validate`/`check` warn about a release note the release page leaves out (no version or date) or sorts wrongly (a date that is not YYYY-MM-DD).
+- **`bookkit export [book]`** writes the GitBook export of the current book and says where the build's PDF and EPUB are.
+- **`bookkit check <book>`** ends with the book's suggestions (mechanisms named in prose but not bound, mechanisms no chapter lists, recurring terms); they never fail the check. MDX comments no longer count as prose, so the one `new chapter` writes no longer makes every mechanism look named in the chapter.
+- **Migration:** none.
+
 ## 2026-10-20 — From a folder of notes to a publishable book
 
 - **`bookkit new book <slug> --from <notes>`** no longer adds the starter's placeholder mechanism, tool, example, glossary term, and overview beside the imported chapters (they went live with "Write the recognition step of the book here", and made a published book fail on 10 draft files). Without `--from`, a new book still gets them. At a terminal, `new book` also asks for a title and a notes folder.

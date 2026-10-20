@@ -251,10 +251,20 @@ bun run check:upgrade -- --release
 ### Build / compile / export
 
 ```bash
-bun run bookkit build bad-people
+bun run bookkit build bad-people            # the site, plus dist/exports/book.pdf and book.epub
 bun run compile:book -- --book bad-people
-bun run export:gitbook -- --book bad-people
+bun run bookkit export bad-people           # a GitBook folder (apps/<book>/exports/gitbook), and where the PDF is
 ```
+
+### Chapters and releases
+
+```bash
+bun run bookkit new chapter "Who holds the lever" --after people-as-infrastructure   # renumbers the files after it
+bun run bookkit rename chapter queue waiting-line   # slug, file name, other chapters' prerequisites, and links
+bun run bookkit new release "Second draft"           # releases/<date>-second-draft.mdx at the next minor version
+```
+
+Reading order is the chapters' file order (or `order:`). A chapter whose prerequisite comes after it in that order gets a warning, as does a release note the release page cannot list (no version or date, or a date that is not YYYY-MM-DD). `bookkit check <book>` ends with the book's suggestions: mechanisms named in prose but not bound, mechanisms no chapter lists, and recurring terms that may be ideas worth naming.
 
 ### Deploy
 
@@ -381,7 +391,7 @@ GitHub Actions runs on every push and PR to `main`:
 ### Validation fails but content "looks right"
 
 - Re-check required frame sections (headings/fields must be structurally present, not implied in prose).
-- Run `bun run validate:release` to see stricter failure output.
+- Release rules (no drafts; broken links and prerequisites are errors) apply once `status` in `book.config.ts` is `published` or `stable`; `validate:release` runs the same check.
 - Fix the failing record rather than relaxing validator strictness.
 
 ### Build passes but outputs feel semantically off

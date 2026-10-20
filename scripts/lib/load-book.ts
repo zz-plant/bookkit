@@ -127,7 +127,12 @@ export const loadBookContent = (book: string): LoadedBookContent => {
 		: undefined;
 
 	const chapterParsed = chapterFiles.map((file) => {
-		const { data, body } = parseFrontmatter(read(file));
+		const { data, body: withComments } = parseFrontmatter(read(file));
+		// MDX comments are notes to the author, not prose: the one `new
+		// chapter` writes lists every mechanism slug.
+		const body = file.endsWith(".mdx")
+			? withComments.replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+			: withComments;
 		return {
 			slug: toStringValue(data.slug) || file,
 			title: toStringValue(data.title) || toStringValue(data.slug) || file,

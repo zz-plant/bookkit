@@ -1,26 +1,33 @@
 import {
-	copyFileSync,
 	existsSync,
 	readdirSync,
-	readFileSync,
 	rmSync,
 	statSync,
 	writeFileSync,
 } from "node:fs";
-import { basename, dirname, extname, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { buildExportParts } from "../packages/astro-bookkit/src/exports/content-parsing";
+import { createFileImageLoader } from "../packages/astro-bookkit/src/exports/images";
+import { HAS_SCHEME } from "../packages/astro-bookkit/src/exports/markdown-to-html";
+import type { ExportEntry } from "../packages/astro-bookkit/src/exports/types";
 import { ensureDir, listBookDirs, repoRoot } from "./_lib";
+import { loadBookConfig } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
-
-type SectionEntry = {
-	relPath: string;
-	title: string;
-};
+import {
+	gitbookEntries,
+	gitbookPage,
+	gitbookPagePath,
+	gitbookSummary,
+	mdxToGitbookMarkdown,
+} from "./lib/gitbook";
+import { loadRawModules } from "./lib/raw-modules";
 
 /** Written into every export, so the next one knows the folder is its own to replace. */
 const EXPORT_MARKER = ".bookkit-export";
 
 const args = parseScriptArgs(
-	`Export a book's Markdown as a GitBook folder (README.md and SUMMARY.md, plus the book's files).
+	`Export a book as a GitBook folder: README.md, SUMMARY.md, and one Markdown page per
+chapter, mechanism, toolkit action, glossary term, and example, in reading order.
 
 Usage:
   bun run export:gitbook -- --book <book> [--out <dir>]
@@ -44,6 +51,35 @@ if (!existsSync(contentDir)) {
 	process.exit(1);
 }
 
+const config = (await loadBookConfig(book)) ?? {};
+const text = (value: unknown) =>
+	typeof value === "string" && value.trim() ? value.trim() : undefined;
+const field = (path: string[]) =>
+	path.reduce<unknown>(
+		(value, key) =>
+			value && typeof value === "object"
+				? (value as Record<string, unknown>)[key]
+				: undefined,
+		config,
+	);
+const title = text(config.title) ?? book;
+const siteUrl = text(field(["site", "url"]));
+const mechanisms = Array.isArray(config.mechanisms) ? config.mechanisms : [];
+
+const parts = buildExportParts(loadRawModules(contentDir), {
+	defaultLocale: text(field(["localization", "defaultLocale"])),
+	mechanismOrder: mechanisms
+		.map((mechanism) => text((mechanism as { slug?: unknown }).slug))
+		.filter((slug): slug is string => Boolean(slug)),
+});
+const entries = gitbookEntries(parts);
+if (entries.length === 0) {
+	console.error(
+		`${book} has no chapters, mechanisms, toolkit actions, glossary terms, or examples to export (looked in ${contentDir}).`,
+	);
+	process.exit(1);
+}
+
 const outDir = resolve(
 	args.out ?? join(root, "apps", book, "exports", "gitbook"),
 );
@@ -54,8 +90,8 @@ if (existsSync(outDir)) {
 		console.error(`--out ${outDir} is a file, not a folder.`);
 		process.exit(1);
 	}
-	const entries = readdirSync(outDir);
-	if (entries.length > 0 && !entries.includes(EXPORT_MARKER)) {
+	const existing = readdirSync(outDir);
+	if (existing.length > 0 && !existing.includes(EXPORT_MARKER)) {
 		console.error(
 			`Refusing to replace ${outDir}: it holds files an earlier export did not write (it has no ${EXPORT_MARKER}). Choose a new or empty folder with --out, or move those files out first.`,
 		);
@@ -71,112 +107,76 @@ writeFileSync(
 	"utf8",
 );
 
-const markdownFiles = collectMarkdownFiles(contentDir);
-const assetFiles = collectNonMarkdownFiles(contentDir);
-const hasRootReadme = markdownFiles.some(
-	(file) => relative(contentDir, file).replace(/\\/g, "/") === "README.md",
+// Local images go in .gitbook/assets/, where GitBook keeps a space's files.
+const appDir = join(root, "apps", book);
+const loadImage = createFileImageLoader({
+	publicDir: join(appDir, "public"),
+	sourceBase: join(appDir, "src", "lib"),
+});
+const assets = new Map<string, string>();
+const usedAssets = new Set<string>();
+const copyImage = (src: string, entry: ExportEntry): string | null => {
+	if (HAS_SCHEME.test(src) || src.startsWith("//")) return null;
+	const result = loadImage(src, entry);
+	if ("problem" in result) {
+		console.warn(
+			`${gitbookPagePath(entry)}: image ${src} ${result.problem}; the page links it as written. ${result.fix}`,
+		);
+		return null;
+	}
+	let path = assets.get(result.file.key);
+	if (!path) {
+		const dot = result.file.name.lastIndexOf(".");
+		const stem = dot > 0 ? result.file.name.slice(0, dot) : result.file.name;
+		const extension = dot > 0 ? result.file.name.slice(dot) : "";
+		path = `.gitbook/assets/${result.file.name}`;
+		for (let n = 2; usedAssets.has(path); n += 1) {
+			path = `.gitbook/assets/${stem}-${n}${extension}`;
+		}
+		usedAssets.add(path);
+		assets.set(result.file.key, path);
+		ensureDir(dirname(join(outDir, path)));
+		writeFileSync(join(outDir, path), result.file.bytes);
+	}
+	return path;
+};
+
+const pages = new Map(
+	entries.map((entry) => [
+		`${entry.kind}:${entry.slug}`,
+		gitbookPagePath(entry),
+	]),
 );
-
-for (const filePath of markdownFiles) {
-	const relPath = relative(contentDir, filePath);
-	const destPath = join(outDir, relPath);
-	ensureDir(dirname(destPath));
-	writeFileSync(destPath, readFileSync(filePath, "utf8"), "utf8");
+for (const entry of entries) {
+	const path = join(outDir, gitbookPagePath(entry));
+	ensureDir(dirname(path));
+	writeFileSync(
+		path,
+		gitbookPage(
+			entry,
+			mdxToGitbookMarkdown(entry, pages, { siteUrl, copyImage }),
+		),
+		"utf8",
+	);
 }
 
-for (const filePath of assetFiles) {
-	const relPath = relative(contentDir, filePath);
-	const destPath = join(outDir, relPath);
-	ensureDir(dirname(destPath));
-	copyFileSync(filePath, destPath);
-}
-
-if (!hasRootReadme) {
-	const fallbackReadme = `# ${toTitleCase(book)}\n\nThis export was generated from Bookkit content records.\n`;
-	writeFileSync(join(outDir, "README.md"), fallbackReadme, "utf8");
-}
-
-const summary = buildSummary(markdownFiles, contentDir);
-writeFileSync(join(outDir, "SUMMARY.md"), summary, "utf8");
-
-console.log(`GitBook export written to ${outDir}`);
-
-function collectMarkdownFiles(dir: string): string[] {
-	const entries = readdirSync(dir, { withFileTypes: true });
-	const results: string[] = [];
-	for (const entry of entries) {
-		const fullPath = join(dir, entry.name);
-		if (entry.isDirectory()) {
-			results.push(...collectMarkdownFiles(fullPath));
-			continue;
-		}
-		if (entry.isFile() && extname(entry.name).toLowerCase() === ".md") {
-			results.push(fullPath);
-		}
-	}
-	return results.sort();
-}
-
-function collectNonMarkdownFiles(dir: string): string[] {
-	const entries = readdirSync(dir, { withFileTypes: true });
-	const results: string[] = [];
-	for (const entry of entries) {
-		const fullPath = join(dir, entry.name);
-		if (entry.isDirectory()) {
-			results.push(...collectNonMarkdownFiles(fullPath));
-			continue;
-		}
-		if (entry.isFile() && extname(entry.name).toLowerCase() !== ".md") {
-			results.push(fullPath);
-		}
-	}
-	return results.sort();
-}
-
-function buildSummary(files: string[], baseDir: string): string {
-	const sections = new Map<string, SectionEntry[]>();
-
-	for (const filePath of files) {
-		const relPath = relative(baseDir, filePath).replace(/\\/g, "/");
-		if (relPath === "README.md") continue;
-
-		const [section] = relPath.split("/");
-		const title = titleFromFile(filePath);
-		const entry: SectionEntry = { relPath, title };
-		const bucket = sections.get(section) ?? [];
-		bucket.push(entry);
-		sections.set(section, bucket);
-	}
-
-	const lines = ["# Summary", "", "* [Introduction](README.md)"];
-	const orderedSections = Array.from(sections.keys()).sort();
-
-	for (const section of orderedSections) {
-		const entries = sections.get(section) ?? [];
-		entries.sort((a, b) => a.relPath.localeCompare(b.relPath));
-		const header = section === "." ? "Other" : toTitleCase(section);
-		lines.push(`* ${header}`);
-		for (const entry of entries) {
-			lines.push(`  * [${entry.title}](${entry.relPath})`);
-		}
-	}
-
-	lines.push("");
-	return lines.join("\n");
-}
-
-function titleFromFile(filePath: string): string {
-	const contents = readFileSync(filePath, "utf8");
-	const match = contents.match(/^#\s+(.+)$/m);
-	if (match) return match[1].trim();
-	return toTitleCase(basename(filePath, extname(filePath)));
-}
-
-function toTitleCase(value: string): string {
-	return value
-		.replace(/[-_]+/g, " ")
-		.split(" ")
+const author = text(field(["author", "name"]));
+const description = text(field(["site", "defaultMeta", "description"]));
+writeFileSync(
+	join(outDir, "README.md"),
+	[
+		`# ${title}`,
+		author ? `By ${author}` : null,
+		description ?? null,
+		siteUrl ? `Read it online at ${siteUrl}.` : null,
+	]
 		.filter(Boolean)
-		.map((part) => part[0]?.toUpperCase() + part.slice(1))
-		.join(" ");
-}
+		.join("\n\n")
+		.concat("\n"),
+	"utf8",
+);
+writeFileSync(join(outDir, "SUMMARY.md"), gitbookSummary(parts), "utf8");
+
+console.log(
+	`GitBook export written to ${outDir}: ${entries.length} page(s)${assets.size > 0 ? ` and ${assets.size} image(s)` : ""}.`,
+);

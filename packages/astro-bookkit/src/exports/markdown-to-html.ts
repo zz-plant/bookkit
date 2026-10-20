@@ -5,6 +5,7 @@ import {
 	parseMarkdownBlocks,
 	replaceImages,
 } from "./markdown-blocks";
+import type { ExportEntryKind } from "./types";
 
 export const escapeHtml = (value: string) =>
 	value
@@ -16,6 +17,30 @@ export const escapeHtml = (value: string) =>
 
 /** Where a link should point in the output, or null to keep only its text. */
 export type LinkResolver = (href: string) => string | null;
+
+/** A URL with a scheme (`https:`, `mailto:`), which no export rewrites. */
+export const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+// Read UI sections, so a link to /read/<section>/<slug> can point inside an export.
+const SECTION_KINDS: Record<string, ExportEntryKind> = {
+	chapters: "chapter",
+	mechanisms: "mechanism",
+	toolkit: "tool",
+	glossary: "glossary",
+	examples: "example",
+};
+const READ_LINK = /^\/?read\/([a-z]+)\/([^?#]+)(?:\?[^#]*)?(?:#(.*))?$/;
+
+/** The record a link to a read page names (`/read/chapters/x#y`), or null for any other link. */
+export const readLinkTarget = (
+	href: string,
+): { kind: ExportEntryKind; slug: string; fragment?: string } | null => {
+	const match = href.match(READ_LINK);
+	const kind = match ? SECTION_KINDS[match[1]] : undefined;
+	return match && kind
+		? { kind, slug: match[2], fragment: match[3] || undefined }
+		: null;
+};
 
 /** Where an image's file is in the output, or null to show its alt text instead. */
 export type ImageResolver = (image: InlineImage) => string | null;

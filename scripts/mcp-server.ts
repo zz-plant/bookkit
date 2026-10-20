@@ -1,7 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { createInterface } from "node:readline";
-import type { BookContentRawModules } from "../packages/astro-bookkit/src/book/entrypoints";
 import { createGovernanceResourcesFromFiles } from "../packages/astro-bookkit/src/mcp/governance";
 import {
 	createJsonRpcError,
@@ -13,6 +11,7 @@ import type {
 } from "../packages/astro-bookkit/src/mcp/types";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { loadBookConfigSummary } from "./lib/authoring";
+import { loadRawModules } from "./lib/raw-modules";
 
 /**
  * mcp — Bookkit's MCP tools over stdio, for agents working in this repo
@@ -26,14 +25,6 @@ import { loadBookConfigSummary } from "./lib/authoring";
  * stdout; anything else goes to stderr.
  */
 
-const SECTIONS = [
-	"chapters",
-	"mechanisms",
-	"toolkit",
-	"glossary",
-	"examples",
-] as const;
-
 const root = repoRoot();
 const books = listBookDirs();
 const book = optionalArg("--book") ?? books[0];
@@ -45,34 +36,13 @@ if (!book || !books.includes(book)) {
 	process.exit(1);
 }
 
-const listMdx = (dir: string): string[] =>
-	existsSync(dir)
-		? readdirSync(dir, { recursive: true })
-				.map(String)
-				.filter((file) => /\.mdx?$/.test(file))
-		: [];
-
-/** Raw sources keyed as the apps' `import.meta.glob` keys them. */
-const loadRawModules = (slug: string): BookContentRawModules => {
-	const contentRoot = join(root, "apps", slug, "src", "content", "book");
-	const modules = {} as BookContentRawModules;
-	for (const section of SECTIONS) {
-		const dir = join(contentRoot, section);
-		modules[section] = Object.fromEntries(
-			listMdx(dir).map((file) => [
-				`../content/book/${section}/${file}`,
-				readFileSync(join(dir, file), "utf8"),
-			]),
-		);
-	}
-	return modules;
-};
-
 const config = await loadBookConfigSummary(book);
 const options: McpEndpointOptions = {
 	bookTitle: config.title,
 	bookSlug: book,
-	contentRawModules: loadRawModules(book),
+	contentRawModules: loadRawModules(
+		join(root, "apps", book, "src", "content", "book"),
+	),
 	governanceResources: createGovernanceResourcesFromFiles(root, undefined, {
 		allowMissingFiles: true,
 	}),

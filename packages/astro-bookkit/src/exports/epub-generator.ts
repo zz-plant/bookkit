@@ -7,8 +7,10 @@ import {
 } from "./images";
 import {
 	escapeHtml,
+	HAS_SCHEME,
 	type ImageResolver,
 	markdownToHtml,
+	readLinkTarget,
 	xmlId,
 } from "./markdown-to-html";
 import {
@@ -20,12 +22,7 @@ import {
 	toEpubTimestamp,
 	UNDATED_TIMESTAMP,
 } from "./metadata";
-import type {
-	ExportBundle,
-	ExportEntry,
-	ExportEntryKind,
-	ExportRenderOptions,
-} from "./types";
+import type { ExportBundle, ExportEntry, ExportRenderOptions } from "./types";
 
 /** One content document, and the documents nested under it in the table of contents. */
 type NavItem = {
@@ -34,17 +31,6 @@ type NavItem = {
 	entry?: ExportEntry;
 	children: NavItem[];
 };
-
-// Read UI sections, so a link to /read/<section>/<slug> can point inside the book.
-const SECTION_KINDS: Record<string, ExportEntryKind> = {
-	chapters: "chapter",
-	mechanisms: "mechanism",
-	toolkit: "tool",
-	glossary: "glossary",
-	examples: "example",
-};
-const READ_LINK = /^\/?read\/([a-z]+)\/([^?#]+)(?:\?[^#]*)?(?:#(.*))?$/;
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 const STYLES = `body { font-family: Georgia, serif; line-height: 1.6; color: #1b1b1b; }
 article, .title-page { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem; }
@@ -142,10 +128,11 @@ export const createEpubExport = async (
 	const resolveLink = (href: string): string | null => {
 		if (href.startsWith("#")) return `#${xmlId(href.slice(1))}`;
 		if (HAS_SCHEME.test(href)) return href;
-		const match = href.match(READ_LINK);
-		const kind = match ? SECTION_KINDS[match[1]] : undefined;
-		const target = kind && hrefByRecord.get(`${kind}:${match?.[2]}`);
-		if (target) return match?.[3] ? `${target}#${xmlId(match[3])}` : target;
+		const record = readLinkTarget(href);
+		const target = record && hrefByRecord.get(`${record.kind}:${record.slug}`);
+		if (target) {
+			return record.fragment ? `${target}#${xmlId(record.fragment)}` : target;
+		}
 		// A page outside the export: the public site, or plain text without one.
 		if (href.startsWith("/") && siteUrl) return `${siteUrl}${href}`;
 		return null;

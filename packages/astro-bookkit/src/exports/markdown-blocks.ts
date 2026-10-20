@@ -13,9 +13,13 @@ const MDX_COMMENT = /\{\/\*[\s\S]*?\*\/\}/g;
 // What toMdxBody escapes so MDX renders it as written.
 const MDX_ESCAPE = /\\([{}<])/g;
 
+/** MDX source without its author comments (the braced comments scaffolds leave). */
+export const dropMdxComments = (body: string): string =>
+	body.replace(MDX_COMMENT, "");
+
 /** MDX source as the Markdown a reader sees: author comments dropped, MDX escapes undone. */
 export const mdxToMarkdown = (body: string): string =>
-	body.replace(MDX_COMMENT, "").replace(MDX_ESCAPE, "$1");
+	dropMdxComments(body).replace(MDX_ESCAPE, "$1");
 
 /** An image in Markdown (`![alt](src "title")`) or HTML (`<img src alt>`). */
 export type InlineImage = { alt: string; src: string };

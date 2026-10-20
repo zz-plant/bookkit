@@ -47,16 +47,24 @@ export type BookSummary = {
 const chaptersDir = (book: string) =>
 	join(repoRoot(), "apps", book, "src", "content", "book", "chapters");
 
-export const loadBookConfigSummary = async (
+/** A book's `book.config.ts`, run; undefined when the book has none. */
+export const loadBookConfig = async (
 	book: string,
-): Promise<BookConfigSummary> => {
+): Promise<Record<string, unknown> | undefined> => {
 	const path = join(repoRoot(), "apps", book, "src", "book.config.ts");
-	if (!existsSync(path)) return { title: book, status: "unknown" };
+	if (!existsSync(path)) return undefined;
 	const module = (await import(path)) as {
 		bookConfig?: Record<string, unknown>;
 		default?: Record<string, unknown>;
 	};
-	const config = module.bookConfig ?? module.default ?? {};
+	return module.bookConfig ?? module.default ?? {};
+};
+
+export const loadBookConfigSummary = async (
+	book: string,
+): Promise<BookConfigSummary> => {
+	const config = await loadBookConfig(book);
+	if (!config) return { title: book, status: "unknown" };
 	const frame = config.frame as { slug?: string } | undefined;
 	return {
 		title: typeof config.title === "string" ? config.title : book,

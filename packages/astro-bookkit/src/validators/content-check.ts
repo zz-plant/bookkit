@@ -603,7 +603,11 @@ const exampleText = (field: ContractField): string => {
 const missingFix = (field: ContractField): string =>
 	`Add \`${field.name}:\` (${field.meaning})${exampleText(field)}`;
 
-const nearest = (value: string, candidates: readonly string[]): string[] => {
+/** Up to three candidates sharing the most words (of four letters or more) with `value`. */
+export const nearest = (
+	value: string,
+	candidates: readonly string[],
+): string[] => {
 	// Short words ("by", "of", "as") match too much to mean anything.
 	const words = new Set(value.split("-").filter((word) => word.length > 3));
 	return candidates
@@ -629,7 +633,7 @@ const unknownMechanismFix = (
 	const valid = [...known].filter(isValidSlug);
 	const close = nearest(slug, valid);
 	return close.length > 0
-		? `Use an existing mechanism slug; closest: ${close.join(", ")}. If it is a new idea, add mechanisms/${slug}.mdx first (run find_similar_mechanisms before coining one).`
+		? `Use an existing mechanism slug; closest: ${close.join(", ")}. If it is a new idea, add mechanisms/${slug}.mdx first (bun run bookkit similar, or the find_similar_mechanisms tool, finds one that already fits).`
 		: `Use one of this book's mechanism slugs (${valid.sort().join(", ") || "none yet"}), or add mechanisms/${slug}.mdx first.`;
 };
 

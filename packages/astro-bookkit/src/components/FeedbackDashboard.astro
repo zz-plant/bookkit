@@ -72,6 +72,13 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
 </section>
 
 <script>
+  import {
+    AUTHOR_TOKEN_EVENT,
+    fetchAuthorJson,
+    reportAuthorRead,
+    storedAuthorToken,
+  } from "./author-access/access";
+
   type FeedbackEvent = {
     eventType: string;
     timestamp: number;
@@ -120,18 +127,14 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
   const loadEvents = async (endpoint: string | null): Promise<FeedbackEvent[]> => {
     const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
     if (endpoint) {
-      try {
-        const response = await fetch(`${endpoint}?since=${cutoff}`);
-        if (response.ok) {
-          const payload = await response.json();
-          if (Array.isArray(payload?.events)) {
-            return payload.events;
-          }
-        }
-      } catch (error) {
-        // Fall back to local storage.
-      }
+      const read = await fetchAuthorJson(`${endpoint}?since=${cutoff}`, {
+        token: storedAuthorToken(),
+      });
+      reportAuthorRead("feedback", read.state);
+      const remote = read.state === "ok" ? (read.payload as { events?: unknown } | null)?.events : null;
+      if (Array.isArray(remote)) return remote;
     }
+    // Without the server's events, this browser's own.
     try {
       const stored = localStorage.getItem(storageKey);
       const parsed = stored ? JSON.parse(stored) : [];
@@ -318,6 +321,11 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
   };
 
   initialize();
+  // The author saved or forgot the token: ask the server again.
+  window.addEventListener(AUTHOR_TOKEN_EVENT, async () => {
+    events = await loadEvents(endpoint);
+    render();
+  });
 
   startInput.addEventListener("change", render);
   endInput.addEventListener("change", render);

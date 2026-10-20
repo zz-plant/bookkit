@@ -112,12 +112,6 @@ export type DiscoveryResponse = {
 	toolCategories: Record<ToolCategory, string[]>;
 	toolMetadata: unknown;
 	safetyFlags: ToolSafetyFlags;
-	rateLimits: {
-		requestsPerMinute: number;
-		burst: number;
-		guidance: string;
-		retryAfterSeconds: number;
-	};
 	recommendedQueryPatterns: DiscoveryQueryPattern[];
 	agentProfile: {
 		safetyMode: "safe-first";

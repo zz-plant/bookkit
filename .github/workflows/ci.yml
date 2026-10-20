@@ -177,8 +177,8 @@ jobs:
           fi
 
   # A project made the way packages/create-bookkit/README.md says, outside the
-  # repository, must install, build, pass its own verify, and reach the
-  # publish step of its deploy.
+  # repository, must install, build without a warning, pass its own verify,
+  # and reach the publish step of its deploy.
   standalone-project:
     runs-on: ubuntu-latest
     steps:
@@ -201,13 +201,30 @@ jobs:
         run: bun run packages/create-bookkit/src/index.ts "$RUNNER_TEMP/field-notes" --title "Field Notes"
 
       # deploy publishes from a commit, so the project is committed first.
-      - name: Install, build, verify, and deploy (dry run)
+      - name: Install and commit the project
         working-directory: ${{ runner.temp }}/field-notes
         run: |
           bun install
           git init --quiet
           git add -A
           git -c user.name=ci -c user.email=ci@example.com commit --quiet -m "Field Notes"
-          bun run build
+
+      # A new project builds with no [WARN] line, so any warning fails the job:
+      # a dependency bump that brings one back (mermaid 11.17's chunk size, say)
+      # shows up here instead of in an author's first build. Astro prints Vite's
+      # warnings as [WARN] lines too. bash, so pipefail keeps the build's status.
+      - name: Build, failing on any warning
+        working-directory: ${{ runner.temp }}/field-notes
+        shell: bash
+        run: |
+          bun run build 2>&1 | tee "$RUNNER_TEMP/standalone-build.log"
+          if grep -a -F "[WARN]" "$RUNNER_TEMP/standalone-build.log"; then
+            echo "::error title=Build warnings::The standalone project's build printed the [WARN] lines above. A new project must build without warnings: fix the cause, or pin the dependency that brought it back."
+            exit 1
+          fi
+
+      - name: Verify and deploy (dry run)
+        working-directory: ${{ runner.temp }}/field-notes
+        run: |
           bun run verify -- --all
           bun run deploy -- --dry-run

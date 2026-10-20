@@ -9,6 +9,7 @@ import {
 	type ContentSection,
 	checkContentItem,
 	mechanismSlugsFrom,
+	nearest,
 	type RetiredSlug,
 	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
@@ -17,6 +18,7 @@ import { validateFrameSteps } from "./frame";
 import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
+	extractMechanismUrgencySlugsFromSource,
 } from "./frame-config";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
@@ -205,6 +207,38 @@ const duplicateSlugFindings = (
 	return findings;
 };
 
+/**
+ * Slugs in `mechanismsIndex.urgency` that name no mechanism of the book. The
+ * index would ignore them, so a typo or a merged mechanism silently loses its
+ * place: an error once release rules apply, a warning before.
+ */
+const urgencyFindings = (
+	configSource: string,
+	configPath: string,
+	mechanismSlugs: ReadonlySet<string>,
+	retiredSlugs: ReadonlyMap<string, RetiredSlug>,
+	releaseMode: boolean,
+): BookFinding[] =>
+	extractMechanismUrgencySlugsFromSource(configSource)
+		.filter((slug) => !mechanismSlugs.has(slug))
+		.map((slug) => {
+			const retired = retiredSlugs.get(slug);
+			const close = nearest(slug, [...mechanismSlugs]);
+			return {
+				level: releaseMode ? "error" : "warning",
+				code: "UNKNOWN_MECHANISM",
+				field: "mechanismsIndex.urgency",
+				file: configPath,
+				message: `mechanismsIndex.urgency names "${slug}", which is not a mechanism in this book, so the mechanisms index ignores it`,
+				fix:
+					retired && mechanismSlugs.has(retired.into)
+						? `${slug} was merged into ${retired.into}${retired.date ? ` on ${retired.date}` : ""}: rename the key to "${retired.into}", or remove it.`
+						: close.length > 0
+							? `Did you mean ${close.map((candidate) => `"${candidate}"`).join(" or ")}? Rename the key to that mechanism's slug, or remove it.`
+							: `Use the slug of one of this book's mechanisms (src/content/book/mechanisms/), or remove the key.`,
+			};
+		});
+
 export const checkBookContent = (
 	options: CheckBookOptions,
 ): BookCheckResult => {
@@ -291,6 +325,18 @@ export const checkBookContent = (
 				findings.push({ ...finding, file });
 		}
 		findings.push(...duplicateSlugFindings(root, section, parsed[section]));
+	}
+
+	if (configSource) {
+		findings.push(
+			...urgencyFindings(
+				configSource,
+				configPath,
+				mechanismSlugs,
+				retiredSlugs,
+				releaseMode,
+			),
+		);
 	}
 
 	// Only a draft may be empty: anything further along is meant to be read.

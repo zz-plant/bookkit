@@ -3,6 +3,17 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-20 — Commands that read the way they are typed
+
+- **`bookkit new`** no longer reads an option's value as a title or a book: `new mechanism "<title>" --definition "<sentence>"` after `bookkit use` was refused with `Book "<title>" not found`. An option `new` does not have is named instead of being read as an argument, and `new book --title "…" <slug>` works in any order. `new book` makes the new book the current one.
+- **The current book is the default** for `bookkit check` (add `--all` for every book) and `bookkit status <book>` shows that book's commands. Status lists every stub to write, not only the next.
+- **`bookkit dev stop` and `dev status`** find the server `bookkit dev` runs in another terminal (recorded in `.bookkit/dev/`) and stop it; Astro's JSON answer for a background server prints as its message. `bookkit dev` no longer shows Astro's upgrade notice for the version the workspace pins.
+- **`bookkit propose`** ends with the command that writes its proposals, accepts `--apply all`, refuses `--apply` with no kind instead of doing nothing, and answers `--help`.
+- **Book warnings keep their fix**: `bookkit check`/`validate` print the fix under a warning that has one, such as a framing chapter's missing steps; a file missing several fields gets one note pointing at `bookkit check <file>`.
+- **`bookkit build <book>`** ends with where the site, PDF, and EPUB are, and the deploy rehearsal to run next.
+- **Smaller**: `bookkit check <mechanism file>` stops suggesting merge or rule once every similar pair is ruled; the unknown-mechanism fix names `bun run bookkit similar` as well as the agent tool; status says "1 mechanism", not "1 mechanisms".
+- **Migration:** none. Scripts that ran `bookkit check` with no book after `bookkit use` and expected every book should add `--all`.
+
 ## 2026-10-20 — Judges asked and recorded in one command
 
 - **`bookkit judge` asks the judges itself** when it has a judge command: `--run "<command>"`, or `BOOKKIT_JUDGE_COMMAND`, any program that reads a prompt on stdin and prints its reply (an LLM's command-line tool, such as `claude -p`). Each judge is its own run of the command, all at once, in an empty folder of its own, so it sees nothing but its prompt; a reply that answers every pair is saved as `answer-<n>.json` and the answers are recorded. Before, each prompt was handed to a session by hand, each reply saved by hand, then `bookkit judge record`. `--no-run` writes the prompts only.

@@ -52,41 +52,84 @@ export type GitState = {
 	dirty: string[];
 };
 
+/** What one git command answered. */
+export type GitAnswer = {
+	status: number | null;
+	stdout: string;
+	stderr: string;
+	error?: Error;
+};
+
+export type RunGit = (root: string, args: string[]) => GitAnswer;
+
+const runGit: RunGit = (root, args) =>
+	spawnSync("git", ["-c", "core.quotepath=off", ...args], {
+		cwd: root,
+		encoding: "utf8",
+	});
+
+/** A full commit id: SHA-1, or SHA-256 in a repository that uses it. */
+const COMMIT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+
+/** Reads of HEAD and the status that came back incomplete are asked again this many times. */
+const GIT_READ_ATTEMPTS = 3;
+
 /**
  * HEAD and the uncommitted changes under `root`, leaving out `exclude`
  * (repo-relative paths, e.g. the apps/ folders of books not being deployed).
+ *
+ * Each answer is checked before it is trusted. Under heavy load a deploy once
+ * read HEAD as an empty string from a `git rev-parse` that exited 0, and
+ * published a version message with no commit. An empty `git status` would be
+ * worse: uncommitted changes would pass as committed. So HEAD must be a full
+ * commit id that `git log` agrees with, and status runs with `--branch`, whose
+ * `## <branch>` line is printed even for a clean tree. An incomplete answer is
+ * asked again, and after GIT_READ_ATTEMPTS is reported as an error.
  */
 export const readGitState = (
 	root: string,
 	exclude: string[] = [],
+	git: RunGit = runGit,
 ): GitState | { error: string } => {
-	const git = (args: string[]) =>
-		spawnSync("git", ["-c", "core.quotepath=off", ...args], {
-			cwd: root,
-			encoding: "utf8",
-		});
-	const head = git(["rev-parse", "--verify", "HEAD"]);
-	if (head.error) return { error: `git did not run (${head.error.message})` };
-	if (head.status !== 0) {
-		return {
-			error: `${root} is not a git checkout with a commit (${head.stderr.trim()})`,
-		};
-	}
-	const status = git([
-		"status",
-		"--porcelain",
-		"--untracked-files=all",
-		"--",
-		".",
-		...exclude.map((path) => `:(exclude)${path}`),
-	]);
-	if (status.status !== 0) {
-		return { error: `git status failed: ${status.stderr.trim()}` };
+	let incomplete = "";
+	for (let attempt = 0; attempt < GIT_READ_ATTEMPTS; attempt++) {
+		const head = git(root, ["rev-parse", "--verify", "HEAD"]);
+		if (head.error) {
+			return { error: `git did not run (${head.error.message})` };
+		}
+		if (head.status !== 0) {
+			return {
+				error: `${root} is not a git checkout with a commit (${head.stderr.trim()})`,
+			};
+		}
+		const status = git(root, [
+			"status",
+			"--porcelain",
+			"--branch",
+			"--untracked-files=all",
+			"--",
+			".",
+			...exclude.map((path) => `:(exclude)${path}`),
+		]);
+		if (status.status !== 0) {
+			return { error: `git status failed: ${status.stderr.trim()}` };
+		}
+		const log = git(root, ["log", "-1", "--format=%H%n%s"]);
+		const commit = head.stdout.trim();
+		const [logCommit = "", ...subject] = log.stdout.trimEnd().split("\n");
+		const [branch = "", ...dirty] = status.stdout.split("\n").filter(Boolean);
+		if (
+			COMMIT_ID.test(commit) &&
+			log.status === 0 &&
+			logCommit === commit &&
+			branch.startsWith("## ")
+		) {
+			return { commit, subject: subject.join(" ").trim(), dirty };
+		}
+		incomplete = `git rev-parse HEAD gave "${commit}", git log gave "${logCommit}", and git status's first line was "${branch}"`;
 	}
 	return {
-		commit: head.stdout.trim(),
-		subject: git(["log", "-1", "--format=%s"]).stdout.trim(),
-		dirty: status.stdout.split("\n").filter(Boolean),
+		error: `git's answers about ${root} came back incomplete ${GIT_READ_ATTEMPTS} times (${incomplete}); run the deploy again`,
 	};
 };
 

@@ -2,13 +2,17 @@ import { afterAll, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runChild, waitForChildren } from "./child-process.fixture";
 
 import {
 	countSitemapUrls,
 	type DeployStamp,
 	distDigest,
 	findDeployableBooks,
+	type GitAnswer,
 	pageDropProblem,
+	type RunGit,
+	readGitState,
 	stampProblem,
 	VERSION_MESSAGE_LIMIT,
 	versionMessage,
@@ -148,5 +152,91 @@ describe("page count", () => {
 			"its sitemap lists 29 page(s), but 40 are live (https://book.example/sitemap.xml)",
 		);
 		expect(pageDropProblem({ live: 0, next: 0, liveUrl })).toBeNull();
+	});
+});
+
+describe("readGitState", () => {
+	waitForChildren();
+	const repo = join(scratch, "repo");
+	const git = (...args: string[]) => {
+		const result = runChild(
+			[
+				"git",
+				"-c",
+				"user.name=Bookkit Test",
+				"-c",
+				"user.email=test@example.com",
+				"-c",
+				"commit.gpgsign=false",
+				...args,
+			],
+			{ cwd: repo },
+		);
+		if (result.status !== 0) throw new Error(result.stderr);
+		return result.stdout.trim();
+	};
+	write(join(repo, "apps", "alpha", "a.md"), "a\n");
+	write(join(repo, "apps", "beta", "b.md"), "b\n");
+	git("init", "-q");
+	git("add", "-A");
+	git("commit", "-qm", "Add books");
+	const head = git("rev-parse", "HEAD");
+
+	it("reads HEAD, its subject, and the uncommitted changes outside the excluded paths", () => {
+		expect(readGitState(repo)).toEqual({
+			commit: head,
+			subject: "Add books",
+			dirty: [],
+		});
+		write(join(repo, "apps", "alpha", "a.md"), "changed\n");
+		write(join(repo, "apps", "beta", "new.md"), "new\n");
+		expect(readGitState(repo, ["apps/beta"])).toEqual({
+			commit: head,
+			subject: "Add books",
+			dirty: [" M apps/alpha/a.md"],
+		});
+		git("checkout", "--", "apps/alpha/a.md");
+	});
+
+	/** The real git, except that the first `failures` answers to `command` come back empty. */
+	const dropping = (command: string, failures: number) => {
+		let dropped = 0;
+		const calls: string[] = [];
+		const run: RunGit = (root, args) => {
+			calls.push(args[0]);
+			const answer = runChild(["git", ...args], { cwd: root });
+			const result: GitAnswer = {
+				status: answer.status,
+				stdout: answer.stdout,
+				stderr: answer.stderr,
+			};
+			if (args[0] === command && dropped < failures) {
+				dropped += 1;
+				return { ...result, stdout: "" };
+			}
+			return result;
+		};
+		return { run, calls };
+	};
+
+	it("asks again when HEAD or the status comes back empty, instead of publishing without them", () => {
+		for (const command of ["rev-parse", "status", "log"]) {
+			const { run, calls } = dropping(command, 1);
+			expect(readGitState(repo, [], run)).toMatchObject({ commit: head });
+			expect(calls.filter((call) => call === command)).toHaveLength(2);
+		}
+	});
+
+	it("refuses when the answers stay incomplete", () => {
+		const { run } = dropping("status", 99);
+		const result = readGitState(repo, [], run);
+		expect(result).toEqual({
+			error: expect.stringContaining(
+				"came back incomplete 3 times (git rev-parse HEAD gave",
+			),
+		});
+		expect((result as { error: string }).error).toContain(
+			"run the deploy again",
+		);
 	});
 });

@@ -1,4 +1,4 @@
-import { toolkitDisplayName } from "../schemas/toolkit";
+import { runbookStepLabel, toolkitDisplayName } from "../schemas/toolkit";
 import {
 	frontmatterText,
 	frontmatterTextFields,
@@ -16,6 +16,8 @@ type ContentRecord = {
 	slug: string;
 	data: Record<string, unknown>;
 	body: string;
+	/** The module key it was read from. */
+	source: string;
 };
 
 const fileSlug = (path: string) =>
@@ -47,7 +49,7 @@ const readRecords = (
 		const slug = frontmatterText(data, "slug") || fileSlug(path);
 		if (!slug || seen.has(slug)) continue;
 		seen.add(slug);
-		records.push({ slug, data, body });
+		records.push({ slug, data, body, source: path });
 	}
 	return records;
 };
@@ -101,17 +103,18 @@ export const buildExportChapters = (
 			const orderB = orderOf(b.data);
 			return orderA === orderB ? 0 : orderA - orderB;
 		})
-		.map(({ slug, data, body }) => ({
+		.map(({ slug, data, body, source }) => ({
 			kind: "chapter",
 			slug,
 			title: text(data, "title") ?? slug,
 			body,
 			description: text(data, "summary") ?? text(data, "description"),
 			locale: text(data, "locale"),
+			source,
 		}));
 
 const mechanismEntry = (
-	{ slug, data, body }: ContentRecord,
+	{ slug, data, body, source }: ContentRecord,
 	actions: ExportEntry[],
 ): ExportEntry => {
 	const definition = text(data, "definition");
@@ -137,6 +140,7 @@ const mechanismEntry = (
 		),
 		description: definition,
 		locale: text(data, "locale"),
+		source,
 		...(actions.length > 0 ? { children: actions } : {}),
 	};
 };
@@ -147,7 +151,12 @@ type ActionEntry = { entry: ExportEntry; mechanism?: string; minutes: number };
  * A toolkit action with its procedure written out in the runbook frame's
  * order: owner, trigger, steps, escalation, then the drills that verify it.
  */
-const actionEntry = ({ slug, data, body }: ContentRecord): ActionEntry => {
+const actionEntry = ({
+	slug,
+	data,
+	body,
+	source,
+}: ContentRecord): ActionEntry => {
 	const minutes =
 		typeof data.timeboxMinutes === "number" ? data.timeboxMinutes : 10;
 	const owner = text(data, "owner");
@@ -167,7 +176,7 @@ const actionEntry = ({ slug, data, body }: ContentRecord): ActionEntry => {
 				typeof step.action === "string" ? oneLine(step.action) : "";
 			const when = typeof step.when === "string" ? oneLine(step.when) : "";
 			if (!action) return [];
-			return [when ? `**${when}:** ${action}` : action];
+			return [`**${runbookStepLabel(when)}:** ${action}`];
 		});
 	const escalation = isRecord(data.escalation) ? data.escalation : {};
 	const escalationLines = [
@@ -202,6 +211,7 @@ const actionEntry = ({ slug, data, body }: ContentRecord): ActionEntry => {
 			),
 			description: trigger,
 			locale: text(data, "locale"),
+			source,
 		},
 	};
 };
@@ -267,19 +277,20 @@ export const buildExportParts = (
 
 	const glossary = readRecords(modules.glossary, locale)
 		.map(
-			({ slug, data, body }): ExportEntry => ({
+			({ slug, data, body, source }): ExportEntry => ({
 				kind: "glossary",
 				slug,
 				title: text(data, "term") ?? slug,
 				body: joinBlocks(text(data, "definition"), body),
 				description: text(data, "definition"),
 				locale: text(data, "locale"),
+				source,
 			}),
 		)
 		.sort(byTitle);
 
 	const examples = readRecords(modules.examples, locale)
-		.map(({ slug, data, body }) => {
+		.map(({ slug, data, body, source }) => {
 			const mechanism = text(data, "mechanism") ?? "";
 			const domain = text(data, "domain");
 			const lede = [mechanismTitles.get(mechanism) ?? mechanism, domain]
@@ -292,6 +303,7 @@ export const buildExportParts = (
 				body: joinBlocks(lede, body),
 				description: text(data, "summary"),
 				locale: text(data, "locale"),
+				source,
 			};
 			const position =
 				mechanismPosition.get(mechanism) ?? Number.POSITIVE_INFINITY;

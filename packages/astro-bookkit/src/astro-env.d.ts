@@ -20,5 +20,9 @@ declare global {
 		readonly SITE_URL?: string;
 		/** `site.runtime === "server"`, set by the bookkit() integration. */
 		readonly BOOKKIT_SERVER_RUNTIME?: boolean;
+		/** The book's folder (Astro's root), set by the bookkit() integration. */
+		readonly BOOKKIT_ROOT?: string;
+		/** Astro's public folder, set by the bookkit() integration. */
+		readonly BOOKKIT_PUBLIC_DIR?: string;
 	}
 }

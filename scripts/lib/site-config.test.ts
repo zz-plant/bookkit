@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
-import { extractPreviewAccessEnabled, extractSiteConfig } from "./site-config";
+import {
+	extractPdfExportEnabled,
+	extractPreviewAccessEnabled,
+	extractSiteConfig,
+} from "./site-config";
 
 const site = `{ url: "https://example.book", indexable: false }`;
 
@@ -78,5 +82,25 @@ describe("extractPreviewAccessEnabled", () => {
 				`export const bookConfig = { site: { url: "https://x.book", runtime: "server" } };`,
 			),
 		).toEqual({ url: "https://x.book", runtime: "server" });
+	});
+});
+
+describe("extractPdfExportEnabled", () => {
+	it("is false only when exports.pdf is the literal false", () => {
+		const config = (exports: string) =>
+			`export const bookConfig = { slug: "x", exports: ${exports} } as const;`;
+		expect(extractPdfExportEnabled(config("{ pdf: false }"))).toBe(false);
+		expect(extractPdfExportEnabled(config("{ pdf: true }"))).toBe(true);
+		expect(extractPdfExportEnabled(config('{ pdfFont: "fonts/a.otf" }'))).toBe(
+			true,
+		);
+		expect(
+			extractPdfExportEnabled(
+				`const downloads = { pdf: false };\nexport const bookConfig = { exports: downloads };`,
+			),
+		).toBe(false);
+		expect(
+			extractPdfExportEnabled(`export const bookConfig = { slug: "x" };`),
+		).toBe(true);
 	});
 });

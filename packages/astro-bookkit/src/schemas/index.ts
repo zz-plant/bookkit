@@ -12,6 +12,7 @@ export {
 	statusSchema,
 } from "./status";
 export {
+	runbookStepLabel,
 	type ToolkitFrontmatter,
 	toolkitDisplayName,
 	toolkitSchema,

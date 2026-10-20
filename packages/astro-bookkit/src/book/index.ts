@@ -31,7 +31,10 @@ export type {
 	ToolkitModule,
 } from "./entrypoints";
 export { createBookEntryPoints } from "./entrypoints";
-export type { BookExportHelpersFromConfigOptions } from "./exports";
+export type {
+	BookExportHelpersFromConfigOptions,
+	BookExportsConfig,
+} from "./exports";
 export { createBookExportHelpersFromConfig } from "./exports";
 export type { BookHomeCopy } from "./home-copy";
 export { defaultBookHomeCopy, resolveBookHomeCopy } from "./home-copy";

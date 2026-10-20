@@ -98,7 +98,7 @@ This separation means engine upgrades (new export formats, AI features, MCP tool
 - **Zod schemas** for structured content entities
 - **Frame validator** with registered frame definitions
 - **Graph engine** with cycle detection, topological sort, and pathway derivation
-- **PDF/EPUB export** of the whole book (chapters, then each mechanism followed by its toolkit actions, then the glossary and examples), with a contents page and bookmarks; metadata comes from `book.config.ts` and the latest release note, so rebuilding unchanged content gives identical files
+- **PDF/EPUB export** of the whole book (chapters, then each mechanism followed by its toolkit actions, then the glossary and examples), with a contents page and bookmarks; metadata comes from `book.config.ts` and the latest release note, so rebuilding unchanged content gives identical files. Both carry the book's PNG and JPEG images (the EPUB also GIF, SVG, and WebP); an image the format cannot carry, or one at a URL, shows its alt text and the build warns. The PDF draws Western European text in Helvetica and Latin Extended, Greek, and Cyrillic in embedded Noto Sans subsets; `exports.pdfFont` adds a font for other scripts, and `exports.pdf: false` builds the book without a PDF
 - **MCP endpoint** for AI-agent integration (validate, read, list, compile)
 - **Astro integration** (`bookkit()`) for zero-config setup
 - **Search index** generation and query engine
@@ -154,3 +154,5 @@ bun test
 ## License
 
 CC0 1.0 Universal — public domain.
+
+The PDF export embeds subsets of Noto Sans, which the `@fontsource/noto-sans` dependency installs under the SIL Open Font License 1.1 (its `LICENSE` file). The OFL allows embedding the font in documents and distributing those documents under any license; the font files are not part of this package.

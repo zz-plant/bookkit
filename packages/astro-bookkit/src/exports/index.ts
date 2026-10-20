@@ -9,6 +9,14 @@ export {
 export type { ExportAnalyticsEndpointOptions } from "./endpoint";
 export { createExportAnalyticsEndpoint } from "./endpoint";
 export { createEpubExport } from "./epub-generator";
+export type {
+	ExportImageFile,
+	ExportImageLoader,
+	ExportImageResult,
+	ExportImageType,
+	FileImageLoaderOptions,
+} from "./images";
+export { createFileImageLoader, sniffImageType } from "./images";
 export type { PdfTextRun } from "./inspect";
 export {
 	extractPdfText,
@@ -25,7 +33,11 @@ export {
 	formatBytes,
 	formatExportUpdatedDate,
 } from "./link-metadata-helpers";
+export type { InlineImage } from "./markdown-blocks";
+export type { ImageResolver, LinkResolver } from "./markdown-to-html";
 export { escapeHtml, markdownToHtml } from "./markdown-to-html";
+export type { PdfFontFile } from "./pdf-fonts";
+export { BUILT_IN_PDF_SCRIPTS } from "./pdf-fonts";
 export { createPdfExport } from "./pdf-generator";
 export type {
 	BookExportHelperOptions,
@@ -39,4 +51,5 @@ export type {
 	ExportMetadata,
 	ExportPart,
 	ExportRawModules,
+	ExportRenderOptions,
 } from "./types";

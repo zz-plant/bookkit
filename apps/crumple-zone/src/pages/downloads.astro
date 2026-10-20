@@ -23,11 +23,15 @@ const bookExportLinks = getBookExportLinks();
 const allChapterExportLinks = chapterItems.flatMap((chapter) =>
 	getChapterExportLinks(chapter.slug, chapter.title),
 );
+// A book can turn the PDF off (exports.pdf in book.config.ts).
+const hasPdf = bookExportLinks.some((link) => link.format === "pdf");
 ---
 <BaseLayout title={`Downloads • ${bookConfig.title}`}>
   <div class="section-header">
     <h1>Downloads</h1>
-    <p class="lede">The whole book or single chapters. PDF is best for printing and annotating; EPUB reflows to fit phones and e-readers.</p>
+    <p class="lede">{hasPdf
+      ? "The whole book or single chapters. PDF is best for printing and annotating; EPUB reflows to fit phones and e-readers."
+      : "The whole book or single chapters, as EPUB, which reflows to fit phones and e-readers."}</p>
   </div>
 
   <ExportPanel title="Whole book" links={bookExportLinks} />

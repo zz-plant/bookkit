@@ -66,3 +66,11 @@ export const toolkitDisplayName = (frontmatter: {
 	frontmatter.title ||
 	frontmatter.slug ||
 	"Untitled action";
+
+/**
+ * The label of a runbook step by situation: its `when`, or "In any
+ * situation" for a step without one. The toolkit page and the PDF and EPUB
+ * share it.
+ */
+export const runbookStepLabel = (when?: string): string =>
+	when?.trim() || "In any situation";

@@ -31,6 +31,7 @@ export type {
 	BookEntryPointsOptions,
 	BookEntrypointModules,
 	BookExportHelpersFromConfigOptions,
+	BookExportsConfig,
 	BookHomeConfig,
 	BookHomeCopy,
 	BookLayoutConfig,
@@ -139,6 +140,7 @@ export type {
 	ExportMetadata,
 	ExportPart,
 	ExportRawModules,
+	ExportRenderOptions,
 } from "./exports";
 export {
 	buildExportChapters,
@@ -330,6 +332,7 @@ export {
 	isReleasedStatus,
 	type MechanismFrontmatter,
 	mechanismSchema,
+	runbookStepLabel,
 	STATUSES,
 	type Status,
 	type ToolkitFrontmatter,

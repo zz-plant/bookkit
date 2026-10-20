@@ -25,6 +25,7 @@ const setUp = (
 		config: {
 			root: new URL("file:///book/"),
 			srcDir: new URL("file:///book/src/"),
+			publicDir: new URL("file:///book/static/"),
 			adapter,
 		},
 		updateConfig: (update: Record<string, unknown>) => updates.push(update),
@@ -74,6 +75,19 @@ describe("bookkit() integration", () => {
 
 		expect(define({})).toBe("false");
 		expect(define({ runtime: "server" })).toBe("true");
+	});
+
+	it("tells the exports where the book's folder and public folder are", () => {
+		const { define } = (
+			setUp({}, "build", []).updates[0] as {
+				vite: { define: Record<string, string> };
+			}
+		).vite;
+
+		expect(define["import.meta.env.BOOKKIT_ROOT"]).toBe('"/book/"');
+		expect(define["import.meta.env.BOOKKIT_PUBLIC_DIR"]).toBe(
+			'"/book/static/"',
+		);
 	});
 
 	it("drops a dependency's module-level directive warning, whichever bundler words it", () => {

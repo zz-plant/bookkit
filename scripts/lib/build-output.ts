@@ -1,5 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
+import {
+	inspectEpub,
+	inspectPdf,
+} from "../../packages/astro-bookkit/src/exports/inspect";
 import { AUTHOR_ONLY_PATHS } from "../../packages/astro-bookkit/src/seo/book";
 
 /**
@@ -39,6 +43,8 @@ export type InspectBuildOptions = {
 	previewAccessOnStaticSite?: boolean;
 	/** The book is past draft, so it must have built at least one chapter page. */
 	requireChapters?: boolean;
+	/** `false` when book.config.ts turns the PDF off (`exports.pdf: false`), so no book.pdf is expected. */
+	pdf?: boolean;
 };
 
 /** Present in every page the preview-access middleware renders instead of content. */
@@ -51,14 +57,35 @@ const REQUIRED_FILES = [
 	"sitemap.xml",
 	"search-index.json",
 	"release-notes.xml",
-	"exports/book.pdf",
 	"exports/book.epub",
 ] as const;
 
-const MAGIC_BYTES: ReadonlyArray<readonly [string, string, string]> = [
-	["exports/book.pdf", "%PDF", "a PDF"],
-	["exports/book.epub", "PK", "an EPUB (zip)"],
-];
+/** How many of a file's problems a finding lists. */
+const LISTED_PROBLEMS = 5;
+
+/**
+ * What is wrong with one built export, from the engine's structural checks:
+ * the EPUB's container, package, manifest, links, and XHTML; the PDF's pages
+ * and text.
+ */
+const inspectExport = async (
+	file: string,
+	book: string,
+): Promise<string | null> => {
+	const bytes = new Uint8Array(readFileSync(file));
+	const pdf = extname(file) === ".pdf";
+	const problems = pdf ? await inspectPdf(bytes) : await inspectEpub(bytes);
+	if (problems.length === 0) return null;
+	const listed = problems.slice(0, LISTED_PROBLEMS).join("; ");
+	const more =
+		problems.length > LISTED_PROBLEMS
+			? `; and ${problems.length - LISTED_PROBLEMS} more`
+			: "";
+	const fix = readHead(file, 64).trimStart().startsWith("<")
+		? "It holds an HTML page: the export route rendered a page (usually an error page) instead of the file."
+		: `Rebuild with \`bun run bookkit build ${book}\`; if the file is still broken, report it as a Bookkit bug with this message.`;
+	return `Is not a usable ${pdf ? "PDF" : "EPUB"}: ${listed}${more}. ${fix}`;
+};
 
 const SCANNED_EXTENSIONS = new Set([
 	".html",
@@ -113,13 +140,14 @@ const pageFileFor = (distDir: string, pathname: string): string | null => {
 const canonicalOf = (html: string): string | undefined =>
 	html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
 
-export const inspectBuildOutput = ({
+export const inspectBuildOutput = async ({
 	book,
 	distDir,
 	published,
 	previewAccessOnStaticSite = false,
 	requireChapters = false,
-}: InspectBuildOptions): BuildInspection => {
+	pdf = true,
+}: InspectBuildOptions): Promise<BuildInspection> => {
 	const findings: BuildFinding[] = [];
 	const error = (message: string, file?: string) =>
 		findings.push({ level: "error", message, file });
@@ -133,9 +161,16 @@ export const inspectBuildOutput = ({
 		return { book, distDir, ok: false, pageCount: 0, findings };
 	}
 
-	for (const rel of REQUIRED_FILES) {
+	for (const rel of pdf
+		? [...REQUIRED_FILES, "exports/book.pdf"]
+		: REQUIRED_FILES) {
 		if (!existsSync(join(distDir, rel))) {
-			error("Expected file is missing from the build output.", rel);
+			error(
+				rel === "exports/book.pdf"
+					? "Expected file is missing from the build output. If the book has no PDF on purpose, set exports: { pdf: false } in book.config.ts."
+					: "Expected file is missing from the build output.",
+				rel,
+			);
 		}
 	}
 
@@ -172,15 +207,14 @@ export const inspectBuildOutput = ({
 		}
 	}
 
-	for (const [rel, magic, label] of MAGIC_BYTES) {
-		const path = join(distDir, rel);
-		if (!existsSync(path)) continue;
-		if (!readHead(path, magic.length).startsWith(magic)) {
-			error(
-				`Does not start with ${JSON.stringify(magic)}, so it is not ${label}. The export route rendered something else (usually an HTML error page).`,
-				rel,
-			);
-		}
+	// Every PDF and EPUB, the book's and each chapter's, must open.
+	const exportFiles = files
+		.map((file) => relative(distDir, file).split("\\").join("/"))
+		.filter((rel) => /^exports\/.+\.(pdf|epub)$/.test(rel))
+		.sort();
+	for (const rel of exportFiles) {
+		const problem = await inspectExport(join(distDir, rel), book);
+		if (problem) error(problem, rel);
 	}
 
 	// A host serves .json files as application/json, so one holding a page (a

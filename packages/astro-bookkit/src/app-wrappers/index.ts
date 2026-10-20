@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { createReaderAnalyticsEndpoint } from "../analytics";
-import type { ExportBundle } from "../exports";
+import type { ExportBundle, ExportRenderOptions } from "../exports";
 import {
 	createExportAnalyticsEndpoint,
 	createExportResponse,
@@ -113,30 +113,45 @@ export const createSitemapGetHandler =
 		});
 	};
 
+// A body-less response: a static build writes no file for it.
+const notBuilt = () => new Response(null, { status: 404 });
+
 export const createBookExportGetHandler =
 	(options: {
 		getBookExportBundle: () => ExportBundle;
 		format: "pdf" | "epub";
 		filename: string;
+		/** `false` when the book turns this format off (`exports.pdf`). */
+		enabled?: boolean;
+		render?: ExportRenderOptions;
 	}) =>
 	async () =>
-		createExportResponse(
-			options.getBookExportBundle(),
-			options.format,
-			options.filename,
-		);
+		options.enabled === false
+			? notBuilt()
+			: createExportResponse(
+					options.getBookExportBundle(),
+					options.format,
+					options.filename,
+					options.render,
+				);
 
 export const createChapterExportHandlers = (options: {
 	chapterExportSlugs: readonly string[];
 	getChapterExportBundle: (slug: string) => ExportBundle | null;
 	format: "pdf" | "epub";
 	filenamePrefix: string;
+	/** `false` when the book turns this format off (`exports.pdf`). */
+	enabled?: boolean;
+	render?: ExportRenderOptions;
 }) => ({
 	getStaticPaths: () =>
-		options.chapterExportSlugs.map((slug) => ({
-			params: { slug },
-		})),
+		options.enabled === false
+			? []
+			: options.chapterExportSlugs.map((slug) => ({
+					params: { slug },
+				})),
 	GET: async ({ params }: { params: { slug?: string } }) => {
+		if (options.enabled === false) return notBuilt();
 		const slug = params.slug ?? "";
 		const bundle = options.getChapterExportBundle(slug);
 		if (!bundle) {
@@ -146,6 +161,7 @@ export const createChapterExportHandlers = (options: {
 			bundle,
 			options.format,
 			`${options.filenamePrefix}-${slug}.${options.format}`,
+			options.render,
 		);
 	},
 });

@@ -1,5 +1,18 @@
 import JSZip from "jszip";
-import { escapeHtml, markdownToHtml, xmlId } from "./markdown-to-html";
+import {
+	defaultImageLoader,
+	type ExportImageFile,
+	imageWarning,
+	warnWith,
+} from "./images";
+import {
+	escapeHtml,
+	HAS_SCHEME,
+	type ImageResolver,
+	markdownToHtml,
+	readLinkTarget,
+	xmlId,
+} from "./markdown-to-html";
 import {
 	EXPORT_KIND_LABELS,
 	exportIdentifier,
@@ -9,7 +22,7 @@ import {
 	toEpubTimestamp,
 	UNDATED_TIMESTAMP,
 } from "./metadata";
-import type { ExportBundle, ExportEntry, ExportEntryKind } from "./types";
+import type { ExportBundle, ExportEntry, ExportRenderOptions } from "./types";
 
 /** One content document, and the documents nested under it in the table of contents. */
 type NavItem = {
@@ -19,17 +32,6 @@ type NavItem = {
 	children: NavItem[];
 };
 
-// Read UI sections, so a link to /read/<section>/<slug> can point inside the book.
-const SECTION_KINDS: Record<string, ExportEntryKind> = {
-	chapters: "chapter",
-	mechanisms: "mechanism",
-	toolkit: "tool",
-	glossary: "glossary",
-	examples: "example",
-};
-const READ_LINK = /^\/?read\/([a-z]+)\/([^?#]+)(?:\?[^#]*)?(?:#(.*))?$/;
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-
 const STYLES = `body { font-family: Georgia, serif; line-height: 1.6; color: #1b1b1b; }
 article, .title-page { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem; }
 .title-page { text-align: center; padding-top: 25%; }
@@ -38,6 +40,8 @@ article, .title-page { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem
 .eyebrow { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; margin-bottom: 0.25rem; }
 blockquote { margin: 1rem 0; padding: 0.5rem 1rem; border-left: 3px solid #8f78e6; background: #f5f5ff; }
 code { font-family: "Courier New", monospace; background: #f1f1f1; padding: 0.1rem 0.3rem; border-radius: 4px; }
+img { max-width: 100%; height: auto; }
+.image-alt { font-style: italic; color: #5a5a5a; }
 `;
 
 const xhtmlDocument = (options: {
@@ -69,9 +73,18 @@ const navList = (items: NavItem[]): string =>
 const flatten = (items: NavItem[]): NavItem[] =>
 	items.flatMap((item) => [item, ...flatten(item.children)]);
 
+/** A file name that is safe in a zip path, an OPF href, and an XHTML src. */
+const safeFileName = (name: string) => {
+	const cleaned = name.normalize("NFC").replace(/[^A-Za-z0-9._-]+/g, "-");
+	return /^[A-Za-z0-9]/.test(cleaned) ? cleaned : `image${cleaned}`;
+};
+
 export const createEpubExport = async (
 	bundle: ExportBundle,
+	options: ExportRenderOptions = {},
 ): Promise<Uint8Array> => {
+	const loadImage = options.loadImage ?? defaultImageLoader();
+	const warn = warnWith(options);
 	const language = bundle.language?.trim() || "en";
 	const released = parseExportDate(bundle.updatedAt);
 	const modified = released ? toEpubTimestamp(released) : UNDATED_TIMESTAMP;
@@ -115,19 +128,50 @@ export const createEpubExport = async (
 	const resolveLink = (href: string): string | null => {
 		if (href.startsWith("#")) return `#${xmlId(href.slice(1))}`;
 		if (HAS_SCHEME.test(href)) return href;
-		const match = href.match(READ_LINK);
-		const kind = match ? SECTION_KINDS[match[1]] : undefined;
-		const target = kind && hrefByRecord.get(`${kind}:${match?.[2]}`);
-		if (target) return match?.[3] ? `${target}#${xmlId(match[3])}` : target;
+		const record = readLinkTarget(href);
+		const target = record && hrefByRecord.get(`${record.kind}:${record.slug}`);
+		if (target) {
+			return record.fragment ? `${target}#${xmlId(record.fragment)}` : target;
+		}
 		// A page outside the export: the public site, or plain text without one.
 		if (href.startsWith("/") && siteUrl) return `${siteUrl}${href}`;
 		return null;
 	};
 
+	// Each image file is stored once, under OEBPS/images/, whatever links to it.
+	const images = new Map<string, ExportImageFile & { href: string }>();
+	const usedImageNames = new Set<string>();
+	const imagesOf =
+		(entry: ExportEntry): ImageResolver =>
+		(image) => {
+			const result = loadImage(image.src, entry);
+			if ("problem" in result) {
+				warn(imageWarning({ format: "EPUB", entry, image, ...result }));
+				return null;
+			}
+			let stored = images.get(result.file.key);
+			if (!stored) {
+				const name = safeFileName(result.file.name);
+				const dot = name.lastIndexOf(".");
+				const stem = dot > 0 ? name.slice(0, dot) : name;
+				const extension = dot > 0 ? name.slice(dot) : "";
+				let unique = name;
+				for (let n = 2; usedImageNames.has(unique); n += 1) {
+					unique = `${stem}-${n}${extension}`;
+				}
+				usedImageNames.add(unique);
+				stored = { ...result.file, href: `images/${unique}` };
+				images.set(result.file.key, stored);
+			}
+			return `../${stored.href}`;
+		};
+
 	const renderDocument = (item: NavItem) => {
 		const { entry } = item;
 		const label = entry ? EXPORT_KIND_LABELS[entry.kind] : null;
-		const content = entry ? `\n${markdownToHtml(entry.body, resolveLink)}` : "";
+		const content = entry
+			? `\n${markdownToHtml(entry.body, resolveLink, imagesOf(entry))}`
+			: "";
 		return xhtmlDocument({
 			title: item.title,
 			language: entry?.locale ?? language,
@@ -137,6 +181,12 @@ export const createEpubExport = async (
     </article>`,
 		});
 	};
+
+	// Rendered before the package document, which lists the images they show.
+	const rendered = documents.map((item) => ({
+		item,
+		xhtml: renderDocument(item),
+	}));
 
 	const edition = formatExportEdition(bundle);
 	const titlePage = xhtmlDocument({
@@ -178,7 +228,14 @@ export const createEpubExport = async (
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="css" href="styles.css" media-type="text/css"/>
     <item id="title-page" href="title.xhtml" media-type="application/xhtml+xml"/>
-${documents.map((item) => `    <item id="${manifestId(item)}" href="text/${item.href}" media-type="application/xhtml+xml"/>`).join("\n")}
+${documents.map((item) => `    <item id="${manifestId(item)}" href="text/${item.href}" media-type="application/xhtml+xml"/>`).join("\n")}${[
+	...images.values(),
+]
+	.map(
+		(image, index) =>
+			`\n    <item id="image-${index + 1}" href="${image.href}" media-type="${image.mediaType}"/>`,
+	)
+	.join("")}
   </manifest>
   <spine>
     <itemref idref="title-page"/>
@@ -215,8 +272,14 @@ ${documents.map((item) => `    <itemref idref="${manifestId(item)}"/>`).join("\n
 	add("OEBPS/nav.xhtml", nav);
 	add("OEBPS/styles.css", STYLES);
 	add("OEBPS/title.xhtml", titlePage);
-	for (const item of documents) {
-		add(`OEBPS/text/${item.href}`, renderDocument(item));
+	for (const { item, xhtml } of rendered) {
+		add(`OEBPS/text/${item.href}`, xhtml);
+	}
+	for (const image of images.values()) {
+		zip.file(`OEBPS/${image.href}`, image.bytes, {
+			date: entryDate,
+			createFolders: false,
+		});
 	}
 
 	return zip.generateAsync({

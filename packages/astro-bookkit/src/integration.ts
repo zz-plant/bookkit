@@ -98,6 +98,13 @@ export function bookkit(
 						define: {
 							"import.meta.env.BOOKKIT_SERVER_RUNTIME":
 								JSON.stringify(serverRuntime),
+							// Where the PDF and EPUB exports read images and fonts from.
+							"import.meta.env.BOOKKIT_ROOT": JSON.stringify(
+								fileURLToPath(config.root),
+							),
+							"import.meta.env.BOOKKIT_PUBLIC_DIR": JSON.stringify(
+								fileURLToPath(config.publicDir),
+							),
 						},
 						ssr: {
 							noExternal: ["@bookkit/astro-bookkit"],

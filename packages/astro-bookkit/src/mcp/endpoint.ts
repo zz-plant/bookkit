@@ -128,13 +128,6 @@ export const createBookMcpEndpoint = (
 					mutating: true,
 					requires_guard: true,
 				},
-				rateLimits: {
-					requestsPerMinute: 120,
-					burst: 30,
-					guidance:
-						"On throttling, back off and retry read-only operations first.",
-					retryAfterSeconds: 10,
-				},
 				recommendedQueryPatterns: [
 					{
 						label: "governance-first",

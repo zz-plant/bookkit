@@ -1,17 +1,9 @@
 import { checkBookContent } from "../../validators/book-validator";
 import {
 	missingBookSlugError,
-	validateBookCommandFailedError,
+	validateBookFailedError,
 } from "../../validators/governance-errors";
 import type { ToolHandler } from "./types";
-
-export const toValidateBookFailure = (exitCode: number) => {
-	const normalized = validateBookCommandFailedError(exitCode);
-	return {
-		cause: normalized.humanSummary,
-		...normalized,
-	};
-};
 
 /**
  * Validates a book in-process with the same checker as `bun run validate`:
@@ -60,7 +52,7 @@ export const handleValidateBook: ToolHandler = ({ options, args }) => {
 		error: result.ok
 			? undefined
 			: {
-					...toValidateBookFailure(1),
+					...validateBookFailedError(book, errorCount),
 					cause: `${errorCount} validation error(s) in ${book}.`,
 				},
 	};

@@ -515,12 +515,6 @@ describe("createBookMcpEndpoint", () => {
 				mutating: boolean;
 				requires_guard: boolean;
 			};
-			rateLimits: {
-				requestsPerMinute: number;
-				burst: number;
-				retryAfterSeconds: number;
-				guidance: string;
-			};
 			recommendedQueryPatterns: Array<{ label: string; sequence: string[] }>;
 		};
 
@@ -549,8 +543,6 @@ describe("createBookMcpEndpoint", () => {
 		expect(body.resourceKinds).toContain("content");
 		expect(body.resourceKinds).toContain("governance");
 		expect(body.resourceSections).toContain("chapters");
-		expect(body.rateLimits.requestsPerMinute).toBe(120);
-		expect(body.rateLimits.burst).toBe(30);
 		expect(
 			body.resourceCategories.find((category) => category.key === "content")
 				?.sections,
@@ -566,8 +558,8 @@ describe("createBookMcpEndpoint", () => {
 		expect(body.safetyFlags.read_only).toBe(true);
 		expect(body.safetyFlags.mutating).toBe(true);
 		expect(body.safetyFlags.requires_guard).toBe(true);
-		expect(body.rateLimits.guidance).toContain("back off");
-		expect(body.rateLimits.retryAfterSeconds).toBe(10);
+		// No transport enforces a request rate, so none is advertised.
+		expect(body).not.toHaveProperty("rateLimits");
 		expect(
 			body.recommendedQueryPatterns.find(
 				(pattern) => pattern.label === "governance-first",

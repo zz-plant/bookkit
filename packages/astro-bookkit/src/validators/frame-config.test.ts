@@ -3,6 +3,7 @@ import { defaultFrames } from "../frames/defaults";
 import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
+	extractMechanismUrgencySlugsFromSource,
 } from "./frame-config";
 
 describe("extractFrameConfigFromSource", () => {
@@ -97,5 +98,39 @@ describe("extractBookStatusFromSource", () => {
 				`export const bookConfig = { slug: "x", site: { status: "draft" } };`,
 			),
 		).toBeUndefined();
+	});
+});
+
+describe("extractMechanismUrgencySlugsFromSource", () => {
+	test("lists each key of mechanismsIndex.urgency, quoted or bare", () => {
+		const source = `export const bookConfig = {
+	readHub: { lede: "No urgency: here, nor { braces }." },
+	// mechanismsIndex: { urgency: { "commented-out": "urgent" } },
+	mechanismsIndex: {
+		lede: "Patterns, and the urgency: of each.",
+		urgency: {
+			"delay-as-force": "urgent",
+			'compliance-trap': "high-leverage", // a comment, with "quotes": in it
+			/* "skipped": "urgent", */
+			drift: "stabilize",
+		},
+	},
+};`;
+		expect(extractMechanismUrgencySlugsFromSource(source)).toEqual([
+			"delay-as-force",
+			"compliance-trap",
+			"drift",
+		]);
+	});
+
+	test("is empty when the book sets no urgency", () => {
+		expect(
+			extractMechanismUrgencySlugsFromSource("export default {};"),
+		).toEqual([]);
+		expect(
+			extractMechanismUrgencySlugsFromSource(
+				'export default { mechanismsIndex: { lede: "x" } };',
+			),
+		).toEqual([]);
 	});
 });

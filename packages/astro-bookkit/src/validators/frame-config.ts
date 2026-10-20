@@ -124,3 +124,110 @@ export function extractBookStatusFromSource(
 	}
 	return undefined;
 }
+
+/** Where the comment starting at `index` ends, or `index` when none starts there. */
+function skipComment(source: string, index: number): number {
+	if (source[index] !== "/") return index;
+	if (source[index + 1] === "/") {
+		const end = source.indexOf("\n", index);
+		return end === -1 ? source.length : end;
+	}
+	if (source[index + 1] === "*") {
+		const end = source.indexOf("*/", index + 2);
+		return end === -1 ? source.length : end + 2;
+	}
+	return index;
+}
+
+/**
+ * The `{ ... }` that follows the property `name` between `from` and `to`, as
+ * [open, close] indexes. Strings and comments are skipped, so a name in prose
+ * or in a comment is never taken for the property.
+ */
+function objectAfterKey(
+	source: string,
+	name: string,
+	from = 0,
+	to = source.length,
+): [number, number] | null {
+	const key = new RegExp(`${name}\\s*:\\s*\\{`, "y");
+	for (let i = from; i < to; i++) {
+		const ch = source[i];
+		if (STRING_START.test(ch)) {
+			i = readStringAt(source, i) - 1;
+			continue;
+		}
+		const afterComment = skipComment(source, i);
+		if (afterComment !== i) {
+			i = afterComment - 1;
+			continue;
+		}
+		if (/[\w$]/.test(source[i - 1] ?? "")) continue;
+		key.lastIndex = i;
+		const match = key.exec(source);
+		if (match) return closeOfObject(source, i + match[0].length - 1, to);
+	}
+	return null;
+}
+
+/** [open, close] of the object literal whose `{` is at `open`. */
+function closeOfObject(
+	source: string,
+	open: number,
+	to: number,
+): [number, number] | null {
+	let depth = 0;
+	for (let i = open; i < to; i++) {
+		const ch = source[i];
+		if (STRING_START.test(ch)) {
+			i = readStringAt(source, i) - 1;
+			continue;
+		}
+		const afterComment = skipComment(source, i);
+		if (afterComment !== i) {
+			i = afterComment - 1;
+			continue;
+		}
+		if (ch === "{") depth++;
+		else if (ch === "}" && --depth === 0) return [open, i];
+	}
+	return null;
+}
+
+/**
+ * The mechanism slugs `mechanismsIndex.urgency` names in a book.config.ts
+ * source: each key of that object, quoted or bare, in order. Empty when the
+ * book sets no urgency.
+ */
+export function extractMechanismUrgencySlugsFromSource(
+	source: string,
+): string[] {
+	const index = objectAfterKey(source, "mechanismsIndex");
+	if (!index) return [];
+	const urgency = objectAfterKey(source, "urgency", index[0] + 1, index[1]);
+	if (!urgency) return [];
+	const slugs: string[] = [];
+	let expectKey = true;
+	for (let i = urgency[0] + 1; i < urgency[1]; i++) {
+		const ch = source[i];
+		const afterComment = skipComment(source, i);
+		if (afterComment !== i) {
+			i = afterComment - 1;
+		} else if (STRING_START.test(ch)) {
+			const end = readStringAt(source, i);
+			if (expectKey) slugs.push(source.slice(i + 1, end - 1));
+			expectKey = false;
+			i = end - 1;
+		} else if (ch === ",") {
+			expectKey = true;
+		} else if (expectKey && /[\w$]/.test(ch)) {
+			const key = /[\w$-]+/y;
+			key.lastIndex = i;
+			const name = key.exec(source)?.[0] ?? ch;
+			slugs.push(name);
+			expectKey = false;
+			i += name.length - 1;
+		}
+	}
+	return slugs;
+}

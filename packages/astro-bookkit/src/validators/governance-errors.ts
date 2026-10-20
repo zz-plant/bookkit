@@ -12,15 +12,21 @@ export const missingBookSlugError = (): NormalizedErrorPayload => ({
 	gateLevel: "blocking",
 });
 
-export const validateBookCommandFailedError = (
-	exitCode: number,
+/**
+ * `bookkit.validate_book` found errors. It validates in process, with the
+ * checker `bun run validate` uses; the machine code is kept from when it ran
+ * `validate:book`, so clients matching on it still do.
+ */
+export const validateBookFailedError = (
+	book: string,
+	errorCount: number,
 ): NormalizedErrorPayload => ({
 	machineCode: "VALIDATE_BOOK_COMMAND_FAILED",
-	humanSummary: `Validation failed: validate:book exited with code ${exitCode}.`,
-	location: { module: "scripts/validate-book.ts" },
-	failingRule: "validate:book must complete with zero errors",
+	humanSummary: `Validation failed for ${book}: ${errorCount} error(s).`,
+	location: { module: "validators/book-validator.ts" },
+	failingRule: "a book must validate with zero errors",
 	nextAction:
-		"Fix the reported validation ERRORS, then re-run bun run validate:book -- --book <slug>.",
+		"Fix each error in payload.findings (each names its file, field, and fix), check a corrected file with bookkit.check_content, then rerun bookkit.validate_book.",
 	severity: "error",
 	gateLevel: "blocking",
 });

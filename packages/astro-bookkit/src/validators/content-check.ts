@@ -603,7 +603,11 @@ const exampleText = (field: ContractField): string => {
 const missingFix = (field: ContractField): string =>
 	`Add \`${field.name}:\` (${field.meaning})${exampleText(field)}`;
 
-const nearest = (value: string, candidates: readonly string[]): string[] => {
+/** Up to three candidates sharing the most words (of four letters or more) with `value`. */
+export const nearest = (
+	value: string,
+	candidates: readonly string[],
+): string[] => {
 	// Short words ("by", "of", "as") match too much to mean anything.
 	const words = new Set(value.split("-").filter((word) => word.length > 3));
 	return candidates

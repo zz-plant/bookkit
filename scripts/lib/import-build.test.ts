@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { createBookWorkspace, runBun as run } from "./book-workspace.fixture";
+import {
+	buildBook,
+	createBookWorkspace,
+	runBun as run,
+} from "./book-workspace.fixture";
 
 /**
  * `fixtures/import-notes`, imported by the import command into a new book,
@@ -37,7 +41,7 @@ describe("bookkit import, then build", () => {
 		expect(imported.output).toContain("Chapters, in reading order (7):");
 		expect(imported.exitCode).toBe(0);
 
-		const build = run(["run", "build"], appDir);
+		const build = buildBook(appDir);
 		if (build.exitCode !== 0) console.error(build.output);
 		expect(build.exitCode).toBe(0);
 

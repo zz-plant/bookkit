@@ -1,42 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
-import {
-	CHILD_DEADLINE_MS,
-	waitForChildren,
-} from "./lib/child-process.fixture";
+import { runChildAsync, waitForChildren } from "./lib/child-process.fixture";
 
 waitForChildren();
 
 /** Sends JSON-RPC lines to a fresh server and returns its responses by id. */
 const exchange = async (messages: unknown[]) => {
-	const server = Bun.spawn(
+	const { stdout } = await runChildAsync(
 		[process.execPath, "run", join(repoRoot(), "scripts", "mcp-server.ts")],
 		{
 			cwd: repoRoot(),
-			stdin: "pipe",
-			stdout: "pipe",
-			stderr: "pipe",
-			timeout: CHILD_DEADLINE_MS,
-			killSignal: "SIGKILL",
+			// Strings are sent as raw lines, to exercise malformed input.
+			stdin: messages
+				.map(
+					(message) =>
+						`${typeof message === "string" ? message : JSON.stringify(message)}\n`,
+				)
+				.join(""),
 		},
 	);
-	for (const message of messages) {
-		// Strings are sent as raw lines, to exercise malformed input.
-		server.stdin.write(
-			`${typeof message === "string" ? message : JSON.stringify(message)}\n`,
-		);
-	}
-	server.stdin.end();
-	const output = await new Response(server.stdout).text();
-	await server.exited;
-	if (server.signalCode === "SIGKILL") {
-		throw new Error(
-			`mcp-server.ts was still running after ${CHILD_DEADLINE_MS / 1000} s and was killed.`,
-		);
-	}
 	return new Map(
-		output
+		stdout
 			.trim()
 			.split("\n")
 			.filter(Boolean)

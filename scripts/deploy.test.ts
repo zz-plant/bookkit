@@ -14,8 +14,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
 import {
-	CHILD_DEADLINE_MS,
 	runChild,
+	runChildAsync,
 	waitForChildren,
 } from "./lib/child-process.fixture";
 
@@ -169,12 +169,12 @@ if (process.env.STUB_BREAK_DIST === book) rmSync(join(process.cwd(), "dist", "ex
 };
 
 /** Runs `bookkit deploy` asynchronously, so a test server can answer it. */
-const deploy = async (
+const deploy = (
 	workspace: Workspace,
 	args: string[],
 	extraEnv: Record<string, string> = {},
-) => {
-	const child = Bun.spawn(
+) =>
+	runChildAsync(
 		[
 			process.execPath,
 			"run",
@@ -182,27 +182,8 @@ const deploy = async (
 			"deploy",
 			...args,
 		],
-		{
-			cwd: workspace.root,
-			env: { ...env, ...extraEnv },
-			stdout: "pipe",
-			stderr: "pipe",
-			timeout: CHILD_DEADLINE_MS,
-			killSignal: "SIGKILL",
-		},
+		{ cwd: workspace.root, env: { ...env, ...extraEnv } },
 	);
-	const [stdout, stderr, status] = await Promise.all([
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-		child.exited,
-	]);
-	if (child.signalCode === "SIGKILL") {
-		throw new Error(
-			`bookkit deploy ${args.join(" ")} was still running after ${CHILD_DEADLINE_MS / 1000} s and was killed:\n${stdout}${stderr}`,
-		);
-	}
-	return { status, output: `${stdout}${stderr}` };
-};
 
 const THREE_BOOKS = { gamma: {}, beta: {}, alpha: {} };
 

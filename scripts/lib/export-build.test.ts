@@ -15,7 +15,11 @@ import {
 	inspectEpub,
 	inspectPdf,
 } from "../../packages/astro-bookkit/src/exports/inspect";
-import { createBookWorkspace, runBun as run } from "./book-workspace.fixture";
+import {
+	buildBook,
+	createBookWorkspace,
+	runBun as run,
+} from "./book-workspace.fixture";
 
 /**
  * The PDF and EPUB of a real build: notes imported with their image, plus a
@@ -83,7 +87,7 @@ describe("PDF and EPUB exports in a build", () => {
 			"Каждый сигнал нуждается в одном владельце.\n\nΚάθε ειδοποίηση χρειάζεται έναν υπεύθυνο.",
 		);
 
-		const build = run(["run", "build"], appDir);
+		const build = buildBook(appDir);
 		if (build.exitCode !== 0) console.error(build.output);
 		expect(build.exitCode).toBe(0);
 
@@ -188,7 +192,7 @@ describe("PDF and EPUB exports in a build", () => {
 	it("stop at Chinese text the PDF has no font for, and build without the PDF once it is off", () => {
 		chapter("91-chinese.mdx", "Chinese", "每个警报都需要一个负责人。");
 
-		const refused = run(["run", "build"], appDir);
+		const refused = buildBook(appDir);
 		expect(refused.exitCode).not.toBe(0);
 		expect(refused.output).toContain(
 			'chapter "Chinese" (91-chinese): 每 (U+6BCF)',
@@ -203,7 +207,7 @@ describe("PDF and EPUB exports in a build", () => {
 				'status: "draft",\n\texports: { pdf: false },',
 			),
 		);
-		const build = run(["run", "build"], appDir);
+		const build = buildBook(appDir);
 		if (build.exitCode !== 0) console.error(build.output);
 		expect(build.exitCode).toBe(0);
 

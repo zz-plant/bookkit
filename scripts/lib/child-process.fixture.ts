@@ -17,14 +17,25 @@ import { setDefaultTimeout } from "bun:test";
  * calls `waitForChildren()`, which gives each test room for a few of them.
  */
 
-/** No command a test runs takes this long, even on a loaded machine; a builder's own tests set their own. */
+/** No command a test runs takes this long, even on a loaded machine; a build has its own. */
 export const CHILD_DEADLINE_MS = 60_000;
+
+/** An Astro build of a book: about 4 s idle, and many times that beside other builds. */
+export const BUILD_DEADLINE_MS = 180_000;
 
 /** Per test: a hung child is killed and reported before the runner gives up. */
 export const CHILD_TEST_TIMEOUT_MS = 2 * CHILD_DEADLINE_MS;
 
 /** Call once at the top of a test file whose tests wait for child processes. */
 export const waitForChildren = () => setDefaultTimeout(CHILD_TEST_TIMEOUT_MS);
+
+type ChildOptions = {
+	cwd?: string;
+	env?: Record<string, string | undefined>;
+	stdin?: string;
+	/** CHILD_DEADLINE_MS, or BUILD_DEADLINE_MS for a build. */
+	deadlineMs?: number;
+};
 
 export type ChildResult = {
 	status: number | null;
@@ -34,19 +45,26 @@ export type ChildResult = {
 	output: string;
 };
 
+/** Names the command, and keeps what it printed before it was killed. */
+const killed = (command: string[], deadlineMs: number, output: string) =>
+	new Error(
+		`${command.join(" ")} was still running after ${deadlineMs / 1000} s and was killed.${output ? `\n${output}` : ""}`,
+	);
+
+const result = (stdout: string, stderr: string, status: number | null) => ({
+	status,
+	stdout,
+	stderr,
+	output: `${stdout}${stderr}`,
+});
+
 /** Runs `command` to completion; throws if it outlives its deadline. */
 export const runChild = (
 	command: string[],
-	options: {
-		cwd?: string;
-		env?: Record<string, string | undefined>;
-		stdin?: string;
-		/** CHILD_DEADLINE_MS unless a test of the deadline itself says otherwise. */
-		deadlineMs?: number;
-	} = {},
+	options: ChildOptions = {},
 ): ChildResult => {
 	const deadlineMs = options.deadlineMs ?? CHILD_DEADLINE_MS;
-	const result = Bun.spawnSync(command, {
+	const child = Bun.spawnSync(command, {
 		cwd: options.cwd,
 		env: options.env,
 		...(options.stdin === undefined
@@ -57,17 +75,46 @@ export const runChild = (
 		timeout: deadlineMs,
 		killSignal: "SIGKILL",
 	});
-	if (result.exitedDueToTimeout) {
-		throw new Error(
-			`${command.join(" ")} was still running after ${deadlineMs / 1000} s and was killed.`,
-		);
+	const done = result(
+		child.stdout.toString(),
+		child.stderr.toString(),
+		child.exitCode,
+	);
+	if (child.exitedDueToTimeout) throw killed(command, deadlineMs, done.output);
+	return done;
+};
+
+/**
+ * `runChild` without blocking the test's worker, for children that run side
+ * by side or that a test answers while they run (a server it starts).
+ */
+export const runChildAsync = async (
+	command: string[],
+	options: ChildOptions = {},
+): Promise<ChildResult> => {
+	const deadlineMs = options.deadlineMs ?? CHILD_DEADLINE_MS;
+	const child = Bun.spawn(command, {
+		cwd: options.cwd,
+		env: options.env,
+		stdin: options.stdin === undefined ? "ignore" : Buffer.from(options.stdin),
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	let timedOut = false;
+	const timer = setTimeout(() => {
+		timedOut = true;
+		child.kill("SIGKILL");
+	}, deadlineMs);
+	try {
+		const [stdout, stderr, status] = await Promise.all([
+			new Response(child.stdout).text(),
+			new Response(child.stderr).text(),
+			child.exited,
+		]);
+		const done = result(stdout, stderr, status);
+		if (timedOut) throw killed(command, deadlineMs, done.output);
+		return done;
+	} finally {
+		clearTimeout(timer);
 	}
-	const stdout = result.stdout.toString();
-	const stderr = result.stderr.toString();
-	return {
-		status: result.exitCode,
-		stdout,
-		stderr,
-		output: `${stdout}${stderr}`,
-	};
 };

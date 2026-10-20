@@ -96,7 +96,7 @@ describe("reader orientation", () => {
 	});
 
 	it("says a draft book is a draft on its home page and hub, in the chapter index's words", () => {
-		const line = `<strong>${draftCopy.book}</strong> ${draftCopy.meaning}`;
+		const line = `<strong class="book-draft-note__status">${draftCopy.book}</strong> ${draftCopy.meaning}`;
 		expect(page("")).toContain(line);
 		expect(page("read")).toContain(line);
 		expect(page("read/chapters")).toContain(draftCopy.meaning);

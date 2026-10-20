@@ -1117,7 +1117,7 @@ a.card:hover h3 {
 	color: var(--color-rubric);
 }
 
-.book-draft-note strong {
+.book-draft-note__status {
 	color: var(--color-ink);
 	font-weight: 500;
 }

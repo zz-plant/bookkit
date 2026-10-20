@@ -11,5 +11,5 @@ const { status } = Astro.props;
 const isDraft = (status ?? "draft") === "draft";
 ---
 {isDraft && (
-  <p class="meta book-draft-note"><strong>{draftCopy.book}</strong> {draftCopy.meaning}</p>
+  <p class="meta book-draft-note"><strong class="book-draft-note__status">{draftCopy.book}</strong> {draftCopy.meaning}</p>
 )}

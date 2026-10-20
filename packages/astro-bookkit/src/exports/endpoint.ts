@@ -1,4 +1,9 @@
-import { jsonResponse, parseJsonBody } from "../utils/http";
+import {
+	invalidBodyResponse,
+	jsonResponse,
+	rateLimited,
+	tryParseJsonBody,
+} from "../utils/http";
 import { type ExportAnalyticsEvent, recordExportEvent } from "./analytics";
 
 export type ExportAnalyticsEndpointOptions = {
@@ -10,6 +15,9 @@ const MAX_SLUG_LENGTH = 200;
 const MAX_PATH_LENGTH = 240;
 const MAX_HREF_LENGTH = 320;
 const MAX_METADATA_VALUE_LENGTH = 200;
+const MAX_METADATA_ENTRIES = 10;
+const MAX_BODY_BYTES = 4 * 1024;
+const EVENTS_PER_CLIENT_PER_MINUTE = 30;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,6 +39,7 @@ const normalizeMetadata = (
 ): Record<string, string> | undefined => {
 	if (!isRecord(value)) return undefined;
 	const entries = Object.entries(value)
+		.slice(0, MAX_METADATA_ENTRIES)
 		.map(([key, raw]) => {
 			const cleanedKey = cleanText(key, 80);
 			const cleanedValue = cleanText(raw, MAX_METADATA_VALUE_LENGTH);
@@ -70,28 +79,38 @@ export const createExportAnalyticsEndpoint = (
 	const onRecord = options.onRecord ?? recordExportEvent;
 
 	return {
-		POST: async ({ request }: { request: Request }) => {
-			const payload = await parseJsonBody(request);
+		POST: rateLimited(
+			async ({ request }: { request: Request }) => {
+				const parsed = await tryParseJsonBody(request, {
+					maxBytes: MAX_BODY_BYTES,
+				});
+				if (!parsed.ok) return invalidBodyResponse(parsed);
+				const payload = parsed.value;
 
-			if (!isRecord(payload)) {
-				return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
-			}
+				if (!isRecord(payload)) {
+					return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
+				}
 
-			const event = normalizeEvent(payload, request);
-			if (!event) {
-				return jsonResponse({ ok: false, error: "Invalid export event." }, 400);
-			}
+				const event = normalizeEvent(payload, request);
+				if (!event) {
+					return jsonResponse(
+						{ ok: false, error: "Invalid export event." },
+						400,
+					);
+				}
 
-			try {
-				await onRecord(event);
-			} catch (error) {
-				return jsonResponse(
-					{ ok: false, error: "Unable to store export event." },
-					500,
-				);
-			}
+				try {
+					await onRecord(event);
+				} catch {
+					return jsonResponse(
+						{ ok: false, error: "Unable to store export event." },
+						500,
+					);
+				}
 
-			return jsonResponse({ ok: true });
-		},
+				return jsonResponse({ ok: true });
+			},
+			{ perClient: { limit: EVENTS_PER_CLIENT_PER_MINUTE } },
+		),
 	};
 };

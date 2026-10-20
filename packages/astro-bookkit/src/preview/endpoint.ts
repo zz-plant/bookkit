@@ -1,5 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { jsonResponse, parseJsonBody } from "../utils/http";
+import { authorOnly } from "../utils/author-token";
+import {
+	invalidBodyResponse,
+	jsonResponse,
+	rateLimited,
+	tryParseJsonBody,
+} from "../utils/http";
 import {
 	getPreviewAnalyticsLogPath,
 	type PreviewAnalyticsEvent,
@@ -15,6 +21,8 @@ const MAX_TEXT_LENGTH = 240;
 const MAX_PATH_LENGTH = 240;
 const MAX_HINT_LENGTH = 32;
 const MAX_LABEL_LENGTH = 120;
+const MAX_BODY_BYTES = 4 * 1024;
+const EVENTS_PER_CLIENT_PER_MINUTE = 30;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -56,12 +64,12 @@ const parseEventsFromLog = async (): Promise<PreviewAnalyticsEvent[]> => {
 			.map((line) => {
 				try {
 					return JSON.parse(line) as PreviewAnalyticsEvent;
-				} catch (error) {
+				} catch {
 					return null;
 				}
 			})
 			.filter((entry): entry is PreviewAnalyticsEvent => Boolean(entry));
-	} catch (error) {
+	} catch {
 		return [];
 	}
 };
@@ -72,12 +80,12 @@ const buildPreviewCounts = (events: PreviewAnalyticsEvent[]) => {
 	events.forEach((event) => {
 		const hint = event.tokenHint ?? "unknown";
 		counts[hint] = (counts[hint] || 0) + 1;
+		const previous = latest[hint];
 		if (event.at) {
-			latest[hint] = latest[hint]
-				? new Date(latest[hint]!).getTime() < new Date(event.at).getTime()
-					? event.at
-					: latest[hint]
-				: event.at;
+			latest[hint] =
+				previous && new Date(previous).getTime() >= new Date(event.at).getTime()
+					? previous
+					: event.at;
 		}
 	});
 	return { counts, latest };
@@ -90,41 +98,52 @@ export const createPreviewAnalyticsEndpoint = (
 	const onRead = options.onRead ?? parseEventsFromLog;
 
 	return {
-		GET: async () => {
-			const events = await onRead();
-			const { counts, latest } = buildPreviewCounts(events);
-			return jsonResponse({
-				ok: true,
-				totals: counts,
-				latest,
-				total: events.length,
-			});
-		},
-		POST: async ({ request }: { request: Request }) => {
-			const payload = await parseJsonBody(request);
+		// Which preview links were opened, and when: for the author only.
+		GET: authorOnly(
+			async (_context: { request: Request }) => {
+				const events = await onRead();
+				const { counts, latest } = buildPreviewCounts(events);
+				return jsonResponse({
+					ok: true,
+					totals: counts,
+					latest,
+					total: events.length,
+				});
+			},
+			{ route: "GET /api/preview-analytics.json", openInDev: true },
+		),
+		POST: rateLimited(
+			async ({ request }: { request: Request }) => {
+				const parsed = await tryParseJsonBody(request, {
+					maxBytes: MAX_BODY_BYTES,
+				});
+				if (!parsed.ok) return invalidBodyResponse(parsed);
+				const payload = parsed.value;
 
-			if (!isRecord(payload)) {
-				return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
-			}
+				if (!isRecord(payload)) {
+					return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
+				}
 
-			const event = normalizeEvent(payload, request);
-			if (!event) {
-				return jsonResponse(
-					{ ok: false, error: "Invalid preview event." },
-					400,
-				);
-			}
+				const event = normalizeEvent(payload, request);
+				if (!event) {
+					return jsonResponse(
+						{ ok: false, error: "Invalid preview event." },
+						400,
+					);
+				}
 
-			try {
-				await onRecord(event);
-			} catch (error) {
-				return jsonResponse(
-					{ ok: false, error: "Unable to store preview event." },
-					500,
-				);
-			}
+				try {
+					await onRecord(event);
+				} catch {
+					return jsonResponse(
+						{ ok: false, error: "Unable to store preview event." },
+						500,
+					);
+				}
 
-			return jsonResponse({ ok: true });
-		},
+				return jsonResponse({ ok: true });
+			},
+			{ perClient: { limit: EVENTS_PER_CLIENT_PER_MINUTE } },
+		),
 	};
 };

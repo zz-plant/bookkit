@@ -55,15 +55,6 @@ export function listPackageDirs(): string[] {
 		.map((d) => d.name);
 }
 
-export function requireArg(flag: string): string {
-	const idx = process.argv.indexOf(flag);
-	if (idx === -1 || !process.argv[idx + 1]) {
-		console.error(`Missing required arg: ${flag} <value>`);
-		process.exit(1);
-	}
-	return process.argv[idx + 1];
-}
-
 export function optionalArg(flag: string): string | null {
 	const idx = process.argv.indexOf(flag);
 	if (idx === -1) return null;

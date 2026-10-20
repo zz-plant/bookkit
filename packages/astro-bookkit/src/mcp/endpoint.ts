@@ -1,3 +1,8 @@
+import {
+	AUTHOR_TOKEN_ENV,
+	type AuthorTokenOptions,
+	checkAuthorToken,
+} from "../utils/author-token";
 import { jsonResponse, tryParseJsonBody } from "../utils/http";
 import { createJsonRpcError, handleRequest } from "./jsonrpc-router";
 import { listResources } from "./resource-utils";
@@ -28,10 +33,38 @@ const toolCallTransport = (isPrerendered: boolean): ToolCallTransport =>
 			}
 		: {
 				served: true,
-				note: "POST JSON-RPC 2.0 requests (one object or an array) to this URL with Content-Type: application/json. The same tools run over stdio with bun run mcp.",
+				note: `POST JSON-RPC 2.0 requests (one object or an array) to this URL with Content-Type: application/json. Outside bookkit dev, tools/call needs Authorization: Bearer <token>, where the token is ${AUTHOR_TOKEN_ENV} in the server's environment; resources and tools/list need none. The same tools run over stdio with bun run mcp.`,
 			};
 
-export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
+/** Large enough for check_content on a long chapter. */
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Tool calls run commands and write files in the workspace (create_book,
+ * compile_book, export_book), so on a deployed server they need the author
+ * token. Reading resources and listing tools stay open: they show the book's
+ * published content. `bookkit dev` serves this machine only and needs no token.
+ */
+const callsTools = (payload: unknown): boolean =>
+	(Array.isArray(payload) ? payload : [payload]).some(
+		(item) =>
+			typeof item === "object" &&
+			item !== null &&
+			(item as { method?: unknown }).method === "tools/call",
+	);
+
+const firstId = (payload: unknown): JsonRpcRequest["id"] | null => {
+	const first = Array.isArray(payload) ? payload[0] : payload;
+	const id = (first as { id?: unknown } | null)?.id;
+	return typeof id === "string" || typeof id === "number" ? id : null;
+};
+
+export const createBookMcpEndpoint = (
+	options: McpEndpointOptions & {
+		/** How tool calls are authorized; tests replace `isDev`. */
+		toolCallAuth?: Pick<AuthorTokenOptions, "isDev">;
+	},
+) => {
 	const resourcePrefix = options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX;
 
 	return {
@@ -181,7 +214,18 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 					405,
 				);
 
-			const parsed = await tryParseJsonBody(request);
+			const parsed = await tryParseJsonBody(request, {
+				maxBytes: MAX_BODY_BYTES,
+			});
+			if (!parsed.ok && parsed.tooLarge)
+				return jsonResponse(
+					createJsonRpcError(
+						null,
+						-32600,
+						`Invalid request: ${parsed.error}. Send smaller requests, for example one tool call at a time.`,
+					),
+					413,
+				);
 			if (!parsed.ok)
 				return jsonResponse(
 					createJsonRpcError(
@@ -202,6 +246,28 @@ export const createBookMcpEndpoint = (options: McpEndpointOptions) => {
 					),
 					400,
 				);
+
+			if (callsTools(payload)) {
+				const check = await checkAuthorToken(request, {
+					route: "POST /api/mcp.json tools/call",
+					openInDev: true,
+					...options.toolCallAuth,
+				});
+				if (!check.ok)
+					return jsonResponse(
+						createJsonRpcError(
+							firstId(payload),
+							check.status === 401 ? -32001 : -32603,
+							check.status === 401
+								? `${check.error} Tool calls on a deployed server need the token set as ${AUTHOR_TOKEN_ENV} where the server runs; resources/list, resources/read, and tools/list need none.`
+								: check.error,
+						),
+						check.status,
+						check.status === 401
+							? { "WWW-Authenticate": 'Bearer realm="bookkit"' }
+							: {},
+					);
+			}
 
 			if (Array.isArray(payload)) {
 				const responses = payload

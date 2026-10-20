@@ -119,6 +119,31 @@ describe("previewFolder on contract content", () => {
 		expect(preview.errors).toBe(2);
 	});
 
+	it("with releaseMode, holds every draft record to a published book's rules, not only examples", () => {
+		const files = [
+			{ path: "mechanisms/promise-drift.mdx", source: mechanism },
+			{
+				path: "chapters/05-when-the-date-moves.mdx",
+				source: contentContract("chapter").template.replace(
+					"status: draft\n",
+					"",
+				),
+			},
+		];
+		const drafts = (preview: ReturnType<typeof previewFolder>) =>
+			preview.documents.flatMap((doc) =>
+				doc.findings
+					.filter((finding) => finding.code === "DRAFT_IN_RELEASE")
+					.map(() => doc.section),
+			);
+
+		expect(drafts(previewFolder(files))).toEqual([]);
+		expect(drafts(previewFolder(files, { releaseMode: true })).sort()).toEqual([
+			"chapter",
+			"mechanism",
+		]);
+	});
+
 	it("recognizes a mechanism by its frontmatter outside a section folder", () => {
 		const [doc] = previewFolder([
 			{ path: "drift.mdx", source: mechanism },

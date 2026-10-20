@@ -68,7 +68,11 @@ export type FolderPreviewOptions = {
 	frame?: string;
 	/** Missing required frame steps become errors (a gate), not just coverage. */
 	requireFrameSteps?: boolean;
-	/** Treat draft examples as errors. */
+	/**
+	 * Check as a published or stable book would be (`bookkit check <folder>
+	 * --release`): a draft record of any section, or one with no status, is an
+	 * error, and so is a missing field that a draft may leave empty.
+	 */
 	releaseMode?: boolean;
 	/** How many recurring concepts to propose. */
 	maxConcepts?: number;
@@ -351,8 +355,11 @@ export const previewFolder = (
 				fileTitle(entry.file.path),
 			words: countWords(entry.body),
 			frameSteps: { covered, missing },
+			// As import converts it: common HTML kept, the rest escaped.
 			mdx:
-				isProse && !entry.contract ? toMdxBody(entry.body).changes : undefined,
+				isProse && !entry.contract
+					? toMdxBody(entry.body, { html: "jsx" }).changes
+					: undefined,
 			findings,
 		};
 	});

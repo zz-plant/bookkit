@@ -73,6 +73,33 @@ export const bookConfig = {
 			description: "The named patterns this book explains.",
 		},
 	},
+	// Copy on the reading hub (/read): the line under its title, and the
+	// "Where to start" cards in order ({ title, description, href,
+	// recommended?, funnelStep? }); an empty list shows none.
+	readHub: {
+		lede: "Start with the overview, read the chapters in order, or look something up.",
+		quickStartCards: [
+			{
+				title: "Read the overview",
+				description: "What the book covers and how it’s organized.",
+				href: "/read/overview",
+				recommended: true,
+				funnelStep: "new_reader_overview",
+			},
+			{
+				title: "Read the chapters in order",
+				description: "The full argument, start to finish.",
+				href: "/read/chapters",
+				funnelStep: "new_reader_chapters",
+			},
+			{
+				title: "Browse the mechanisms",
+				description: "The named patterns this book explains.",
+				href: "/read/mechanisms",
+				funnelStep: "new_reader_mechanisms",
+			},
+		],
+	},
 	// Other books to link from the home page: { title, href, description }.
 	relatedBooks: [],
 } as const satisfies BookConfig;

@@ -1,6 +1,9 @@
-import { type ReadHubConfig, readRoutes } from "@bookkit/astro-bookkit";
+import type { BookReadHubConfig } from "./config";
+import type { ReadHubConfig } from "./read-hub";
+import { readRoutes } from "./read-routes";
 
-export const readHubConfig: ReadHubConfig = {
+/** The reading hub of a book that sets no `readHub` in book.config.ts. */
+export const defaultReadHubConfig: ReadHubConfig = {
 	hero: {
 		title: "Reading hub",
 		lede: "Start with the overview, read the chapters in order, or look something up.",
@@ -77,3 +80,17 @@ export const readHubConfig: ReadHubConfig = {
 		activeLabel: "Show all sections",
 	},
 };
+
+/** The reading hub with `readHub` from book.config.ts over the default. */
+export const resolveReadHubConfig = (
+	readHub?: BookReadHubConfig,
+): ReadHubConfig => ({
+	...defaultReadHubConfig,
+	hero: {
+		...defaultReadHubConfig.hero,
+		lede: readHub?.lede ?? defaultReadHubConfig.hero.lede,
+	},
+	quickStartCards: [
+		...(readHub?.quickStartCards ?? defaultReadHubConfig.quickStartCards ?? []),
+	],
+});

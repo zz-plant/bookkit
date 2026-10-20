@@ -21,6 +21,7 @@ import {
 	toMdxBody,
 } from "../../packages/astro-bookkit/src/utils/markdown";
 import { compileMdx, type MdxCompileResult } from "./compile-mdx";
+import { INDEX_NAMES, importSkipReason } from "./import-rules";
 
 /**
  * `bookkit import`: turns a folder of Markdown notes into a book's chapters.
@@ -41,10 +42,6 @@ import { compileMdx, type MdxCompileResult } from "./compile-mdx";
 
 const NOTE_EXTENSION = /\.(md|mdx|markdown)$/i;
 const IMAGE_EXTENSION = /\.(apng|avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i;
-/** A folder's own page: skipped unless `--include-readme`. */
-const INDEX_NAMES = new Set(["readme", "index", "_index"]);
-/** Navigation for a docs site, not prose: always skipped. */
-const NAVIGATION_NAMES = new Set(["summary", "_sidebar", "_navbar", "_footer"]);
 const DRAFT_FOLDER = /^_?drafts?$/i;
 /** `01-`, `1.`, `02b-`, `010_`, or a Jekyll date `2024-03-01-` before a name. */
 const ORDER_PREFIX = /^(?:\d{4}-\d{2}-\d{2}|(\d+)[a-z]?)[\s._-]+(?=\S)/;
@@ -405,17 +402,9 @@ export const planImport = async (
 
 	const notes: Note[] = [];
 	for (const source of listNotes(sourceDir).sort(comparePaths)) {
-		const name = stem(source).toLowerCase();
-		if (NAVIGATION_NAMES.has(name)) {
-			skipped.push({ source, reason: "site navigation, not a chapter" });
-		} else if (INDEX_NAMES.has(name) && !options.includeReadme) {
-			skipped.push({
-				source,
-				reason: "folder index; --include-readme imports it as a chapter",
-			});
-		} else {
-			notes.push(readNote(sourceDir, source));
-		}
+		const reason = importSkipReason(source, options.includeReadme);
+		if (reason) skipped.push({ source, reason });
+		else notes.push(readNote(sourceDir, source));
 	}
 	assignUniqueSlugs(notes);
 	const noteBySource = new Map(notes.map((note) => [note.source, note]));

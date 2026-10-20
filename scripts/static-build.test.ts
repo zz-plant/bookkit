@@ -15,7 +15,8 @@ import {
  * it: it prints no warnings about its own routes or bundles, writes only the
  * MCP discovery manifest under /api/, ships valid JSON everywhere, and leaves
  * out the reader features that need a request handler on every page. Its
- * toolkit pages show each runbook procedure as the PDF and EPUB print it.
+ * toolkit pages show each runbook procedure as the PDF and EPUB print it, and
+ * every page keeps the phone action bar inside a landmark.
  */
 
 const BOOK = "on-call";
@@ -101,6 +102,17 @@ describe(`static build of ${BOOK}`, () => {
 		expect(pages().map((file) => file.slice(outDir.length))).toContain(
 			"/read/tools/index.html",
 		);
+		expect(offenders.map((file) => file.slice(outDir.length))).toEqual([]);
+	});
+
+	it("puts the phone action bar in a labelled nav landmark on every page", () => {
+		const offenders = pages().filter((file) => {
+			const bar = readFileSync(file, "utf8").match(
+				/<(\w+)[^>]*\bdata-mobile-cta\b[^>]*>/,
+			);
+			return !(bar?.[1] === "nav" && /\baria-label="[^"]+"/.test(bar[0]));
+		});
+		expect(pages().length).toBeGreaterThan(0);
 		expect(offenders.map((file) => file.slice(outDir.length))).toEqual([]);
 	});
 

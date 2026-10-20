@@ -93,15 +93,19 @@ export const initializeSearchController = ({
 			},
 		);
 
-		groupedEntries.forEach(([label, items]) => {
+		groupedEntries.forEach(([label, items], groupIndex) => {
 			const section = document.createElement("div");
 			section.className = "search-panel__group";
 			const heading = document.createElement("h3");
+			heading.id = `search-group-${groupIndex}`;
 			heading.textContent = `${label} (${items.length})`;
 			section.appendChild(heading);
 
+			// Each result is an option, so each group's list is their listbox.
 			const list = document.createElement("div");
 			list.className = "search-panel__list";
+			list.setAttribute("role", "listbox");
+			list.setAttribute("aria-labelledby", heading.id);
 			items.forEach((entry) => {
 				const link = document.createElement("a");
 				link.href = toSafeUrl(entry.url);

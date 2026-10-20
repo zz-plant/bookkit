@@ -26,7 +26,7 @@ export const buildRankedResults = (
 		.map((entry) => ({
 			...entry,
 			searchText:
-				`${entry.title} ${entry.snippet} ${entry.context}`.toLowerCase(),
+				`${entry.title} ${entry.snippet} ${entry.context} ${entry.text ?? ""}`.toLowerCase(),
 		}))
 		.filter((entry) => {
 			// Include entry if it matches any keyword OR has a semantic score
@@ -42,7 +42,12 @@ export const buildRankedResults = (
 				const contextBoost = entry.context.toLowerCase().includes(token)
 					? 2
 					: 0;
-				return total + titleBoost + contextBoost + 1;
+				// A page's own result previews the line the page leads with (an
+				// action's trigger, a mechanism's definition); a word there counts
+				// as much as one in the page's title context.
+				const leadBoost =
+					!entry.section && entry.snippet.toLowerCase().includes(token) ? 2 : 0;
+				return total + titleBoost + contextBoost + leadBoost + 1;
 			}, 0);
 
 			const signalBoost = options?.signals?.[entry.id] ?? 0;
@@ -61,4 +66,21 @@ export const buildRankedResults = (
 		.sort((a, b) => b.score - a.score);
 
 	return { tokens, results };
+};
+
+/**
+ * Results grouped by section (Chapters, Toolkit, ...), each group in score
+ * order, and the groups in the order of their best result, so the best match
+ * is the first result whatever its section. `results` comes from
+ * `buildRankedResults`, already sorted by score.
+ */
+export const groupRankedResults = <T extends { label: string; type: string }>(
+	results: readonly T[],
+): Array<{ label: string; items: T[] }> => {
+	const groups = new Map<string, T[]>();
+	for (const result of results) {
+		const key = result.label ?? result.type;
+		groups.set(key, [...(groups.get(key) ?? []), result]);
+	}
+	return Array.from(groups, ([label, items]) => ({ label, items }));
 };

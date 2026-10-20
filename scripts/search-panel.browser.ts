@@ -8,9 +8,11 @@ import { resolveDistFile } from "./lib/a11y";
 
 /**
  * The search field is a WAI-ARIA combobox over a listbox of results, so a
- * screen reader hears the result the arrow keys select. Runs in Playwright's
- * Chromium against a static build of on-call, so it is not part of
- * `bun run test`: run it with `bun run test:browser` (CI runs it in the
+ * screen reader hears the result the arrow keys select. A reader paged by an
+ * alert finds the procedure first, by its name or by the words of its
+ * trigger, and a mistyped procedure address offers that search. Runs in
+ * Playwright's Chromium against a static build of on-call, so it is not part
+ * of `bun run test`: run it with `bun run test:browser` (CI runs it in the
  * accessibility job, after `bunx playwright install chromium`).
  */
 
@@ -43,10 +45,11 @@ beforeAll(async () => {
 		hostname: "127.0.0.1",
 		port: 0,
 		fetch(request) {
+			// As a static host serves a book: 404.html for an address with no page.
 			const file = resolveDistFile(outDir, new URL(request.url).pathname);
 			return file
 				? new Response(Bun.file(file))
-				: new Response("Not found", { status: 404 });
+				: new Response(Bun.file(join(outDir, "404.html")), { status: 404 });
 		},
 	});
 	browser = await chromium.launch();
@@ -174,6 +177,73 @@ describe("search panel", () => {
 			);
 			expect(await activeId()).toBeNull();
 			expect(await options().count()).toBe(0);
+			await page.close();
+		},
+		CASE_TIMEOUT,
+	);
+});
+
+const PROCEDURE = "/read/toolkit/classify-alert-severity";
+const optionPaths = () =>
+	options().evaluateAll((nodes) =>
+		nodes.map((node) => {
+			const url = new URL((node as HTMLAnchorElement).href);
+			return `${url.pathname}${url.hash}`;
+		}),
+	);
+
+describe("finding a procedure", () => {
+	it(
+		"lists the procedure named by the query first, opening at its title",
+		async () => {
+			await search("severity");
+			const paths = await optionPaths();
+			expect(paths[0]).toBe(PROCEDURE);
+			expect(
+				await page
+					.locator("#search-results [role=group] h3")
+					.first()
+					.textContent(),
+			).toBe("Toolkit (1)");
+			await page.close();
+		},
+		CASE_TIMEOUT,
+	);
+
+	it(
+		"finds the procedure by the words of its trigger and steps",
+		async () => {
+			for (const query of ["pager", "sev-1"]) {
+				await search(query);
+				expect(await optionPaths(), query).toContain(PROCEDURE);
+				await page.close();
+			}
+		},
+		CASE_TIMEOUT,
+	);
+
+	it(
+		"offers, on a mistyped address, a search for its words that finds the page",
+		async () => {
+			page = await browser.newPage();
+			const response = await page.goto(
+				`http://127.0.0.1:${server.port}/read/toolkit/classify-severity/`,
+				{ waitUntil: "networkidle" },
+			);
+			expect(response?.status()).toBe(404);
+			const button = page.locator("main [data-search-open]");
+			await expect(button.textContent()).resolves.toBe(
+				"Search for “classify severity”",
+			);
+			await button.click();
+			await page.waitForSelector("#search-results [role=option]");
+			expect((await optionPaths())[0]).toBe(PROCEDURE);
+			for (const section of ["/read/toolkit", "/read/chapters", "/read"]) {
+				expect(
+					await page.locator(`main a[href="${section}"]`).count(),
+					section,
+				).toBe(1);
+			}
 			await page.close();
 		},
 		CASE_TIMEOUT,

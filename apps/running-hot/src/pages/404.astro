@@ -11,7 +11,21 @@ import BaseLayout from "../layouts/BaseLayout.astro";
       This address does not exist in the current version of the book. It may have moved between releases.
     </p>
   </div>
-  <p>
-    <a class="back-link" href={readRoutes.root}>← Reading hub</a>
-  </p>
+  <section class="next-steps">
+    <h2>Find it from here</h2>
+    <p>
+      <button type="button" class="button button--secondary" data-search-open data-search-from-path>
+        Search the book
+      </button>
+    </p>
+    <div class="next-steps__links">
+      <a class="next-steps__link" href={readRoutes.root}>Reading hub</a>
+      <a class="next-steps__link" href={readRoutes.chapters}>Chapters</a>
+      <a class="next-steps__link" href={readRoutes.mechanisms}>Mechanisms</a>
+      <a class="next-steps__link" href={readRoutes.toolkit}>Toolkit</a>
+      <a class="next-steps__link" href={readRoutes.glossary}>Glossary</a>
+      <a class="next-steps__link" href={readRoutes.examples}>Examples</a>
+      <a class="next-steps__link" href="/release-notes">Release notes</a>
+    </div>
+  </section>
 </BaseLayout>

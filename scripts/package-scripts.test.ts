@@ -22,16 +22,24 @@ const entrypoints = readdirSync(join(root, "scripts")).filter(
 		!name.startsWith("_"),
 );
 
-/** Everything that can start a script: package scripts, code, CI, hooks, agent config. */
-const callers = (except: string): string => {
-	const texts = [JSON.stringify(scripts)];
+/**
+ * Everything that can start a script: package scripts, code, CI, hooks, agent
+ * config. Read once, keyed by path, so each entrypoint can leave itself out.
+ */
+const callerTexts = (() => {
+	const texts = new Map([["package.json#scripts", JSON.stringify(scripts)]]);
 	const read = (dir: string, filter: (file: string) => boolean) => {
 		if (!existsSync(join(root, dir))) return;
 		for (const file of listFilesRecursive(join(root, dir))) {
-			if (filter(file)) texts.push(readFileSync(join(root, dir, file), "utf8"));
+			if (filter(file)) {
+				texts.set(
+					`${dir}/${file}`,
+					readFileSync(join(root, dir, file), "utf8"),
+				);
+			}
 		}
 	};
-	read("scripts", (file) => file !== except && /\.(ts|mjs|sh)$/.test(file));
+	read("scripts", (file) => /\.(ts|mjs|sh)$/.test(file));
 	read(
 		"packages",
 		(file) => /\.(ts|mjs)$/.test(file) && !file.includes("node_modules"),
@@ -40,11 +48,18 @@ const callers = (except: string): string => {
 	read(".husky", () => true);
 	for (const file of [".mcp.json", ".lintstagedrc.json"]) {
 		if (existsSync(join(root, file))) {
-			texts.push(readFileSync(join(root, file), "utf8"));
+			texts.set(file, readFileSync(join(root, file), "utf8"));
 		}
 	}
-	return texts.join("\n");
-};
+	return texts;
+})();
+
+/** Whether anything but the entrypoint itself names it. */
+const hasCaller = (entrypoint: string): boolean =>
+	[...callerTexts].some(
+		([path, text]) =>
+			path !== `scripts/${entrypoint}` && text.includes(entrypoint),
+	);
 
 describe("package scripts", () => {
 	it("name only files that exist", () => {
@@ -59,7 +74,7 @@ describe("package scripts", () => {
 
 	it("leave no entrypoint in scripts/ that nothing runs", () => {
 		// Callers name the file itself: "scripts/check-build.ts", runScript("verify.ts").
-		const unused = entrypoints.filter((file) => !callers(file).includes(file));
+		const unused = entrypoints.filter((file) => !hasCaller(file));
 		expect(unused).toEqual([]);
 	});
 });

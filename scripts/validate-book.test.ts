@@ -9,11 +9,14 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * validate-book and validate-all against a scratch workspace: a book with five
  * errors in three files, and a clean one.
  */
+
+waitForChildren();
 
 let workspace: string;
 
@@ -36,16 +39,10 @@ const writeBook = (book: string, files: Record<string, string>) => {
 	}
 };
 
-const run = (script: string, ...args: string[]) => {
-	const result = Bun.spawnSync(
-		[process.execPath, join(workspace, "scripts", script), ...args],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
-	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
+const run = (script: string, ...args: string[]) =>
+	runChild([process.execPath, join(workspace, "scripts", script), ...args], {
+		cwd: workspace,
+	});
 
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-validate-"));

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * `bun run <script>` keeps the caller's directory. Scripts started from inside
@@ -13,16 +14,10 @@ import { repoRoot } from "./_lib";
 const root = repoRoot();
 let outside: string;
 
-const run = (script: string, cwd: string) => {
-	const result = Bun.spawnSync(
-		[process.execPath, join(root, "scripts", script)],
-		{ cwd, stdout: "pipe", stderr: "pipe" },
-	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
+waitForChildren();
+
+const run = (script: string, cwd: string) =>
+	runChild([process.execPath, join(root, "scripts", script)], { cwd });
 
 beforeAll(() => {
 	outside = mkdtempSync(join(tmpdir(), "bookkit-outside-"));

@@ -9,23 +9,15 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /** `remove:book` in a scratch git repository holding one committed book. */
 
 let workspace: string;
 
-const run = (command: string[]) => {
-	const result = Bun.spawnSync(command, {
-		cwd: workspace,
-		stdin: "ignore",
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
+waitForChildren();
+
+const run = (command: string[]) => runChild(command, { cwd: workspace });
 
 const removeBook = (...args: string[]) =>
 	run([

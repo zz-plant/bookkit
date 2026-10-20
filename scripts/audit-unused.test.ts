@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /** audit:unused fails a released book's gaps, and lists a draft's as work to do. */
 
@@ -23,21 +24,18 @@ const writeBook = (book: string, status: string) => {
 	);
 };
 
-const audit = (book: string) => {
-	const result = Bun.spawnSync(
+waitForChildren();
+
+const audit = (book: string) =>
+	runChild(
 		[
 			process.execPath,
 			join(repoRoot(), "scripts", "audit-unused.ts"),
 			"--book",
 			book,
 		],
-		{ cwd: workspace, stdout: "pipe", stderr: "pipe" },
+		{ cwd: workspace },
 	);
-	return {
-		status: result.exitCode,
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
 
 beforeAll(() => {
 	workspace = mkdtempSync(join(tmpdir(), "bookkit-audit-"));
@@ -64,10 +62,10 @@ describe("audit:unused", () => {
 	});
 
 	it("passes for this repository's books", () => {
-		const result = Bun.spawnSync(
+		const result = runChild(
 			[process.execPath, join(repoRoot(), "scripts", "audit-unused.ts")],
 			{ cwd: repoRoot() },
 		);
-		expect(result.exitCode).toBe(0);
+		expect(result.status, result.output).toBe(0);
 	});
 });

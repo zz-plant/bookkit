@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
+import { runChild, waitForChildren } from "./lib/child-process.fixture";
 
 /**
  * The suggestion and proposal commands, run through the real package.json
@@ -62,19 +63,10 @@ const writeBook = (book: string, files: Record<string, string>) => {
 	}
 };
 
-const run = (...args: string[]) => {
-	const result = Bun.spawnSync([process.execPath, "run", ...args], {
-		cwd: workspace,
-		stdout: "pipe",
-		stderr: "pipe",
-		stdin: "ignore",
-	});
-	return {
-		status: result.exitCode,
-		stdout: result.stdout.toString(),
-		output: `${result.stdout.toString()}${result.stderr.toString()}`,
-	};
-};
+waitForChildren();
+
+const run = (...args: string[]) =>
+	runChild([process.execPath, "run", ...args], { cwd: workspace });
 
 const handoffs = () =>
 	Object.fromEntries(

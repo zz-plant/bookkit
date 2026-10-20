@@ -100,6 +100,20 @@ export const readBookSources = (
 };
 
 /** Merges recorded in the workspace's corpus.json; empty when it is absent or unreadable. */
+const bookConfigPath = (workspaceRoot: string, book: string) =>
+	join(workspaceRoot, "apps", book, "src", "book.config.ts");
+
+/** The `status` written in apps/<book>/src/book.config.ts, if any. */
+export const readBookStatus = (
+	workspaceRoot: string,
+	book: string,
+): string | undefined => {
+	const path = bookConfigPath(workspaceRoot, book);
+	return existsSync(path)
+		? extractBookStatusFromSource(readFileSync(path, "utf8"))
+		: undefined;
+};
+
 export const readRetiredSlugs = (
 	workspaceRoot: string,
 ): Map<string, RetiredSlug> => {
@@ -199,7 +213,7 @@ export const checkBookContent = (
 	const root = bookContentDir(workspaceRoot, book);
 	const findings: BookFinding[] = [];
 
-	const configPath = join(workspaceRoot, "apps", book, "src", "book.config.ts");
+	const configPath = bookConfigPath(workspaceRoot, book);
 	const configSource = existsSync(configPath)
 		? readFileSync(configPath, "utf8")
 		: undefined;

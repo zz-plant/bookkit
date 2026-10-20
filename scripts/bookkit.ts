@@ -1157,7 +1157,8 @@ Check
                                             its 3 nearest have no verdict (--quick: nearest by wording)
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame
-                                            section once --frame is given; exits 1 on an error (for CI)
+                                            section once --frame is given; exits 1 on an error (for CI);
+                                            --release checks it as a published book, so drafts are errors
   contract [section] [--json]               the fields a mechanism, tool, example, chapter, or glossary entry needs
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
   similar "<title>" [--definition "…"] [--semantic]

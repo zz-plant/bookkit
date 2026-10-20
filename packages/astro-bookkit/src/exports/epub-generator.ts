@@ -39,7 +39,9 @@ article, .title-page { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem
 .title-page__edition, .eyebrow { color: #5a5a5a; }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; margin-bottom: 0.25rem; }
 blockquote { margin: 1rem 0; padding: 0.5rem 1rem; border-left: 3px solid #8f78e6; background: #f5f5ff; }
-code { font-family: "Courier New", monospace; background: #f1f1f1; padding: 0.1rem 0.3rem; border-radius: 4px; }
+code, kbd, samp { font-family: "Courier New", monospace; }
+code { background: #f1f1f1; padding: 0.1rem 0.3rem; border-radius: 4px; }
+kbd { font-size: 0.9em; border: 1px solid #c8c8c8; border-bottom-width: 2px; border-radius: 3px; padding: 0 0.25em; }
 pre { background: #f1f1f1; padding: 0.75rem 1rem; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
 pre code { background: none; padding: 0; }
 table { border-collapse: collapse; margin: 1rem 0; }
@@ -48,7 +50,10 @@ th { background: #f1f1f1; }
 .align-left { text-align: left; }
 .align-center { text-align: center; }
 .align-right { text-align: right; }
-sup { line-height: 0; }
+sup, sub { line-height: 0; }
+.details { margin: 1rem 0; padding: 0.25rem 0 0.25rem 1rem; border-left: 3px solid #c8c8c8; }
+dt { font-weight: bold; }
+dd { margin: 0 0 0.5rem 1.5rem; }
 .notes { margin-top: 2rem; border-top: 1px solid #c8c8c8; font-size: 0.9rem; }
 img { max-width: 100%; height: auto; }
 .image-alt { font-style: italic; color: #5a5a5a; }
@@ -193,9 +198,29 @@ export const createEpubExport = async (
 	};
 
 	// Rendered before the package document, which lists the images they show.
-	const rendered = documents.map((item) => ({
+	const drafts = documents.map((item) => ({
 		item,
 		xhtml: renderDocument(item),
+	}));
+	// A link to a heading a document does not have goes to the top of that
+	// document, as the PDF's does, rather than to a fragment no reader can find.
+	const ids = new Map(
+		drafts.map(({ item, xhtml }) => [
+			item.href,
+			new Set(
+				Array.from(xhtml.matchAll(/\sid="([^"]+)"/g), (match) => match[1]),
+			),
+		]),
+	);
+	const rendered = drafts.map(({ item, xhtml }) => ({
+		item,
+		xhtml: xhtml.replace(
+			/\shref="([^"#:]*)#([^"]+)"/g,
+			(link, file: string, fragment: string) =>
+				ids.get(file || item.href)?.has(fragment) === false
+					? ` href="${file || item.href}"`
+					: link,
+		),
 	}));
 
 	const edition = formatExportEdition(bundle);

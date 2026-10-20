@@ -28,6 +28,16 @@ describe("extractPageFacts", () => {
 		expect(extractPageFacts(source).wordCount).toBe(22);
 	});
 
+	it("counts and keeps the words of inline code", () => {
+		const facts = extractPageFacts(
+			"Restart `checkout-api` only after you page the `on-call` lead for `payments`.",
+		);
+		expect(facts.wordCount).toBe(11);
+		expect(facts.excerpt).toBe(
+			"Restart checkout-api only after you page the on-call lead for payments.",
+		);
+	});
+
 	it("takes the first paragraph long enough to be an opening", () => {
 		expect(extractPageFacts(source).excerpt).toBe(
 			"The rollback decision cannot be made safely under load.",

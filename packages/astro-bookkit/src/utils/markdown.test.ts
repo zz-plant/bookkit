@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { compile } from "@mdx-js/mdx";
 
-import { splitFencedCode, toMdxBody } from "./markdown";
+import {
+	createHeadingSlugger,
+	smartDashes,
+	splitFencedCode,
+	stripMarkdown,
+	toMdxBody,
+} from "./markdown";
 
 // Markdown as real exports write it: placeholders, raw HTML, comments, autolinks.
 const HAZARDS = [
@@ -127,6 +133,64 @@ describe("splitFencedCode", () => {
 			{ code: true, text: "```\nb\n```", line: 1 },
 			{ code: true, text: "~~~\nc\n~~~", line: 4 },
 			{ code: false, text: "d", line: 7 },
+		]);
+	});
+});
+
+describe("stripMarkdown", () => {
+	it("keeps the text of code spans, without their backticks", () => {
+		expect(stripMarkdown("Set `max_retries` and `backoff_ms` first.")).toBe(
+			"Set max_retries and backoff_ms first.",
+		);
+		expect(stripMarkdown("``a `b` c`` and `` `tick` ``")).toBe(
+			"a `b` c and `tick`",
+		);
+		expect(stripMarkdown("**Set `__init__` to `*`**")).toBe(
+			"Set __init__ to *",
+		);
+	});
+
+	it("keeps escaped characters, image alt text, and underscores inside words", () => {
+		expect(stripMarkdown("Page \\<on-call-lead\\> about \\*this\\*.")).toBe(
+			"Page <on-call-lead> about *this*.",
+		);
+		expect(stripMarkdown("See ![The board](/b.png) and [docs](/d).")).toBe(
+			"See The board and docs.",
+		);
+		expect(stripMarkdown("Watch error_rate_limit and _emphasis_.")).toBe(
+			"Watch error_rate_limit and emphasis.",
+		);
+	});
+});
+
+describe("headings as the site slugs them", () => {
+	it("turns runs of hyphens into dashes as smart punctuation does", () => {
+		expect(
+			[
+				"a - b",
+				"a -- b",
+				"a --- b",
+				"a ---- b",
+				"a ----- b",
+				"a ------- b",
+			].map(smartDashes),
+		).toEqual(["a - b", "a – b", "a — b", "a –– b", "a —– b", "a —–– b"]);
+	});
+
+	it("slugs with github-slugger, numbering repeats", () => {
+		const slug = createHeadingSlugger();
+		expect(
+			[
+				smartDashes("Don't -- stop"),
+				"Café & crème — 100% (beta)",
+				"Tuning max_retries",
+				"Tuning max_retries",
+			].map(slug),
+		).toEqual([
+			"dont--stop",
+			"café--crème--100-beta",
+			"tuning-max_retries",
+			"tuning-max_retries-1",
 		]);
 	});
 });

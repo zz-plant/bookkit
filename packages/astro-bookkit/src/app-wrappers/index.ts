@@ -26,6 +26,12 @@ import type { BookSeoConfig } from "../seo/config";
 import { buildSeoProps, runtimeFeatures } from "../seo/config";
 import { createSitemapXml } from "../seo/sitemap";
 import type { BookAuthor } from "../seo/structured-data";
+import {
+	invalidBodyResponse,
+	jsonResponse,
+	rateLimited,
+	tryParseJsonBody,
+} from "../utils/http";
 
 export const createAnalyticsApiHandlers = () => createReaderAnalyticsEndpoint();
 export const createFeedbackApiHandlers = () => createFeedbackEndpoint();
@@ -44,22 +50,23 @@ export const createQaApiHandlers = (options: {
 	providers?: import("../qa").AiQaProviderConfig[];
 }) => createQaEndpoint(options);
 
-export const createReleaseAnalyticsApiPostHandler =
-	(): APIRoute =>
-	async ({ request }) => {
-		try {
-			const payload = await request.json();
+/**
+ * Records a reader's click on the release notes' RSS link. The body is
+ * `{ "event": "rss_subscribe_click" }`; anything else is not recorded.
+ */
+export const createReleaseAnalyticsApiPostHandler = (): APIRoute =>
+	rateLimited(
+		async ({ request }: { request: Request }) => {
+			const parsed = await tryParseJsonBody(request, { maxBytes: 1024 });
+			if (!parsed.ok) return invalidBodyResponse(parsed);
+			const payload = parsed.value as { event?: unknown } | null;
 			if (payload?.event === "rss_subscribe_click") {
 				await recordReleaseEvent({ event: "rss_subscribe_click" });
 			}
-		} catch (error) {
-			console.warn("Release analytics parse error", error);
-		}
-
-		return new Response(JSON.stringify({ ok: true }), {
-			headers: { "Content-Type": "application/json" },
-		});
-	};
+			return jsonResponse({ ok: true });
+		},
+		{ perClient: { limit: 30 } },
+	);
 
 export const createSearchIndexGetHandler = (options: {
 	modules: BookSearchModuleMap;

@@ -1,7 +1,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { jsonResponse, parseJsonBody } from "../utils/http";
+import { authorOnly } from "../utils/author-token";
+import {
+	invalidBodyResponse,
+	jsonResponse,
+	rateLimited,
+	tryParseJsonBody,
+} from "../utils/http";
 
 export type FeedbackEvent = {
 	id: string;
@@ -31,6 +37,13 @@ const MAX_TITLE_LENGTH = 160;
 const MAX_SLUG_LENGTH = 200;
 const MAX_EMOJI_LENGTH = 16;
 const MAX_EVENT_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+/**
+ * The widget sends one event at a time. Without a cap, one request could push
+ * every stored event out of the `maxEvents` window.
+ */
+const MAX_EVENTS_PER_REQUEST = 20;
+const MAX_BODY_BYTES = 16 * 1024;
+const REQUESTS_PER_CLIENT_PER_MINUTE = 30;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -95,6 +108,7 @@ const parsePayload = (payload: unknown): FeedbackEvent[] => {
 	if (!payload) return [];
 	if (isRecord(payload)) {
 		if (Array.isArray(payload.events)) {
+			if (payload.events.length > MAX_EVENTS_PER_REQUEST) return [];
 			return payload.events
 				.map((event) => (isRecord(event) ? normalizeEvent(event) : null))
 				.filter((event): event is FeedbackEvent => Boolean(event));
@@ -119,7 +133,7 @@ const loadEvents = async (storagePath: string): Promise<FeedbackEvent[]> => {
 		const stored = await fs.readFile(storagePath, "utf8");
 		const parsed = JSON.parse(stored);
 		return Array.isArray(parsed) ? (parsed as FeedbackEvent[]) : [];
-	} catch (error) {
+	} catch {
 		return [];
 	}
 };
@@ -144,50 +158,63 @@ export const createFeedbackEndpoint = (
 	const maxEvents = options.maxEvents ?? 2000;
 
 	return {
-		GET: async ({ request }: { request: Request }) => {
-			const url = new URL(request.url);
-			const limitParam = parseNumber(url.searchParams.get("limit"));
-			const sinceParam = parseNumber(url.searchParams.get("since"));
-			const untilParam = parseNumber(url.searchParams.get("until"));
-			const slugParam = cleanText(
-				url.searchParams.get("slug"),
-				MAX_SLUG_LENGTH,
-			);
-
-			const limit = clampNumber(limitParam ?? maxEvents, 1, maxEvents);
-			const since = sinceParam ?? 0;
-			const until = untilParam ?? Date.now();
-
-			const storedEvents = await loadEvents(storagePath);
-			const filtered = storedEvents.filter((event) => {
-				if (event.timestamp < since || event.timestamp > until) return false;
-				if (slugParam && event.slug !== slugParam) return false;
-				return true;
-			});
-
-			return jsonResponse({ ok: true, events: filtered.slice(-limit) });
-		},
-		POST: async ({ request }: { request: Request }) => {
-			const payload = await parseJsonBody(request);
-
-			const events = parsePayload(payload);
-			if (!events.length) {
-				return jsonResponse(
-					{ ok: false, error: "Invalid feedback payload." },
-					400,
+		// Readers' comments: for the author only.
+		GET: authorOnly(
+			async ({ request }: { request: Request }) => {
+				const url = new URL(request.url);
+				const limitParam = parseNumber(url.searchParams.get("limit"));
+				const sinceParam = parseNumber(url.searchParams.get("since"));
+				const untilParam = parseNumber(url.searchParams.get("until"));
+				const slugParam = cleanText(
+					url.searchParams.get("slug"),
+					MAX_SLUG_LENGTH,
 				);
-			}
 
-			try {
-				await persistEvents(storagePath, events, maxEvents);
-			} catch (error) {
-				return jsonResponse(
-					{ ok: false, error: "Unable to store feedback." },
-					500,
-				);
-			}
+				const limit = clampNumber(limitParam ?? maxEvents, 1, maxEvents);
+				const since = sinceParam ?? 0;
+				const until = untilParam ?? Date.now();
 
-			return jsonResponse({ ok: true, stored: events.length });
-		},
+				const storedEvents = await loadEvents(storagePath);
+				const filtered = storedEvents.filter((event) => {
+					if (event.timestamp < since || event.timestamp > until) return false;
+					if (slugParam && event.slug !== slugParam) return false;
+					return true;
+				});
+
+				return jsonResponse({ ok: true, events: filtered.slice(-limit) });
+			},
+			{ route: "GET /api/feedback.json", openInDev: true },
+		),
+		POST: rateLimited(
+			async ({ request }: { request: Request }) => {
+				const parsed = await tryParseJsonBody(request, {
+					maxBytes: MAX_BODY_BYTES,
+				});
+				if (!parsed.ok) return invalidBodyResponse(parsed);
+
+				const events = parsePayload(parsed.value);
+				if (!events.length) {
+					return jsonResponse(
+						{
+							ok: false,
+							error: `Invalid feedback payload: send one event, or { events: [...] } with at most ${MAX_EVENTS_PER_REQUEST}, each with eventType "feedback" or "impression" and a slug.`,
+						},
+						400,
+					);
+				}
+
+				try {
+					await persistEvents(storagePath, events, maxEvents);
+				} catch {
+					return jsonResponse(
+						{ ok: false, error: "Unable to store feedback." },
+						500,
+					);
+				}
+
+				return jsonResponse({ ok: true, stored: events.length });
+			},
+			{ perClient: { limit: REQUESTS_PER_CLIENT_PER_MINUTE } },
+		),
 	};
 };

@@ -1,5 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { jsonResponse, parseJsonBody } from "../utils/http";
+import { authorOnly } from "../utils/author-token";
+import {
+	invalidBodyResponse,
+	jsonResponse,
+	rateLimited,
+	tryParseJsonBody,
+} from "../utils/http";
 import {
 	getReaderAnalyticsLogPath,
 	type ReaderAnalyticsEvent,
@@ -17,6 +23,10 @@ const MAX_TITLE_LENGTH = 160;
 const MAX_SESSION_LENGTH = 80;
 const MAX_VERSION_LENGTH = 40;
 const MAX_CHAPTER_LENGTH = 120;
+/** One event is well under 1 KB; anything larger is not from the reader script. */
+const MAX_BODY_BYTES = 4 * 1024;
+/** A reader sends a page view and an engagement event per page. */
+const EVENTS_PER_CLIENT_PER_MINUTE = 120;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -83,12 +93,12 @@ const parseEventsFromLog = async (): Promise<ReaderAnalyticsEvent[]> => {
 			.map((line) => {
 				try {
 					return JSON.parse(line) as ReaderAnalyticsEvent;
-				} catch (error) {
+				} catch {
 					return null;
 				}
 			})
 			.filter((entry): entry is ReaderAnalyticsEvent => Boolean(entry));
-	} catch (error) {
+	} catch {
 		return [];
 	}
 };
@@ -117,40 +127,51 @@ export const createReaderAnalyticsEndpoint = (
 	const onRead = options.onRead ?? parseEventsFromLog;
 
 	return {
-		GET: async ({ request }: { request: Request }) => {
-			const events = await onRead();
-			const filtered = filterByQuery(events, request);
-			return jsonResponse({
-				ok: true,
-				total: filtered.length,
-				events: filtered,
-			});
-		},
-		POST: async ({ request }: { request: Request }) => {
-			const payload = await parseJsonBody(request);
+		// Readers' sessions, paths, and user agents: for the author only.
+		GET: authorOnly(
+			async ({ request }: { request: Request }) => {
+				const events = await onRead();
+				const filtered = filterByQuery(events, request);
+				return jsonResponse({
+					ok: true,
+					total: filtered.length,
+					events: filtered,
+				});
+			},
+			{ route: "GET /api/analytics.json", openInDev: true },
+		),
+		POST: rateLimited(
+			async ({ request }: { request: Request }) => {
+				const parsed = await tryParseJsonBody(request, {
+					maxBytes: MAX_BODY_BYTES,
+				});
+				if (!parsed.ok) return invalidBodyResponse(parsed);
+				const payload = parsed.value;
 
-			if (!isRecord(payload)) {
-				return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
-			}
+				if (!isRecord(payload)) {
+					return jsonResponse({ ok: false, error: "Invalid payload." }, 400);
+				}
 
-			const event = normalizeEvent(payload, request);
-			if (!event) {
-				return jsonResponse(
-					{ ok: false, error: "Invalid analytics event." },
-					400,
-				);
-			}
+				const event = normalizeEvent(payload, request);
+				if (!event) {
+					return jsonResponse(
+						{ ok: false, error: "Invalid analytics event." },
+						400,
+					);
+				}
 
-			try {
-				await onRecord(event);
-			} catch (error) {
-				return jsonResponse(
-					{ ok: false, error: "Unable to store analytics event." },
-					500,
-				);
-			}
+				try {
+					await onRecord(event);
+				} catch {
+					return jsonResponse(
+						{ ok: false, error: "Unable to store analytics event." },
+						500,
+					);
+				}
 
-			return jsonResponse({ ok: true });
-		},
+				return jsonResponse({ ok: true });
+			},
+			{ perClient: { limit: EVENTS_PER_CLIENT_PER_MINUTE } },
+		),
 	};
 };

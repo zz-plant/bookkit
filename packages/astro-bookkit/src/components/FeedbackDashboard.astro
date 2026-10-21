@@ -225,14 +225,14 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
     const map = new Map<string, FeedbackRow>();
 
     impressions.forEach((event) => {
-      const key = event.slug ?? "unknown";
+      const key = typeof event.slug === "string" ? event.slug : "unknown";
       const entry = map.get(key) ?? { slug: key, views: 0, feedback: [], helpful: 0, notHelpful: 0 };
       entry.views += 1;
       map.set(key, entry);
     });
 
     feedback.forEach((event) => {
-      const key = event.slug ?? "unknown";
+      const key = typeof event.slug === "string" ? event.slug : "unknown";
       const entry = map.get(key) ?? { slug: key, views: 0, feedback: [], helpful: 0, notHelpful: 0 };
       entry.feedback.push(event);
       if (event.responseType === "helpful") entry.helpful += 1;
@@ -244,22 +244,27 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
       .filter((row) => row.slug !== "unknown")
       .sort((a, b) => b.feedback.length - a.feedback.length);
 
-    rowsTarget.innerHTML = "";
-    rows.forEach((row) => {
-      const totalVotes = row.helpful + row.notHelpful;
-      const helpfulRate = totalVotes ? row.helpful / totalVotes : 0;
-      const topEmoji = buildEmojiSummary(row.feedback);
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.slug.replace(/-/g, " ")}</td>
-        <td>${row.views}</td>
-        <td>${row.feedback.length}</td>
-        <td>${formatPercent(helpfulRate)}</td>
-        <td>${topEmoji}</td>
-      `;
-      rowsTarget.appendChild(tr);
-    });
+    // Slugs and emoji are what readers sent: each cell holds them as text.
+    const cell = (text: string) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      return td;
+    };
+    rowsTarget.replaceChildren(
+      ...rows.map((row) => {
+        const totalVotes = row.helpful + row.notHelpful;
+        const helpfulRate = totalVotes ? row.helpful / totalVotes : 0;
+        const tr = document.createElement("tr");
+        tr.append(
+          cell(row.slug.replace(/-/g, " ")),
+          cell(String(row.views)),
+          cell(String(row.feedback.length)),
+          cell(formatPercent(helpfulRate)),
+          cell(buildEmojiSummary(row.feedback)),
+        );
+        return tr;
+      }),
+    );
   };
 
   const renderComments = (filtered: FeedbackEvent[]) => {
@@ -268,7 +273,7 @@ const { heading = "Reader feedback", endpoint } = Astro.props;
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 6);
 
-    commentList.innerHTML = "";
+    commentList.replaceChildren();
     if (!comments.length) {
       const li = document.createElement("li");
       li.textContent = "No comments yet.";

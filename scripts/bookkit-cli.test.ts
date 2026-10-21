@@ -166,4 +166,52 @@ describe("bookkit new and check with a current book", () => {
 		);
 		expect(result.output).toContain("Structure of a-book");
 	});
+
+	it("validate with no book validates the current one, and --all every book", () => {
+		const current = bookkit(workspace, ["validate"]);
+		expect(current.output).toContain(
+			"(a-book is the current book; add --all for every book.)",
+		);
+		expect(current.output).toContain("apps/a-book/src/content/book");
+		expect(current.output).not.toContain("b-book");
+		const every = bookkit(workspace, ["validate", "--all"]);
+		expect(every.output).not.toContain("current book");
+		expect(every.output).toMatch(/\b2 books\b/);
+	});
+
+	it("propose names an option it does not have, and the nearest one", () => {
+		const result = bookkit(workspace, ["propose", "--aply", "mechanisms"]);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain(
+			"Unknown option --aply. Did you mean --apply?\nUsage: bun run bookkit propose",
+		);
+	});
+});
+
+describe("verify outside a git repository", () => {
+	let workspace: string;
+
+	beforeAll(() => {
+		workspace = mkdtempSync(join(tmpdir(), "bookkit-no-git-"));
+		mkdirSync(join(workspace, "apps", "a-book"), { recursive: true });
+		symlinkSync(
+			join(repoRoot(), "node_modules"),
+			join(workspace, "node_modules"),
+		);
+	});
+
+	afterAll(() => {
+		rmSync(workspace, { recursive: true, force: true });
+	});
+
+	it("says to run every gate with --all, since there is nothing to compare", () => {
+		const result = runChild(
+			[process.execPath, join(repoRoot(), "scripts", "verify.ts")],
+			{ cwd: workspace },
+		);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain(
+			"is not in a git repository, so verify cannot tell which files changed. Run every gate instead: bun run verify -- --all",
+		);
+	});
 });

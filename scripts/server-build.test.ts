@@ -1,13 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import {
-	readdirSync,
-	readFileSync,
-	rmSync,
-	statSync,
-	writeFileSync,
-} from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import { copyBooks } from "./lib/book-workspace.fixture";
+import { serverRuntimeCopy } from "./lib/book-workspace.fixture";
 import { BUILD_DEADLINE_MS, runChild } from "./lib/child-process.fixture";
 
 /**
@@ -17,65 +11,25 @@ import { BUILD_DEADLINE_MS, runChild } from "./lib/child-process.fixture";
  * WebAssembly from the book's own site under hashed names.
  *
  * The book is a copy of on-call in a scratch workspace, with an adapter that
- * serves nothing (as `browser.fixture.ts` builds it): only the build's
- * output is read.
+ * serves nothing (`serverRuntimeCopy`, as the browser tests build it): only
+ * the build's output is read.
  */
 
 const BOOK = "on-call";
 /** Vite's `build.chunkSizeWarningLimit`, in kB of 1000 bytes. */
 const CHUNK_LIMIT_BYTES = 500 * 1000;
 
-const STAND_IN_ADAPTER = `{
-	name: "bookkit-server-build-test",
-	hooks: {
-		"astro:config:done": ({ setAdapter }) =>
-			setAdapter({
-				name: "bookkit-server-build-test",
-				entrypointResolution: "auto",
-				serverEntrypoint: new URL("./server-entry.mjs", import.meta.url),
-				supportedAstroFeatures: {
-					serverOutput: "stable",
-					staticOutput: "stable",
-					hybridOutput: "stable",
-					sharpImageService: "stable",
-				},
-			}),
-	},
-}`;
-
 let workspace: string;
 let assetsDir: string;
 let log: string;
 let exitCode: number | null;
 
-const edit = (file: string, from: string, to: string) => {
-	const text = readFileSync(file, "utf8");
-	if (!text.includes(from)) throw new Error(`${file} has no "${from}".`);
-	writeFileSync(file, text.replace(from, to));
-};
-
 const assets = () =>
 	readdirSync(assetsDir).map((name) => join(assetsDir, name));
 
 beforeAll(() => {
-	const copy = copyBooks(`server-build-${BOOK}-`, [BOOK]);
-	workspace = copy.workspace;
-	const appDir = copy.appDir(BOOK);
-	edit(
-		join(appDir, "src", "book.config.ts"),
-		"site: {",
-		'site: {\n\t\truntime: "server",',
-	);
-	// Link-preview images take seconds and are not what this test is about.
-	edit(
-		join(appDir, "astro.config.mjs"),
-		"integrations: [mdx(), bookkit({",
-		`adapter: ${STAND_IN_ADAPTER},\n\tintegrations: [mdx(), bookkit({ ogImages: false,`,
-	);
-	writeFileSync(
-		join(appDir, "server-entry.mjs"),
-		'export default { fetch: () => new Response("Not served.", { status: 501 }) };\n',
-	);
+	let appDir: string;
+	({ workspace, appDir } = serverRuntimeCopy(`server-build-${BOOK}-`, BOOK));
 	const result = runChild([process.execPath, "run", "build"], {
 		cwd: appDir,
 		env: { ...process.env, NO_COLOR: "1" },

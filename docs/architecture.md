@@ -137,7 +137,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 
 | Module | Tier | Owns |
 | --- | --- | --- |
-| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser, request limits, the author-token check for API routes, the book's data folder where those routes keep what readers send, the one rule for which links a book keeps, and the one allowlist of the raw HTML its content may hold |
+| `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser, the one Markdown parser (blocks, inline text, raw HTML, and the ids the site gives headings) that the exports, the search index, and the frame check share, the "did you mean" for a mistyped name, request limits, the author-token check for API routes, the book's data folder where those routes keep what readers send, the one rule for which links a book keeps, the one allowlist of the raw HTML its content may hold, and the check that keeps a test's scratch workspace from resolving to the repository around it |
 | `schemas/` | 0 | Zod frontmatter schemas — the record contract for every content section |
 | `styles/` | 0 | `bookkit.css`, the shipped stylesheet |
 | `embeddings/` | 0 | embedding generation for semantic search, and the in-browser model runtime it and `rerank/` load (transformers.js, with ONNX Runtime's WebAssembly served from the book's site) |

@@ -1,9 +1,9 @@
 import {
 	CHARACTER_REFERENCE,
 	decodeCharacterReference,
-} from "../utils/character-references";
-import { embedTitle } from "../utils/html-allowlist";
-import { normalizeLabel, smartDashes } from "../utils/markdown";
+} from "./character-references";
+import { embedTitle } from "./html-allowlist";
+import { normalizeLabel, smartDashes } from "./markdown";
 import {
 	type InlineImage,
 	MARKDOWN_IMAGE,

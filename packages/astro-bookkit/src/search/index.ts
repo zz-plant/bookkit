@@ -1,10 +1,10 @@
-import type { MarkdownBlock } from "../exports/markdown-blocks";
-import { childBlocks, parseEntryMarkdown } from "../exports/markdown-headings";
 import {
 	frontmatterTextFields,
 	parseFrontmatter as parseSharedFrontmatter,
 } from "../utils/frontmatter";
 import { stripMarkdown } from "../utils/markdown";
+import type { MarkdownBlock } from "../utils/markdown-blocks";
+import { childBlocks, parseEntryMarkdown } from "../utils/markdown-headings";
 
 export type SearchContentSource = {
 	type: string;

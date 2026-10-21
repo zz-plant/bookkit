@@ -3,7 +3,7 @@ import {
 	normalizeLabel,
 	splitFencedCode,
 	withoutUnsafeMarkup,
-} from "../utils/markdown";
+} from "./markdown";
 import {
 	BLOCK_TAGS,
 	HTML_TAG,

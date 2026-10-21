@@ -8,9 +8,14 @@ import {
 } from "node:fs";
 import { join, relative } from "node:path";
 import {
+	insideScratchWorkspace,
+	SCRATCH_WORKSPACE_MARKER,
+} from "../../packages/astro-bookkit/src/utils/scratch-workspace";
+import {
 	BUILD_DEADLINE_MS,
 	CHILD_DEADLINE_MS,
 	runChild,
+	SCRATCH_WORKSPACES,
 } from "./child-process.fixture";
 
 /**
@@ -23,6 +28,12 @@ import {
  * Astro reads an absolute path that shares no directory with the app as
  * relative to the app, so a book under /tmp cannot find the engine's
  * components. The caller removes `workspace` when done.
+ *
+ * Inside the repo, a script that walked up from a deleted workspace would
+ * reach the repo's own apps/. So each workspace holds a marker file, every
+ * path these helpers hand out is checked to be inside a workspace that still
+ * has it, and each child started in one is told its folder, outside which
+ * its scripts resolve nothing (utils/scratch-workspace.ts, `childEnv`).
  */
 
 const REPO = join(import.meta.dir, "..", "..");
@@ -42,9 +53,12 @@ export const buildBook = (appDir: string) =>
 	runBun(["run", "build"], appDir, BUILD_DEADLINE_MS);
 
 const emptyWorkspace = (prefix: string) => {
-	const scratch = join(REPO, ".test-workspaces");
-	mkdirSync(scratch, { recursive: true });
-	const workspace = mkdtempSync(join(scratch, prefix));
+	mkdirSync(SCRATCH_WORKSPACES, { recursive: true });
+	const workspace = mkdtempSync(join(SCRATCH_WORKSPACES, prefix));
+	writeFileSync(
+		join(workspace, SCRATCH_WORKSPACE_MARKER),
+		"A test's scratch workspace (scripts/lib/book-workspace.fixture.ts).\n",
+	);
 	// The engine, its starter template, and dependencies come from this repo.
 	for (const entry of [
 		"packages",
@@ -52,18 +66,55 @@ const emptyWorkspace = (prefix: string) => {
 		"tsconfig.base.json",
 		"biome.json",
 	]) {
-		symlinkSync(join(REPO, entry), join(workspace, entry));
+		symlinkSync(join(REPO, entry), insideScratchWorkspace(workspace, entry));
 	}
 	writeFileSync(
-		join(workspace, ".gitignore"),
+		insideScratchWorkspace(workspace, ".gitignore"),
 		"node_modules/\ndist/\n.astro/\n",
+	);
+	// A workspace root has one; the MCP route lists its scripts.
+	writeFileSync(
+		insideScratchWorkspace(workspace, "package.json"),
+		'{ "name": "bookkit-scratch-workspace", "private": true }\n',
 	);
 	return workspace;
 };
 
+/**
+ * Turns off link-preview images in a new book's Astro config: they take
+ * seconds and are not what these tests are about. Throws, rather than leave
+ * them on, if the starter's call is neither `bookkit()` nor
+ * `bookkit({ ... })`.
+ */
+const withoutLinkPreviews = (config: string) => {
+	const source = readFileSync(config, "utf8");
+	// The first call on a line that is not a comment: the starter's comments
+	// name bookkit() too.
+	const call = /^((?:(?!\/\/).)*?)\bbookkit\((\s*\{|\s*(?=\)))/m;
+	if (!call.test(source)) {
+		throw new Error(
+			`Could not turn off link-preview images in ${config}: its bookkit call is neither bookkit() nor bookkit({ ... }). Update withoutLinkPreviews in scripts/lib/book-workspace.fixture.ts.`,
+		);
+	}
+	writeFileSync(
+		config,
+		source.replace(
+			call,
+			(_, before: string, opening: string) =>
+				`${before}bookkit({ ogImages: false${opening.trim() ? "," : " }"}`,
+		),
+	);
+};
+
+/**
+ * A scratch workspace holding a new book made by `new:book`, with
+ * link-preview images off unless `linkPreviews` (check:build fails a build
+ * whose pages name images it did not draw).
+ */
 export const createBookWorkspace = (
 	prefix: string,
 	book: string,
+	{ linkPreviews = false } = {},
 ): { workspace: string; appDir: string } => {
 	const workspace = emptyWorkspace(prefix);
 	// --no-install: the workspace borrows this repository's node_modules.
@@ -72,16 +123,8 @@ export const createBookWorkspace = (
 		workspace,
 	);
 	if (scaffold.exitCode !== 0) throw new Error(scaffold.output);
-	const appDir = join(workspace, "apps", book);
-	// Link-preview images take seconds and are not what these tests are about.
-	const config = join(appDir, "astro.config.mjs");
-	writeFileSync(
-		config,
-		readFileSync(config, "utf8").replace(
-			"bookkit()",
-			"bookkit({ ogImages: false })",
-		),
-	);
+	const appDir = insideScratchWorkspace(workspace, "apps", book);
+	if (!linkPreviews) withoutLinkPreviews(join(appDir, "astro.config.mjs"));
 	return { workspace, appDir };
 };
 
@@ -99,7 +142,8 @@ export const copyBooks = (
 	books: readonly string[],
 ): { workspace: string; appDir: (book: string) => string } => {
 	const workspace = emptyWorkspace(prefix);
-	const appDir = (book: string) => join(workspace, "apps", book);
+	const appDir = (book: string) =>
+		insideScratchWorkspace(workspace, "apps", book);
 	for (const book of books) {
 		const from = join(REPO, "apps", book);
 		cpSync(from, appDir(book), {
@@ -108,4 +152,61 @@ export const copyBooks = (
 		});
 	}
 	return { workspace, appDir };
+};
+
+/**
+ * An adapter that lets Astro build on-demand routes and serves nothing: the
+ * tests read a server build's prerendered pages and its assets.
+ */
+const STAND_IN_ADAPTER = `{
+	name: "bookkit-stand-in",
+	hooks: {
+		"astro:config:done": ({ setAdapter }) =>
+			setAdapter({
+				name: "bookkit-stand-in",
+				entrypointResolution: "auto",
+				serverEntrypoint: new URL("./server-entry.mjs", import.meta.url),
+				supportedAstroFeatures: {
+					serverOutput: "stable",
+					staticOutput: "stable",
+					hybridOutput: "stable",
+					sharpImageService: "stable",
+				},
+			}),
+	},
+}`;
+
+/**
+ * A copy of `book` (one of apps/) in a scratch workspace, built as
+ * `site.runtime: "server"` builds it, with the stand-in adapter and no
+ * link-preview images; apps/ is left alone. The caller removes `workspace`.
+ */
+export const serverRuntimeCopy = (
+	prefix: string,
+	book: string,
+): { workspace: string; appDir: string } => {
+	const { workspace, appDir } = copyBooks(prefix, [book]);
+	const dir = appDir(book);
+	const edit = (file: string, from: string, to: string) => {
+		const path = insideScratchWorkspace(workspace, "apps", book, file);
+		const text = readFileSync(path, "utf8");
+		if (!text.includes(from)) {
+			throw new Error(
+				`apps/${book}/${file} has no "${from}" to give the server runtime.`,
+			);
+		}
+		writeFileSync(path, text.replace(from, to));
+	};
+	edit("src/book.config.ts", "site: {", 'site: {\n\t\truntime: "server",');
+	edit(
+		"astro.config.mjs",
+		"integrations: [",
+		`adapter: ${STAND_IN_ADAPTER},\n\tintegrations: [`,
+	);
+	withoutLinkPreviews(join(dir, "astro.config.mjs"));
+	writeFileSync(
+		join(dir, "server-entry.mjs"),
+		'export default { fetch: () => new Response("Not served in tests.", { status: 501 }) };\n',
+	);
+	return { workspace, appDir: dir };
 };

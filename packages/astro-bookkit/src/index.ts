@@ -486,7 +486,6 @@ export {
 	SECTION_DIRECTORIES,
 } from "./validators/content-check";
 export {
-	frameStepsInHeadings,
 	frameStepsInPage,
 	validateFrameDefinition,
 	validateFrameSteps,

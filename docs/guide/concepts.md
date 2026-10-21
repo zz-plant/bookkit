@@ -25,7 +25,9 @@ The frames and the steps each one requires:
 | `field-guide` | steps, failure-modes, checklist |
 | `runbook` | ownership, trigger, steps, escalation, verification |
 
-A step counts when a heading (levels 1 to 4) is the step's name and nothing more: its whole text, slugged as the site slugs heading ids, is the step's id. `## Failure Modes`, `## Failure modes`, and `## failure-modes` all count for `failure-modes`, and a link to `#failure-modes` lands on that heading; `## Failure modes we have seen` does not count. A book with no `00-overview.mdx` (an imported one) is checked across its chapters together. A missing step is a warning. In a runbook book every action also needs `escalation` and `runbookSteps` (a warning in a draft, an error once published), and `bun run check:runbooks` derives the book's control coverage matrix.
+`frame.steps` lists the steps the overview must carry, by id. It may add a frame's optional steps but not leave out a required one, and a step the frame does not have, or a `frame.slug` that is not one of the frames above, is an error naming the nearest match. A book with no `frame` follows `intervention`.
+
+A step counts when a heading (levels 1 to 4) is the step's name and nothing more: its whole text, slugged as the site slugs heading ids, is the step's id. `## Failure Modes`, `## Failure modes`, and `## failure-modes` all count for `failure-modes`, and a link to `#failure-modes` lands on that heading; `## Failure modes we have seen`, `## Owner` (for ownership), and a line such as `Owner: Payments` do not count. `bookkit check <folder> --frame` and `bookkit try` hold each document of a folder to the same rule. A book with no `00-overview.mdx` (an imported one) is checked across its chapters together. A missing step is a warning. In a runbook book every action also needs `escalation` and `runbookSteps` (a warning in a draft, an error once published), and `bun run check:runbooks` derives the book's control coverage matrix.
 
 ## Status
 
@@ -48,7 +50,7 @@ Errors exit 1 whatever the status; `bun run validate:release` is an alias of `bu
 | Field | Effect |
 | --- | --- |
 | `status` | `draft`, `in-review`, `published`, or `stable`; see [Status](#status). |
-| `frame.slug`, `frame.intent` | The frame, and what the book moves the reader through. |
+| `frame.slug`, `frame.steps`, `frame.intent` | The frame, the steps its overview carries (see [Terms](#terms)), and what the book moves the reader through. |
 | `objectives`, `causalStance` | Who the reader is at the start and the end, and the book's causal claim. Both show on the "About this book" page (`/read/overview`). |
 | `author: { name, url? }` | The byline on the home page and in each page's colophon. |
 | `site.url` | The published address: canonical links, the sitemap, `robots.txt`, and the exports' links use it. |

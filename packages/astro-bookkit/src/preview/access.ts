@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "astro";
+import { escapeHtml } from "../utils/character-references";
 import { getOriginalUrl } from "../utils/request";
 
 export type PreviewTokenRecord = {
@@ -176,6 +177,10 @@ export const getPreviewContext = (locals: {
 	return value as PreviewAccessState;
 };
 
+/**
+ * The 401 page. The title holds the book's title from book.config, so both
+ * texts are escaped: a title with `&` or `<` reads as written.
+ */
 const buildDeniedHtml = (
 	title: string,
 	message: string,
@@ -184,7 +189,7 @@ const buildDeniedHtml = (
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <meta name="robots" content="noindex, nofollow" />
   <style>
     body { font-family: system-ui, sans-serif; background: #f5f4f1; color: #191919; padding: 48px; }
@@ -204,9 +209,9 @@ const buildDeniedHtml = (
     <div class="eyebrow">Private preview</div>
     <div class="title-row">
       <span class="icon" aria-hidden="true">🔒</span>
-      <h1>${title}</h1>
+      <h1>${escapeHtml(title)}</h1>
     </div>
-    <p>${message}</p>
+    <p>${escapeHtml(message)}</p>
     <p class="support">If you believe you should have access, request a fresh preview link from the author or check the email where it was shared.</p>
     <ul class="actions">
       <li>Ask the author for a new preview link.</li>

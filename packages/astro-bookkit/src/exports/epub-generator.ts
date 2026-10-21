@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { escapeHtml } from "../utils/character-references";
 import { HAS_SCHEME } from "../utils/links";
 import {
 	defaultImageLoader,
@@ -7,7 +8,6 @@ import {
 	warnWith,
 } from "./images";
 import {
-	escapeHtml,
 	type ImageResolver,
 	markdownToHtml,
 	readLinkTarget,

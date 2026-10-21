@@ -51,3 +51,19 @@ export const isSafeLink = (href: string): boolean => {
 	const scheme = linkScheme(href);
 	return scheme === null || SAFE_LINK_SCHEMES.has(scheme);
 };
+
+const SITE = "https://site.invalid";
+
+/**
+ * An address on this site: a path from its root, read as a browser reads
+ * it. `//host/…`, `/\host/…`, and `/<tab>/host/…` start with a slash too,
+ * but lead to another site, so they are not.
+ */
+export const isSitePath = (href: string): boolean => {
+	if (!href.startsWith("/")) return false;
+	try {
+		return new URL(href, SITE).origin === SITE;
+	} catch {
+		return false;
+	}
+};

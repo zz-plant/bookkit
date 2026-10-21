@@ -84,6 +84,10 @@ export const parseJsonBody = async (
 };
 
 /** 413 for a body over the limit, 400 for one that is not JSON. */
+/** A value a client sent, as a 400's message quotes it: in JSON quotes, cut short at 60 characters. */
+export const quoted = (value: string): string =>
+	JSON.stringify(value.length > 60 ? `${value.slice(0, 59)}…` : value);
+
 export const invalidBodyResponse = (
 	parsed: Extract<JsonParseResult, { ok: false }>,
 ) =>

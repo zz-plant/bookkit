@@ -12,6 +12,7 @@ import {
 import {
 	invalidBodyResponse,
 	jsonResponse,
+	quoted,
 	rateLimited,
 	tryParseJsonBody,
 } from "../utils/http";
@@ -92,10 +93,6 @@ const normalizeTimestamp = (value: unknown) => {
 	if (Math.abs(now - numeric) > MAX_EVENT_AGE_MS) return now;
 	return numeric;
 };
-
-/** A value as a message quotes it, cut short at 60 characters. */
-const quoted = (value: string) =>
-	JSON.stringify(value.length > 60 ? `${value.slice(0, 59)}…` : value);
 
 /** A string field, trimmed; null when it is missing, empty, or not a string. */
 const trimmedText = (value: unknown): string | null =>

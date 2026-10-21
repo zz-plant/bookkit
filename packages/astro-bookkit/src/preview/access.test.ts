@@ -82,6 +82,25 @@ describe("createPreviewAccessMiddleware", () => {
 		).toBe(true);
 	});
 
+	it("writes the book's title into the locked page as text", async () => {
+		const middleware = createPreviewAccessMiddleware({
+			...config,
+			siteTitle: `Fish & <script>alert("x")</script> Chips`,
+		});
+		const response = await middleware(
+			createContext({ isPrerendered: false }),
+			next,
+		);
+		const html = await response.text();
+
+		expect(response.status).toBe(401);
+		expect(html).not.toContain("<script>");
+		const written =
+			"Fish &amp; &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; Chips preview required";
+		expect(html).toContain(`<title>${written}</title>`);
+		expect(html).toContain(`<h1>${written}</h1>`);
+	});
+
 	it("is a no-op when preview access is disabled", async () => {
 		const middleware = createPreviewAccessMiddleware({
 			...config,

@@ -3,9 +3,11 @@ import { readBookRecords } from "../utils/book-data";
 import {
 	invalidBodyResponse,
 	jsonResponse,
+	quoted,
 	rateLimited,
 	tryParseJsonBody,
 } from "../utils/http";
+import { isSitePath } from "../utils/links";
 import {
 	READER_ANALYTICS_FILE,
 	type ReaderAnalyticsEvent,
@@ -52,11 +54,69 @@ const normalizeTimestamp = (value: unknown): number => {
 	return Date.now();
 };
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: no path or title holds a control character
+const CONTROL_CHARACTER = /[\u0000-\u001F\u007F]/;
+/** Where HTML would start a tag or a comment: `<a`, `</`, `<!`, `<?`. */
+const MARKUP = /<[A-Za-z/!?]/;
+
+/**
+ * The page's path, or why it is refused. The reader script sends
+ * `location.pathname`; the author's dashboard lists it, so it must be a path
+ * on this site (see `isSitePath`) and short enough to read.
+ */
+const pagePath = (value: unknown): { path: string } | { refused: string } => {
+	if (typeof value !== "string" || !value.trim()) {
+		return {
+			refused:
+				"path is missing: send the page's path, as location.pathname gives it",
+		};
+	}
+	const path = value.trim();
+	if (
+		path.length > MAX_PATH_LENGTH ||
+		CONTROL_CHARACTER.test(path) ||
+		!isSitePath(path)
+	) {
+		return {
+			refused: `path ${quoted(path)} is not a path on this site, which starts with one "/", leads to a page of this site, and has at most ${MAX_PATH_LENGTH} characters`,
+		};
+	}
+	return { path };
+};
+
+/**
+ * The page's title, cut to `MAX_TITLE_LENGTH`, or why it is refused. The
+ * reader script sends `document.title`, which is plain text; one holding
+ * markup or a control character did not come from it.
+ */
+const pageTitle = (
+	value: unknown,
+): { title: string | null } | { refused: string } => {
+	if (value === undefined || value === null) return { title: null };
+	if (typeof value !== "string") {
+		return { refused: "title must be a string: the page's document.title" };
+	}
+	const title = value.trim();
+	if (CONTROL_CHARACTER.test(title) || MARKUP.test(title)) {
+		return {
+			refused: `title ${quoted(title)} is not plain text: it holds ${MARKUP.test(title) ? "HTML markup" : "a control character"}`,
+		};
+	}
+	return { title: title ? title.slice(0, MAX_TITLE_LENGTH) : null };
+};
+
+/** The event as it is stored, or why it is refused. */
 const normalizeEvent = (
 	payload: Record<string, unknown>,
 	request: Request,
-): ReaderAnalyticsEvent | null => {
-	if (payload.type !== "pageview" && payload.type !== "engagement") return null;
+): ReaderAnalyticsEvent | string => {
+	if (payload.type !== "pageview" && payload.type !== "engagement") {
+		return 'type must be "pageview" or "engagement"';
+	}
+	const path = pagePath(payload.path);
+	if ("refused" in path) return path.refused;
+	const title = pageTitle(payload.title);
+	if ("refused" in title) return title.refused;
 
 	const timestamp = normalizeTimestamp(payload.timestamp);
 	const durationSeconds =
@@ -72,10 +132,10 @@ const normalizeEvent = (
 		type: payload.type,
 		timestamp,
 		sessionId: cleanText(payload.sessionId, MAX_SESSION_LENGTH),
-		path: cleanText(payload.path, MAX_PATH_LENGTH),
+		path: path.path,
 		chapterSlug: cleanText(payload.chapterSlug, MAX_CHAPTER_LENGTH),
 		version: cleanText(payload.version, MAX_VERSION_LENGTH),
-		title: cleanText(payload.title, MAX_TITLE_LENGTH),
+		title: title.title,
 		durationSeconds,
 		scrollDepth,
 		referrer: cleanText(request.headers.get("referer"), MAX_PATH_LENGTH),
@@ -136,9 +196,9 @@ export const createReaderAnalyticsEndpoint = (
 				}
 
 				const event = normalizeEvent(payload, request);
-				if (!event) {
+				if (typeof event === "string") {
 					return jsonResponse(
-						{ ok: false, error: "Invalid analytics event." },
+						{ ok: false, error: `Invalid analytics event: ${event}.` },
 						400,
 					);
 				}

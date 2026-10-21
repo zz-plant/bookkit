@@ -1,3 +1,4 @@
+export { escapeHtml } from "../utils/character-references";
 export type { ExportAnalyticsEvent } from "./analytics";
 export { recordExportEvent } from "./analytics";
 export type { ExportReadingOrderOptions } from "./content-parsing";
@@ -36,7 +37,7 @@ export {
 } from "./link-metadata-helpers";
 export type { InlineImage } from "./markdown-blocks";
 export type { ImageResolver, LinkResolver } from "./markdown-to-html";
-export { escapeHtml, markdownToHtml } from "./markdown-to-html";
+export { markdownToHtml } from "./markdown-to-html";
 export type { PdfFontFile } from "./pdf-fonts";
 export { BUILT_IN_PDF_SCRIPTS } from "./pdf-fonts";
 export { createPdfExport } from "./pdf-generator";

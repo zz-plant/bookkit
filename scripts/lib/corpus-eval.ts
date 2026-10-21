@@ -153,3 +153,32 @@ export const evaluateCorpusModel = (
 		atCatchAll: flaggedAt(Math.floor(lowestMerge * 100) / 100),
 	};
 };
+
+/** P(X >= k) for X ~ Binomial(n, p). */
+const tailAtLeast = (k: number, n: number, p: number): number => {
+	let total = 0;
+	let term = (1 - p) ** n; // P(X = 0)
+	for (let x = 0; x <= n; x += 1) {
+		if (x >= k) total += term;
+		term = (term * (n - x) * p) / ((x + 1) * (1 - p));
+	}
+	return total;
+};
+
+/**
+ * The lowest rate consistent with `right` of `total` at 95% confidence (exact,
+ * one-sided Clopper–Pearson): how far a perfect score on a small answer key
+ * can be trusted. 3 of 3 says only "at least 36.8%"; 17 of 17, "at least 83.8%".
+ */
+export const lowerBound95 = (right: number, total: number): number => {
+	if (total <= 0 || right <= 0) return 0;
+	if (right >= total) return 0.05 ** (1 / total);
+	let low = 0;
+	let high = right / total;
+	for (let step = 0; step < 60; step += 1) {
+		const mid = (low + high) / 2;
+		if (tailAtLeast(right, total, mid) < 0.05) low = mid;
+		else high = mid;
+	}
+	return low;
+};

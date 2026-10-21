@@ -1,7 +1,5 @@
 # Troubleshooting
 
-**`check:types` fails with "git ls-files failed: not a git repository".** A new standalone project has no git history yet. Run `git init && git add -A && git commit -m "First draft"`, then `bun run verify -- --all`.
-
 **A published book fails with `DRAFT_IN_RELEASE`.** Some record still has `status: draft` (or none). Finish it and set its status, or move the book back to `in-review` until it is done.
 
 **The book builds but search engines never see it.** Its status is not `published` or `stable`, or `site.indexable` is `false`, so every page is `noindex`. A `*.workers.dev` address is `noindex` regardless; publish on the domain in `site.url`.
@@ -12,7 +10,7 @@
 
 **`check:build` refuses preview access.** `previewAccess.enabled` is `true` on a static build, where a token gate cannot protect prerendered files. Set it to `false`, or serve the book with the server runtime.
 
-**Deploy refuses with "uncommitted changes".** Commit them, or rehearse with `--dry-run`. `--no-build` refuses a `dist/` that a deploy run did not stamp at the current commit; run `deploy <book> --dry-run` first.
+**Deploy refuses with "uncommitted changes".** Commit them, or rehearse with `--dry-run`. `--no-build` refuses a `dist/` that a deploy run did not stamp at the current commit; run `deploy <book> --dry-run --full` first.
 
 **The build stops because the PDF cannot draw some characters.** The book uses a script the bundled fonts lack, or one that needs shaping. Set `exports.pdfFont` to a TTF or OTF font that covers it, or `exports: { pdf: false }`; the EPUB is not affected.
 

@@ -1,6 +1,18 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listBookDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary:
+		"Compares the versions of the main dependencies (Astro, TypeScript,\nBun, Mermaid, …) the workspace declares with the latest on npm, and\nrates each upgrade's risk. Needs the network.",
+	usage: ["bun run stack:capabilities [--write <file>]"],
+	options: [["--write <file>", "Also write the report as Markdown"]],
+	examples: [
+		"bun run stack:capabilities",
+		"bun run stack:capabilities -- --write stack-report.md",
+	],
+});
 
 type PackageManifest = {
 	name?: string;

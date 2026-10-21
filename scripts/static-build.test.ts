@@ -125,15 +125,28 @@ describe(`static build of ${BOOK}`, () => {
 		expect(offenders.map((file) => file.slice(outDir.length))).toEqual([]);
 	});
 
-	it("does not bundle the in-browser models the Ask panel loads", () => {
-		const bundles = filesUnder(join(outDir, "_astro")).filter((file) =>
-			file.endsWith(".js"),
+	it("gives the release notes page's script only the values it reads", () => {
+		const page = readFileSync(
+			join(outDir, "release-notes", "index.html"),
+			"utf8",
 		);
-		for (const bundle of bundles) {
+		// define:vars writes each value as a `const` at the top of the script.
+		const script = page.match(
+			/<script>\(function\(\)\{(const [\s\S]*?)<\/script>/,
+		)?.[1];
+		const names = [...(script ?? "").matchAll(/^const (\w+) = /gm)].map(
+			(match) => match[1],
+		);
+		expect(names).toEqual(["subscribeAnalyticsUrl", "bookKey"]);
+	});
+
+	it("does not bundle the in-browser models the Ask panel loads, or their runtime", () => {
+		const assets = filesUnder(join(outDir, "_astro"));
+		for (const bundle of assets.filter((file) => file.endsWith(".js"))) {
 			const source = readFileSync(bundle, "utf8");
 			expect(source.includes("onnxruntime"), bundle).toBe(false);
-			expect(source.includes("@mlc-ai/web-llm"), bundle).toBe(false);
 		}
+		expect(assets.filter((file) => file.endsWith(".wasm"))).toEqual([]);
 	});
 
 	it("shows each procedure's owner, situations, escalation and drills, in the export's order", () => {

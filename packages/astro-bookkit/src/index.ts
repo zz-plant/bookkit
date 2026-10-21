@@ -194,12 +194,6 @@ export {
 	bookkit,
 } from "./integration";
 export type {
-	LocalLlmEngine,
-	LocalLlmMessage,
-	LocalLlmResponse,
-} from "./llm-local";
-export { createLocalLlmEngine } from "./llm-local";
-export type {
 	LocaleEntry,
 	LocaleMiddlewareOptions,
 	LocaleRoutingOptions,
@@ -235,6 +229,7 @@ export {
 	createGovernanceResourcesFromFiles,
 	DEFAULT_GOVERNANCE_FILE_RESOURCES,
 	findWorkspaceRoot,
+	GUIDE_GOVERNANCE_FILE_RESOURCES,
 } from "./mcp";
 export type {
 	PreviewAccessConfig,
@@ -492,6 +487,7 @@ export {
 } from "./validators/content-check";
 export {
 	frameStepsInHeadings,
+	frameStepsInPage,
 	validateFrameDefinition,
 	validateFrameSteps,
 } from "./validators/frame";

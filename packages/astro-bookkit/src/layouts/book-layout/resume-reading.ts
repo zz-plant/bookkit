@@ -1,3 +1,4 @@
+import { isSitePath } from "../../utils/links";
 import { queryAllElements, queryElement } from "./dom";
 import {
 	readStoredJson,
@@ -36,17 +37,21 @@ export const chapterToResume = (
 		: null;
 };
 
-/** The chapters a `[data-resume-reading]` block lists, as it renders them. */
-const readChapters = (block: HTMLElement): ResumeChapter[] => {
+/**
+ * The chapters a `[data-resume-reading]` block lists (its
+ * `data-resume-chapters` JSON), each linking to a page of this site; any
+ * other entry is dropped.
+ */
+export const resumeChapters = (json: string | undefined): ResumeChapter[] => {
 	try {
-		const parsed = JSON.parse(block.dataset.resumeChapters ?? "[]");
+		const parsed = JSON.parse(json ?? "[]");
 		return Array.isArray(parsed)
 			? parsed.filter(
 					(item): item is ResumeChapter =>
 						typeof item?.slug === "string" &&
 						typeof item?.label === "string" &&
 						typeof item?.href === "string" &&
-						item.href.startsWith("/"),
+						isSitePath(item.href),
 				)
 			: [];
 	} catch {
@@ -72,7 +77,7 @@ export const initializeResumeReading = ({
 	)) {
 		const resume = chapterToResume(
 			readStoredJson(storage, storageKey),
-			readChapters(block),
+			resumeChapters(block.dataset.resumeChapters),
 		);
 		const link = queryElement(block, "[data-resume-link]", HTMLAnchorElement);
 		const title = queryElement(block, "[data-resume-title]", HTMLElement);

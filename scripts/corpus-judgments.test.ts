@@ -208,7 +208,9 @@ describe("check:corpus with judges' verdicts", () => {
 		writeFileSync(join(dir, "answer-2.json"), answers("unrelated"));
 		const record = checkCorpus("--judge-record", dir);
 		expect(record.status).toBe(0);
-		expect(record.output).toContain("Recorded 2 judge(s) on 3 pair(s)");
+		expect(record.output).toContain(
+			"Recorded 2 of the 3 judge(s) on 3 pair(s) in corpus-judgments.json; 1 has not answered",
+		);
 		const saved = JSON.parse(
 			readFileSync(join(workspace, "corpus-judgments.json"), "utf8"),
 		).judgments as JudgmentRecord[];

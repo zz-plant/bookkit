@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	analyzeCorpusOverlap,
@@ -11,7 +11,7 @@ import {
 	evaluateJudgments,
 } from "../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
-import { didYouMean } from "./lib/cli";
+import { didYouMean, exitOnHelp } from "./lib/cli";
 import { type CorpusMergeRecord, evaluateCorpusModel } from "./lib/corpus-eval";
 import {
 	JUDGMENTS_FILE,
@@ -32,25 +32,11 @@ import {
 	embedTexts,
 	resolveEmbeddingModel,
 } from "./lib/embed-text";
+import { unansweredJudges } from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
 
 /**
  * check:corpus — mechanism overlap across books.
- *
- *   bun run check:corpus                                   # every book (see below)
- *   bun run check:corpus -- --book garden-notes            # what concerns one book
- *   bun run check:corpus -- --books bad-people,running-hot  # a chosen corpus
- *   bun run check:corpus -- --no-semantic                  # lexical only, no model
- *   bun run check:corpus -- --download-model               # allow the model download without asking
- *   bun run check:corpus -- --model minilm                 # another model (see EMBEDDING_MODELS)
- *   bun run check:corpus -- --threshold 0.5 --json
- *   bun run check:corpus -- --export corpus-report.json
- *   bun run check:corpus -- --mode error                   # exit 1 while anything is unresolved
- *   bun run check:corpus -- --eval [--model nomic,minilm]  # score models and judges against the author's rulings
- *   bun run check:corpus -- --judge-prompt <dir> [--judge-top 10] [--judges 3]  # ask judges about pairs, blind
- *   bun run check:corpus -- --judge-prompt <dir> --judge-for <slug>  # only one mechanism's 3 nearest
- *   bun run check:corpus -- --judge-record <dir>           # record their answers in corpus-judgments.json
- *   (bun run bookkit judge [slug] and bookkit judge record run these with a folder in .bookkit/judging/)
  *
  * corpus.json at the repo root, when present, names the books in the shared
  * corpus, records pairs the author reviewed and ruled distinct, and keeps each
@@ -76,6 +62,50 @@ import { loadBookContent } from "./lib/load-book";
  *     "merged": [{ "into": "slug-2", "date": "...", "reason": "...", "before": [{ "book", "slug", "title", "definition", "is" }, {...}] }]
  *   }
  */
+
+exitOnHelp({
+	summary:
+		"Compares mechanisms across books: by wording, and by meaning with an\nembedding model when it is there. Books in corpus.json's shared corpus\nare checked against each other, every other book against itself.",
+	usage: [
+		"bun run check:corpus [--book <book> | --books <a,b>] [--no-semantic] [--mode error] [--json]",
+		"bun run check:corpus --judge-prompt <dir> [--judge-for <slug>] [--judge-top <n>] [--judges <n>]",
+		"bun run check:corpus --judge-record <dir>",
+		"bun run check:corpus --eval [--model <name,...>]",
+	],
+	options: [
+		["--book <book>", "What concerns one book"],
+		["--books <a,b>", "Make these books one corpus"],
+		["--no-semantic", "Wording only; the model is not loaded"],
+		["--download-model", "Download the model (about 550 MB) without asking"],
+		["--model <name>", "Another embedding model"],
+		[
+			"--threshold <n>",
+			"The similarity, 0 to 1, at which the meaning pass\nflags a pair",
+		],
+		["--mode error", "Exit 1 while any overlap is unresolved"],
+		["--json", "The report as JSON"],
+		["--export <file>", "Also write the report to a JSON file"],
+		[
+			"--judge-prompt <dir>",
+			"Write a blind prompt per judge for the closest pairs",
+		],
+		["--judge-for <slug>", "Only that mechanism's 3 nearest"],
+		["--judge-top <n>", "How many pairs to ask about (default: 10)"],
+		["--judges <n>", "Judges per pair (default: 3)"],
+		[
+			"--judge-record <dir>",
+			"Record the judges' answers in corpus-judgments.json",
+		],
+		["--eval", "Score models and judges against the author's rulings"],
+	],
+	notes:
+		"bun run bookkit judge and bun run bookkit check run this with the\nright folder and flags.",
+	examples: [
+		"bun run check:corpus",
+		"bun run check:corpus -- --book on-call --no-semantic",
+		"bun run check:corpus -- --mode error",
+	],
+});
 
 type CorpusFile = {
 	books?: string[];
@@ -234,8 +264,13 @@ if (judgeRecordDir) {
 	}
 	judgmentRecords = mergeRecords(judgmentRecords, read.records);
 	writeJudgments(repoRoot(), judgmentRecords);
+	// The request asked for one judge per judge-<n> folder; say how many answered.
+	const asked = readdirSync(judgeRecordDir).filter((name) =>
+		/^judge-\d+$/.test(name),
+	).length;
+	const waiting = unansweredJudges(judgeRecordDir).length;
 	console.log(
-		`Recorded ${read.judges.length} judge(s) on ${read.records.length} pair(s) in ${JUDGMENTS_FILE}:`,
+		`Recorded ${read.judges.length}${asked > read.judges.length ? ` of the ${asked}` : ""} judge(s) on ${read.records.length} pair(s) in ${JUDGMENTS_FILE}${waiting > 0 ? `; ${waiting} ${waiting === 1 ? "has" : "have"} not answered (bun run bookkit judge run asks ${waiting === 1 ? "it" : "them"}), and a pair's call needs a majority` : ""}:`,
 	);
 	const open: Array<[string, string]> = [];
 	for (const judgment of matchJudgments(read.records, mechanisms).current) {

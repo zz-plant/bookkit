@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { repoRoot } from "./_lib";
 import { loadBookConfigSummary } from "./lib/authoring";
-import { didYouMean, readFocusBook } from "./lib/cli";
+import {
+	didYouMean,
+	exitOnHelp,
+	formatUsage,
+	readFocusBook,
+	type Usage,
+} from "./lib/cli";
 import {
 	countSitemapUrls,
 	distDigest,
@@ -31,25 +37,53 @@ import { domainNotice, liveSitemapUrl } from "./lib/deploy-domain";
  *
  * Uncommitted changes in the books being deployed, or outside apps/, are
  * refused unless --allow-dirty; a --dry-run rehearses them anyway, and says
- * a real deploy would refuse them. A book that passes gets a stamp beside its
+ * a real deploy would refuse them. A --dry-run leaves out the engine's tests
+ * and type check (the slow gates, about code an author does not change)
+ * unless --full. A book that passes the full gate gets a stamp beside its
  * dist/ (commit + digest); --no-build publishes that stamped dist/ without
  * verifying or building again, and refuses one stamped at another commit or
  * changed since.
  */
 
-const USAGE = `Usage: bun run bookkit deploy [book...] [--all] [--dry-run] [--no-build] [--allow-dirty] [--allow-page-drop]
-
-Publishes books to Cloudflare Workers, all or none: every book is verified,
-built, and checked before any is published. With no book named, the current
-book (bun run bookkit use), else every book under apps/ that has
-src/book.config.ts and wrangler.jsonc.
-
-  --all              every book, even when a current book is set
-  --dry-run          run every check and wrangler's dry run; publish nothing
-  --no-build         skip verify and the build: publish the dist/ an earlier
-                     deploy run built, checked, and stamped at this commit
-  --allow-dirty      publish with uncommitted changes (the version message says so)
-  --allow-page-drop  publish even if more than a quarter of the live pages would disappear`;
+const USAGE: Usage = {
+	summary:
+		"Publishes books to Cloudflare Workers, all or none: every book is\nverified, built, and checked before any is published. With no book\nnamed, the current book (bun run bookkit use), else every book under\napps/ that has src/book.config.ts and wrangler.jsonc.",
+	usage: [
+		"bun run bookkit deploy [book...] [--all] [--dry-run [--full]] [--no-build] [--allow-dirty] [--allow-page-drop]",
+	],
+	options: [
+		["[book...]", "The books to publish"],
+		["--all", "Every book, even when a current book is set"],
+		[
+			"--dry-run",
+			"Check the content, build, and run wrangler's dry run;\npublish nothing. Leaves out the engine's tests and type\ncheck, which a real deploy runs",
+		],
+		[
+			"--full",
+			"With --dry-run: every check a real deploy runs, and a\nstamp so --no-build can publish exactly these builds",
+		],
+		[
+			"--no-build",
+			"Skip verify and the build: publish the dist/ an earlier\ndeploy run built, checked, and stamped at this commit",
+		],
+		[
+			"--allow-dirty",
+			"Publish with uncommitted changes (the version message\nsays so)",
+		],
+		[
+			"--allow-page-drop",
+			"Publish even if more than a quarter of the live pages\nwould disappear",
+		],
+	],
+	notes:
+		"A real deploy publishes from a git commit: commit first, or rehearse\nwith --dry-run.",
+	examples: [
+		"bun run bookkit deploy on-call --dry-run",
+		"bun run bookkit deploy on-call --dry-run --full",
+		"bun run bookkit deploy on-call",
+		"bun run deploy -- --dry-run",
+	],
+};
 
 const parse = () =>
 	parseArgs({
@@ -58,28 +92,36 @@ const parse = () =>
 		options: {
 			all: { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
+			full: { type: "boolean", default: false },
 			"no-build": { type: "boolean", default: false },
 			"allow-dirty": { type: "boolean", default: false },
 			"allow-page-drop": { type: "boolean", default: false },
-			help: { type: "boolean", short: "h", default: false },
 		},
 	});
+exitOnHelp(USAGE);
 let options: ReturnType<typeof parse>;
 try {
 	options = parse();
 } catch (error) {
 	// An unknown flag (say, --dryrun) must not fall through to a real publish.
 	console.error(
-		`${error instanceof Error ? error.message : String(error)}\n\n${USAGE}`,
+		`${error instanceof Error ? error.message : String(error)}\n\n${formatUsage(USAGE)}`,
 	);
 	process.exit(1);
 }
-if (options.values.help) {
-	console.log(USAGE);
-	process.exit(0);
-}
 
 const dryRun = options.values["dry-run"];
+// A dry run without --full skips the slow gates about engine code, so it
+// stamps nothing: --no-build publishes only what passed the full gate.
+const quickRehearsal = dryRun && !options.values.full;
+if (options.values.full && !dryRun) {
+	console.error(
+		"--full goes with --dry-run (a real deploy always runs every check).",
+	);
+	process.exit(1);
+}
+/** verify's gates that a quick rehearsal leaves out. */
+const QUICK_SKIPS = ["test", "types"];
 const skipBuild = options.values["no-build"];
 const allowDirty = options.values["allow-dirty"];
 const allowPageDrop = options.values["allow-page-drop"];
@@ -259,13 +301,26 @@ if (skipBuild) {
 	);
 } else {
 	// Every check CI runs, except building every book: the books being
-	// deployed are built and checked below.
+	// deployed are built and checked below. A quick rehearsal leaves out the
+	// tests and type check too.
 	console.log(
-		"\n── verify --all (the checks CI runs; the books deployed are built below)\n",
+		quickRehearsal
+			? `\n── verify --all without ${QUICK_SKIPS.join(" and ")} (a dry run; --full runs them, as a real deploy does)\n`
+			: "\n── verify --all (the checks CI runs; the books deployed are built below)\n",
 	);
 	const verify = spawnSync(
 		process.execPath,
-		["run", "verify", "--", "--all", "--skip", "build:all"],
+		[
+			"run",
+			"verify",
+			"--",
+			"--all",
+			"--skip",
+			"build:all",
+			...(quickRehearsal
+				? QUICK_SKIPS.flatMap((gate) => ["--skip", gate])
+				: []),
+		],
 		{ cwd: root, stdio: "inherit" },
 	);
 	if (verify.status !== 0) {
@@ -351,7 +406,8 @@ for (const outcome of outcomes) {
 		outcome.problems.length === 0 &&
 		!skipBuild &&
 		gitState &&
-		!rehearsingUncommitted
+		!rehearsingUncommitted &&
+		!quickRehearsal
 	) {
 		writeStamp(appDir, {
 			book,
@@ -395,7 +451,9 @@ const headline = () => {
 		}
 		const publish = rehearsingUncommitted
 			? `Commit your changes, then publish: bun run bookkit deploy ${selected.join(" ")}`
-			: `To publish exactly these builds: bun run bookkit deploy ${selected.join(" ")} --no-build${allowDirty ? " --allow-dirty" : ""}`;
+			: quickRehearsal
+				? `To publish: bun run bookkit deploy ${selected.join(" ")}${allowDirty ? " --allow-dirty" : ""} (it also runs the engine's tests and type check; --dry-run --full rehearses those too).`
+				: `To publish exactly these builds: bun run bookkit deploy ${selected.join(" ")} --no-build${allowDirty ? " --allow-dirty" : ""}`;
 		return `All ${outcomes.length} book(s) passed. ${publish}\n(Publishing needs a Cloudflare login once: bunx wrangler login, or CLOUDFLARE_API_TOKEN in the environment.)`;
 	}
 	const cause = `wrangler failed for ${failed.join(", ")} (its output is above)`;

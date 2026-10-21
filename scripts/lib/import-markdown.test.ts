@@ -206,6 +206,42 @@ describe("planImport", () => {
 		]);
 	});
 
+	it("turns wiki links and embeds into links and images, and keeps an unmatched one as its text", async () => {
+		writeFileSync(
+			join(notes, "08-wiki.md"),
+			[
+				"# Wiki",
+				"",
+				"See [[03-handoff-checklist|the checklist]] and [[04-context-glossary#Context debt]].",
+				"",
+				"![[handoff-board.png]]",
+				"",
+				"Not yet written: [[Nowhere]]. Code stays: `[[literal]]`.",
+				"",
+			].join("\n"),
+		);
+		const result = await plan();
+		const wiki = chapter(result, "08-wiki.md");
+		expect(wiki.content).toContain(
+			"[the checklist](/read/chapters/handoff-checklist)",
+		);
+		expect(wiki.content).toContain(
+			"[04-context-glossary › Context debt](/read/chapters/context-glossary#context-debt)",
+		);
+		expect(wiki.content).toContain(
+			"![handoff board](/images/handoff-board.png)",
+		);
+		expect(wiki.content).toContain("Not yet written: Nowhere.");
+		expect(wiki.content).toContain("`[[literal]]`");
+		expect(result.problems).toContainEqual({
+			source: "08-wiki.md",
+			line: 7,
+			message:
+				"links to [[Nowhere]], which no imported note is named; kept as its text",
+		});
+		expect((await compileMdx(wiki.content, workspace)).ok).not.toBe(false);
+	});
+
 	it("writes chapters that pass the contract and compile as MDX", async () => {
 		for (const c of (await plan()).chapters) {
 			expect(checkContentItem("chapter", c.content).findings).toEqual([]);

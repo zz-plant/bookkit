@@ -1,4 +1,12 @@
 import { spawnSync } from "node:child_process";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary:
+		"Runs the checks to repeat after a dependency upgrade: lint, types,\nvalidation, separation, and floating concepts.",
+	usage: ["bun run check:upgrade"],
+	examples: ["bun run check:upgrade"],
+});
 
 // `--release` is accepted for older callers: each book's status already
 // decides whether release rules apply.

@@ -1,3 +1,4 @@
+import { escapeHtml } from "../utils/character-references";
 import { isSafeLink } from "../utils/links";
 import type {
 	InlineImage,
@@ -12,14 +13,6 @@ import {
 	parseInline,
 } from "./markdown-inline";
 import type { ExportEntryKind } from "./types";
-
-export const escapeHtml = (value: string) =>
-	value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
 
 /** Where a link should point in the output, or null to keep only its text. */
 export type LinkResolver = (href: string) => string | null;

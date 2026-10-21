@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { readItemPath } from "../packages/astro-bookkit/src/book/read-routes";
+import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
 import {
 	checkBookContent,
 	readBookSources,
@@ -12,8 +13,8 @@ import {
 import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
-import { compileFinding, compileMdx } from "./lib/compile-mdx";
-import { parseFrontmatter } from "./lib/content-frontmatter";
+import { compileBookFindings } from "./lib/compile-mdx";
+import { checkReleaseNote } from "./lib/release-notes";
 import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
 
@@ -67,24 +68,35 @@ function starterPlaceholders(root: string) {
 }
 
 const args = parseScriptArgs(
-	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
-
-Usage:
-  bun run validate:book -- --book <book> [--json]
-
-Options:
-  --book <book>   The book app to validate
-  --json          One JSON object: { book, status, releaseRules, ok, findings, info }
-  -h, --help      Show this help
-
-The book's status in book.config.ts decides the rules. A published or stable
-book gets release rules: no draft records, broken links and prerequisites are
-errors, and the site must be indexable at a public URL. Any other book is
-checked as a draft. Errors exit 1; warnings never do. INFO lists each
-chapter's first use of a glossary term that is not linked to its entry; it
-is advice and never fails. (--mode and --no-drafts are accepted for older
-callers and ignored.)`,
-	{ book: "string", json: "boolean", mode: "string", "no-drafts": "boolean" },
+	{
+		summary:
+			"Validates one book: its content, its frame, and, once it is published\nor stable, release readiness.",
+		usage: ["bun run validate:book -- --book <book> [--release] [--json]"],
+		options: [
+			["--book <book>", "The book app to validate"],
+			[
+				"--release",
+				"Release rules whatever the book's status: what publishing\nit would hold it to (bookkit publish runs this)",
+			],
+			[
+				"--json",
+				"One JSON object: { book, status, releaseRules, ok,\nfindings, info }",
+			],
+		],
+		notes:
+			"The book's status in book.config.ts decides the rules. A published or stable\nbook gets release rules: no draft records, broken links and prerequisites are\nerrors, and the site must be indexable at a public URL. Any other book is\nchecked as a draft. Errors exit 1; warnings never do. INFO lists each\nchapter's first use of a glossary term that is not linked to its entry; it\nis advice and never fails. (--mode and --no-drafts are accepted for older\ncallers and ignored.)",
+		examples: [
+			"bun run validate:book -- --book on-call",
+			"bun run validate:book -- --book on-call --json",
+		],
+	},
+	{
+		book: "string",
+		json: "boolean",
+		release: "boolean",
+		mode: "string",
+		"no-drafts": "boolean",
+	},
 	["book"],
 );
 
@@ -98,7 +110,11 @@ const error = (message: string, code: string, fix: string) =>
 
 // Content and frame findings come from the engine (validators/book-validator.ts),
 // the same function MCP and generated projects call.
-const content = checkBookContent({ workspaceRoot, bookSlug: book });
+const content = checkBookContent({
+	workspaceRoot,
+	bookSlug: book,
+	releaseMode: args.release === true,
+});
 for (const finding of content.findings) {
 	findings.push({
 		...finding,
@@ -112,28 +128,15 @@ for (const finding of content.findings) {
 const contentDir = join("apps", book, "src", "content", "book");
 const reportedComment = new Set(
 	findings
-		.filter((finding) => finding.code === "MDX_HTML_COMMENT")
-		.map((finding) => finding.file),
+		.filter((finding) => finding.code === "MDX_HTML_COMMENT" && finding.file)
+		.map((finding) => join(workspaceRoot, finding.file as string)),
 );
-const mdxFiles = existsSync(join(workspaceRoot, contentDir))
-	? listFilesRecursive(join(workspaceRoot, contentDir))
-			.filter((file) => file.endsWith(".mdx"))
-			.map((file) => join(contentDir, file))
-			.filter((file) => !reportedComment.has(file))
-	: [];
-const compiled = await Promise.all(
-	mdxFiles.map(async (file) => ({
-		file,
-		finding: compileFinding(
-			await compileMdx(
-				readFileSync(join(workspaceRoot, file), "utf8"),
-				join(workspaceRoot, "apps", book),
-			),
-		),
-	})),
-);
-for (const { file, finding } of compiled) {
-	if (finding) findings.push({ ...finding, file });
+for (const finding of await compileBookFindings(
+	workspaceRoot,
+	book,
+	reportedComment,
+)) {
+	findings.push({ ...finding, file: relative(workspaceRoot, finding.file) });
 }
 
 // Release notes are not a content section, but the release page drops a
@@ -143,31 +146,10 @@ if (existsSync(join(workspaceRoot, releasesDir))) {
 	for (const name of listFilesRecursive(join(workspaceRoot, releasesDir))) {
 		if (!/\.mdx?$/.test(name)) continue;
 		const file = join(releasesDir, name);
-		const { data } = parseFrontmatter(
+		for (const finding of checkReleaseNote(
 			readFileSync(join(workspaceRoot, file), "utf8"),
-		);
-		const version = typeof data.version === "string" ? data.version : "";
-		const date = typeof data.date === "string" ? data.date : "";
-		const missing = [!version && "version", !date && "date"].filter(Boolean);
-		if (missing.length > 0) {
-			findings.push({
-				level: "warning",
-				code: "RELEASE_NOTE_INCOMPLETE",
-				file,
-				message: `Release note has no ${missing.join(" or ")}, so the release notes page leaves it out`,
-				fix: 'Add version: "x.y.z" and date: "YYYY-MM-DD", or start one with bun run bookkit new release.',
-			});
-		} else if (
-			!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-			Number.isNaN(Date.parse(date))
-		) {
-			findings.push({
-				level: "warning",
-				code: "RELEASE_NOTE_DATE",
-				file,
-				message: `Release note date "${date}" is not a YYYY-MM-DD date, so it sorts out of place`,
-				fix: 'Write the date as YYYY-MM-DD, e.g. date: "2026-10-20".',
-			});
+		)) {
+			findings.push({ ...finding, file });
 		}
 	}
 }
@@ -256,7 +238,7 @@ if (args.json) {
 } else {
 	const status = content.status ?? "draft";
 	console.log(
-		`\nVALIDATE ${book} (${status}${content.releaseMode ? ", so release rules apply: no drafts, and broken links are errors" : ""})`,
+		`\nVALIDATE ${book} (${status}${content.releaseMode ? `${args.release && !isReleasedStatus(status) ? ", checked as if published" : ""}, so release rules apply: no drafts, and broken links are errors` : ""})`,
 	);
 	if (info.length > 0) {
 		console.log(

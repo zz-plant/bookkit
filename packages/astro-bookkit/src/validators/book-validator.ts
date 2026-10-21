@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { defaultFrames } from "../frames/defaults";
 import { isReleasedStatus, isStatus, STATUSES } from "../schemas/status";
 import { parseFrontmatter } from "../utils/frontmatter";
@@ -8,13 +8,14 @@ import {
 	type ContentFinding,
 	type ContentSection,
 	checkContentItem,
+	maskCode,
 	mechanismSlugsFrom,
 	nearest,
 	type RetiredSlug,
 	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
 } from "./content-check";
-import { validateFrameSteps } from "./frame";
+import { frameStepsInPage, validateFrameSteps } from "./frame";
 import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
@@ -36,7 +37,7 @@ import type { NormalizedErrorPayload } from "./normalized-error";
 export type BookFinding = Omit<ContentFinding, "code"> & {
 	/**
 	 * Content codes, plus DIRECTORY_MISSING, FRAME_STEP_MISSING, DUPLICATE_SLUG,
-	 * BOOK_STATUS_INVALID, and BOOK_EMPTY.
+	 * BOOK_STATUS_INVALID, BOOK_EMPTY, and IMAGE_MISSING.
 	 */
 	code: string;
 	/** Absolute path, when the finding is about one file. */
@@ -116,6 +117,35 @@ export const readBookStatus = (
 		: undefined;
 };
 
+/** The frame slug set in apps/<book>/src/book.config.ts, if any. */
+export const readBookFrame = (
+	workspaceRoot: string,
+	book: string,
+): string | undefined => {
+	const path = bookConfigPath(workspaceRoot, book);
+	return existsSync(path)
+		? extractFrameConfigFromSource(readFileSync(path, "utf8"))?.slug
+		: undefined;
+};
+
+/** Every slug the book's read routes serve, per section. */
+export const routeSlugsOf = (
+	sources: Record<ContentSection, Array<{ file: string; source: string }>>,
+): Record<ContentSection, Set<string>> =>
+	Object.fromEntries(
+		CONTENT_SECTIONS.map((section) => [
+			section,
+			new Set(
+				sources[section].flatMap(({ file, source }) => {
+					const frontmatter = parseFrontmatter(source);
+					return frontmatter.status === "ok"
+						? [routeSlug(file, frontmatter.data)]
+						: [];
+				}),
+			),
+		]),
+	) as Record<ContentSection, Set<string>>;
+
 export const readRetiredSlugs = (
 	workspaceRoot: string,
 ): Map<string, RetiredSlug> => {
@@ -129,36 +159,104 @@ export const readRetiredSlugs = (
 	}
 };
 
+/**
+ * The frame's required steps the book does not cover: in its framing chapter
+ * (00-overview.mdx) when it has one, else in its chapters taken together (an
+ * imported book has no overview). A step is covered by a heading whose whole
+ * text slugs to it (`frameStepsInPage`).
+ */
 const frameFinding = (
 	workspaceRoot: string,
 	book: string,
 	configured: string | undefined,
+	chapters: readonly ParsedSource[],
 ): BookFinding | null => {
 	const overview = join(
 		bookContentDir(workspaceRoot, book),
 		"chapters",
 		"00-overview.mdx",
 	);
-	if (!existsSync(overview)) return null;
-	const headings = Array.from(
-		readFileSync(overview, "utf8").matchAll(
-			/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g,
-		),
-	).map((match) => match[1].toLowerCase());
+	const hasOverview = existsSync(overview);
+	if (!hasOverview && chapters.length === 0) return null;
+	const sources = hasOverview
+		? [readFileSync(overview, "utf8")]
+		: chapters.map((chapter) => chapter.source);
 	// Author decisions live in book.config.ts; validate against the configured
 	// frame and fall back to the intervention frame when none is declared.
 	const frame =
 		defaultFrames.find((candidate) => candidate.slug === configured) ??
 		defaultFrames.find((candidate) => candidate.slug === "intervention");
 	if (!frame) return null;
-	const { missingRequiredSteps } = validateFrameSteps(frame, headings);
+	const { missingRequiredSteps } = validateFrameSteps(
+		frame,
+		sources.flatMap((source) =>
+			frameStepsInPage(frame, parseFrontmatter(source).body),
+		),
+	);
 	if (missingRequiredSteps.length === 0) return null;
-	return {
-		level: "warning",
-		code: "FRAME_STEP_MISSING",
-		message: `Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${missingRequiredSteps.join(", ")}`,
-		fix: `Add a heading for each missing step to chapters/00-overview.mdx (e.g. "## ${missingRequiredSteps[0]}"); the ${frame.slug} frame requires them in that chapter.`,
-	};
+	const example =
+		frame.steps.find((step) => step.id === missingRequiredSteps[0])?.label ??
+		missingRequiredSteps[0];
+	return hasOverview
+		? {
+				level: "warning",
+				code: "FRAME_STEP_MISSING",
+				message: `Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${missingRequiredSteps.join(", ")}`,
+				fix: `Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step's name (e.g. "## ${example}"); the ${frame.slug} frame requires them in that chapter.`,
+			}
+		: {
+				level: "warning",
+				code: "FRAME_STEP_MISSING",
+				message: `No chapter covers the "${frame.slug}" frame's step(s): ${missingRequiredSteps.join(", ")}`,
+				fix: `Give the chapter that covers each a heading whose whole text is the step's name (e.g. "## ${example}"), or add a chapters/00-overview.mdx that walks through every step. If the book is another kind, set frame in book.config.ts.`,
+			};
+};
+
+// `![alt](src)` and `<img src="…">`: the images a record shows.
+const IMAGE_SOURCES =
+	/!\[[^\]\n]*\]\(\s*<?([^\s)>]+)|<img\b[^>]*?\ssrc\s*=\s*["']?([^"'\s>]+)/gi;
+
+/**
+ * Images a record shows that are not in the book: a path under the book's
+ * `public/` folder (`/images/x.png`), or one relative to the record, that
+ * names no file. The site shows a broken image and the PDF its alt text.
+ * Addresses on the web are not checked.
+ */
+const missingImageFindings = (
+	workspaceRoot: string,
+	book: string,
+	file: string,
+	source: string,
+	releaseMode: boolean,
+): BookFinding[] => {
+	const publicDir = join(workspaceRoot, "apps", book, "public");
+	const masked = maskCode(source);
+	const findings: BookFinding[] = [];
+	for (const match of masked.matchAll(IMAGE_SOURCES)) {
+		const src = (match[1] ?? match[2] ?? "").trim();
+		if (!src || /^([a-z][a-z0-9+.-]*:|\/\/|#|\{)/i.test(src)) continue;
+		let path = src.split(/[?#]/)[0];
+		try {
+			path = decodeURIComponent(path);
+		} catch {
+			// Keep the path as written.
+		}
+		const target = path.startsWith("/")
+			? join(publicDir, path)
+			: join(dirname(file), path);
+		if (existsSync(target)) continue;
+		const line = source.slice(0, match.index ?? 0).split("\n").length;
+		findings.push({
+			level: releaseMode ? "error" : "warning",
+			code: "IMAGE_MISSING",
+			file,
+			message: `Shows the image ${src} on line ${line}, but there is no file at ${relative(workspaceRoot, target)}`,
+			fix: path.startsWith("/")
+				? `Put the image at ${relative(workspaceRoot, target)} (a path that starts with / is read from the book's public/ folder), or fix the path.`
+				: "A relative path is read from the record's own folder; fix the path, or put the image under the book's public/ folder and write /images/<name>.",
+		});
+	}
+	return findings;
 };
 
 /** The slug a record's page is served at: its `slug`, else its file name. */
@@ -343,16 +441,7 @@ export const checkBookContent = (
 			}),
 		]),
 	) as Record<ContentSection, ParsedSource[]>;
-	const slugs = Object.fromEntries(
-		CONTENT_SECTIONS.map((section) => [
-			section,
-			new Set(
-				parsed[section].flatMap(({ file, data }) =>
-					data ? [routeSlug(file, data)] : [],
-				),
-			),
-		]),
-	) as Record<ContentSection, Set<string>>;
+	const slugs = routeSlugsOf(sources);
 	const mechanismSlugs = mechanismSlugsFrom(
 		sources.mechanism.map(({ source }) => source),
 	);
@@ -369,6 +458,9 @@ export const checkBookContent = (
 			});
 			for (const finding of result.findings)
 				findings.push({ ...finding, file });
+			findings.push(
+				...missingImageFindings(workspaceRoot, book, file, source, releaseMode),
+			);
 		}
 		findings.push(...duplicateSlugFindings(root, section, parsed[section]));
 	}
@@ -396,7 +488,7 @@ export const checkBookContent = (
 		});
 	}
 
-	const frame = frameFinding(workspaceRoot, book, frameSlug);
+	const frame = frameFinding(workspaceRoot, book, frameSlug, parsed.chapter);
 	if (frame) findings.push(frame);
 
 	return {

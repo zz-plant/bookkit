@@ -97,7 +97,7 @@ export const suggestPrerequisiteEdges = (
 					book: options.book,
 					file: chapter.file ?? chapter.slug,
 					message: `Chapter "${chapter.title}" relies on mechanism "${mechanism}" but does not list "${introducer.title}" as a prerequisite.`,
-					nextAction: `Add "${introducer.slug}" to prerequisites of "${chapter.slug}" so readers meet the mechanism before relying on it.`,
+					nextAction: `Add "${introducer.slug}" to prerequisites of "${chapter.slug}" so readers meet the mechanism before relying on it; bun run bookkit propose ${options.book} --apply edges adds every such edge, keeping the reading graph free of loops.`,
 					evidence: {
 						chapter: chapter.slug,
 						mechanism,
@@ -141,8 +141,7 @@ export const suggestPrerequisiteEdges = (
 			severity: "advisory",
 			book: options.book,
 			message: `Mechanism "${mechanism}" is registered but no chapter lists it.`,
-			nextAction:
-				"Add it to a chapter's mechanisms so readers meet it, or remove the registration if it is dead content.",
+			nextAction: `Add it to a chapter's mechanisms so readers meet it, or, if it is dead content, remove it: bun run bookkit remove mechanism ${options.book} ${mechanism}`,
 			evidence: { mechanism, unreferenced: true },
 		});
 	}

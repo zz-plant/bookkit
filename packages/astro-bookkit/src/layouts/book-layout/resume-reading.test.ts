@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { chapterToResume } from "./resume-reading";
+import { chapterToResume, resumeChapters } from "./resume-reading";
 
 const chapters = [
 	{
@@ -21,5 +21,28 @@ describe("resume reading", () => {
 			expect(chapterToResume(stored, chapters)).toBeNull();
 		}
 		expect(chapterToResume({ slug: "renamed" }, chapters)).toBeNull();
+	});
+
+	it("offers only chapters that link to a page of this site", () => {
+		const listed = (href: string) =>
+			resumeChapters(
+				JSON.stringify([{ slug: "drills", label: "Drills", href }]),
+			);
+		expect(listed("/read/chapters/drills")).toEqual([
+			{ slug: "drills", label: "Drills", href: "/read/chapters/drills" },
+		]);
+		for (const href of [
+			"//evil.example/read/chapters/drills",
+			"/\\evil.example/read",
+			"/\t/evil.example/read",
+			"javascript:alert(1)",
+			"https://evil.example/read",
+			"read/chapters/drills",
+		]) {
+			expect(listed(href), href).toEqual([]);
+		}
+		expect(resumeChapters("not json")).toEqual([]);
+		expect(resumeChapters(undefined)).toEqual([]);
+		expect(resumeChapters('[{"slug":"drills"}]')).toEqual([]);
 	});
 });

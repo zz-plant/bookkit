@@ -16,6 +16,7 @@ import {
 	createProject,
 	isBookkitProject,
 	isBookkitRepository,
+	nextSteps,
 	readSource,
 	summarizeUpgrade,
 	upgradeProject,
@@ -48,10 +49,10 @@ describe("createProject", () => {
 
 		expect(isBookkitProject(dir)).toBe(true);
 		const engine = JSON.parse(read("packages/astro-bookkit/package.json"));
-		// Kept, so the engine's lazy imports of them resolve.
-		expect(Object.keys(engine.optionalDependencies)).toEqual(
-			expect.arrayContaining(["@xenova/transformers", "@mlc-ai/web-llm"]),
-		);
+		// Kept, so the engine's lazy imports of it resolve.
+		expect(Object.keys(engine.optionalDependencies)).toEqual([
+			"@xenova/transformers",
+		]);
 		expect(
 			listFilesRecursive(join(dir, "packages/astro-bookkit")).some((file) =>
 				file.endsWith(".test.ts"),
@@ -107,6 +108,29 @@ describe("createProject", () => {
 				"package.json",
 				"scripts/bookkit.ts",
 			]),
+		);
+	});
+});
+
+describe("next steps", () => {
+	it("check before git init, and deploy after the first commit", () => {
+		createProject(source, dir, { book: "garden", title: "Garden" });
+		for (const [steps, check] of [
+			[
+				nextSteps(dir, { installed: false, book: "garden" }),
+				"bun run bookkit check",
+			],
+			[read("README.md"), "bun run verify -- --all"],
+		] as const) {
+			const at = (text: string) => steps.indexOf(text);
+			expect(at(check)).toBeGreaterThan(-1);
+			expect(at("git init")).toBeGreaterThan(at(check));
+			expect(at("bun run deploy -- --dry-run")).toBeGreaterThan(
+				at("git commit"),
+			);
+		}
+		expect(nextSteps(dir, { installed: true, book: "garden" })).not.toContain(
+			"bun install",
 		);
 	});
 });

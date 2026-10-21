@@ -9,23 +9,49 @@ import {
 } from "../packages/astro-bookkit/src";
 import { ensureDir, listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { booksFromArgv } from "./lib/book-args";
-import { planEdges, withPrerequisites } from "./lib/chapter-prerequisites";
+import {
+	planEdges,
+	withMechanisms,
+	withPrerequisites,
+} from "./lib/chapter-prerequisites";
+import { exitOnHelp } from "./lib/cli";
 import { loadBookContent } from "./lib/load-book";
 
 const USAGE =
 	"bun run bookkit propose <book> [--write] [--apply all|mechanisms|tools|edges|config] [--id <proposal>] [--detect-frame]";
 
-if (process.argv.includes("--help") || process.argv.includes("-h")) {
-	console.log(`Draft mechanisms, tools, prerequisite edges, and a config from a book's own text.
-
-Usage: ${USAGE}
-
-With no --apply it only shows the proposals. --apply writes them: all, or one
-kind at a time (repeat --apply for several); --id <proposal> keeps only that
-one. Nothing already registered is overwritten. --write also saves the bundle
-to apps/<book>/proposals/.`);
-	process.exit(0);
-}
+exitOnHelp({
+	summary:
+		"Drafts mechanisms, tools, prerequisite edges, and a config from a\nbook's own text. With no --apply it only shows the proposals.",
+	usage: [USAGE],
+	options: [
+		[
+			"<book>",
+			"The book (bun run bookkit propose defaults to the current one)",
+		],
+		[
+			"--apply <kind>",
+			"Write proposals: all, or mechanisms, tools, edges, or config\n(repeat --apply for several kinds)",
+		],
+		["--id <proposal>", "Keep only that proposal"],
+		["--write", "Also save the bundle to apps/<book>/proposals/"],
+		[
+			"--detect-frame",
+			"Read the frame from the text even when the book declares one",
+		],
+		['--title "<title>"', "The title the config draft uses"],
+		['--causal-stance "<text>"', "The causal claim the config draft uses"],
+		["--max-proposals <n>", "How many mechanism drafts at most (default: 5)"],
+		["--force", "Replace an earlier proposals/book.config.draft.ts"],
+	],
+	notes:
+		"Nothing already registered is overwritten, and the config draft goes to\nproposals/book.config.draft.ts, never to the live book.config.ts.",
+	examples: [
+		"bun run bookkit propose on-call",
+		"bun run bookkit propose on-call --apply mechanisms",
+		"bun run bookkit propose on-call --apply edges --apply tools",
+	],
+});
 
 const {
 	books: [book],
@@ -250,9 +276,35 @@ function applyMechanisms(
 				);
 				written.add(m.slug);
 			}
+			bindToEvidence(mechanismsToWrite.filter((m) => written.has(m.slug)));
 		}
 	}
 	return written;
+}
+
+/**
+ * Each mechanism written, bound to the chapters its evidence comes from (their
+ * `mechanisms:`), so the book links them and the suggestions stop calling
+ * the idea named but unbound.
+ */
+function bindToEvidence(mechanisms: ProposalBundle["mechanisms"]): void {
+	const adding = new Map<string, string[]>();
+	for (const m of mechanisms) {
+		for (const file of m.evidence.files) {
+			adding.set(file, [...(adding.get(file) ?? []), m.slug]);
+		}
+	}
+	for (const chapter of content.chapters) {
+		const slugs = chapter.file ? adding.get(chapter.file) : undefined;
+		if (!slugs || !chapter.file) continue;
+		const before = readFileSync(chapter.file, "utf8");
+		const after = withMechanisms(before, slugs);
+		if (after === before) continue;
+		writeFileSync(chapter.file, after, "utf8");
+		console.log(
+			`  ~ ${relative(workspaceRoot, chapter.file)}: mechanisms + ${slugs.join(", ")}`,
+		);
+	}
 }
 
 function applyTools(

@@ -7,6 +7,30 @@ export type GovernanceFileResource = Omit<McpResourceInput, "text"> & {
 	relativePath: string;
 };
 
+/** The author guide in `docs/guide/`, which the README links to rather than repeats. */
+export const GUIDE_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
+	{
+		uri: "bookkit://governance/docs/guide/concepts.md",
+		name: "Bookkit guide: concepts and configuration",
+		description:
+			"Record types, frames, book status, book.config.ts fields, and the files Bookkit writes.",
+		relativePath: "docs/guide/concepts.md",
+	},
+	{
+		uri: "bookkit://governance/docs/guide/checks.md",
+		name: "Bookkit guide: what the checks enforce",
+		description:
+			"Content rules, link and HTML safety, build checks, runbook coverage.",
+		relativePath: "docs/guide/checks.md",
+	},
+	{
+		uri: "bookkit://governance/docs/guide/ai.md",
+		name: "Bookkit guide: proposals, AI, and MCP",
+		description: "Proposal bundles, the embedding model, and the MCP tools.",
+		relativePath: "docs/guide/ai.md",
+	},
+];
+
 export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
 	{
 		uri: "bookkit://governance/README.md",
@@ -46,26 +70,7 @@ export const DEFAULT_GOVERNANCE_FILE_RESOURCES: GovernanceFileResource[] = [
 		description: "Why the invariants exist, and the error philosophy.",
 		relativePath: "docs/design-notes.md",
 	},
-	{
-		uri: "bookkit://governance/docs/guide/concepts.md",
-		name: "Bookkit guide: concepts and configuration",
-		description:
-			"Record types, frames, book status, book.config.ts fields, and the files Bookkit writes.",
-		relativePath: "docs/guide/concepts.md",
-	},
-	{
-		uri: "bookkit://governance/docs/guide/checks.md",
-		name: "Bookkit guide: what the checks enforce",
-		description:
-			"Content rules, link and HTML safety, build checks, runbook coverage.",
-		relativePath: "docs/guide/checks.md",
-	},
-	{
-		uri: "bookkit://governance/docs/guide/ai.md",
-		name: "Bookkit guide: proposals, AI, and MCP",
-		description: "Proposal bundles, the embedding model, and the MCP tools.",
-		relativePath: "docs/guide/ai.md",
-	},
+	...GUIDE_GOVERNANCE_FILE_RESOURCES,
 	{
 		uri: "bookkit://governance/.codex/skills/README.md",
 		name: "Bookkit local skills index",

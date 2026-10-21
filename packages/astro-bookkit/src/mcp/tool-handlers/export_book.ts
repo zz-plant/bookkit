@@ -1,12 +1,11 @@
-import { runWorkspaceCommand } from "../command-runner";
+import { runWorkspaceCommand, tailLines } from "../command-runner";
+import { bookArg } from "./book-arg";
 import type { ToolHandler } from "./types";
 
-export const handleExportBook: ToolHandler = ({ options, args }) => {
-	const rawBook = args?.book;
-	const book =
-		typeof rawBook === "string" && rawBook.trim().length
-			? rawBook.trim()
-			: options.bookSlug;
+export const handleExportBook: ToolHandler = async ({ options, args }) => {
+	const picked = bookArg(options, args);
+	if (!picked.ok) return picked.response;
+	const book = picked.book;
 	if (!book) {
 		return {
 			ok: false,
@@ -19,7 +18,7 @@ export const handleExportBook: ToolHandler = ({ options, args }) => {
 		};
 	}
 
-	const command = runWorkspaceCommand(options.workspaceRoot, [
+	const command = await runWorkspaceCommand(options.workspaceRoot, [
 		"run",
 		"export:gitbook",
 		"--",
@@ -36,8 +35,9 @@ export const handleExportBook: ToolHandler = ({ options, args }) => {
 			book,
 			command: command.command,
 			exitCode: command.exitCode,
-			stdout: command.stdout.trim(),
-			stderr: command.stderr.trim(),
+			// The end of the output, where the result and any error are.
+			stdout: tailLines(command.stdout),
+			stderr: tailLines(command.stderr),
 		},
 		error: command.ok
 			? undefined

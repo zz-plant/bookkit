@@ -1,15 +1,12 @@
 import type { EmbeddingStore } from "../../embeddings/store";
 import { createEmbeddingStore } from "../../embeddings/store";
-import type { LocalLlmMessage } from "../../llm-local";
-import { createLocalLlmEngine } from "../../llm-local";
-import type { RerankEngine } from "../../rerank";
 import { createRerankEngine } from "../../rerank";
 import type { SearchEntry } from "../../search";
 import {
 	appendHighlightedText,
 	queryAllElements,
 	queryElement,
-	toSafeUrl,
+	sitePath,
 } from "./dom";
 import {
 	getQaDisplayToggleLabel,
@@ -17,6 +14,11 @@ import {
 	persistQaDisplayMode,
 	toggleQaDisplayMode,
 } from "./qa-display-mode";
+import {
+	loadQaModelChoice,
+	persistQaModelChoice,
+	type QaModelChoice,
+} from "./qa-model-consent";
 import { createQueryEngine } from "./query-engine";
 import type { SearchIndexStore } from "./search-index-store";
 import type { RankedSearchResult } from "./search-ranking";
@@ -47,10 +49,11 @@ type QaControllerOptions = {
 	storage: StorageLike;
 	disabledKey: string;
 	displayModeKey: string;
+	/** Where this browser keeps whether it may download the models (see `qa-model-consent.ts`). */
+	modelChoiceKey: string;
 	apiEndpoint?: string;
 	memoryKey?: string;
 	signalsKey?: string;
-	enableLocalLlm?: boolean;
 	enableSemanticSearch?: boolean;
 	enableRerank?: boolean;
 };
@@ -63,10 +66,10 @@ export const initializeQaController = ({
 	storage,
 	disabledKey,
 	displayModeKey,
+	modelChoiceKey,
 	apiEndpoint,
 	memoryKey = "bookkit.qa.memory",
 	signalsKey = "bookkit.qa.signals",
-	enableLocalLlm = true,
 	enableSemanticSearch = true,
 	enableRerank = true,
 }: QaControllerOptions): QaController => {
@@ -98,10 +101,33 @@ export const initializeQaController = ({
 		"[data-qa-suggestion]",
 		HTMLButtonElement,
 	);
+	const consent = queryElement(root, "[data-qa-consent]", HTMLElement);
+	const consentDownload = queryElement(
+		root,
+		"[data-qa-consent-download]",
+		HTMLButtonElement,
+	);
+	const consentDecline = queryElement(
+		root,
+		"[data-qa-consent-decline]",
+		HTMLButtonElement,
+	);
+	const modelsOff = queryElement(root, "[data-qa-models-off]", HTMLElement);
+	const modelsAsk = queryElement(
+		root,
+		"[data-qa-models-ask]",
+		HTMLButtonElement,
+	);
 
 	let query = "";
 	let lastFocused: HTMLElement | null = null;
 	let displayMode = loadQaDisplayMode(storage, displayModeKey);
+	// Read once and kept here too, so a browser that blocks storage is asked
+	// once per page rather than on every question.
+	let modelChoice = loadQaModelChoice(storage, modelChoiceKey);
+	// The question asked while the reader decides; it runs once they choose.
+	let waitingQuestion: string | null = null;
+	const usesModels = enableSemanticSearch || enableRerank;
 
 	const isDisabled = () => readStoredValue(storage, disabledKey) === "true";
 	const setDisabled = (value: boolean) =>
@@ -125,11 +151,47 @@ export const initializeQaController = ({
 		disableButton?.toggleAttribute("disabled", disabled);
 	};
 
+	const updateModelsState = () => {
+		const asking = consent ? !consent.hidden : false;
+		modelsOff?.toggleAttribute(
+			"hidden",
+			asking || !usesModels || modelChoice !== "declined",
+		);
+	};
+
+	/** Shows the download question; `question` runs once the reader answers it. */
+	const askAboutModels = (question: string | null) => {
+		waitingQuestion = question;
+		consent?.removeAttribute("hidden");
+		updateModelsState();
+		updateStatus(
+			question === null
+				? "Choose whether to download the models."
+				: "Choose whether to download the models; your question runs once you do.",
+		);
+		consent?.focus();
+	};
+
+	const chooseModels = (choice: QaModelChoice) => {
+		modelChoice = persistQaModelChoice(storage, modelChoiceKey, choice);
+		consent?.setAttribute("hidden", "");
+		updateModelsState();
+		const question = waitingQuestion;
+		waitingQuestion = null;
+		input?.focus({ preventScroll: true });
+		if (question !== null) void runQa(question);
+		else
+			updateStatus(
+				choice === "download"
+					? "The models download with your next question."
+					: "Ask a question to see answers.",
+			);
+	};
+
 	const queryEngine = createQueryEngine({ indexStore });
 
 	// Lazy-loaded AI engines
 	let embeddingStore: EmbeddingStore | null = null;
-	let localLlmEngine: Awaited<ReturnType<typeof createLocalLlmEngine>> = null;
 	let rerankEngine: Awaited<ReturnType<typeof createRerankEngine>> = null;
 	let enginesInitialized = false;
 
@@ -186,10 +248,6 @@ export const initializeQaController = ({
 			await embeddingStore.load(entries, (msg) => updateStatus(msg));
 		}
 
-		if (enableLocalLlm && !apiEndpoint) {
-			localLlmEngine = await createLocalLlmEngine((msg) => updateStatus(msg));
-		}
-
 		if (enableRerank) {
 			rerankEngine = await createRerankEngine((msg) => updateStatus(msg));
 		}
@@ -201,6 +259,19 @@ export const initializeQaController = ({
 			displayToggle.textContent = getQaDisplayToggleLabel(displayMode);
 		}
 		persistQaDisplayMode(storage, displayModeKey, displayMode);
+	};
+
+	/**
+	 * A link to the cited passage's page. The server's answer comes from a
+	 * model, so a citation that names any address other than one of this
+	 * book's pages keeps its title as text, with no link.
+	 */
+	const citationLink = (url: unknown): HTMLElement => {
+		const href = sitePath(url);
+		if (!href) return document.createElement("span");
+		const link = document.createElement("a");
+		link.href = href;
+		return link;
 	};
 
 	const renderAnswer = (entries: RankedSearchResult[], tokens: string[]) => {
@@ -230,8 +301,7 @@ export const initializeQaController = ({
 
 		entries.forEach((entry) => {
 			const item = document.createElement("li");
-			const link = document.createElement("a");
-			link.href = toSafeUrl(entry.url);
+			const link = citationLink(entry.url);
 			link.dataset.qaCitationId = entry.id;
 			link.textContent = `${entry.context} — ${entry.title}`;
 
@@ -269,8 +339,7 @@ export const initializeQaController = ({
 
 		data.citations.forEach((citation) => {
 			const item = document.createElement("li");
-			const link = document.createElement("a");
-			link.href = toSafeUrl(citation.url);
+			const link = citationLink(citation.url);
 			link.dataset.qaCitationId = citation.id;
 			link.textContent = citation.title;
 
@@ -281,60 +350,6 @@ export const initializeQaController = ({
 		});
 
 		citations.append(heading, list);
-	};
-
-	const synthesizeWithLocalLlm = async (
-		normalizedQuery: string,
-		results: RankedSearchResult[],
-		history: QaTurn[],
-	): Promise<{
-		answer: string;
-		citations: Array<{ id: string; title: string; url: string }>;
-	} | null> => {
-		if (!localLlmEngine?.isReady()) return null;
-
-		const context = results
-			.slice(0, 8)
-			.map(
-				(entry, i) =>
-					`[${i + 1}] ${entry.title} (${entry.context})\n${entry.snippet}`,
-			)
-			.join("\n\n");
-
-		let userPrompt = `Question: ${normalizedQuery}\n\nBook passages:\n${context}`;
-		if (history.length > 0) {
-			const historyText = history
-				.map(
-					(turn, i) => `Q${i + 1}: ${turn.question}\nA${i + 1}: ${turn.answer}`,
-				)
-				.join("\n\n");
-			userPrompt = `Conversation so far:\n${historyText}\n\n${userPrompt}`;
-		}
-
-		const messages: LocalLlmMessage[] = [
-			{
-				role: "system",
-				content:
-					"You are a precise research assistant. Answer the user's question using ONLY the provided book passages. Be concise. If the passages don't contain enough information, say so clearly.",
-			},
-			{ role: "user", content: userPrompt },
-		];
-
-		try {
-			const response = await localLlmEngine.complete(messages);
-			if (!response.answer) return null;
-
-			return {
-				answer: response.answer,
-				citations: results.slice(0, 8).map((entry) => ({
-					id: entry.id,
-					title: entry.title,
-					url: entry.url,
-				})),
-			};
-		} catch {
-			return null;
-		}
 	};
 
 	const synthesizeWithApi = async (
@@ -376,11 +391,15 @@ export const initializeQaController = ({
 		}
 
 		query = value;
+		if (usesModels && modelChoice === null && value.trim()) {
+			askAboutModels(value);
+			return;
+		}
 		const lastSignals = loadSignals();
 
-		// Load index and initialize AI engines on first use
+		// Load the index, and the models once the reader has agreed to them.
 		const index = await queryEngine.loadIndex();
-		await initializeEngines(index);
+		if (modelChoice === "download") await initializeEngines(index);
 
 		// Compute semantic scores if embeddings are ready
 		let semanticScores: Record<string, number> | undefined;
@@ -433,7 +452,7 @@ export const initializeQaController = ({
 			}
 		}
 
-		// Try synthesis: API first, then local LLM, then local snippets
+		// The server writes the answer when it can; otherwise the passages are shown.
 		const history = loadMemory();
 		let synthesized: {
 			answer: string;
@@ -450,17 +469,7 @@ export const initializeQaController = ({
 			);
 		}
 
-		// 2. Try local LLM if API unavailable or not configured
-		if (!synthesized && candidateResults.length > 0) {
-			updateStatus("Using local model…");
-			synthesized = await synthesizeWithLocalLlm(
-				normalizedQuery,
-				candidateResults,
-				history,
-			);
-		}
-
-		// 3. Render synthesis if successful
+		// 2. Render synthesis if successful
 		if (synthesized) {
 			renderSynthesizedAnswer(synthesized, tokens);
 			updateStatus(
@@ -480,7 +489,7 @@ export const initializeQaController = ({
 			return;
 		}
 
-		// 4. Fallback to local search snippets
+		// 3. Fallback to local search snippets
 		updateStatus(
 			apiEndpoint
 				? "AI synthesis unavailable. Showing local results."
@@ -562,10 +571,17 @@ export const initializeQaController = ({
 		button.addEventListener("click", () => {
 			if (!input) return;
 			input.value = button.textContent?.trim() ?? "";
-			void runQa(input.value);
+			// Focus first: when the question waits on the download question,
+			// runQa moves focus there.
 			input.focus({ preventScroll: true });
+			void runQa(input.value);
 		});
 	});
+	consentDownload?.addEventListener("click", () => chooseModels("download"));
+	consentDecline?.addEventListener("click", () => chooseModels("declined"));
+	modelsAsk?.addEventListener("click", () =>
+		askAboutModels(query.trim() ? query : null),
+	);
 	displayToggle?.addEventListener("click", () => {
 		displayMode = toggleQaDisplayMode(displayMode);
 		updateDisplayMode();
@@ -581,6 +597,7 @@ export const initializeQaController = ({
 	});
 
 	updateState();
+	updateModelsState();
 	updateDisplayMode();
 
 	return {

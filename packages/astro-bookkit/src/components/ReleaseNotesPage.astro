@@ -200,7 +200,7 @@ const renderState = createBookLayoutRenderState({
     })}
   </div>
   {(subscribeUrl || releases.length > 0) && (
-    <script define:vars={{ subscribeAnalyticsUrl: subscribeUrl, releases, bookKey }}>
+    <script define:vars={{ subscribeAnalyticsUrl: subscribeUrl, bookKey }}>
       const subscribeButton = document.querySelector("[data-release-subscribe]");
       subscribeButton?.addEventListener("click", () => {
         if (!subscribeAnalyticsUrl) return;

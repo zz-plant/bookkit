@@ -1,7 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/pageFacts";
-import { isThinPage } from "../../packages/astro-bookkit/src/seo/page-meta";
+import {
+	DEFAULT_MIN_INDEXABLE_WORDS,
+	isThinPage,
+} from "../../packages/astro-bookkit/src/seo/page-meta";
 import { corpusEmbeddingText } from "../../packages/astro-bookkit/src/suggestions";
 import {
 	type BookFinding,
@@ -94,6 +97,41 @@ export const summarizeBook = async (book: string): Promise<BookSummary> => {
 		mechanisms: content.mechanisms.length,
 		tools: content.tools.length,
 		examples: content.examples.length,
+	};
+};
+
+/** How far a chapter is from reading as drafted, and what it binds. */
+export type ChapterDraft = {
+	/** Words of prose, as the build counts them for search. */
+	words: number;
+	/** `site.minIndexableWords`; 0 when the book turns the rule off. */
+	minimum: number;
+	/** Below `minimum`: kept out of search, and not yet drafted for a bet's test. */
+	stub: boolean;
+	/** Slugs in the chapter's `mechanisms:`. */
+	binds: string[];
+	/** The book's other mechanisms, which the chapter could bind instead of coining one. */
+	unbound: string[];
+};
+
+/**
+ * A chapter's draft state, from the same word count and threshold the build
+ * and `bookkit bets` use, so the number an author sees while writing is the
+ * one that decides whether the chapter counts.
+ */
+export const chapterDraft = (
+	source: string,
+	binds: string[],
+	bookMechanisms: string[],
+	site?: BookConfigSummary["site"],
+): ChapterDraft => {
+	const words = extractPageFacts(source).wordCount;
+	return {
+		words,
+		minimum: site?.minIndexableWords ?? DEFAULT_MIN_INDEXABLE_WORDS,
+		stub: isThinPage(words, site),
+		binds,
+		unbound: bookMechanisms.filter((slug) => !binds.includes(slug)).sort(),
 	};
 };
 
@@ -206,6 +244,12 @@ const loadCorpusEntries = (books: string[]): CorpusEntry[] => {
 };
 
 const round = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * The wording score below which a match is a shared word or two, not a
+ * likely duplicate: what `similar`, `check`, and `new mechanism` show.
+ */
+export const WORDING_MATCH_MIN = 0.3;
 
 /**
  * Existing mechanisms, across every book, that a proposed one may duplicate.
@@ -429,7 +473,7 @@ export const withCorpusScope = <T extends MechanismMatch>(
 export const similarForMechanismFile = (
 	frontmatter: Record<string, unknown> | null,
 	book: string,
-	minimumScore = 0.3,
+	minimumScore = WORDING_MATCH_MIN,
 ): SimilarForFile[] => {
 	const title = typeof frontmatter?.title === "string" ? frontmatter.title : "";
 	if (!title) return [];

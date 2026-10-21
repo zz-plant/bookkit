@@ -65,7 +65,7 @@ The **frame** (`intervention`, `explainer`, `field-guide`, or `runbook`) sets th
 
 - **Bun 1.3.14**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`.
 - **Node.js 22.12 or later**, which Astro 7 needs.
-- **git.** `bookkit deploy` publishes from a commit, and `check:types` lists files with git, so a new project needs `git init` and a first commit before `verify`.
+- **git.** `bookkit deploy` publishes from a commit, so a project needs `git init` and a first commit before its first deploy. Every other command, `verify -- --all` included, works in a folder that is not a repository yet.
 - **To publish:** a Cloudflare account, and `bunx wrangler login` once (or `CLOUDFLARE_API_TOKEN` in the environment).
 - **Optional:** Playwright's Chromium for the accessibility and browser checks (`bunx playwright install chromium`), and about 550 MB of disk for the embedding model that compares mechanisms by meaning. Bookkit asks before it downloads the model.
 
@@ -82,9 +82,10 @@ git clone https://github.com/zz-plant/bookkit.git
 cd bookkit && bun install
 bun run create-bookkit ../my-book --title "My Book"    # the folder must be outside the clone
 cd ../my-book && bun install
-git init && git add -A && git commit -m "First draft"   # verify and deploy read git
-bun run verify -- --all                                 # types, content, shared pages, and a checked build
 bun run dev                                             # preview at http://localhost:4321
+bun run verify -- --all                                 # types, content, shared pages, and a checked build
+git init && git add -A && git commit -m "First draft"   # deploy publishes from a commit
+bun run deploy -- --dry-run                             # every check, then wrangler's dry run
 ```
 
 `--book <slug>` sets the slug and `--dir <folder>` imports a folder of notes as the first chapters. To take a newer engine later, pull the clone and run `bun run create-bookkit ../my-book --upgrade`; it replaces only what the engine owns and never writes content or `book.config.ts`. [`packages/create-bookkit/README.md`](./packages/create-bookkit/README.md) covers the project layout and upgrades.
@@ -113,11 +114,11 @@ bun run bookkit import my-book --dir ~/notes
 
 ### Then replace the starter text
 
-The checks name every placeholder still in `book.config.ts`: the three `objectives`, `frame.intent`, and `causalStance`. Each is a warning in a draft and an error once the book is published. Set `site.url` to the address the book will have, write the chapters, and set `status: "published"` when the book should be found.
+The checks name every placeholder still in `book.config.ts`: the three `objectives`, `frame.intent`, and `causalStance`. Each is a warning in a draft and an error once the book is published. Set `site.url` to the address the book will have, write the chapters, and run `bun run bookkit publish` when the book should be found: it checks the book with release rules, then sets `status: "published"`.
 
 ## Daily commands
 
-`bun run bookkit` with no command lists your books and the commands for the current one; `bun run bookkit help` lists every command. Commands run from any folder in the workspace; a command missing an argument asks for it, and a mistyped name gets the closest match.
+`bun run bookkit` with no command lists your books and the commands for the current one; `bun run bookkit help` lists every command, and `--help` after any command or package script (`bun run bookkit dev --help`, `bun run check:corpus --help`) prints its arguments and examples without running it. Commands run from any folder in the workspace; a command missing an argument asks for it, and a mistyped name gets the closest match.
 
 ### Write
 
@@ -125,13 +126,17 @@ The checks name every placeholder still in `book.config.ts`: the three `objectiv
 bun run bookkit use my-book                             # later commands default to this book
 bun run bookkit new                                     # asks what to start, then anything it needs
 bun run bookkit new chapter "Repair has a clock"        # the next chapter, as a draft
-bun run bookkit new chapter "Who holds the lever" --after <chapter-slug>
+bun run bookkit new chapter "Who holds the lever" --after <chapter-slug or number>
 bun run bookkit new mechanism "Waiting as leverage" --definition "<one sentence>"
 bun run bookkit new tool waiting-as-leverage "Name the deadline"
 bun run bookkit new example waiting-as-leverage Housing "The repair queue"
 bun run bookkit new release "Second draft"              # releases/<date>-second-draft.mdx, next minor version
+bun run bookkit new glossary "Pager queue" --definition "<one sentence>"
 bun run bookkit rename chapter <slug> <new-slug>        # slug, file, other chapters' prerequisites, and links
-bun run bookkit contract mechanism                      # the fields a section needs, and what to write in them
+bun run bookkit rename mechanism <slug> <new-slug>      # in every book that shares it, with what names it
+bun run bookkit remove chapter|mechanism|tool <slug>    # the record, and the lists that name it
+bun run bookkit move tool <tool> --to <mechanism>       # bind an action to another mechanism
+bun run bookkit contract mechanism                      # the fields a section needs (also: contract release)
 ```
 
 `new mechanism` first lists any mechanism in another book that covers the same idea, and asks before creating a duplicate.
@@ -143,6 +148,7 @@ bun run bookkit check                    # the current book: errors, overlap wit
 bun run bookkit check --all              # every book
 bun run bookkit check <file.mdx>         # one file, each finding with its field and a fix
 bun run bookkit check ./runbooks --frame runbook   # any Markdown folder, without making it a book
+bun run bookkit check apps/my-book/src/content/book/chapters   # a folder of a book, with the book's rules
 bun run verify                           # the checks your change needs, chosen from the files it touches
 ```
 
@@ -155,11 +161,12 @@ bun run bookkit dev                        # the current book at http://localhos
 bun run bookkit dev status                 # find (or `stop`, or tail the `logs` of) a dev server in another terminal
 bun run bookkit build                      # apps/<book>/dist: the site, exports/book.pdf, exports/book.epub
 bun run bookkit export                     # a GitBook folder in apps/<book>/exports/gitbook
-bun run bookkit deploy my-book --dry-run   # every check deploy runs; publishes nothing
-bun run bookkit deploy my-book             # check, build, and publish to Cloudflare
+bun run bookkit publish my-book            # draft to published, once release rules pass
+bun run bookkit deploy my-book --dry-run   # content checks, build, and wrangler's dry run; publishes nothing
+bun run bookkit deploy my-book             # every check, build, and publish to Cloudflare
 ```
 
-`bookkit build` builds a book with content errors too; `bookkit deploy` is the command that refuses them. [Publishing](./docs/guide/publishing.md) covers deploy, CI, and the server runtime.
+`bookkit build` builds a book with content errors too, and ends with any export warnings (an image the PDF shows as alt text); `bookkit deploy` is the command that refuses errors. `preview`, `serve`, and `start` are other names for `dev`, and `init` for `new book`. With one book in the workspace, commands take it without its name. [Publishing](./docs/guide/publishing.md) covers deploy, CI, and the server runtime.
 
 ## Example books in this repository
 

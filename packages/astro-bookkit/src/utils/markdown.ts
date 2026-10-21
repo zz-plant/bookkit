@@ -86,13 +86,12 @@ const tagText = (tag: string): string => {
 };
 
 /**
- * Markdown as plain text, for search entries and page descriptions. Code
- * spans keep their text without the backticks, escaped characters keep
- * their character (`\<name\>` is `<name>`), an image keeps its alt text,
- * underscores inside a word (`snake_case`) are not read as emphasis, and
- * HTML tags are left out, a space kept where one separates words.
+ * Markdown as plain text: `stripMarkdown`'s (`text`), or a heading's inline
+ * Markdown as the text the site slugs into its id (`heading`). A heading
+ * keeps a leading `1.` or `-`, leaves out an image's alt text, and, outside
+ * code, decodes character references and turns `--` and `---` into dashes.
  */
-export const stripMarkdown = (value: string) => {
+const plainText = (value: string, as: "text" | "heading") => {
 	const literal: string[] = [];
 	// Code and escapes are set aside first, so no other rule reaches into them.
 	const held = value
@@ -112,7 +111,11 @@ export const stripMarkdown = (value: string) => {
 			},
 		);
 	// A link's destination may hold balanced parentheses: `(/wiki/Foo_(bar))`.
-	return held
+	const text = (
+		as === "heading"
+			? held.replace(/!\[.*?\]\((?:[^()]|\([^()]*\))*\)/g, "")
+			: held
+	)
 		.replace(/!?\[(.*?)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
 		.replace(/\*\*(.*?)\*\*/g, "$1")
 		.replace(/\*(.*?)\*/g, "$1")
@@ -121,11 +124,70 @@ export const stripMarkdown = (value: string) => {
 			"$1$2",
 		)
 		.replace(/~~(.*?)~~/g, "$1")
-		.replace(/<[^>]+>/g, tagText)
-		.replace(/^\s*[-*+]\s+/g, "")
-		.replace(/^\s*\d+\.\s+/g, "")
+		.replace(/<[^>]+>/g, tagText);
+	return (
+		as === "heading"
+			? decodeEntities(smartDashes(text))
+			: text.replace(/^\s*[-*+]\s+/g, "").replace(/^\s*\d+\.\s+/g, "")
+	)
 		.replace(HELD_TEXT, (_, index: string) => literal[Number(index)])
 		.trim();
+};
+
+/**
+ * Markdown as plain text, for search entries and page descriptions. Code
+ * spans keep their text without the backticks, escaped characters keep
+ * their character (`\<name\>` is `<name>`), an image keeps its alt text,
+ * underscores inside a word (`snake_case`) are not read as emphasis, and
+ * HTML tags are left out, a space kept where one separates words.
+ */
+export const stripMarkdown = (value: string) => plainText(value, "text");
+
+/** A heading of a Markdown page: its level, its text, and the id the site gives it. */
+export type MarkdownHeading = { depth: number; text: string; id: string };
+
+const ATX_HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
+const SETEXT_UNDERLINE = /^ {0,3}(=+|-+)[ \t]*$/;
+/** A line that starts a block other than a paragraph, so a setext underline after it is not one. */
+const NOT_PARAGRAPH =
+	/^\s{0,3}(?:[-*+][ \t]|\d+[.)][ \t]|>|\||<|(?:import|export)\s|(?:[-*_][ \t]*){3,}$)/;
+
+/**
+ * The headings of a Markdown or MDX body (frontmatter removed), in page
+ * order, outside fenced code: `#` headings, and setext headings (a paragraph
+ * underlined with `===` or `---`). Each id is the one the site gives it
+ * (`createHeadingSlugger` over the text the page shows), so a repeated
+ * heading gets `-1`. A heading written as an HTML tag (`<h2>`) gets no id
+ * and is not listed; neither are headings nested in a list or a `<details>`.
+ */
+export const markdownHeadings = (body: string): MarkdownHeading[] => {
+	const slug = createHeadingSlugger();
+	const headings: MarkdownHeading[] = [];
+	const add = (depth: number, inline: string) => {
+		const text = plainText(inline, "heading");
+		headings.push({ depth, text, id: slug(text) });
+	};
+	for (const segment of splitFencedCode(body)) {
+		if (segment.code) continue;
+		let paragraph: string[] = [];
+		for (const line of segment.text.split("\n")) {
+			const atx = line.match(ATX_HEADING);
+			const underline = line.match(SETEXT_UNDERLINE)?.[1];
+			if (atx) {
+				// A closing run of #s, after a space, is not part of the text.
+				add(atx[1].length, (atx[2] ?? "").replace(/(^|[ \t])#+$/, "").trim());
+				paragraph = [];
+			} else if (underline && paragraph.length > 0) {
+				add(underline[0] === "=" ? 1 : 2, paragraph.join(" ").trim());
+				paragraph = [];
+			} else if (!line.trim() || NOT_PARAGRAPH.test(line)) {
+				paragraph = [];
+			} else {
+				paragraph.push(line);
+			}
+		}
+	}
+	return headings;
 };
 
 /** What `toMdxBody` changed, by kind, so an import can say what it did. */
@@ -871,6 +933,54 @@ export const withoutUnsafeMarkup = (
 		text = next;
 	}
 	return text;
+};
+
+/** An embed the site keeps that has no title: its `src`, and its 1-based line. */
+export type UntitledEmbed = { src: string; line: number };
+
+/**
+ * Each `<iframe>` the site keeps (one with a safe `src`) that has no title,
+ * or an empty one, in source order. A screen reader names a frame by its
+ * title, and check:a11y fails a page holding a frame without one. Import
+ * gives each embed a title; one written by hand may have none. Tags are
+ * read as `findUnsafeMarkup` reads them, so code, comments, and what an
+ * expression holds are skipped, and so is an embed it already reports: a
+ * `src` the site removes, or a title written as an expression.
+ */
+export const findUntitledEmbeds = (
+	markdown: string,
+	options: FindUnsafeMarkupOptions = {},
+): UntitledEmbed[] => {
+	const masked = maskNonProse(markdown);
+	const jsx = options.tags !== "html";
+	const found: UntitledEmbed[] = [];
+	for (let index = 0; index < masked.length; index += 1) {
+		const char = masked[index];
+		if (char === "\\") {
+			index += 1;
+		} else if (jsx && char === "{") {
+			const end = closingBrace(masked, index);
+			if (end >= 0) index = end;
+		} else if (char === "<") {
+			const tag = readTag(masked, index, jsx);
+			if (!tag) continue;
+			index = tag.end - 1;
+			// In MDX a capitalized name is a component.
+			const element = jsx && !/^[a-z]/.test(tag.name) ? "" : tag.name;
+			if (tag.closing || element.toLowerCase() !== "iframe") continue;
+			const attribute = (name: string) =>
+				tag.attributes.find((each) => each.name?.toLowerCase() === name);
+			const src = attribute("src")?.value?.trim();
+			if (!src || attributeRefusal("iframe", "src", src)) continue;
+			const title = attribute("title");
+			if (title && (title.value === null || title.value.trim())) continue;
+			found.push({
+				src,
+				line: markdown.slice(0, tag.start).split("\n").length,
+			});
+		}
+	}
+	return found;
 };
 
 /** One `<tag>` in prose, and how `toMdxBody` writes it. */

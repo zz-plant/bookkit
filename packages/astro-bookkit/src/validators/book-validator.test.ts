@@ -128,8 +128,9 @@ const check = () =>
 const codes = (result: ReturnType<typeof check>) =>
 	result.findings.map((finding) => `${finding.level}:${finding.code}`);
 
+// Each covers the intervention frame's steps, so a book of them is framed.
 const chapter = (slug: string, status = "published", extra = "") =>
-	`---\nslug: ${slug}\ntitle: "${slug}"\nstatus: ${status}\n${extra}---\nBody.\n`;
+	`---\nslug: ${slug}\ntitle: "${slug}"\nstatus: ${status}\n${extra}---\n## Recognition\n\n## Exoneration\n\n## Mechanism\n\n## Agency\n\nBody.\n`;
 
 describe("the book's status sets the rules", () => {
 	beforeEach(() => {
@@ -349,6 +350,98 @@ describe("mechanismsIndex.urgency", () => {
 		urgency("published", '\t\t\t"slow-walk": "urgent",\n');
 		expect(urgencyFindings()[0].fix).toBe(
 			'slow-walk was merged into delay-as-force on 2026-10-01: rename the key to "delay-as-force", or remove it.',
+		);
+	});
+});
+
+describe("the book's frame", () => {
+	const chapter = (slug: string, body: string) =>
+		`---\nslug: ${slug}\ntitle: ${slug}\nsummary: A chapter.\nstatus: draft\n---\n\n${body}\n`;
+	const frameFindings = () =>
+		checkBookContent({
+			workspaceRoot: root,
+			bookSlug: "test-book",
+		}).findings.filter((finding) => finding.code === "FRAME_STEP_MISSING");
+
+	it("without an overview, counts the steps the chapters cover together", () => {
+		writeBook([
+			["chapters/01-a.mdx", chapter("a", "## Recognition\n\nText.")],
+			[
+				"chapters/02-b.mdx",
+				chapter("b", "## Exoneration\n\n## Mechanism\n\nThe queue."),
+			],
+		]);
+		const [finding] = frameFindings();
+		expect(finding?.message).toBe(
+			'No chapter covers the "intervention" frame\'s step(s): agency',
+		);
+		expect(finding?.fix).toContain('"## Agency"');
+
+		writeBook([["chapters/03-c.mdx", chapter("c", "## Agency\n\nText.")]]);
+		expect(frameFindings()).toEqual([]);
+	});
+
+	it("with an overview, reads the steps there", () => {
+		writeBook([
+			["chapters/00-overview.mdx", chapter("overview", "## Recognition\n")],
+			[
+				"chapters/01-a.mdx",
+				chapter("a", "## Exoneration\n\n## Mechanism\n\n## Agency"),
+			],
+		]);
+		expect(frameFindings()[0]?.message).toContain(
+			"Framing chapter (00-overview.mdx)",
+		);
+	});
+});
+
+describe("the frame check of the overview chapter", () => {
+	const overview = (headings: string[]) =>
+		chapter("overview", "draft").replace(
+			"Body.\n",
+			`${headings.join("\n\nText.\n\n")}\n`,
+		);
+	const frameFinding = (frameSlug: string) =>
+		checkBookContent({
+			workspaceRoot: root,
+			bookSlug: "test-book",
+			frameSlug,
+		}).findings.find((finding) => finding.code === "FRAME_STEP_MISSING");
+
+	it("reads the whole heading, so a step named in two words counts", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				overview(["## Steps", "## Failure Modes", "## Checklist"]),
+			],
+		]);
+		expect(frameFinding("field-guide")).toBeUndefined();
+	});
+
+	it("names each missing step, and the heading that would add it", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				overview(["## Steps to take", "## Failure modes we have seen"]),
+			],
+		]);
+		expect(frameFinding("field-guide")).toMatchObject({
+			level: "warning",
+			message:
+				'Framing chapter (00-overview.mdx) for frame "field-guide" is missing required step(s): steps, failure-modes, checklist',
+			fix: 'Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step\'s name (e.g. "## Steps"); the field-guide frame requires them in that chapter.',
+		});
+	});
+
+	it("does not read the frontmatter or fenced code as headings", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				`---\nslug: overview\ntitle: "Overview"\nstatus: draft\n# recognition\n---\n\n\`\`\`md\n## Exoneration\n\`\`\`\n\n## Mechanism\n\n## Agency\n`,
+			],
+		]);
+		expect(frameFinding("intervention")?.message).toEndWith(
+			"missing required step(s): recognition, exoneration",
 		);
 	});
 });

@@ -1,5 +1,6 @@
 import type { SearchEntry } from "../search";
 import type { EmbeddingVector } from "./index";
+import { loadTransformers, type ModelPipeline } from "./transformers";
 
 export type EmbeddingEngineState = "idle" | "loading" | "ready" | "unavailable";
 
@@ -12,7 +13,8 @@ export type EmbeddingEngine = {
 	) => Promise<Map<string, EmbeddingVector>>;
 };
 
-const DEFAULT_MODEL = "Xenova/all-MiniLM-L6-v2";
+/** The model the reader's browser downloads to rank passages by meaning. */
+export const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
 const BATCH_SIZE = 16;
 
 const chunk = <T>(arr: T[], size: number): T[][] => {
@@ -31,22 +33,13 @@ export const createEmbeddingEngine = async (
 	try {
 		onProgress?.("Loading embedding model…");
 
-		// Dynamic import so transformers.js remains optional at build time
-		// biome-ignore lint/suspicious/noTsIgnore: the optional dependency may be absent, so the import may or may not type-check
-		// @ts-ignore — optional dependency, loaded only when semantic search is enabled
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const transformers: any = await import("@xenova/transformers");
-		const { pipeline } = transformers;
-		const env = transformers.env;
-		env.allowLocalModels = false;
-		env.useBrowserCache = true;
-		env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency ?? 4;
+		const { pipeline } = await loadTransformers();
 
 		// @xenova/transformers v2 runs on WebAssembly only: it has no WebGPU
 		// backend and ignores device/dtype options, so none are passed.
-		const extractor: (...args: unknown[]) => Promise<unknown> = await pipeline(
+		const extractor: ModelPipeline = await pipeline(
 			"feature-extraction",
-			DEFAULT_MODEL,
+			EMBEDDING_MODEL,
 			{
 				progress_callback: (p: {
 					status: string;
@@ -104,7 +97,7 @@ export const createEmbeddingEngine = async (
 
 		return {
 			state: "ready",
-			modelName: DEFAULT_MODEL,
+			modelName: EMBEDDING_MODEL,
 			encode,
 			encodeEntries,
 		};

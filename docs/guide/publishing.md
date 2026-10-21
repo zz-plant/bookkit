@@ -1,12 +1,16 @@
 # Publishing
 
+## Publish
+
+`bun run bookkit publish [book]` moves a book from draft to published. It checks the book with the rules a published book is held to (no draft records, no broken links, a public `site.url`, no starter text in `book.config.ts`), and only when nothing fails sets `status: "published"` in `book.config.ts`. `--dry-run` checks and changes nothing. A book whose records were left `status: draft` while they were written can take `--records`, which marks every draft record published first, and puts them back if the book still fails. It then names the next steps: a first release note, and `deploy`.
+
 ## Deploy
 
 Every book builds to a static site and publishes to [Cloudflare Workers static assets](https://developers.cloudflare.com/workers/static-assets/). For deploy, a book is a folder in `apps/` with `src/book.config.ts` and `wrangler.jsonc` (Worker name `bookkit-<slug>`, `dist/` as the assets folder, the 404 page for misses, and URLs without trailing slashes).
 
 `bun run bookkit deploy [book...]` publishes all or none:
 
-1. `verify --all` (without its build of every book), so content errors in any book stop the run;
+1. `verify --all` (without its build of every book), so content errors in any book stop the run; a `--dry-run` leaves out the engine's tests and type check too, which take most of the time and concern code an author does not change (`--dry-run --full` runs them);
 2. a build of each selected book and `check:build` on its `dist/`;
 3. for a book on a custom domain, a comparison with the live page count (`--allow-page-drop` publishes when more than a quarter of the pages would disappear);
 4. `wrangler deploy` for each book, or wrangler's dry run with `--dry-run`.
@@ -14,7 +18,7 @@ Every book builds to a static site and publishes to [Cloudflare Workers static a
 Refusals are listed in a summary with their reasons, and nothing is published unless every book passed. If wrangler then fails for one book, the books already published stay up. Each Worker version's message is `<sha12> <subject>` of the commit.
 
 - **Uncommitted changes** in the selected books, or outside `apps/`, refuse a real deploy; `--allow-dirty` publishes anyway and says so in the version message. `--dry-run` rehearses uncommitted work and exits 0 when it passes.
-- **`--no-build`** publishes the `dist/` an earlier deploy run built, checked, and stamped (in `apps/<book>/.bookkit/deploy-stamp.json`) at the current commit. It refuses a missing, stale, or edited `dist/`; `bookkit build` does not stamp.
+- **`--no-build`** publishes the `dist/` an earlier deploy run built, checked, and stamped (in `apps/<book>/.bookkit/deploy-stamp.json`) at the current commit: a real deploy, or a `--dry-run --full` of committed work. It refuses a missing, stale, or edited `dist/`; `bookkit build` does not stamp.
 - **No book named** means the current book (`bookkit use`), else every book; `--all`, or `bun run deploy`, means every book. Unknown flags exit 1.
 
 The `*.workers.dev` address works at once and is `noindex` (`public/_headers`). For your own domain, set `site.url` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to the book's `wrangler.jsonc`; the next deploy attaches the domain, whose zone must be on your Cloudflare account.
@@ -36,7 +40,7 @@ With `site.runtime` unset or `"static"`, the build serves the reader site, searc
 
 ## Server runtime
 
-`site.runtime: "server"` runs the `/api/*` routes on demand while pages stay prerendered. It needs an Astro adapter in `astro.config.mjs` (for example `@astrojs/node`); a build without one stops and says so. The bundled `wrangler.jsonc` serves static assets only, so `bookkit deploy` does not run these routes.
+`site.runtime: "server"` runs the `/api/*` routes on demand while pages stay prerendered. It needs an Astro adapter in `astro.config.mjs` (for example `@astrojs/node`); a build without one stops and says so. The bundled `wrangler.jsonc` serves static assets only, so `bookkit deploy` does not run these routes. The build's static assets include the Ask panel's runtime, two WebAssembly files of about 10 MB each under `_astro/`; a reader's browser fetches one of them, and only after agreeing to download the models.
 
 The server reads its environment:
 

@@ -12,32 +12,45 @@ import {
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
+import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
 import {
 	type CorpusMechanism,
 	corpusEmbeddingText,
+	findRecurringTerms,
 	type PairCall,
+	runBookSuggestions,
 } from "../packages/astro-bookkit/src/suggestions";
+import {
+	checkBookContent,
+	readBookStatus,
+} from "../packages/astro-bookkit/src/validators/book-validator";
 import {
 	CONTENT_SECTIONS,
 	type ContentSection,
 	contentContract,
 	isContentSection,
+	scaffoldSource,
 } from "../packages/astro-bookkit/src/validators/content-check";
-import { listBookDirs, repoRoot, slugify } from "./_lib";
+import { listBookDirs, listFilesRecursive, repoRoot, slugify } from "./_lib";
 import {
 	booksWithMechanism,
+	type ChapterDraft,
+	chapterDraft,
 	chapterSource,
 	checkContentFile,
 	findSimilarMechanisms,
 	findSimilarMechanismsByMeaning,
 	listChapterFiles,
+	loadBookConfigSummary,
 	nextChapterFileName,
 	similarForMechanismFile,
 	summarizeBook,
+	WORDING_MATCH_MIN,
 	withCorpusScope,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
+import { commandHelp, commandNames, findCommand } from "./lib/bookkit-commands";
 import { planChapterRename, planInsertAfter } from "./lib/chapter-moves";
 import {
 	ask,
@@ -45,6 +58,7 @@ import {
 	didYouMean,
 	isInteractive,
 	readFocusBook,
+	wantsHelp,
 	writeFocusBook,
 } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
@@ -55,6 +69,7 @@ import {
 	DEFAULT_DEV_PORT,
 	foregroundServer,
 	runDevServer,
+	stopForegroundServer,
 } from "./lib/dev-server";
 import {
 	DEFAULT_EMBEDDING_MODEL_KEY,
@@ -77,21 +92,42 @@ import {
 import { loadBookContent } from "./lib/load-book";
 import { type FileChange, planMerge, planSync } from "./lib/merge-mechanisms";
 import {
+	draftRecords,
+	publishedRecord,
+	withBookStatus,
+} from "./lib/publish-book";
+import {
+	checkReleaseNote,
 	isVersion,
 	nextMinorVersion,
+	RELEASE_FIELDS,
 	releaseSource,
 	releaseVersions,
 } from "./lib/release-notes";
 import { titleFromSlug } from "./lib/scaffold-book";
+import {
+	planMoveTool,
+	planRemoveChapter,
+	planRemoveMechanism,
+	planRemoveTool,
+	type StructurePlan,
+} from "./lib/structure-edits";
 
 const args = process.argv.slice(2);
 // No command: the books, and the commands to write, check, preview, build, and deploy one.
 const command = args[0] ?? "status";
 
 if (command === "help" || command === "--help" || command === "-h") {
+	// `help <command>` is that command's help; `help --help` is help's own.
+	if (command === "help" && args[1]) {
+		printHelpFor(args[1].startsWith("-") ? ["help"] : args.slice(1));
+	}
 	printHelp();
 	process.exit(0);
 }
+// `bookkit <command> --help` prints that command's help before it reads or
+// writes anything (lib/bookkit-commands.ts).
+if (findCommand(command) && wantsHelp(args.slice(1))) printHelpFor(args);
 
 const books = listBookDirs();
 
@@ -106,8 +142,9 @@ const bookChoices = () =>
 
 /**
  * The book a command acts on: the one named, else the current book (`bookkit
- * use`), else one picked at a prompt. Exits with a suggestion for a misspelled
- * name, or with the usage when nothing can be resolved.
+ * use`), else the only book, else one picked at a prompt. Exits with a
+ * suggestion for a misspelled name, or with the usage when nothing can be
+ * resolved.
  */
 const requireBook = (book: string | undefined, usage: string): string => {
 	if (book && books.includes(book)) return book;
@@ -117,7 +154,9 @@ const requireBook = (book: string | undefined, usage: string): string => {
 		);
 		process.exit(1);
 	}
-	const picked = focusBook ?? choose("Which book?", bookChoices());
+	const picked =
+		focusBook ??
+		(books.length === 1 ? books[0] : choose("Which book?", bookChoices()));
 	if (picked) return picked;
 	console.error(
 		`Usage: ${usage}\nAvailable books: ${books.join(", ")}. Or set one with bun run bookkit use <book>, and leave it out.`,
@@ -128,18 +167,24 @@ const requireBook = (book: string | undefined, usage: string): string => {
 /**
  * Splits a command's positional arguments into the book and the rest. The book
  * may be left out (the current book is used) when only the command's own
- * arguments are given; with one argument too many, the first must be a book.
+ * arguments are given, even one that is also a book's name (`new chapter
+ * on-call` titles a chapter "on-call"); with one argument too many, the first
+ * must be a book, and with too few, a book's name is the book.
  */
 const takeBook = (
 	positional: string[],
 	ownArguments: number,
 	usage: string,
 ): [string, string[]] => {
-	if (positional[0] && books.includes(positional[0])) {
-		return [positional[0], positional.slice(1)];
-	}
 	if (positional.length > ownArguments) {
 		return [requireBook(positional[0], usage), positional.slice(1)];
+	}
+	if (
+		positional.length < ownArguments &&
+		positional[0] &&
+		books.includes(positional[0])
+	) {
+		return [positional[0], positional.slice(1)];
 	}
 	return [requireBook(undefined, usage), positional];
 };
@@ -148,10 +193,7 @@ const takeBook = (
  * A child process's exit code, or 1 when it has none: a command that never
  * started (not on PATH) or was killed by a signal must not read as success.
  */
-const exitCodeOf = (
-	result: SpawnSyncReturns<unknown>,
-	what: string,
-): number => {
+function exitCodeOf(result: SpawnSyncReturns<unknown>, what: string): number {
 	if (result.error) {
 		console.error(`Could not run ${what}: ${result.error.message}`);
 		return 1;
@@ -161,11 +203,11 @@ const exitCodeOf = (
 		return 1;
 	}
 	return result.status ?? 1;
-};
+}
 
 /** Runs one of scripts/ with this process's own bun, so PATH does not matter. */
-const runScript = (script: string, scriptArgs: string[]): number =>
-	exitCodeOf(
+function runScript(script: string, scriptArgs: string[]): number {
+	return exitCodeOf(
 		spawnSync(
 			process.execPath,
 			["run", join(repoRoot(), "scripts", script), ...scriptArgs],
@@ -173,8 +215,9 @@ const runScript = (script: string, scriptArgs: string[]): number =>
 		),
 		`scripts/${script}`,
 	);
+}
 
-switch (command) {
+switch (findCommand(command)?.name ?? command) {
 	case "status": {
 		if (args.includes("--json")) {
 			console.log(
@@ -237,9 +280,12 @@ switch (command) {
 				byMeaning && "error" in byMeaning
 					? `Ranked by wording; the model did not load: ${byMeaning.error}`
 					: undefined,
+			// By wording, a match on a word or two is noise; leave those out.
 			similar:
 				semantic?.matches ??
-				findSimilarMechanisms({ title, definition }, books, 5),
+				findSimilarMechanisms({ title, definition }, books, 5).filter(
+					(match) => match.score >= WORDING_MATCH_MIN,
+				),
 		};
 		if (args.includes("--json")) {
 			console.log(JSON.stringify(result, null, 2));
@@ -248,7 +294,9 @@ switch (command) {
 				`"${slug}" already exists in ${result.existingSlug.join(", ")}.`,
 			);
 		} else if (result.similar.length === 0) {
-			console.log(`No existing mechanism shares wording with "${title}".`);
+			console.log(
+				`No existing mechanism shares enough wording with "${title}" to be the same idea.`,
+			);
 		} else {
 			if (result.note) console.log(result.note);
 			console.log(`Closest by ${result.method}:`);
@@ -287,6 +335,10 @@ switch (command) {
 			!books.includes(target) &&
 			(existsSync(resolveFromCaller(target)) || /[\\/]|\.mdx?$/.test(target))
 		) {
+			// A folder of a book's content is checked as part of the book.
+			if (isBookContentPath(target) && !args.includes("--frame")) {
+				process.exit(await checkBookFolder(target, args.includes("--json")));
+			}
 			checkFolder(target, args.slice(2));
 			break;
 		}
@@ -322,7 +374,10 @@ switch (command) {
 			console.log(
 				"\n🔎 Suggestions (advisory; nothing here blocks publishing)",
 			);
-			runScript("check-suggestions.ts", [book]);
+			runScript("check-suggestions.ts", [
+				book,
+				...(args.includes("--info") ? ["--info"] : []),
+			]);
 		}
 		console.log(
 			`\n${structure === 0 ? "✓" : "✗"} structure  ${corpus === 0 ? "✓" : "✗"} mechanisms across books`,
@@ -386,10 +441,27 @@ switch (command) {
 		const built = ["book.pdf", "book.epub"].filter((file) =>
 			existsSync(join(repoRoot(), exportsDir, file)),
 		);
-		console.log(
+		// A build older than the book's latest edit no longer shows it.
+		const builtAt =
 			built.length > 0
-				? `\nPDF and EPUB from the last build: ${built.map((file) => join(exportsDir, file)).join(", ")} (bun run bookkit build ${book} remakes them).`
-				: `\nThe PDF and EPUB come from the build: bun run bookkit build ${book} writes them to ${exportsDir}/.`,
+				? Math.min(
+						...built.map(
+							(file) => statSync(join(repoRoot(), exportsDir, file)).mtimeMs,
+						),
+					)
+				: 0;
+		const srcDir = join(repoRoot(), "apps", book, "src");
+		const edited = existsSync(srcDir)
+			? listFilesRecursive(srcDir).filter(
+					(file) => statSync(join(srcDir, file)).mtimeMs > builtAt,
+				)
+			: [];
+		console.log(
+			built.length === 0
+				? `\nThe PDF and EPUB come from the build: bun run bookkit build ${book} writes them to ${exportsDir}/.`
+				: edited.length > 0
+					? `\nThe PDF and EPUB in ${exportsDir}/ are from a build older than ${edited.length} edited file(s) (${edited.slice(0, 2).join(", ")}${edited.length > 2 ? ", …" : ""}): bun run bookkit build ${book} remakes them.`
+					: `\nPDF and EPUB from the last build, current with the book: ${built.map((file) => join(exportsDir, file)).join(", ")}.`,
 		);
 		process.exit(status);
 		break;
@@ -410,7 +482,7 @@ switch (command) {
 			);
 		if (!target) {
 			console.error(
-				"Usage: bun run bookkit try <folder> [--frame <slug>] [--json]\nShows what Bookkit would make of any folder of Markdown. Reads only; writes nothing.",
+				`Name the folder of Markdown to read.\n\n${usageOf("try")}`,
 			);
 			process.exit(1);
 		}
@@ -424,7 +496,7 @@ switch (command) {
 			name: slugify(target.split(/[\\/]/).filter(Boolean).pop() ?? "folder"),
 		});
 		if (args.includes("--json")) console.log(JSON.stringify(preview, null, 2));
-		else printTry(target, preview);
+		else printTry(target, preview, folder.files);
 		process.exit(0);
 		break;
 	}
@@ -432,9 +504,42 @@ switch (command) {
 	case "contract": {
 		const requested =
 			args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+		// Release notes are not a content section; their page reads these fields.
+		if (requested === "release") {
+			const template = releaseSource({
+				title: "First edition",
+				version: "0.1.0",
+				date: new Date().toISOString().slice(0, 10),
+			});
+			if (args.includes("--json")) {
+				console.log(
+					JSON.stringify(
+						{
+							section: "release",
+							directory: "releases",
+							fields: RELEASE_FIELDS,
+							template,
+						},
+						null,
+						2,
+					),
+				);
+				break;
+			}
+			console.log("\nrelease  (src/content/book/releases/)");
+			for (const field of RELEASE_FIELDS) {
+				console.log(
+					`  ${field.name.padEnd(18)} ${field.whenMissing.padEnd(9)} ${field.meaning}`,
+				);
+			}
+			console.log(
+				`\n  A note the page lists (bun run bookkit new release "<title>" writes one):\n${template.replace(/^/gm, "    ")}`,
+			);
+			break;
+		}
 		if (requested !== undefined && !isContentSection(requested)) {
 			console.error(
-				`Unknown section "${requested}". Use one of: ${CONTENT_SECTIONS.join(", ")}.`,
+				`Unknown section "${requested}". Use one of: ${CONTENT_SECTIONS.join(", ")}, or release.`,
 			);
 			process.exit(1);
 		}
@@ -478,12 +583,16 @@ switch (command) {
 		const targetBook =
 			named && !named.startsWith("--")
 				? requireBook(named, usage)
-				: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
+				: (focusBook ??
+					(books.length === 1
+						? books[0]
+						: choose("Which book?", bookChoices())) ??
+					books[0]);
 		if (control) {
 			// First the server `bookkit dev` runs in another terminal.
 			const running = foregroundServer(targetBook);
 			if (running && control === "stop") {
-				process.kill(running.pid, "SIGTERM");
+				stopForegroundServer(running, targetBook);
 				console.log(
 					`Stopped the dev server for ${targetBook} on port ${running.port}.`,
 				);
@@ -539,12 +648,7 @@ switch (command) {
 		if (targetBook) {
 			if (target.note) console.log(target.note);
 			console.log(`\n📦 Building @books/${targetBook}...\n`);
-			const result = spawnSync(
-				process.execPath,
-				["run", "--filter", `@books/${targetBook}`, "build"],
-				{ cwd: repoRoot(), stdio: "inherit" },
-			);
-			const status = exitCodeOf(result, `the ${targetBook} build`);
+			const { status, warnings } = await buildWithWarnings(targetBook);
 			// After Astro's log, where the book went and what to do with it.
 			const dist = join("apps", targetBook, "dist");
 			const exportsDir = join(repoRoot(), dist, "exports");
@@ -553,7 +657,22 @@ switch (command) {
 					existsSync(join(exportsDir, file)),
 				);
 				console.log(
-					`\n✓ Built ${targetBook} in ${dist}${files.length > 0 ? `; ${files.map((file) => join(dist, "exports", file)).join(" and ")}` : ""}.\nNext: bun run bookkit deploy ${targetBook} --dry-run rehearses publishing it.`,
+					`\n✓ Built ${targetBook} in ${dist}${files.length > 0 ? `; ${files.map((file) => join(dist, "exports", file)).join(" and ")}` : ""}.`,
+				);
+				// Export warnings scroll past in Astro's log; repeat them here.
+				if (warnings.length > 0) {
+					console.log(
+						`\n⚠ ${warnings.length} export warning(s): the PDF or EPUB differs from the site here.`,
+					);
+					for (const warning of warnings.slice(0, 5)) {
+						console.log(`  ${warning}`);
+					}
+					if (warnings.length > 5) {
+						console.log(`  … and ${warnings.length - 5} more above`);
+					}
+				}
+				console.log(
+					`Next: bun run bookkit deploy ${targetBook} --dry-run rehearses publishing it.`,
 				);
 			}
 			process.exit(status);
@@ -586,8 +705,7 @@ switch (command) {
 		break;
 	}
 
-	case "list":
-	case "list:books": {
+	case "list": {
 		console.log("Available books in workspace:");
 		for (const b of books) {
 			console.log(`- ${b}`);
@@ -596,33 +714,55 @@ switch (command) {
 		break;
 	}
 
-	case "new-book":
-	case "book:new":
-	case "book:add":
-	case "add-book": {
+	case "new-book": {
 		process.exit(runScript("scaffold-book.ts", args.slice(1)));
 		break;
 	}
 
-	case "remove-book":
-	case "book:remove": {
+	case "remove-book": {
 		process.exit(runScript("remove-book.ts", args.slice(1)));
 		break;
 	}
 
-	case "import":
-	case "import-book":
-	case "book:import": {
+	case "remove": {
+		if (args[1] === "book") {
+			const rest = args.slice(2);
+			const named = rest[0] && !rest[0].startsWith("--") ? rest[0] : undefined;
+			process.exit(
+				runScript(
+					"remove-book.ts",
+					named ? ["--book", named, ...rest.slice(1)] : rest,
+				),
+			);
+		}
+		process.exit(removeRecord(args.slice(1)));
+		break;
+	}
+
+	case "move": {
+		process.exit(moveTool(args.slice(1)));
+		break;
+	}
+
+	case "import": {
 		process.exit(
 			runScript("import-book-from-markdown.ts", withBookFlag(args.slice(1))),
 		);
 		break;
 	}
 
-	case "propose":
-	case "proposal":
-	case "propose-book": {
+	case "propose": {
 		process.exit(runScript("propose-book.ts", withBookFlag(args.slice(1))));
+		break;
+	}
+
+	case "publish": {
+		process.exit(publish(args.slice(1)));
+		break;
+	}
+
+	case "init": {
+		createNew("book", args.slice(1));
 		break;
 	}
 
@@ -658,30 +798,34 @@ switch (command) {
 	}
 
 	default: {
-		const commands = [
-			"status",
-			"use",
-			"new",
-			"try",
-			"check",
-			"contract",
-			"verify",
-			"similar",
-			"validate",
-			"dev",
-			"build",
-			"deploy",
-			"list",
-			"import",
-			"propose",
-			"bets",
-			"help",
-		];
 		console.error(
-			`Unknown command "${command}".${didYouMean(command, commands)} Run bun run bookkit help for every command.`,
+			`Unknown command "${command}".${didYouMean(command, commandNames())} Run bun run bookkit help for every command.`,
 		);
 		process.exit(1);
 	}
+}
+
+/** A command's help, for an error that ends with it. */
+function usageOf(name: string): string {
+	const help = commandHelp([name]);
+	return help && "text" in help ? help.text : "";
+}
+
+/**
+ * Prints the help of the command `words` name (and exits): its own, or, for
+ * a command that hands its arguments to a script, the script's.
+ */
+function printHelpFor(words: string[]): never {
+	const help = commandHelp(words);
+	if (!help) {
+		console.error(
+			`Unknown command "${words[0]}".${didYouMean(words[0], commandNames())} Run bun run bookkit help for every command.`,
+		);
+		process.exit(1);
+	}
+	if ("script" in help) process.exit(runScript(help.script, ["--help"]));
+	console.log(help.text);
+	process.exit(0);
 }
 
 /** Your books, and the commands for one: `book`, else the current one. */
@@ -813,6 +957,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 		mechanism: { valued: ["--definition"], switches: ["--force"] },
 		tool: { valued: [], switches: [] },
 		example: { valued: [], switches: [] },
+		glossary: { valued: ["--definition", "--mechanism"], switches: [] },
 		book: {
 			valued: ["--title", "--from", "--frame"],
 			switches: ["--skip-starter-content", "--no-install"],
@@ -853,6 +998,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 			},
 			{ value: "tool", label: "a ≤10-minute action for a mechanism" },
 			{ value: "example", label: "a replaceable illustration of a mechanism" },
+			{ value: "glossary", label: "a term readers meet, with its definition" },
 			{ value: "release", label: "a dated release note for the book" },
 			{ value: "book", label: "a new book app" },
 		]);
@@ -973,7 +1119,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 			if (holders.length > 0) {
 				const [holder] = holders;
 				console.error(
-					`${holder.book} already has "${slug}". If this is the same idea, share it: copy ${holder.file ? relative(repoRoot(), holder.file) : `${holder.book}'s ${slug}.mdx`} into ${book}'s mechanisms folder (check:corpus keeps the copies identical). If it is a different idea, choose another title.`,
+					`${holder.book} already has "${slug}". If this is the same idea, share it: bun run bookkit sync ${slug} --to ${book} (check:corpus keeps the copies identical). If it is a different idea, choose another title.`,
 				);
 				process.exit(1);
 			}
@@ -1053,18 +1199,73 @@ function createNew(kind: string | undefined, rest: string[]) {
 				`${usage}\n<domain> is the setting the example happens in, such as Housing or Workplace; examples are grouped by it.`,
 			);
 			const title = required(own[2], "Example title:", usage);
-			process.exit(
-				runScript("scaffold-example.ts", [
-					"--book",
-					book,
-					"--mechanism",
-					mechanism,
-					"--domain",
-					domain,
-					"--title",
-					title,
-				]),
+			const status = runScript("scaffold-example.ts", [
+				"--book",
+				book,
+				"--mechanism",
+				mechanism,
+				"--domain",
+				domain,
+				"--title",
+				title,
+			]);
+			if (status === 0) {
+				console.log(
+					`Next: write the example (a case of ${mechanism}, not its definition), then bun run bookkit check ${book}`,
+				);
+			}
+			process.exit(status);
+			break;
+		}
+
+		case "glossary": {
+			const usage =
+				'bun run bookkit new glossary [book] "<term>" [--definition "<one sentence>"] [--mechanism <slug>]';
+			const [book, own] = takeBook(positional, 1, usage);
+			const term = required(own[0], "Term:", usage);
+			const slug = slugify(term);
+			if (!slug) {
+				console.error(`"${term}" has no letters or digits for a slug.`);
+				process.exit(1);
+			}
+			const mechanism = flag("--mechanism")
+				? mechanismOf(book, flag("--mechanism"), usage)
+				: undefined;
+			const path = join(
+				repoRoot(),
+				"apps",
+				book,
+				"src",
+				"content",
+				"book",
+				"glossary",
+				`${slug}.mdx`,
 			);
+			if (existsSync(path)) {
+				console.error(
+					`${relative(repoRoot(), path)} already exists. Edit it, or choose another term.`,
+				);
+				process.exit(1);
+			}
+			mkdirSync(dirname(path), { recursive: true });
+			writeFileSync(
+				path,
+				scaffoldSource(
+					"glossary",
+					{
+						term,
+						slug,
+						definition: flag("--definition"),
+						mechanisms: mechanism ? [mechanism] : undefined,
+						status: "draft",
+					},
+					"What a reader needs to know when they meet the term, beyond the definition.",
+				),
+			);
+			console.log(
+				`Created ${relative(repoRoot(), path)}.\nNext: ${flag("--definition") ? "" : "write its definition, then "}link the term where a chapter first uses it, [${term.toLowerCase()}](/read/glossary/${slug}); bun run bookkit check ${book} lists first uses that are not linked.`,
+			);
+			process.exit(0);
 			break;
 		}
 
@@ -1170,19 +1371,10 @@ function createNew(kind: string | undefined, rest: string[]) {
 		default: {
 			if (resolvedKind) {
 				console.error(
-					`Cannot start "${resolvedKind}".${didYouMean(resolvedKind, ["chapter", "mechanism", "tool", "example", "release", "book"])}`,
+					`Cannot start "${resolvedKind}".${didYouMean(resolvedKind, ["chapter", "mechanism", "tool", "example", "glossary", "release", "book"])}`,
 				);
 			}
-			console.error(`Usage: bun run bookkit new <chapter|mechanism|tool|example|release|book> ...
-
-  new chapter [book] "<title>" [--after <chapter>]     next numbered chapter, draft; --after puts it there
-  new mechanism [book] "<title>" [--definition "…"]     checks every book for one that already fits
-  new tool [book] <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
-  new example [book] <mechanism-slug> <domain> "<title>"
-  new release [book] "<title>" [--version <x.y.z>]
-  new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder of notes>]
-
-[book] defaults to the current one (bun run bookkit use <book>). At a terminal, anything left out is asked for.`);
+			console.error(usageOf("new"));
 			process.exit(1);
 		}
 	}
@@ -1210,14 +1402,17 @@ function targetBooks(
 
 /**
  * Scripts that take `--book <slug>` also accept the book first (`propose
- * running-hot`), or default to the current book (`bookkit use`).
+ * running-hot`), or default to the current book (`bookkit use`), else the only
+ * book.
  */
 function withBookFlag(rest: string[]): string[] {
 	if (rest.includes("--book")) return rest;
 	if (rest[0] && !rest[0].startsWith("--")) {
 		return ["--book", rest[0], ...rest.slice(1)];
 	}
-	return focusBook ? ["--book", focusBook, ...rest] : rest;
+	// The current book, else the only one: a project's one book need not be named.
+	const book = focusBook ?? (books.length === 1 ? books[0] : undefined);
+	return book ? ["--book", book, ...rest] : rest;
 }
 
 /** The value after a flag (`--frame runbook`), if given. */
@@ -1225,6 +1420,95 @@ function flagValue(list: string[], name: string): string | undefined {
 	const index = list.indexOf(name);
 	const value = index >= 0 ? list[index + 1] : undefined;
 	return value && !value.startsWith("--") ? value : undefined;
+}
+
+/**
+ * `check <folder>` for a folder of a book's content: the book's own checks
+ * (its frame, status, references, and the MDX compiler), reporting only the
+ * files in the folder. A folder outside a book goes to `checkFolder`.
+ */
+async function checkBookFolder(
+	target: string,
+	asJson: boolean,
+): Promise<number> {
+	const absolute = resolveFromCaller(target);
+	const book = relative(repoRoot(), absolute).match(/^apps\/([^/]+)\//)?.[1];
+	if (!book || !books.includes(book)) {
+		console.error(`${target} is not in a book under apps/.`);
+		return 1;
+	}
+	const inFolder = (file: string | undefined) =>
+		Boolean(file) &&
+		(file === absolute || (file as string).startsWith(`${absolute}/`));
+	const content = checkBookContent({
+		workspaceRoot: repoRoot(),
+		bookSlug: book,
+	});
+	const findings = content.findings.filter((finding) => inFolder(finding.file));
+	const files = statSync(absolute).isDirectory()
+		? readdirSync(absolute, { recursive: true })
+				.map(String)
+				.filter((file) => /\.mdx?$/.test(file))
+				.map((file) => join(absolute, file))
+		: [absolute];
+	// The compiler the build uses, unless an HTML comment already explains why it fails.
+	for (const file of files.filter((path) => path.endsWith(".mdx"))) {
+		if (
+			findings.some(
+				(finding) =>
+					finding.file === file && finding.code === "MDX_HTML_COMMENT",
+			)
+		) {
+			continue;
+		}
+		const compiled = compileFinding(
+			await compileMdx(
+				readFileSync(file, "utf8"),
+				join(repoRoot(), "apps", book),
+			),
+		);
+		if (compiled)
+			findings.push({ ...compiled, file } as (typeof findings)[number]);
+	}
+	const errors = findings.filter((finding) => finding.level === "error").length;
+	if (asJson) {
+		console.log(
+			JSON.stringify(
+				{
+					book,
+					folder: relative(repoRoot(), absolute),
+					files: files.length,
+					ok: errors === 0,
+					findings: findings.map((finding) => ({
+						...finding,
+						file: finding.file ? relative(repoRoot(), finding.file) : undefined,
+					})),
+				},
+				null,
+				2,
+			),
+		);
+		return errors === 0 ? 0 : 1;
+	}
+	console.log(
+		`\n${errors === 0 ? "✓" : "✗"} ${relative(repoRoot(), absolute)}: ${files.length} file(s), checked as part of ${book}${content.releaseMode ? " (release rules)" : ""}`,
+	);
+	for (const file of files.sort()) {
+		const own = findings.filter((finding) => finding.file === file);
+		if (own.length === 0) continue;
+		const failed = own.some((finding) => finding.level === "error");
+		console.log(
+			`  ${failed ? "✗" : "!"} ${relative(absolute, file) || relative(repoRoot(), file)}`,
+		);
+		for (const finding of own) {
+			console.log(`      ${finding.level}: ${finding.message}`);
+			if (finding.fix) console.log(`        fix: ${finding.fix}`);
+		}
+	}
+	console.log(
+		`\n  ${errors} error(s), ${findings.length - errors} warning(s). The whole book: bun run bookkit check ${book}`,
+	);
+	return errors === 0 ? 0 : 1;
 }
 
 /** `check <folder|file>` outside a book app: the folder preview as a gate. */
@@ -1250,7 +1534,39 @@ function checkFolder(target: string, rest: string[]) {
 	process.exit(preview.errors === 0 ? 0 : 1);
 }
 
+/** `check <release note>`: what the release notes page would do wrong with it. */
+function checkReleaseFile(path: string, asJson: boolean): number {
+	const absolute = resolveFromCaller(path);
+	if (!existsSync(absolute)) {
+		console.error(`No such file: ${path}`);
+		return 1;
+	}
+	const findings = checkReleaseNote(readFileSync(absolute, "utf8"));
+	const shown = relative(repoRoot(), absolute);
+	if (asJson) {
+		console.log(
+			JSON.stringify(
+				{ section: "release", file: shown, ok: true, findings },
+				null,
+				2,
+			),
+		);
+		return 0;
+	}
+	console.log(
+		`\n${findings.length === 0 ? "✓" : "!"} ${shown}: release note${findings.length === 0 ? ", listed on the release notes page as written" : ""}`,
+	);
+	for (const finding of findings) {
+		console.log(`  ${finding.level}: ${finding.message}`);
+		console.log(`    fix: ${finding.fix.replace(/\n/g, "\n         ")}`);
+	}
+	return 0;
+}
+
 async function checkOneFile(path: string, asJson: boolean, quick = false) {
+	if (/\/content\/book\/releases\//.test(resolveFromCaller(path))) {
+		process.exit(checkReleaseFile(path, asJson));
+	}
 	const checked = checkContentFile(path);
 	if ("error" in checked) {
 		console.error(checked.error);
@@ -1291,6 +1607,22 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 		section === "mechanism" && slug
 			? await judgedForMechanism(slug, book, quick)
 			: null;
+	// The book's suggestions about this file: advice, never a failure.
+	const suggestions = suggestionsForFile(book, file);
+	// A chapter's word count against the stub threshold, and what it binds.
+	const draft =
+		section === "chapter"
+			? chapterDraft(
+					readFileSync(file, "utf8"),
+					Array.isArray(result.frontmatter?.mechanisms)
+						? result.frontmatter.mechanisms.filter(
+								(slug): slug is string => typeof slug === "string",
+							)
+						: [],
+					loadBookContent(book).mechanisms.map((m) => m.slug),
+					(await loadBookConfigSummary(book)).site,
+				)
+			: null;
 	if (asJson) {
 		console.log(
 			JSON.stringify(
@@ -1302,6 +1634,8 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 					body: undefined,
 					similar,
 					judged,
+					suggestions,
+					draft,
 				},
 				null,
 				2,
@@ -1338,7 +1672,62 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 		for (const match of elsewhere) console.log(describe(match));
 	}
 	if (judged) printJudged(slug, judged);
+	if (draft) printDraft(draft);
+	if (suggestions.length > 0) {
+		console.log("  suggestions (advisory; they never fail a check):");
+		for (const suggestion of suggestions) {
+			console.log(`    ${suggestion.message}`);
+			console.log(`      → ${suggestion.nextAction}`);
+		}
+	}
 	process.exit(result.ok ? 0 : 1);
+}
+
+function printDraft(draft: ChapterDraft) {
+	console.log(
+		draft.stub
+			? `  draft: ${draft.words} words of prose, a stub until ${draft.minimum}. A stub stays out of search and does not count as drafted.`
+			: `  draft: ${draft.words} words of prose.`,
+	);
+	console.log(
+		`  binds: ${draft.binds.length > 0 ? draft.binds.join(", ") : "no mechanism yet"}.`,
+	);
+	if (draft.unbound.length > 0) {
+		console.log(
+			`  the book's other mechanisms: ${draft.unbound.join(", ")}. Bind one by adding its slug to mechanisms: before naming a new idea.`,
+		);
+	}
+}
+
+/** The warning-level suggestions `bookkit check <book>` makes about one file. */
+function suggestionsForFile(
+	book: string,
+	file: string,
+): Array<{ category: string; message: string; nextAction: string }> {
+	const content = loadBookContent(book);
+	const recurring = findRecurringTerms(content.chapterBodies, {
+		vocabulary: content.vocabulary,
+	});
+	return runBookSuggestions({
+		book,
+		mechanisms: content.mechanisms,
+		chapters: content.chapters,
+		examples: content.examples,
+		chapterBodies: content.chapterBodies,
+		conceptFlags: recurring.candidates,
+		vocabulary: content.vocabulary,
+		frame: content.frame,
+		tools: content.tools,
+	})
+		.filter(
+			(suggestion) =>
+				suggestion.file === file && suggestion.severity !== "info",
+		)
+		.map(({ category, message, nextAction }) => ({
+			category,
+			message,
+			nextAction,
+		}));
 }
 
 type MechanismJudges = {
@@ -1821,16 +2210,100 @@ function merge(rest: string[]): number {
 	return 0;
 }
 
+/**
+ * `sync <slug> --to <book>`: the mechanism shared with a book that has no copy
+ * of it: one copy's file (--from, else the one edited last) copied into the
+ * book's mechanisms/, so check:corpus keeps the copies the same from then on.
+ */
+function shareMechanism(
+	slug: string,
+	to: string,
+	from: string | undefined,
+	dryRun: boolean,
+): number {
+	requireBook(to, "bun run bookkit sync <mechanism> --to <book>");
+	const holders = books.flatMap((book) =>
+		loadBookContent(book)
+			.mechanisms.filter((m) => m.slug === slug && m.file)
+			.map((m) => ({ book, file: m.file as string })),
+	);
+	if (holders.length === 0) {
+		const slugs = [
+			...new Set(
+				books.flatMap((book) =>
+					loadBookContent(book).mechanisms.map((m) => m.slug),
+				),
+			),
+		];
+		console.error(`No mechanism ${slug}.${didYouMean(slug, slugs)}`);
+		return 1;
+	}
+	if (holders.some((holder) => holder.book === to)) {
+		console.error(
+			`${to} already has ${slug}. bun run bookkit sync ${slug} keeps its copies the same.`,
+		);
+		return 1;
+	}
+	if (from && !holders.some((holder) => holder.book === from)) {
+		console.error(
+			`${from} has no ${slug}; it is in ${holders.map((holder) => holder.book).join(", ")}.`,
+		);
+		return 1;
+	}
+	const source =
+		holders.find((holder) => holder.book === from) ??
+		[...holders].sort(
+			(a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs,
+		)[0];
+	const target = join(
+		repoRoot(),
+		"apps",
+		to,
+		"src",
+		"content",
+		"book",
+		"mechanisms",
+		`${slug}.mdx`,
+	);
+	if (existsSync(target)) {
+		console.error(
+			`${relative(repoRoot(), target)} exists but is not ${slug}. Rename it first.`,
+		);
+		return 1;
+	}
+	console.log(
+		`${dryRun ? "Would share" : "Shared"} ${slug} with ${to}, copied from ${source.book}:\n  + ${relative(repoRoot(), target)}`,
+	);
+	if (dryRun) {
+		console.log("\nNothing written (--dry-run).");
+		return 0;
+	}
+	mkdirSync(dirname(target), { recursive: true });
+	writeFileSync(target, readFileSync(source.file, "utf8"));
+	console.log(
+		`\nNext: list ${slug} in the mechanisms: of ${to}'s chapters that use it, then bun run bookkit check ${to}. Edit the contract in one book and bun run bookkit sync ${slug} copies it to the others.`,
+	);
+	return 0;
+}
+
 /** bookkit sync <slug> [--from <book>]: one contract for every copy. */
 function sync(rest: string[]): number {
-	const [slug] = positionals(rest, ["--from"]);
-	if (!slug) {
+	const usage =
+		"bun run bookkit sync <mechanism> [--from <book>] [--to <book>] [--dry-run]";
+	const [slug] = positionals(rest, ["--from", "--to"]);
+	const unknown = rest.filter(
+		(arg) =>
+			arg.startsWith("--") && !["--from", "--to", "--dry-run"].includes(arg),
+	);
+	if (!slug || unknown.length > 0) {
 		console.error(
-			"Usage: bun run bookkit sync <mechanism> [--from <book>] [--dry-run]\nCopies one copy's contract (default: the one edited last) to the mechanism's other books in its corpus.",
+			`${unknown.length > 0 ? `Unknown option ${unknown.join(", ")}.\n` : ""}Usage: ${usage}\nCopies one copy's contract (default: the one edited last) to the mechanism's other books in its corpus; --to <book> also shares it with a book that has no copy yet.`,
 		);
 		return 1;
 	}
 	const from = flagValue(rest, "--from");
+	const to = flagValue(rest, "--to");
+	if (to) return shareMechanism(slug, to, from, rest.includes("--dry-run"));
 	const plan = planSync(slug, from);
 	if ("error" in plan) {
 		console.error(plan.error);
@@ -1858,6 +2331,337 @@ function sync(rest: string[]): number {
 }
 
 /**
+ * Builds one book in its folder, passing its output through, and collects
+ * the export warnings (an image the PDF or EPUB shows as alt text, text a
+ * font cannot draw) for the summary.
+ */
+async function buildWithWarnings(
+	book: string,
+): Promise<{ status: number; warnings: string[] }> {
+	const child = Bun.spawn([process.execPath, "run", "build"], {
+		cwd: join(repoRoot(), "apps", book),
+		stdin: "inherit",
+		stdout: "inherit",
+		stderr: "pipe",
+	});
+	const warnings: string[] = [];
+	const decoder = new TextDecoder();
+	let pending = "";
+	const collect = (line: string) => {
+		const match = line.match(/\[bookkit\] ((?:PDF|EPUB) export: .*)$/);
+		if (match) warnings.push(match[1]);
+	};
+	const reader = child.stderr.getReader();
+	for (;;) {
+		const { done, value: chunk } = await reader.read();
+		if (done) break;
+		process.stderr.write(chunk);
+		pending += decoder.decode(chunk, { stream: true });
+		const lines = pending.split("\n");
+		pending = lines.pop() ?? "";
+		for (const line of lines) collect(line);
+	}
+	collect(pending);
+	const code = await child.exited;
+	if (child.signalCode) {
+		console.error(`The ${book} build was stopped by ${child.signalCode}.`);
+		return { status: 1, warnings };
+	}
+	return { status: code, warnings };
+}
+
+/**
+ * `publish [book] [--dry-run] [--records]`: the book checked with the release
+ * rules it would be held to, then `status: "published"` in book.config.ts.
+ * Nothing changes while an error stands. --records first marks the book's
+ * draft records published, for an author who left them draft by default.
+ */
+function publish(rest: string[]): number {
+	const usage = "bun run bookkit publish [book] [--dry-run] [--records]";
+	const unknown = rest.filter(
+		(arg) => arg.startsWith("--") && !["--dry-run", "--records"].includes(arg),
+	);
+	if (unknown.length > 0) {
+		console.error(`Unknown option ${unknown.join(", ")}.
+Usage: ${usage}`);
+		return 1;
+	}
+	const dryRun = rest.includes("--dry-run");
+	const book = requireBook(
+		rest.find((arg) => !arg.startsWith("--")),
+		usage,
+	);
+	const configPath = join(repoRoot(), "apps", book, "src", "book.config.ts");
+	const shownConfig = relative(repoRoot(), configPath);
+	const status = readBookStatus(repoRoot(), book) ?? "draft";
+	if (isReleasedStatus(status)) {
+		console.log(
+			`${book} is already ${status}. To put it online: bun run bookkit deploy ${book} --dry-run, then without --dry-run.`,
+		);
+		return 0;
+	}
+	if (!existsSync(configPath)) {
+		console.error(`${shownConfig} is missing.`);
+		return 1;
+	}
+	const nextConfig = withBookStatus(
+		readFileSync(configPath, "utf8"),
+		"published",
+	);
+	if (!nextConfig) {
+		console.error(
+			`${shownConfig} has no status: line to change. Add status: "published" to bookConfig yourself, then run bun run bookkit check ${book}.`,
+		);
+		return 1;
+	}
+
+	const drafts = draftRecords(book);
+	const records = rest.includes("--records");
+	// The records as they were, to put back if the book still fails.
+	const originals = new Map<string, string>();
+	if (records && drafts.length > 0) {
+		for (const path of drafts) {
+			const text = readFileSync(path, "utf8");
+			originals.set(path, text);
+			writeFileSync(path, publishedRecord(text));
+		}
+		console.log(
+			`${dryRun ? "Checking" : "Marking"} ${drafts.length} draft record(s) as published (--records):`,
+		);
+		for (const path of drafts.slice(0, 10)) {
+			console.log(`  ${relative(repoRoot(), path)}`);
+		}
+		if (drafts.length > 10) console.log(`  … and ${drafts.length - 10} more`);
+	}
+
+	console.log(
+		`\n🔎 ${book} checked with the rules a published book is held to\n`,
+	);
+	const checked = runScript("validate-book.ts", ["--book", book, "--release"]);
+	// A dry run, or a book that still fails, keeps its records as they were.
+	if (checked !== 0 || dryRun) {
+		for (const [path, text] of originals) writeFileSync(path, text);
+	}
+	if (checked !== 0) {
+		console.log(
+			[
+				"",
+				`Not published: fix the errors above; ${shownConfig} still says status: "${status}"${originals.size > 0 ? ", and the draft records are drafts again" : ""}.`,
+				...(drafts.length > 0 && !records
+					? [
+							`${drafts.length} record(s) are drafts. If they are finished, bun run bookkit publish ${book} --records marks them published too.`,
+						]
+					: []),
+			].join("\n"),
+		);
+		return 1;
+	}
+	if (dryRun) {
+		console.log(
+			`\nReady: nothing above blocks publishing. bun run bookkit publish ${book}${records ? " --records" : ""} sets status: "published" in ${shownConfig}.`,
+		);
+		return 0;
+	}
+	writeFileSync(configPath, nextConfig);
+	const notes = releaseVersions(
+		join(repoRoot(), "apps", book, "src", "content", "book", "releases"),
+	);
+	const next: Array<[string, string]> = [
+		...(notes.length === 0
+			? [
+					[
+						`bun run bookkit new release ${book} "First edition"`,
+						"a release note readers see",
+					] as [string, string],
+				]
+			: []),
+		[`bun run bookkit deploy ${book} --dry-run`, "rehearse putting it online"],
+		[`bun run bookkit deploy ${book}`, "put it online"],
+	];
+	const width = Math.max(...next.map(([command]) => command.length));
+	console.log(
+		[
+			"",
+			`Set status: "published" in ${shownConfig}. The site is now indexable (robots.txt and the sitemap open), and every check holds the book to release rules.`,
+			"Next:",
+			...next.map(([command, what]) => `  ${command.padEnd(width)}   ${what}`),
+		].join("\n"),
+	);
+	return 0;
+}
+
+/** Prints a structure plan; writes it unless --dry-run. */
+function carryOut(
+	plan: StructurePlan,
+	[would, did]: [string, string],
+	rest: string[],
+): number {
+	if ("error" in plan) {
+		console.error(plan.error);
+		return 1;
+	}
+	const dryRun = rest.includes("--dry-run");
+	console.log(`${dryRun ? would : did}:`);
+	printChanges(plan.changes);
+	for (const note of plan.notes) console.log(`  ${note}`);
+	if (plan.leftovers.length > 0) {
+		console.log("\nStill naming it (read these over):");
+		for (const left of plan.leftovers.slice(0, 12)) {
+			console.log(`  ${left.path}:${left.line}  ${left.text}`);
+		}
+		if (plan.leftovers.length > 12) {
+			console.log(`  … and ${plan.leftovers.length - 12} more`);
+		}
+	}
+	if (dryRun) {
+		console.log("\nNothing written (--dry-run).");
+		return 0;
+	}
+	applyChanges(plan.changes);
+	return 0;
+}
+
+/**
+ * `remove chapter|mechanism|tool [book] <slug> [--dry-run]`: the record and
+ * the references that would break with it gone. A mechanism with tools or
+ * examples needs --with-records to take them too.
+ */
+function removeRecord(rest: string[]): number {
+	const kinds = ["chapter", "mechanism", "tool"];
+	const usage =
+		"bun run bookkit remove chapter|mechanism|tool [book] <slug> [--dry-run] [--with-records]\n       bun run bookkit remove book <slug>";
+	const [kind, ...own] = positionals(rest, []);
+	const unknown = rest.filter(
+		(arg) =>
+			arg.startsWith("--") && !["--dry-run", "--with-records"].includes(arg),
+	);
+	if (!kind || !kinds.includes(kind) || unknown.length > 0) {
+		console.error(
+			`${unknown.length > 0 ? `Unknown option ${unknown.join(", ")}.\n` : kind && !kinds.includes(kind) ? `Cannot remove a "${kind}".${didYouMean(kind, [...kinds, "book"])}\n` : ""}Usage: ${usage}`,
+		);
+		return 1;
+	}
+	const [book, [slug]] = takeBook(own, 1, usage);
+	if (!slug) {
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	const plan =
+		kind === "chapter"
+			? planRemoveChapter(book, slug)
+			: kind === "tool"
+				? planRemoveTool(book, slug)
+				: planRemoveMechanism(book, slug, rest.includes("--with-records"));
+	const status = carryOut(
+		plan,
+		[
+			`Would remove ${kind} ${slug} from ${book}`,
+			`Removed ${kind} ${slug} from ${book}`,
+		],
+		rest,
+	);
+	if (status === 0 && !rest.includes("--dry-run")) {
+		console.log(
+			`\nIts page, /read/${kind === "tool" ? "toolkit" : `${kind}s`}/${slug}, is gone; for a published book, say so in its release notes.\nNext: bun run bookkit check ${book}`,
+		);
+	}
+	return status;
+}
+
+/** `move tool [book] <tool> --to <mechanism> [--dry-run]`: a tool bound to another mechanism. */
+function moveTool(rest: string[]): number {
+	const usage =
+		"bun run bookkit move tool [book] <tool> --to <mechanism> [--dry-run]";
+	const [kind, ...own] = positionals(rest, ["--to"]);
+	const to = flagValue(rest, "--to");
+	if (kind !== "tool" || !to) {
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	const [book, [slug]] = takeBook(own, 1, usage);
+	if (!slug) {
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	const status = carryOut(
+		planMoveTool(book, slug, to),
+		[
+			`Would bind tool ${slug} to ${to} in ${book}`,
+			`Bound tool ${slug} to ${to} in ${book}`,
+		],
+		rest,
+	);
+	if (status === 0 && !rest.includes("--dry-run")) {
+		console.log(`\nNext: bun run bookkit check ${book}`);
+	}
+	return status;
+}
+
+/**
+ * `rename mechanism [book] <slug> <new-slug> [--title "…"] [--dry-run]`: a
+ * mechanism's slug changed in every book of its corpus, with every reference
+ * to it (chapters, tools, examples and their folder, glossary, links,
+ * config), and corpus.json recording the old slug, so a stale reference
+ * names the new one. Slugs are durable identifiers: a published book's
+ * readers lose /read/mechanisms/<slug>.
+ */
+function renameMechanism(rest: string[]): number {
+	const usage =
+		'bun run bookkit rename mechanism [book] <slug> <new-slug> [--title "<title>"] [--dry-run]';
+	const own = positionals(rest, ["--title"]);
+	const [book, slugs] =
+		own.length > 2
+			? [requireBook(own[0], usage), own.slice(1)]
+			: [undefined, own];
+	const [from, toRaw] = slugs;
+	if (!from || !toRaw) {
+		console.error(`Usage: ${usage}`);
+		return 1;
+	}
+	const to = slugify(toRaw);
+	const title = flagValue(rest, "--title");
+	const plan = planMerge({
+		keep: to,
+		drop: from,
+		reason: `Renamed ${from} to ${to}.`,
+		date: new Date().toISOString().slice(0, 10),
+		rename: { title, book },
+	});
+	if ("error" in plan) {
+		console.error(plan.error);
+		return 1;
+	}
+	const dryRun = rest.includes("--dry-run");
+	console.log(
+		`${dryRun ? "Would rename" : "Renamed"} mechanism ${from} to ${to}${title ? ` ("${title}")` : ""} in ${plan.books.join(", ")}:`,
+	);
+	printChanges(plan.changes);
+	console.log(
+		`  ~ corpus.json: ${from} recorded as renamed to ${to}${plan.carried.length > 0 ? `; ${plan.carried.length} ruling(s) moved to ${to}` : ""}`,
+	);
+	for (const note of plan.notes) console.log(`  ${note}`);
+	if (plan.leftovers.length > 0) {
+		console.log(`\nStill naming ${from} (read these over):`);
+		for (const left of plan.leftovers.slice(0, 12)) {
+			console.log(`  ${left.path}:${left.line}  ${left.text}`);
+		}
+		if (plan.leftovers.length > 12) {
+			console.log(`  … and ${plan.leftovers.length - 12} more`);
+		}
+	}
+	if (dryRun) {
+		console.log("\nNothing written (--dry-run).");
+		return 0;
+	}
+	applyChanges(plan.changes);
+	writeFileSync(plan.corpusPath, plan.corpusText);
+	console.log(
+		`\nLinks to /read/mechanisms/${from} from outside the books no longer resolve; for a published book, say so in its release notes.\nNext: bun run bookkit check, then commit the books and corpus.json together.`,
+	);
+	return 0;
+}
+
+/**
  * bookkit rename chapter [book] <slug> <new-slug> [--title "…"] [--dry-run]:
  * the chapter's slug, its file name, other chapters' prerequisites, and links
  * to it, changed together (lib/chapter-moves.ts).
@@ -1865,9 +2669,10 @@ function sync(rest: string[]): number {
 function renameChapter(rest: string[]): number {
 	const usage =
 		'bun run bookkit rename chapter [book] <slug> <new-slug> [--title "<title>"] [--dry-run]';
+	if (rest[0] === "mechanism") return renameMechanism(rest.slice(1));
 	if (rest[0] !== "chapter") {
 		console.error(
-			`Usage: ${usage}\nOnly chapters are renamed this way; a mechanism's slug changes with bun run bookkit merge.`,
+			`Usage: ${usage}\n       bun run bookkit rename mechanism [book] <slug> <new-slug> [--title "<title>"] [--dry-run]`,
 		);
 		return 1;
 	}
@@ -1922,36 +2727,53 @@ Start
   try <folder> [--frame <slug>] [--json]    what Bookkit would make of any folder of Markdown (writes nothing)
   use [book]                                pick the book you're working on; [book] below defaults to it
   new                                       asks what to start, then anything it needs
+  init [slug] [--from <folder>]             a new book (same as new book)
 
 Write
   new chapter [book] "<title>" [--after <chapter>]
-                                            start the next chapter as a draft; --after puts it there
+                                            start the next chapter as a draft; --after puts it after
+                                            that chapter (its slug, or its number: --after 3)
   new mechanism [book] "<title>" [--definition "…"]
                                             name a mechanism, after checking every book for one that fits
   new tool [book] <mechanism> "<name>"      a ≤10-minute action for a mechanism
   new example [book] <mechanism> <domain> "<title>"
+  new glossary [book] "<term>" [--definition "…"] [--mechanism <slug>]
+                                            a glossary entry: a term readers meet
   new book <slug> [--from <folder>] [--frame <slug>]
                                             a new book app; --from imports a folder of notes into it
   import [book] --dir <path> [--dry-run]    turn a folder of Markdown notes into chapters; --dry-run shows the plan
   new release [book] "<title>"              a dated release note, the next version unless --version
-  rename chapter [book] <slug> <new-slug>   a chapter's slug, file, prerequisites, and links, together
+  rename chapter [book] <slug> <new-slug> [--title "…"]
+                                            a chapter's slug, file, prerequisites, and links, together
+  rename mechanism [book] <slug> <new-slug> [--title "…"]
+                                            a mechanism's slug in every book of its corpus, with every
+                                            reference to it; corpus.json records the old one
   propose [book] [--apply all|…]            draft mechanisms, tools, edges, and config from a book's text
+  remove chapter|mechanism|tool [book] <slug> [--dry-run]
+                                            the record, and the prerequisites and mechanisms: entries
+                                            that name it; a mechanism's tools and examples need
+                                            --with-records
+  move tool [book] <tool> --to <mechanism>  bind a tool to another mechanism
 
 Check
   status [book] [--json]                    chapters, stubs, mechanisms, and tools per book
-  check [book] [--all] [--quick] [--download-model]
+  check [book] [--all] [--quick] [--info] [--download-model]
                                             structure, plus mechanisms that overlap across books; the
                                             meaning pass needs a 550 MB model, downloaded once with
                                             consent (--quick compares wording only); as info, each
-                                            chapter's first unlinked use of a glossary term
+                                            chapter's first unlinked use of a glossary term; --info
+                                            adds the info-level suggestions
   check <file.mdx> [--json] [--quick]       one content file: each finding with its field and fix; for a
                                             mechanism, similar ones, the judges' calls on it, and which of
-                                            its 3 nearest have no verdict (--quick: nearest by wording)
+                                            its 3 nearest have no verdict (--quick: nearest by wording); for
+                                            a chapter, its words against the stub threshold, what it binds,
+                                            and the book's other mechanisms
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame
                                             section once --frame is given; exits 1 on an error (for CI);
                                             --release checks it as a published book, so drafts are errors
-  contract [section] [--json]               the fields a mechanism, tool, example, chapter, or glossary entry needs
+  contract [section] [--json]               the fields a mechanism, tool, example, chapter, glossary entry,
+                                            or release note needs
   verify [--all] [--list] [--json]          the checks your change needs, judged by the files it touches
   judge [mechanism] [--judges 3] [--run "<command>"]
                                             ask judges, blind, whether close mechanisms are the same idea: one
@@ -1965,28 +2787,36 @@ Check
   merge <keep> <drop> --reason "<why>" [--definition "…"] [--dry-run]
                                             rule them one idea: <drop> becomes <keep> in every book of the
                                             corpus (contract, files, links, config) and corpus.json records it
-  sync <mechanism> [--from <book>]          copy one copy's contract (default: the one edited last) to the
-                                            mechanism's other books
+  sync <mechanism> [--from <book>] [--to <book>]
+                                            copy one copy's contract (default: the one edited last) to the
+                                            mechanism's other books; --to shares it with a book that has none
   similar "<title>" [--definition "…"] [--semantic]
                                             existing mechanisms, in any book, that a new one might duplicate
   validate [book]                           structure only
 
 Preview and publish
   dev [book] [--port <n>]                   local preview with live reload; runs until stopped
+                                            (also: preview, serve, start)
   dev stop|status|logs [book]               stop or find a dev server bookkit dev (or astro dev) left running
   build [book] [--all]                      build one book (no book: the current one, or all)
   export [book] [--out <dir>]               a GitBook folder of the book; says where the PDF and EPUB are
-  deploy [book...] [--all] [--dry-run] [--no-build]
-                                            verify, build, and check each book, then publish all or none;
+  publish [book] [--dry-run] [--records]  move a book from draft to published: checks it with release
+                                            rules first, then sets status: "published" in book.config.ts;
+                                            --records also marks its draft records published
+  deploy [book...] [--all] [--dry-run [--full]] [--no-build]
+                                            verify, build, and check each book, then put it online, all or
+                                            none; --dry-run skips the engine's tests (--full runs them);
                                             no book: the current one, or all; --all for every book
                                             (bun run bookkit deploy --help for every option)
 
 Other
   list                                      list the books
-  remove-book --book <slug>                 delete a book app
+  remove book <slug>                        delete a book app (also: remove-book --book <slug>)
   bets [--json]                             the maintainers' active bet (docs/bets.md), measured from git
 
-Mistype a command, book, or mechanism and bookkit suggests the closest one.
+bun run bookkit <command> --help (or bun run bookkit help <command>) prints a
+command's arguments and examples. Mistype a command, book, or mechanism and
+bookkit suggests the closest one.
 
 Examples
   bun run bookkit

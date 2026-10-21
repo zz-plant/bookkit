@@ -4,6 +4,7 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readdirSync,
 	readFileSync,
 	rmSync,
 	symlinkSync,
@@ -263,6 +264,16 @@ describe("recurring concepts", () => {
 		expect(
 			existsSync(join(content, "toolkit/context-debt-context-debt.mdx")),
 		).toBe(false);
+		// The chapters the evidence comes from now use it.
+		expect(result.output).toMatch(
+			/chapters\/\S+\.mdx: mechanisms \+ context-debt/,
+		);
+		const bound = readdirSync(join(content, "chapters")).filter((file) =>
+			/mechanisms:[\s\S]*context-debt/.test(
+				readFileSync(join(content, "chapters", file), "utf8").split("\n---")[0],
+			),
+		);
+		expect(bound.length).toBeGreaterThan(0);
 	});
 });
 

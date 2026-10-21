@@ -1,4 +1,4 @@
-import { appendHighlightedText, queryElement, toSafeUrl } from "./dom";
+import { appendHighlightedText, queryElement, sitePath } from "./dom";
 import { createQueryEngine } from "./query-engine";
 import type { SearchIndexStore } from "./search-index-store";
 import { type RankedSearchResult, resultPlace } from "./search-ranking";
@@ -108,7 +108,10 @@ export const initializeSearchController = ({
 		// whatever its section; each option names its section instead.
 		entries.forEach((entry, optionIndex) => {
 			const link = document.createElement("a");
-			link.href = toSafeUrl(entry.url);
+			// A result whose address is not one of this book's pages keeps its
+			// text and leads nowhere.
+			const href = sitePath(entry.url);
+			if (href) link.href = href;
 			link.className = "search-panel__item";
 			link.id = `search-option-${optionIndex}`;
 			link.dataset.searchId = entry.id;
@@ -279,7 +282,8 @@ export const initializeSearchController = ({
 	results?.addEventListener("click", (event) => {
 		const target =
 			event.target instanceof HTMLElement ? event.target.closest("a") : null;
-		if (!(target instanceof HTMLAnchorElement)) return;
+		if (!(target instanceof HTMLAnchorElement) || !target.hasAttribute("href"))
+			return;
 		recordEvent({ type: "click", id: target.dataset.searchId, query });
 		close();
 	});

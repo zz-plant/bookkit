@@ -225,7 +225,7 @@ describe.concurrent("bookkit deploy: all or none", () => {
 
 		expect(result.status).toBe(1);
 		expect(workspace.calls("verify")).toEqual([
-			"verify --all --skip build:all",
+			"verify --all --skip build:all --skip test --skip types",
 		]);
 		expect(workspace.calls("build")).toEqual([]);
 		expect(workspace.calls("wrangler")).toEqual([]);
@@ -245,7 +245,7 @@ describe.concurrent("bookkit deploy: all or none", () => {
 
 		expect(result.status).toBe(0);
 		expect(workspace.calls("verify")).toEqual([
-			"verify --all --skip build:all",
+			"verify --all --skip build:all --skip test --skip types",
 		]);
 		expect(workspace.calls("wrangler")).toEqual(
 			["alpha", "beta", "gamma"].map(
@@ -380,9 +380,32 @@ describe.concurrent("bookkit deploy: provenance", () => {
 		]);
 	});
 
-	it("--no-build publishes the dist/ a dry run stamped at HEAD, without verifying or building again", async () => {
+	it("a dry run leaves out the engine's tests and type check, stamps nothing, and names the publish command", async () => {
 		const workspace = makeWorkspace({ alpha: {} });
-		expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
+		const quick = await deploy(workspace, ["--dry-run"]);
+		expect(quick.status).toBe(0);
+		expect(quick.output).toContain(
+			"To publish: bun run bookkit deploy alpha (it also runs the engine's tests and type check; --dry-run --full rehearses those too).",
+		);
+		const unstamped = await deploy(workspace, ["--no-build", "--dry-run"]);
+		expect(unstamped.status).toBe(1);
+		expect(unstamped.output).toContain("apps/alpha/dist/ has no deploy stamp");
+
+		const full = await deploy(workspace, ["--full"]);
+		expect(full.status).toBe(1);
+		expect(full.output).toContain("--full goes with --dry-run");
+	});
+
+	it("--no-build publishes the dist/ a full dry run stamped at HEAD, without verifying or building again", async () => {
+		const workspace = makeWorkspace({ alpha: {} });
+		const stamping = await deploy(workspace, ["--dry-run", "--full"]);
+		expect(stamping.status).toBe(0);
+		expect(workspace.calls("verify")).toEqual([
+			"verify --all --skip build:all",
+		]);
+		expect(stamping.output).toContain(
+			"To publish exactly these builds: bun run bookkit deploy alpha --no-build",
+		);
 		workspace.clearCalls();
 
 		const result = await deploy(workspace, ["--no-build", "--dry-run"]);
@@ -409,7 +432,7 @@ describe.concurrent("bookkit deploy: provenance", () => {
 
 	it("--no-build refuses a dist/ stamped at another commit, or changed since", async () => {
 		const workspace = makeWorkspace({ alpha: {} });
-		expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
+		expect((await deploy(workspace, ["--dry-run", "--full"])).status).toBe(0);
 		const stamped = workspace.head();
 		writeFileSync(
 			join(workspace.root, "apps/alpha/src/content/book/chapters/02-next.mdx"),
@@ -424,7 +447,7 @@ describe.concurrent("bookkit deploy: provenance", () => {
 			`apps/alpha/dist/ was built at ${stamped.slice(0, 12)}, but HEAD is ${workspace.head().slice(0, 12)}`,
 		);
 
-		expect((await deploy(workspace, ["--dry-run"])).status).toBe(0);
+		expect((await deploy(workspace, ["--dry-run", "--full"])).status).toBe(0);
 		appendFileSync(join(workspace.root, "apps/alpha/dist/index.html"), "edit");
 		workspace.clearCalls();
 		const edited = await deploy(workspace, ["--no-build", "--dry-run"]);

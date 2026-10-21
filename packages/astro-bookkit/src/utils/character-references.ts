@@ -1,6 +1,9 @@
 import { decodeNamedCharacterReference } from "decode-named-character-reference";
 
-/** HTML character references, decoded as a browser and CommonMark decode them. */
+/**
+ * HTML character references, decoded as a browser and CommonMark decode
+ * them, and the escaping that writes text into HTML.
+ */
 
 /** An HTML character reference: `&amp;`, `&#101;`, `&#x65;`. */
 export const CHARACTER_REFERENCE =
@@ -36,3 +39,15 @@ export const decodeEntities = (value: string): string =>
 		new RegExp(CHARACTER_REFERENCE, "g"),
 		(reference) => decodeCharacterReference(reference) ?? reference,
 	);
+
+/**
+ * Text written into HTML as text, in an element or a quoted attribute: the
+ * five characters that could end either, or start a tag, become references.
+ */
+export const escapeHtml = (value: string): string =>
+	value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");

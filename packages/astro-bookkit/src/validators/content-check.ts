@@ -10,12 +10,14 @@ import {
 import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	elementReason,
+	embedTitle,
 	extraPermissions,
 	refusalReason,
 } from "../utils/html-allowlist";
 import { SAFE_SCHEME_LIST } from "../utils/links";
 import {
 	findUnsafeMarkup,
+	findUntitledEmbeds,
 	markupEntry,
 	type UnsafeMarkupEntry,
 } from "../utils/markdown";
@@ -475,6 +477,7 @@ export type ContentFindingCode =
 	| "BROKEN_LINK"
 	| "UNSAFE_LINK"
 	| "UNSAFE_HTML"
+	| "IFRAME_NO_TITLE"
 	| "DRAFT_IN_RELEASE"
 	| "MDX_HTML_COMMENT";
 
@@ -651,7 +654,7 @@ const proseOutsideCode = (body: string): string =>
 	body.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, "").replace(/`[^`\n]*`/g, "");
 
 /** The body with code blanked out, keeping every offset and line. */
-const maskCode = (body: string): string =>
+export const maskCode = (body: string): string =>
 	body.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g, (code) =>
 		code.replace(/[^\n]/g, " "),
 	);
@@ -744,6 +747,33 @@ const isPresent = (field: ContractField, value: unknown): boolean => {
 const exampleText = (field: ContractField): string => {
 	if (field.example === undefined) return "";
 	return ` For example:${yamlValue(field.example)}`;
+};
+
+/**
+ * A list field written as text (`prerequisites: start`), which YAML reads as
+ * one string: the finding, with the value written as a list.
+ */
+const notAListFinding = (
+	label: string,
+	field: ContractField,
+	value: string,
+	level: "error" | "warning",
+): ContentFinding => {
+	// "a, b" is two slugs; a sentence with a comma is one item.
+	const parts = value
+		.split(/\s*,\s*/)
+		.map((item) => item.trim())
+		.filter(Boolean);
+	const items = parts.every((part) => /^[a-z0-9-]+$/.test(part))
+		? parts
+		: [value];
+	return {
+		level,
+		code: "FIELD_INVALID",
+		field: field.name,
+		message: `${label} \`${field.name}:\` must be a list, but it is the text "${value}"`,
+		fix: `Write each item on its own line (${field.meaning}):\n${field.name}:\n${items.map((item) => `  - ${yamlValue(item).trim()}`).join("\n")}`,
+	};
 };
 
 /** The fix for a missing field: what to add and what it means. */
@@ -881,6 +911,12 @@ export const checkContentItem = (
 				: data[field.name];
 		if (isPresent(field, value)) continue;
 		reported.add(field.name);
+		if (field.kind === "list" && typeof value === "string" && value.trim()) {
+			findings.push(
+				notAListFinding(label, field, value.trim(), field.whenMissing),
+			);
+			continue;
+		}
 		findings.push({
 			level: field.whenMissing,
 			code: "FIELD_MISSING",
@@ -919,6 +955,20 @@ export const checkContentItem = (
 					message: `Action primitive timebox error: ${issue.message}`,
 					fix: "Set timeboxMinutes to 10 or less, splitting the tool into smaller tools if it needs more time.",
 				});
+				continue;
+			}
+			const listField = FIELDS[section].find(
+				(field) => field.name === top && field.kind === "list",
+			);
+			if (
+				listField &&
+				issue.path.length === 1 &&
+				typeof data[top] === "string" &&
+				data[top].trim()
+			) {
+				findings.push(
+					notAListFinding(label, listField, data[top].trim(), "warning"),
+				);
 				continue;
 			}
 			findings.push({
@@ -1029,6 +1079,15 @@ export const checkContentItem = (
 		findings.push({
 			level: released ? "error" : "warning",
 			...unsafeMarkupFinding(label, markupEntry(found, bodyLine)),
+		});
+	}
+	// Import titles each embed; one written by hand may have none.
+	for (const embed of findUntitledEmbeds(body, { tags })) {
+		findings.push({
+			level: "warning",
+			code: "IFRAME_NO_TITLE",
+			message: `${label} has an <iframe> with no title on line ${bodyLine + embed.line}, so a screen reader cannot say what it shows, and check:a11y fails its page`,
+			fix: `Add a title that says what it shows, as in <iframe title="${embedTitle(embed.src)}" src="…">.`,
 		});
 	}
 

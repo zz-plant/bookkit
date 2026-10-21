@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { chapterSchema } from "../schemas/chapter";
 import { authorOnly } from "../utils/author-token";
 import {
 	appendRecords,
@@ -11,6 +12,7 @@ import {
 import {
 	invalidBodyResponse,
 	jsonResponse,
+	quoted,
 	rateLimited,
 	tryParseJsonBody,
 } from "../utils/http";
@@ -39,10 +41,17 @@ export type FeedbackEndpointOptions = {
 	maxEvents?: number;
 };
 
+/**
+ * What the feedback widget (`components/FeedbackWidget.astro`) sends as a
+ * reaction: a vote, or one of its emoji. The endpoint stores no other, so
+ * what reaches the author's dashboard is one of these or nothing.
+ */
+export const FEEDBACK_RESPONSES = ["helpful", "not_helpful", "emoji"] as const;
+export const FEEDBACK_EMOJI = ["😀", "🤔", "😕", "🔥"] as const;
+
 const MAX_COMMENT_LENGTH = 240;
 const MAX_TITLE_LENGTH = 160;
 const MAX_SLUG_LENGTH = 200;
-const MAX_EMOJI_LENGTH = 16;
 const MAX_EVENT_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 /**
  * The widget sends one event at a time. Without a cap, one request could push
@@ -85,15 +94,48 @@ const normalizeTimestamp = (value: unknown) => {
 	return numeric;
 };
 
+/** A string field, trimmed; null when it is missing, empty, or not a string. */
+const trimmedText = (value: unknown): string | null =>
+	typeof value === "string" && value.trim() ? value.trim() : null;
+
+const isOneOf = <T extends string>(
+	values: readonly T[],
+	value: string,
+): value is T => (values as readonly string[]).includes(value);
+
+/**
+ * The event as it is stored, or why it is refused. The slug must be a
+ * page's, as the content schemas write slugs, and a reaction one the widget
+ * offers: the dashboard shows both to the author. Other text is trimmed and
+ * cut to length.
+ */
 const normalizeEvent = (
 	payload: Record<string, unknown>,
-): FeedbackEvent | null => {
+): FeedbackEvent | string => {
 	const eventType =
 		payload.eventType === "feedback" || payload.eventType === "impression"
 			? payload.eventType
 			: null;
-	const slug = cleanText(payload.slug, MAX_SLUG_LENGTH);
-	if (!eventType || !slug) return null;
+	if (!eventType) return 'eventType must be "feedback" or "impression"';
+	const slug = trimmedText(payload.slug);
+	if (!slug) return "slug is missing: send the slug of the page being read";
+	if (
+		slug.length > MAX_SLUG_LENGTH ||
+		!chapterSchema.shape.slug.safeParse(slug).success
+	) {
+		return `slug ${quoted(slug)} is not a page's slug, which has only lowercase letters, digits, and hyphens, and at most ${MAX_SLUG_LENGTH} of them`;
+	}
+	const responseType = trimmedText(payload.responseType);
+	if (responseType && !isOneOf(FEEDBACK_RESPONSES, responseType)) {
+		return `responseType ${quoted(responseType)} is not one of ${FEEDBACK_RESPONSES.join(", ")}`;
+	}
+	const emoji = trimmedText(payload.emoji);
+	if (emoji && !isOneOf(FEEDBACK_EMOJI, emoji)) {
+		return `emoji ${quoted(emoji)} is not one the widget offers: ${FEEDBACK_EMOJI.join(" ")}`;
+	}
+	if (responseType === "emoji" && !emoji) {
+		return `responseType "emoji" needs an emoji: one of ${FEEDBACK_EMOJI.join(" ")}`;
+	}
 
 	return {
 		id:
@@ -105,25 +147,43 @@ const normalizeEvent = (
 		title: cleanText(payload.title, MAX_TITLE_LENGTH) ?? null,
 		contentType: cleanText(payload.contentType, 80) ?? null,
 		version: cleanText(payload.version, 40) ?? null,
-		responseType: cleanText(payload.responseType, 40) ?? null,
-		emoji: cleanText(payload.emoji, MAX_EMOJI_LENGTH) ?? null,
+		responseType,
+		emoji,
 		comment: sanitizeComment(payload.comment) ?? null,
 	};
 };
 
-const parsePayload = (payload: unknown): FeedbackEvent[] => {
-	if (!payload) return [];
-	if (isRecord(payload)) {
-		if (Array.isArray(payload.events)) {
-			if (payload.events.length > MAX_EVENTS_PER_REQUEST) return [];
-			return payload.events
-				.map((event) => (isRecord(event) ? normalizeEvent(event) : null))
-				.filter((event): event is FeedbackEvent => Boolean(event));
-		}
-		const normalized = normalizeEvent(payload);
-		return normalized ? [normalized] : [];
+/** The events a request sends that can be stored, and why each other one is refused. */
+const parsePayload = (
+	payload: unknown,
+): { events: FeedbackEvent[]; refused: string[] } => {
+	if (!isRecord(payload)) {
+		return { events: [], refused: ["the body is not a JSON object"] };
 	}
-	return [];
+	if (!Array.isArray(payload.events)) {
+		const event = normalizeEvent(payload);
+		return typeof event === "string"
+			? { events: [], refused: [event] }
+			: { events: [event], refused: [] };
+	}
+	if (payload.events.length > MAX_EVENTS_PER_REQUEST) {
+		return {
+			events: [],
+			refused: [
+				`events holds ${payload.events.length} events, more than ${MAX_EVENTS_PER_REQUEST}`,
+			],
+		};
+	}
+	const events: FeedbackEvent[] = [];
+	const refused: string[] = [];
+	payload.events.forEach((value, index) => {
+		const event = isRecord(value)
+			? normalizeEvent(value)
+			: "the event is not a JSON object";
+		if (typeof event === "string") refused.push(`events[${index}]: ${event}`);
+		else events.push(event);
+	});
+	return { events, refused };
 };
 
 const clampNumber = (value: number, min: number, max: number) =>
@@ -201,12 +261,12 @@ export const createFeedbackEndpoint = (
 				});
 				if (!parsed.ok) return invalidBodyResponse(parsed);
 
-				const events = parsePayload(parsed.value);
+				const { events, refused } = parsePayload(parsed.value);
 				if (!events.length) {
 					return jsonResponse(
 						{
 							ok: false,
-							error: `Invalid feedback payload: send one event, or { events: [...] } with at most ${MAX_EVENTS_PER_REQUEST}, each with eventType "feedback" or "impression" and a slug.`,
+							error: `Invalid feedback payload: ${refused[0] ?? "events is empty"}. Send one event, or { events: [...] } with at most ${MAX_EVENTS_PER_REQUEST}, each with eventType "feedback" or "impression" and the page's slug.`,
 						},
 						400,
 					);

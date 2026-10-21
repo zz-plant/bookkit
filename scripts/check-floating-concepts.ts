@@ -2,7 +2,20 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { booksFromArgv } from "./lib/book-args";
+import { exitOnHelp } from "./lib/cli";
 import { parseFrontmatter, toStringValue } from "./lib/content-frontmatter";
+
+exitOnHelp({
+	summary:
+		"Lists Title Case phrases in a book's prose that are neither a\nmechanism nor a glossary term: ideas that may need a name.",
+	usage: ["bun run check:concepts [book] [--mode error] [--json]"],
+	options: [
+		["[book]", "One book (default: every book)"],
+		["--mode error", "Exit 1 when any is found"],
+		["--json", "The phrases as JSON"],
+	],
+	examples: ["bun run check:concepts", "bun run check:concepts on-call --json"],
+});
 
 const { books: selectedBooks } = booksFromArgv(listBookDirs(), {
 	usage: "bun run check:concepts [book] [--mode error] [--json]",

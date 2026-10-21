@@ -1,5 +1,9 @@
 import type { FrameDefinition } from "../frames/types";
-import { stripMarkdown } from "../utils/markdown";
+import {
+	createHeadingSlugger,
+	markdownHeadings,
+	stripMarkdown,
+} from "../utils/markdown";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type FrameValidationResult = {
@@ -73,6 +77,30 @@ export const validateFrameDefinition = (
 	return { duplicateStepIds, errors };
 };
 
+/**
+ * The steps of `frame` a page's headings carry: the frame check of a book's
+ * overview chapter. A heading (levels 1 to 4) counts for a step when its
+ * whole text slugs to the step's id, the way the site slugs the heading's
+ * id: `## Failure Modes`, `## Failure modes`, and `## failure-modes` all
+ * count for `failure-modes` (and a link to `#failure-modes` lands on the
+ * heading), while `## Failure modes we have seen` does not. `body` is the
+ * page without its frontmatter.
+ */
+export const frameStepsInPage = (
+	frame: FrameDefinition,
+	body: string,
+): string[] => {
+	const slugs = new Set(
+		markdownHeadings(body)
+			.filter((heading) => heading.depth <= 4)
+			// Each heading's own slug: a repeated heading's id gains -1, its slug does not.
+			.map((heading) => createHeadingSlugger()(heading.text)),
+	);
+	return frame.steps
+		.filter((step) => slugs.has(step.id))
+		.map((step) => step.id);
+};
+
 /** The prefix a heading word must start with to count as a step: the id's first word, cut to five letters. */
 const stepStem = (stepId: string): string => {
 	const word = stepId.split("-")[0] ?? stepId;
@@ -82,9 +110,10 @@ const stepStem = (stepId: string): string => {
 /**
  * The frame steps a document's headings cover. A heading covers a step when
  * one of its words starts with the step's stem, so "Owner" covers ownership,
- * "Verify" covers verification, and "Step 3" covers steps. Used for each
- * document of a folder (`bookkit try`, `bookkit check <dir>`) and for a book's
- * overview chapter (or, without one, its chapters together).
+ * "Verify" covers verification, and "Step 3" covers steps. Used where a frame
+ * applies to each document of a folder (`bookkit try`, `bookkit check <dir>`),
+ * which was not written for a frame; a book's chapters are held to
+ * `frameStepsInPage`.
  */
 export const frameStepsInHeadings = (
 	frame: FrameDefinition,

@@ -1,17 +1,17 @@
 import {
 	CONTENT_SECTIONS,
 	contentContract,
-	isContentSection,
 } from "../../validators/content-check";
+import { toSection } from "./book-arg";
 import type { ToolHandler } from "./types";
 
 /** What a content file must contain to compile: fields, meanings, JSON Schema, and a template. */
 export const handleGetContentContract: ToolHandler = ({ args }) => {
-	const section = args?.section;
-	if (section !== undefined && !isContentSection(section)) {
+	const section = toSection(args?.section);
+	if (args?.section !== undefined && !section) {
 		return {
 			ok: false,
-			summary: `Unknown section "${String(section)}". Use one of: ${CONTENT_SECTIONS.join(", ")}.`,
+			summary: `Unknown section "${String(args?.section)}". Use one of: ${CONTENT_SECTIONS.join(", ")}.`,
 			error: {
 				cause: "invalid section",
 				machineCode: "CONTENT_SECTION_UNKNOWN",

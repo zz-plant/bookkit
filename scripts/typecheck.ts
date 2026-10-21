@@ -4,16 +4,12 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
 import { hashInputs } from "./lib/input-hash";
 
 /**
  * check:types — typechecks every app and package, `.ts` and `.astro` alike,
  * plus `scripts/`.
- *
- *   bun run check:types                 # TypeScript 7 and astro check
- *   bun run check:types -- --tsc        # TypeScript 5 for the .ts pass (fallback)
- *   bun run check:types -- --no-astro   # .ts only, for a quick local loop
- *   bun run check:types -- --no-cache   # check every project, even unchanged ones
  *
  * TypeScript 7 is installed under the alias `typescript-native` because the
  * `typescript` package stays on 5.x: scripts/lib/site-config.ts parses
@@ -29,6 +25,18 @@ import { hashInputs } from "./lib/input-hash";
  * shared tsconfig (see inputsOf). Passes are recorded in
  * node_modules/.cache/bookkit-typecheck. CI checks everything every time.
  */
+
+exitOnHelp({
+	summary:
+		"Typechecks every book app and package, .ts and .astro alike, plus\nscripts/. A project that passed is not checked again while nothing it\nreads has changed (never in CI).",
+	usage: ["bun run check:types [--tsc] [--no-astro] [--no-cache]"],
+	options: [
+		["--tsc", "Use TypeScript 5 for the .ts pass (the fallback)"],
+		["--no-astro", "The .ts pass only, for a quick loop"],
+		["--no-cache", "Check every project, even unchanged ones"],
+	],
+	examples: ["bun run check:types", "bun run check:types -- --no-astro"],
+});
 
 const root = repoRoot();
 const useTsc5 = process.argv.includes("--tsc");

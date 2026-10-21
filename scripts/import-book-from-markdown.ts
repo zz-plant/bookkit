@@ -22,21 +22,32 @@ const example = (book: string) =>
 		: `bun run import --book ${book} --dir ~/notes/runbooks --dry-run`;
 
 const args = parseScriptArgs(
-	`Import a folder of Markdown notes into a book's chapters.
-
-Usage:
-  ${command} --dir <folder> [--dry-run] [--force] [--include-readme]
-
-Options:
-  --book <book>       The book in apps/ to import into${inRepo ? " (bookkit import takes it as the first word)" : ""}
-  --dir <folder>      The folder of notes (.md, .mdx, .markdown), read with its subfolders
-  --dry-run           Print what the import would do, and write nothing
-  --force             Also replace chapters and images edited since the last import
-  --include-readme    Import README and index files as chapters (skipped by default)
-  -h, --help          Show this help
-
-Example:
-  ${example(listBookDirs()[0] ?? "my-book")}`,
+	{
+		summary: "Imports a folder of Markdown notes into a book's chapters.",
+		usage: [
+			`${command} --dir <folder> [--dry-run] [--force] [--include-readme]`,
+		],
+		options: [
+			[
+				"--book <book>",
+				`The book in apps/ to import into${inRepo ? "\n(bookkit import takes it as the first word)" : ""}`,
+			],
+			[
+				"--dir <folder>",
+				"The folder of notes (.md, .mdx, .markdown), read with\nits subfolders",
+			],
+			["--dry-run", "Print what the import would do, and write nothing"],
+			[
+				"--force",
+				"Also replace chapters and images edited since the last\nimport",
+			],
+			[
+				"--include-readme",
+				"Import README and index files as chapters (skipped by\ndefault)",
+			],
+		],
+		examples: [example(listBookDirs()[0] ?? "my-book")],
+	},
 	{
 		book: "string",
 		dir: "string",

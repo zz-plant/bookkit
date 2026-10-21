@@ -3,11 +3,22 @@ import { basename, join } from "node:path";
 import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
 import { extractBookStatusFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
 import {
 	listContentFiles,
 	parseFrontmatter,
 	toStringValue,
 } from "./lib/content-frontmatter";
+
+exitOnHelp({
+	summary:
+		"Lists, per book, mechanisms with no toolkit action or example, and\nactions or examples whose mechanism is missing or unknown. A draft book\nmay still lack actions and examples; a published or stable book may not.",
+	usage: ["bun run audit:unused [--book <book>]"],
+	options: [["--book <book>", "One book (default: every book)"]],
+	notes:
+		"Exits 1 on a missing or unknown mechanism, and, in a published or\nstable book, on a mechanism without an action or example.",
+	examples: ["bun run audit:unused", "bun run audit:unused -- --book on-call"],
+});
 
 const onlyBook = optionalArg("--book");
 const books = onlyBook ? [onlyBook] : listBookDirs();

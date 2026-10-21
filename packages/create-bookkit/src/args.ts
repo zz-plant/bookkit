@@ -1,27 +1,38 @@
 import { parseArgs } from "node:util";
 import { slugify } from "../../../scripts/_lib";
-import { didYouMean } from "../../../scripts/lib/cli";
+import { didYouMean, formatUsage } from "../../../scripts/lib/cli";
 
-export const USAGE = `Create a standalone Bookkit project: one book app, the engine vendored into
-packages/astro-bookkit/, and the bookkit CLI and checks in scripts/.
-
-Usage:
-  bun run packages/create-bookkit/src/index.ts <folder> [--book <slug>] [--title "<title>"] [--dir <markdown-folder>] [--force]
-  bun run packages/create-bookkit/src/index.ts <folder> --upgrade
-
-Run it from a clone of the bookkit repository; <folder> must be outside it.
-
-Options:
-  --book <slug>       The book's slug (default: from the folder name)
-  --title "<title>"   The book's title (default: from the slug)
-  --dir <folder>      Import a folder of Markdown as chapters (runs bun install first)
-  --force             Create the project in a folder that already has files. Nothing
-                      there is overwritten: if a file the project needs exists, it
-                      lists it and stops.
-  --upgrade           Replace an existing project's engine, scripts, and shared
-                      wrappers with this repository's. Lists every file it changes;
-                      never writes content or book.config.ts.
-  -h, --help          Show this help`;
+export const USAGE = formatUsage({
+	summary:
+		"Creates a standalone Bookkit project: one book app, the engine vendored\ninto packages/astro-bookkit/, and the bookkit CLI and checks in\nscripts/. Run it from a clone of the bookkit repository; <folder> must\nbe outside it.",
+	usage: [
+		'bun run create-bookkit <folder> [--book <slug>] [--title "<title>"] [--dir <markdown-folder>] [--force]',
+		"bun run create-bookkit <folder> --upgrade",
+	],
+	options: [
+		["--book <slug>", "The book's slug (default: from the folder name)"],
+		['--title "<title>"', "The book's title (default: from the slug)"],
+		[
+			"--dir <folder>",
+			"Import a folder of Markdown as chapters (runs bun install\nfirst)",
+		],
+		[
+			"--force",
+			"Create the project in a folder that already has files.\nNothing there is overwritten: if a file the project needs\nexists, it lists it and stops.",
+		],
+		[
+			"--upgrade",
+			"Replace an existing project's engine, scripts, and shared\nwrappers with this repository's. Lists every file it\nchanges; never writes content or book.config.ts.",
+		],
+	],
+	notes:
+		"bun run create-bookkit is bun run packages/create-bookkit/src/index.ts.",
+	examples: [
+		'bun run create-bookkit ../my-book --title "My Book"',
+		"bun run create-bookkit ../field-notes --dir ~/notes/field",
+		"bun run create-bookkit ../my-book --upgrade",
+	],
+});
 
 export type CreateArgs = {
 	target: string;

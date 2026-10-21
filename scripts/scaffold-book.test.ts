@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { defaultFrames } from "../packages/astro-bookkit/src/frames/defaults";
 import { checkBookContent } from "../packages/astro-bookkit/src/validators/book-validator";
 import { listFilesRecursive, repoRoot } from "./_lib";
 import { runChild, waitForChildren } from "./lib/child-process.fixture";
@@ -262,6 +263,21 @@ describe("new:book", () => {
 		expect(unknown.status).toBe(1);
 		expect(unknown.output).toContain('No frame "runbok". Frames: intervention');
 		expect(existsSync(join(workspace, "apps", "other-notes"))).toBe(false);
+	});
+
+	it("starts every frame's overview with a heading the frame check counts for each step", () => {
+		for (const frame of defaultFrames) {
+			const book = `${frame.slug}-frame`;
+			expect(newBook("--book", book, "--frame", frame.slug).status).toBe(0);
+			const missing = checkBookContent({
+				workspaceRoot: workspace,
+				bookSlug: book,
+			}).findings.filter((finding) => finding.code === "FRAME_STEP_MISSING");
+			expect({ frame: frame.slug, missing }).toEqual({
+				frame: frame.slug,
+				missing: [],
+			});
+		}
 	});
 
 	it("bookkit new book --from imports notes with no starter content beside them, on the frame given", () => {

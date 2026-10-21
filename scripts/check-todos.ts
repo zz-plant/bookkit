@@ -1,6 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { listBookDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary:
+		"Checks each book's TODOS.md: every open item has [owner:],\n[milestone:], and [debt:] tags, and no done item is left in it.",
+	usage: ["bun run check:todos"],
+	examples: ["bun run check:todos"],
+});
 
 const books = listBookDirs();
 const errors: string[] = [];

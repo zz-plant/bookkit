@@ -1,5 +1,5 @@
+import { SECTION_NAMES } from "./tool-handlers/book-arg";
 import type { ToolDefinitionMetadata } from "./tool-handlers/types";
-import { CONTENT_TYPES } from "./types";
 
 export const TOOL_NAMES = [
 	"bookkit.create_book",
@@ -16,6 +16,7 @@ export const TOOL_NAMES = [
 	"bookkit.find_similar_mechanisms",
 	"bookkit.get_content_contract",
 	"bookkit.check_content",
+	"bookkit.write_content",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -51,11 +52,16 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				book: {
 					type: "string",
 					description:
-						"Required slug for the new book (for example, field-notes).",
+						'Required slug for the new book (for example, field-notes). A title such as "Field Notes" is made a slug, and becomes the title unless title is given.',
 				},
 				title: {
 					type: "string",
 					description: "Optional display title for the generated book config.",
+				},
+				frame: {
+					type: "string",
+					description:
+						"Optional frame: intervention (default), explainer, field-guide, or runbook.",
 				},
 			},
 			required: ["book"],
@@ -65,7 +71,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.read_book",
 		description:
-			"Read current book content records by section and optional slug.",
+			"Read a book's content. Without slug: an index of records (section, slug, title, lines). With slug, or full: true, the text as well.",
 		safety: "read_only",
 		expectedRuntime: "<1s",
 		expectedRuntimeClass: "instant",
@@ -81,12 +87,23 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 			properties: {
 				section: {
 					type: "string",
-					enum: CONTENT_TYPES,
-					description: "Optional content section filter.",
+					enum: SECTION_NAMES,
+					description:
+						"Optional content section filter, singular or plural (chapter or chapters).",
 				},
 				slug: {
 					type: "string",
-					description: "Optional slug filter inside the selected section.",
+					description: "Optional slug: returns that record with its text.",
+				},
+				full: {
+					type: "boolean",
+					description:
+						"true returns the text of every record listed, not only the index. Large for a whole book; filter by section first.",
+				},
+				book: {
+					type: "string",
+					description:
+						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book.",
 				},
 			},
 			additionalProperties: false,
@@ -118,7 +135,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	},
 	{
 		name: "bookkit.list_content",
-		description: "List available content section counts for this book.",
+		description: "List available content section counts for a book.",
 		safety: "read_only",
 		expectedRuntime: "<1s",
 		expectedRuntimeClass: "instant",
@@ -131,7 +148,13 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		failureClassTaxonomy: ["configuration", "timeout", "unknown"],
 		inputSchema: {
 			type: "object",
-			properties: {},
+			properties: {
+				book: {
+					type: "string",
+					description:
+						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book.",
+				},
+			},
 			additionalProperties: false,
 		},
 	},
@@ -173,8 +196,13 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 			properties: {
 				section: {
 					type: "string",
-					enum: ["mechanisms"],
+					enum: ["mechanisms", "mechanism"],
 					description: "Optional. Currently only mechanisms are supported.",
+				},
+				book: {
+					type: "string",
+					description:
+						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book.",
 				},
 			},
 			additionalProperties: false,
@@ -395,8 +423,9 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 			properties: {
 				section: {
 					type: "string",
-					enum: ["mechanism", "tool", "example", "chapter", "glossary"],
-					description: "One section; omit for all five.",
+					enum: SECTION_NAMES,
+					description:
+						"One section, singular or plural (chapter or chapters); omit for all five.",
 				},
 			},
 			additionalProperties: false,
@@ -405,10 +434,10 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.check_content",
 		description:
-			"Compile one candidate content file without writing it: the checks bun run validate runs, including mechanism references against the book. Each finding has a code, the field, and a fix. Draft, check until ok, then write the file; the compiler decides, not the draft.",
+			"Compile one candidate content file without writing it: the checks bun run validate runs, against the book (mechanism references, prerequisites and /read/ links, its frame and status) and the MDX compiler its build uses. Each finding has a code, the field, and a fix. Draft, check until ok, then write the file (bookkit.write_content writes it for you); the compiler decides, not the draft.",
 		safety: "read_only",
-		expectedRuntime: "<1s",
-		expectedRuntimeClass: "instant",
+		expectedRuntime: "<5s",
+		expectedRuntimeClass: "short",
 		sideEffectLevel: "read-only",
 		idempotent: true,
 		idempotencyGuarantee: "idempotent-safe-retry",
@@ -421,8 +450,9 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 			properties: {
 				section: {
 					type: "string",
-					enum: ["mechanism", "tool", "example", "chapter", "glossary"],
-					description: "Which kind of file the source is.",
+					enum: SECTION_NAMES,
+					description:
+						"Which kind of file the source is, singular or plural (chapter or chapters).",
 				},
 				source: {
 					type: "string",
@@ -431,12 +461,69 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				book: {
 					type: "string",
 					description:
-						"Book whose mechanisms references are checked against. Defaults to the served book.",
+						"Book the file is checked against (its mechanisms, slugs, frame, and status). Defaults to the served book.",
+				},
+				format: {
+					type: "string",
+					enum: ["mdx", "md"],
+					description:
+						"mdx (default) compiles the file as MDX; md is for a .md file, where HTML comments are allowed.",
 				},
 				releaseMode: {
 					type: "boolean",
 					description:
 						"true applies release rules whatever the book's status: a draft record is an error, and so are broken links and unknown prerequisites. Omitted or false: the book's status in book.config.ts decides (release rules for published or stable), and a record whose own status is published or stable is always held to them.",
+				},
+			},
+			required: ["section", "source"],
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.write_content",
+		description:
+			"Check one content file as bookkit.check_content does and, when it passes, write it into the book: a chapter after the last one, an example under its mechanism, anything else as <slug>.mdx. A file that already exists is replaced only with overwrite: true.",
+		safety: "requires_guard",
+		expectedRuntime: "<5s",
+		expectedRuntimeClass: "short",
+		sideEffectLevel: "local-write",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-retry-after-remediation",
+		retryGuidance:
+			"Apply the fixes in the findings, then call again. A second call with the same source refuses to overwrite unless overwrite: true.",
+		retryPolicyGuidance:
+			"Retry after fixing findings; pass overwrite: true only to replace a file you have read.",
+		failureClassTaxonomy: ["validation", "conflict", "filesystem", "unknown"],
+		inputSchema: {
+			type: "object",
+			properties: {
+				section: {
+					type: "string",
+					enum: SECTION_NAMES,
+					description:
+						"Which kind of file the source is, singular or plural (chapter or chapters).",
+				},
+				source: {
+					type: "string",
+					description: "The full file text, frontmatter included.",
+				},
+				book: {
+					type: "string",
+					description:
+						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book. The file is written there.",
+				},
+				file: {
+					type: "string",
+					description:
+						"Optional file name inside the section folder (for example 05-intro.mdx). Omitted: chosen from the slug, a chapter numbered after the last.",
+				},
+				overwrite: {
+					type: "boolean",
+					description: "true replaces a file that already exists.",
+				},
+				releaseMode: {
+					type: "boolean",
+					description: "As for bookkit.check_content.",
 				},
 			},
 			required: ["section", "source"],

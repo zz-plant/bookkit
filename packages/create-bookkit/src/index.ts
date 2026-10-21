@@ -11,6 +11,7 @@ import {
 	isBookkitProject,
 	isBookkitRepository,
 	isInside,
+	nextSteps,
 	readSource,
 	summarizeUpgrade,
 	upgradeProject,
@@ -139,10 +140,4 @@ if (markdownSource) {
 	if (run.status !== 0) fail(`Import exited with status ${run.status}.`);
 }
 
-console.log(`
-Next:
-  cd ${target}${installed ? "" : "\n  bun install"}
-  bun run dev                    preview the book
-  bun run verify -- --all        every check, as CI runs them
-  git init, then commit          deploy publishes from a commit
-  bun run deploy -- --dry-run    check content, build, verify dist/, stop before publishing`);
+console.log(nextSteps(target, { installed, book }));

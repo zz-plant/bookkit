@@ -9,9 +9,9 @@ const parseJson = (text: string): unknown => {
 	}
 };
 
-export const handleCheckCorpus: ToolHandler = ({ options, args }) => {
+export const handleCheckCorpus: ToolHandler = async ({ options, args }) => {
 	const semantic = args?.semantic === true;
-	const command = runWorkspaceCommand(options.workspaceRoot, [
+	const command = await runWorkspaceCommand(options.workspaceRoot, [
 		"run",
 		"scripts/check-corpus.ts",
 		"--json",

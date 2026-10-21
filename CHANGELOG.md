@@ -21,17 +21,38 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 - **Import converts wiki links**: `[[Note]]`, `[[Note#Heading|text]]` (by file name in any folder, or title), and `![[image.png]]`. An unmatched one keeps its text and is listed. `bookkit try` counts them, says the README is the folder's index, and suggests its heading as the book's title.
 - **`propose --apply mechanisms`** adds each mechanism it writes to the `mechanisms:` of the chapters its evidence comes from.
 - **`bookkit check <folder>` inside a book** checks the folder with the book's rules (frame, status, references, MDX compiler), reporting only its files, instead of as a folder outside any book.
-- **The book's frame check** reads headings and `Label:` lines the way `bookkit try` does (a word that starts like the step), and checks a book with no `00-overview.mdx` across its chapters together; before, such a book had no frame check at all.
+- **The book's frame check** covers a book with no `00-overview.mdx` (an imported one) too, reading its chapters together; before, such a book had no frame check at all. A step counts as #325 made it: a heading whose whole text is the step's name.
 - **`bookkit build`** ends with the export warnings Astro's log scrolled past (an image the PDF or EPUB shows as alt text).
 - **One book needs no name**: with one book in the workspace, `new`, `import`, `propose`, `dev`, and the rest take it. `preview`, `serve`, and `start` run `dev`; `init` and `create` run `new book`.
 - **`bookkit dev stop`** leaves the server it stops exiting 0, with "Stopped by bun run bookkit dev stop", not 143.
 - **Migration:** a script that relied on `deploy --dry-run` stamping `dist/` for `--no-build` adds `--full`. A book without `00-overview.mdx` may now show a `FRAME_STEP_MISSING` warning naming the steps no chapter covers; warnings never fail.
 
+## 2026-10-21 — `--help` everywhere; the frame check reads whole headings; `verify` before `git init`
+
+- **Every `bookkit` command and package script answers `-h` and `--help`** with what it does, its arguments, and examples, and exits 0 without doing anything else. Before, `bookkit dev --help` started a dev server, `check:corpus`, `check:suggestions`, `check:runbooks`, `check:a11y`, and `mcp` ran, `export --help` and `try --help` exited 1, and `bun run prepare --help` had husky install hooks into a folder named `--help`. `bookkit help <command>` prints the same help. The commands and their help live in one table, `scripts/lib/bookkit-commands.ts`, which `bookkit` dispatches on; the shared helper is `exitOnHelp`/`formatUsage` in `scripts/lib/cli.ts`. `prepare` and `setup` now run `scripts/install-hooks.ts` and `scripts/setup.ts`, which do what `husky` and `mise trust && bun install` did.
+- **The frame check reads the whole heading.** A heading in `00-overview.mdx` counts for a step when its whole text, slugged as the site slugs heading ids, is the step's id, so `## Failure Modes` now counts for `failure-modes` (a new field-guide book warned about its own starter overview). Headings in fenced code or the frontmatter no longer count. `frameStepsInPage` and `markdownHeadings` are new engine exports.
+- **`verify -- --all` works in a project that is not a git repository yet.** `check:types` listed its files with `git ls-files`; outside a repository it now reads them from the disk, leaving out what the project's `.gitignore` files ignore, as git would. create-bookkit's next steps put `git init` and the first commit right before `deploy`, the one step that needs a commit (the entry below had moved them first to get past this).
+
+**Migration:** an overview heading that starts with a step's name but says more, such as `## Recognition and blame`, no longer counts for `recognition`; rename it to the step's name, or add a heading that is. The four books in this repository are unaffected.
+
+## 2026-10-21 — MCP tools an agent can write a book with
+
+- **`bookkit.write_content`** checks a file as `check_content` does and, when it passes, writes it into the book: a chapter numbered after the last, an example under its mechanism, anything else as `<slug>.mdx`. It replaces an existing file only with `overwrite: true`, and never writes outside the section folder. An MCP client without file access can now author, not only check.
+- **`check_content` runs the checks `bookkit check <file>` runs**: prerequisites and `/read/` links against the book's slugs, the book's frame, and the MDX compiler the build uses (a literal `{` in prose is an error before the file is written). `validate_book` compiles every MDX file, as `bun run validate` does.
+- **Every content tool takes `book`.** `read_book`, `list_content`, and `list_mechanisms` read another workspace book from disk; a book that is not in the workspace is an error (`UNKNOWN_BOOK`) naming the ones that are, where before the served book's content came back.
+- **`read_book` returns an index** (section, slug, title, lines) unless given a `slug` or `full: true`, so a whole book no longer lands in the caller's context. `compile_book`, `export_book`, and `create_book` return the last 40 lines of output.
+- **An argument a tool does not take is an error** (`TOOL_ARGUMENTS`) naming the ones it does, instead of being ignored. Section names are accepted singular or plural (`chapter` or `chapters`) by every tool. `tools/list` carries MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`).
+- **Long calls no longer block the server.** Tools that run a command (`compile_book`, `export_book`, `check_corpus`, …) run it without blocking, so a ping or a read answers while a build runs, over stdio and HTTP.
+- **`create_book`** makes a slug from a title ("Field Notes" → `field-notes`, titled "Field Notes") and takes `frame`.
+- **Standalone projects.** `bun run mcp` serves the current book (`bookkit use`) by default. A project's dev server finds the project root (the folder with `apps/` and `packages/astro-bookkit/`), where it used to run tools in the app folder. New projects get `.mcp.json`, and `--upgrade` adds one when missing. create-bookkit's next steps commit first, then preview, check, and rehearse a deploy.
+- **`bookkit similar`** leaves out matches on a word or two (wording score below 0.3, the bar `check` and `new mechanism` already used).
+- **Migration:** `handleRequest`, `runTool`, and tool handlers now return promises; code that called them directly must `await` them. A `read_book` caller that relied on getting every record's text without `slug` must pass `full: true`. A call with an argument the tool does not take, which used to run, now returns an error.
+
 ## 2026-10-21 — The README is an entry point; the reference moves to `docs/guide/`
 
 - **The README keeps orientation and daily commands only**: what Bookkit is and who it is for, how a book compiles, the record types in brief, prerequisites, starting a book, the everyday commands, the example books, and a map of the documentation.
 - **Reference material moves, unchanged in substance, to `docs/guide/`**: `concepts.md` (terms, frames, status, `book.config.ts`, where data lives), `checks.md`, `import-export.md`, `reader-site.md`, `publishing.md` (deploy, CI, static and server builds, server runtime), `ai.md` (proposals, model downloads, MCP), `corpus.md`, and `troubleshooting.md`.
-- **The MCP governance resources** add `docs/guide/concepts.md`, `checks.md`, and `ai.md`, so an agent reading them still sees the contracts and check rules the README used to carry.
+- **The MCP governance resources** add `docs/guide/concepts.md`, `checks.md`, and `ai.md` (`GUIDE_GOVERNANCE_FILE_RESOURCES`), over stdio (`bun run mcp`) and over HTTP (`POST /api/mcp.json`), so an agent still sees the contracts and check rules the README used to carry. Workspace-root discovery still keys on README, CONTRIBUTING, and AGENTS only.
 
 **Migration:** links to README anchors such as `README.md#deploy` or `README.md#what-the-checks-enforce` now land on the README without the section; point them at the matching `docs/guide/` page.
 

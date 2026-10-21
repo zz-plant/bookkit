@@ -40,7 +40,7 @@ Escalate to `engine-change` if you need new validation, frame, or compiler behav
 The compiler decides whether content is valid; a draft is a proposal until it passes.
 
 1. Read the contract first: `bun run bookkit contract <section>` (mechanism, tool, example, chapter, glossary), or the MCP tool `bookkit.get_content_contract`. It lists each field, whether its absence is an error or a warning, what to write in it, and a file that compiles.
-2. Check the file before moving on: `bun run bookkit check <file.mdx> [--json]` after writing it, or `bookkit.check_content` with the full source before writing. Every finding has a `code`, the `field`, and a `fix`; apply the fixes and check again until it reports no errors.
+2. Check the file before moving on: `bun run bookkit check <file.mdx> [--json]` after writing it, or `bookkit.check_content` with the full source before writing (`bookkit.write_content` checks it and writes it in one call). Every finding has a `code`, the `field`, and a `fix`; apply the fixes and check again until it reports no errors.
 3. A reference to an unknown mechanism is an error. When the slug was merged away, the fix names its replacement (from `corpus.json`); otherwise it names the closest existing slugs. Bind one of those, or run `bookkit similar` before coining a new mechanism.
 4. Fields such as a tool's `trigger` and `steps`, or a mechanism's `definition`, are the author's argument. Draft them only when the author asks, keep `status: draft`, and say which fields you wrote.
 

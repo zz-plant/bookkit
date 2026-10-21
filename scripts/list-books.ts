@@ -1,6 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { listBookDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary: "Lists the books in apps/ with their package names.",
+	usage: ["bun run list:books"],
+	examples: ["bun run list:books"],
+});
 
 // Rows sorted so the flagship runbook demo leads; the underlying dir order
 // (listBookDirs) is untouched so `bookkit dev` keeps its own default.

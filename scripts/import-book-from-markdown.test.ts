@@ -21,7 +21,7 @@ describe("import-book-from-markdown arguments", () => {
 		);
 		expect(result.output).toContain("--include-readme");
 		expect(result.output).toMatch(
-			/Example:\n {2}bun run bookkit import [a-z-]+ --dir ~\/notes\/runbooks --dry-run/,
+			/Examples:\n {2}bun run bookkit import [a-z-]+ --dir ~\/notes\/runbooks --dry-run/,
 		);
 		expect(result.output).not.toContain("Missing required arg");
 	});
@@ -36,7 +36,7 @@ describe("import-book-from-markdown arguments", () => {
 	it("prints the usage on --help and exits 0", () => {
 		const result = run(["--help"]);
 		expect(result.status).toBe(0);
-		expect(result.output).toContain("Import a folder of Markdown notes");
+		expect(result.output).toContain("Imports a folder of Markdown notes");
 	});
 
 	it("suggests the flag a typo meant", () => {

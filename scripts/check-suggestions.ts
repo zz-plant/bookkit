@@ -12,19 +12,34 @@ import {
 } from "../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { booksFromArgv } from "./lib/book-args";
+import { exitOnHelp } from "./lib/cli";
 import { corpusScope, readCorpusBooks } from "./lib/corpus-scope";
 import { loadBookContent } from "./lib/load-book";
 
 /**
  * check:suggestions — what the deterministic analyzers suggest for a book.
  *
- *   bun run check:suggestions                  # every book
- *   bun run check:suggestions on-call          # one book (or -- --book on-call)
- *   bun run check:suggestions on-call --info   # include info-level findings
- *
  * Each book's report starts with what was read, so "no suggestions" is never
  * confused with "nothing analyzed".
  */
+
+exitOnHelp({
+	summary:
+		"What the deterministic analyzers suggest for a book: overlapping\nmechanisms, recurring terms that are not registered, examples that\nrestate a mechanism, and missing prerequisite edges. Advisory.",
+	usage: [
+		"bun run check:suggestions [book] [--info] [--mode error] [--max-proposals <n>]",
+	],
+	options: [
+		["[book]", "One book (default: every book)"],
+		["--info", "Include info-level findings"],
+		["--mode error", "Exit 1 on any warning"],
+		["--max-proposals <n>", "How many proposals to show per kind (default: 5)"],
+	],
+	examples: [
+		"bun run check:suggestions",
+		"bun run check:suggestions on-call --info",
+	],
+});
 
 const { books } = booksFromArgv(listBookDirs(), {
 	usage:

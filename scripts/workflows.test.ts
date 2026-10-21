@@ -272,6 +272,16 @@ describe("ci.yml", () => {
 		).toBe(false);
 	});
 
+	it("verifies the standalone project before git init, and deploys it after", () => {
+		const runs = workflow.jobs["standalone-project"].steps.map(
+			(step) => step.run ?? "",
+		);
+		const at = (text: string) => runs.findIndex((run) => run.includes(text));
+		expect(at("bun run verify -- --all")).toBeGreaterThan(-1);
+		expect(at("git init")).toBeGreaterThan(at("bun run verify -- --all"));
+		expect(at("bun run deploy")).toBe(at("git init"));
+	});
+
 	it("fails the standalone project's job when its build prints a warning, or fails", () => {
 		const steps = workflow.jobs["standalone-project"].steps;
 		const build = steps.find((step) => step.run?.includes("bun run build"));

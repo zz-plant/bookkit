@@ -13,7 +13,7 @@ import {
 import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
-import { compileFinding, compileMdx } from "./lib/compile-mdx";
+import { compileBookFindings } from "./lib/compile-mdx";
 import { checkReleaseNote } from "./lib/release-notes";
 import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
@@ -68,25 +68,28 @@ function starterPlaceholders(root: string) {
 }
 
 const args = parseScriptArgs(
-	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
-
-Usage:
-  bun run validate:book -- --book <book> [--release] [--json]
-
-Options:
-  --book <book>   The book app to validate
-  --release       Release rules whatever the book's status: what publishing it
-                  would hold it to (bookkit publish runs this)
-  --json          One JSON object: { book, status, releaseRules, ok, findings, info }
-  -h, --help      Show this help
-
-The book's status in book.config.ts decides the rules. A published or stable
-book gets release rules: no draft records, broken links and prerequisites are
-errors, and the site must be indexable at a public URL. Any other book is
-checked as a draft. Errors exit 1; warnings never do. INFO lists each
-chapter's first use of a glossary term that is not linked to its entry; it
-is advice and never fails. (--mode and --no-drafts are accepted for older
-callers and ignored.)`,
+	{
+		summary:
+			"Validates one book: its content, its frame, and, once it is published\nor stable, release readiness.",
+		usage: ["bun run validate:book -- --book <book> [--release] [--json]"],
+		options: [
+			["--book <book>", "The book app to validate"],
+			[
+				"--release",
+				"Release rules whatever the book's status: what publishing\nit would hold it to (bookkit publish runs this)",
+			],
+			[
+				"--json",
+				"One JSON object: { book, status, releaseRules, ok,\nfindings, info }",
+			],
+		],
+		notes:
+			"The book's status in book.config.ts decides the rules. A published or stable\nbook gets release rules: no draft records, broken links and prerequisites are\nerrors, and the site must be indexable at a public URL. Any other book is\nchecked as a draft. Errors exit 1; warnings never do. INFO lists each\nchapter's first use of a glossary term that is not linked to its entry; it\nis advice and never fails. (--mode and --no-drafts are accepted for older\ncallers and ignored.)",
+		examples: [
+			"bun run validate:book -- --book on-call",
+			"bun run validate:book -- --book on-call --json",
+		],
+	},
 	{
 		book: "string",
 		json: "boolean",
@@ -125,28 +128,15 @@ for (const finding of content.findings) {
 const contentDir = join("apps", book, "src", "content", "book");
 const reportedComment = new Set(
 	findings
-		.filter((finding) => finding.code === "MDX_HTML_COMMENT")
-		.map((finding) => finding.file),
+		.filter((finding) => finding.code === "MDX_HTML_COMMENT" && finding.file)
+		.map((finding) => join(workspaceRoot, finding.file as string)),
 );
-const mdxFiles = existsSync(join(workspaceRoot, contentDir))
-	? listFilesRecursive(join(workspaceRoot, contentDir))
-			.filter((file) => file.endsWith(".mdx"))
-			.map((file) => join(contentDir, file))
-			.filter((file) => !reportedComment.has(file))
-	: [];
-const compiled = await Promise.all(
-	mdxFiles.map(async (file) => ({
-		file,
-		finding: compileFinding(
-			await compileMdx(
-				readFileSync(join(workspaceRoot, file), "utf8"),
-				join(workspaceRoot, "apps", book),
-			),
-		),
-	})),
-);
-for (const { file, finding } of compiled) {
-	if (finding) findings.push({ ...finding, file });
+for (const finding of await compileBookFindings(
+	workspaceRoot,
+	book,
+	reportedComment,
+)) {
+	findings.push({ ...finding, file: relative(workspaceRoot, finding.file) });
 }
 
 // Release notes are not a content section, but the release page drops a

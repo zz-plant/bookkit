@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { defaultFrames } from "../frames/defaults";
 import { isReleasedStatus, isStatus, STATUSES } from "../schemas/status";
-import { FRONTMATTER, parseFrontmatter } from "../utils/frontmatter";
+import { parseFrontmatter } from "../utils/frontmatter";
 import {
 	CONTENT_SECTIONS,
 	type ContentFinding,
@@ -15,11 +15,7 @@ import {
 	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
 } from "./content-check";
-import {
-	frameStepsInHeadings,
-	sectionLabelsOf,
-	validateFrameSteps,
-} from "./frame";
+import { frameStepsInPage, validateFrameSteps } from "./frame";
 import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
@@ -121,6 +117,35 @@ export const readBookStatus = (
 		: undefined;
 };
 
+/** The frame slug set in apps/<book>/src/book.config.ts, if any. */
+export const readBookFrame = (
+	workspaceRoot: string,
+	book: string,
+): string | undefined => {
+	const path = bookConfigPath(workspaceRoot, book);
+	return existsSync(path)
+		? extractFrameConfigFromSource(readFileSync(path, "utf8"))?.slug
+		: undefined;
+};
+
+/** Every slug the book's read routes serve, per section. */
+export const routeSlugsOf = (
+	sources: Record<ContentSection, Array<{ file: string; source: string }>>,
+): Record<ContentSection, Set<string>> =>
+	Object.fromEntries(
+		CONTENT_SECTIONS.map((section) => [
+			section,
+			new Set(
+				sources[section].flatMap(({ file, source }) => {
+					const frontmatter = parseFrontmatter(source);
+					return frontmatter.status === "ok"
+						? [routeSlug(file, frontmatter.data)]
+						: [];
+				}),
+			),
+		]),
+	) as Record<ContentSection, Set<string>>;
+
 export const readRetiredSlugs = (
 	workspaceRoot: string,
 ): Map<string, RetiredSlug> => {
@@ -137,8 +162,8 @@ export const readRetiredSlugs = (
 /**
  * The frame's required steps the book does not cover: in its framing chapter
  * (00-overview.mdx) when it has one, else in its chapters taken together (an
- * imported book has no overview). A step is covered by a heading, or a
- * "Label:" line, whose words start like it, as `bookkit try` reads them.
+ * imported book has no overview). A step is covered by a heading whose whole
+ * text slugs to it (`frameStepsInPage`).
  */
 const frameFinding = (
 	workspaceRoot: string,
@@ -156,9 +181,6 @@ const frameFinding = (
 	const sources = hasOverview
 		? [readFileSync(overview, "utf8")]
 		: chapters.map((chapter) => chapter.source);
-	const labels = sources.flatMap((source) =>
-		sectionLabelsOf(source.replace(FRONTMATTER, "")),
-	);
 	// Author decisions live in book.config.ts; validate against the configured
 	// frame and fall back to the intervention frame when none is declared.
 	const frame =
@@ -167,23 +189,26 @@ const frameFinding = (
 	if (!frame) return null;
 	const { missingRequiredSteps } = validateFrameSteps(
 		frame,
-		frameStepsInHeadings(frame, labels),
+		sources.flatMap((source) =>
+			frameStepsInPage(frame, parseFrontmatter(source).body),
+		),
 	);
 	if (missingRequiredSteps.length === 0) return null;
-	const labelOf = (id: string) =>
-		frame.steps.find((step) => step.id === id)?.label ?? id;
+	const example =
+		frame.steps.find((step) => step.id === missingRequiredSteps[0])?.label ??
+		missingRequiredSteps[0];
 	return hasOverview
 		? {
 				level: "warning",
 				code: "FRAME_STEP_MISSING",
 				message: `Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${missingRequiredSteps.join(", ")}`,
-				fix: `Add a heading for each missing step to chapters/00-overview.mdx (e.g. "## ${labelOf(missingRequiredSteps[0])}"); the ${frame.slug} frame requires them in that chapter.`,
+				fix: `Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step's name (e.g. "## ${example}"); the ${frame.slug} frame requires them in that chapter.`,
 			}
 		: {
 				level: "warning",
 				code: "FRAME_STEP_MISSING",
 				message: `No chapter covers the "${frame.slug}" frame's step(s): ${missingRequiredSteps.join(", ")}`,
-				fix: `Give the chapter that covers each a heading for it (e.g. "## ${labelOf(missingRequiredSteps[0])}"), or add a chapters/00-overview.mdx that walks through every step. If the book is another kind, set frame in book.config.ts.`,
+				fix: `Give the chapter that covers each a heading whose whole text is the step's name (e.g. "## ${example}"), or add a chapters/00-overview.mdx that walks through every step. If the book is another kind, set frame in book.config.ts.`,
 			};
 };
 
@@ -416,16 +441,7 @@ export const checkBookContent = (
 			}),
 		]),
 	) as Record<ContentSection, ParsedSource[]>;
-	const slugs = Object.fromEntries(
-		CONTENT_SECTIONS.map((section) => [
-			section,
-			new Set(
-				parsed[section].flatMap(({ file, data }) =>
-					data ? [routeSlug(file, data)] : [],
-				),
-			),
-		]),
-	) as Record<ContentSection, Set<string>>;
+	const slugs = routeSlugsOf(sources);
 	const mechanismSlugs = mechanismSlugsFrom(
 		sources.mechanism.map(({ source }) => source),
 	);

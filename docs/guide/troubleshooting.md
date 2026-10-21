@@ -1,7 +1,5 @@
 # Troubleshooting
 
-**`check:types` fails with "git ls-files failed: not a git repository".** A new standalone project has no git history yet. Run `git init && git add -A && git commit -m "First draft"`, then `bun run verify -- --all`.
-
 **A published book fails with `DRAFT_IN_RELEASE`.** Some record still has `status: draft` (or none). Finish it and set its status, or move the book back to `in-review` until it is done.
 
 **The book builds but search engines never see it.** Its status is not `published` or `stable`, or `site.indexable` is `false`, so every page is `noindex`. A `*.workers.dev` address is `noindex` regardless; publish on the domain in `site.url`.

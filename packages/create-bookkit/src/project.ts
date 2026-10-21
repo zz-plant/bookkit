@@ -594,12 +594,41 @@ export const writeAppPackages = (
 	return changes;
 };
 
+/**
+ * What to run in a new project, in an order that works: everything up to
+ * the commit runs before `git init`, and deploy, which publishes from a
+ * commit, comes after it.
+ */
+export const nextSteps = (
+	target: string,
+	{ installed, book }: { installed: boolean; book: string },
+): string => `
+Next:
+  cd ${target}${installed ? "" : "\n  bun install"}
+  bun run dev                    preview the book (Ctrl-C to stop)
+  bun run bookkit check          what to fix or fill in
+  git init && git add -A && git commit -m "Start ${book}"
+                                 deploy publishes from a commit
+  bun run deploy -- --dry-run    every check and the build, stopping before publishing
+Agents: bun run mcp serves the book's tools; .mcp.json registers it.`;
+
 const GITIGNORE = `node_modules/
 dist/
 .astro/
 .bookkit/
 .DS_Store
 `;
+
+/** Registers the project's stdio MCP server, so agents (Claude Code, Codex) offer its tools here. */
+const MCP_JSON = `${JSON.stringify(
+	{
+		mcpServers: {
+			bookkit: { command: "bun", args: ["run", "scripts/mcp-server.ts"] },
+		},
+	},
+	null,
+	"\t",
+)}\n`;
 
 const readme = (book: string, title: string) => `# ${title}
 
@@ -612,9 +641,14 @@ bun install
 bun run dev                      # preview with live reload
 bun run bookkit check            # structure, plus mechanisms that overlap across books
 bun run verify -- --all          # every check: types, content, wrappers, build
-bun run deploy -- --dry-run      # check content, build, verify dist/, then stop before publishing (needs a git commit)
+git init && git add -A && git commit -m "First draft"   # deploy publishes from a commit
+bun run deploy -- --dry-run      # check content, build, verify dist/, then stop before publishing
 bun run bookkit help             # every command
 \`\`\`
+
+## Agents
+
+\`bun run mcp\` serves the book's MCP tools over stdio: read the book, get a section's contract, check a file before writing it, write it, validate, and build. \`.mcp.json\` registers it, so Claude Code and other MCP clients offer the tools in this folder.
 
 ## Layout
 
@@ -669,6 +703,7 @@ export const createProject = (
 	for (const [rel, content] of [
 		[".gitignore", GITIGNORE],
 		["README.md", readme(options.book, options.title)],
+		[".mcp.json", MCP_JSON],
 	] as const) {
 		if (existsSync(join(dir, rel))) keptExisting.push(rel);
 		else put(dir, rel, content, changes);
@@ -704,6 +739,9 @@ export const upgradeProject = (source: Source, dir: string): UpgradeResult => {
 		...writeAppPackages(source, dir, books),
 		...writeRootFiles(source, dir, `${books[0] ?? "bookkit"}-book`),
 	];
+	// Projects made before .mcp.json was written get one; an existing one is the author's.
+	if (!existsSync(join(dir, ".mcp.json")))
+		put(dir, ".mcp.json", MCP_JSON, changes);
 	const owned = new Set([...source.scripts, ...(previous?.scripts ?? [])]);
 	const untouchedScripts = existsSync(join(dir, "scripts"))
 		? listFilesRecursive(join(dir, "scripts")).filter(

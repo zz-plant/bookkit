@@ -235,6 +235,7 @@ export {
 	createGovernanceResourcesFromFiles,
 	DEFAULT_GOVERNANCE_FILE_RESOURCES,
 	findWorkspaceRoot,
+	GUIDE_GOVERNANCE_FILE_RESOURCES,
 } from "./mcp";
 export type {
 	PreviewAccessConfig,
@@ -492,6 +493,7 @@ export {
 } from "./validators/content-check";
 export {
 	frameStepsInHeadings,
+	frameStepsInPage,
 	validateFrameDefinition,
 	validateFrameSteps,
 } from "./validators/frame";

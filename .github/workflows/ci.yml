@@ -229,14 +229,9 @@ jobs:
       - name: Scaffold a standalone project
         run: bun run packages/create-bookkit/src/index.ts "$RUNNER_TEMP/field-notes" --title "Field Notes"
 
-      # deploy publishes from a commit, so the project is committed first.
-      - name: Install and commit the project
+      - name: Install the project
         working-directory: ${{ runner.temp }}/field-notes
-        run: |
-          bun install
-          git init --quiet
-          git add -A
-          git -c user.name=ci -c user.email=ci@example.com commit --quiet -m "Field Notes"
+        run: bun install
 
       # A new project builds with no [WARN] line, so any warning fails the job:
       # a dependency bump that brings one back (mermaid 11.17's chunk size, say)
@@ -252,8 +247,16 @@ jobs:
             exit 1
           fi
 
-      - name: Verify and deploy (dry run)
+      # Every check runs in a new project before git init, as create-bookkit's
+      # next steps say; only deploy publishes from a commit.
+      - name: Verify before the first commit
+        working-directory: ${{ runner.temp }}/field-notes
+        run: bun run verify -- --all
+
+      - name: Commit and deploy (dry run)
         working-directory: ${{ runner.temp }}/field-notes
         run: |
-          bun run verify -- --all
+          git init --quiet
+          git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit --quiet -m "Field Notes"
           bun run deploy -- --dry-run

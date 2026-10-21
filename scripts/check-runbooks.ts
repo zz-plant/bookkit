@@ -14,12 +14,33 @@ import {
 } from "../packages/astro-bookkit/src/suggestions";
 import { extractFrameConfigFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
 import {
 	arrayValue,
 	listContentFiles,
 	parseFrontmatter,
 	toStringValue,
 } from "./lib/content-frontmatter";
+
+exitOnHelp({
+	summary:
+		"Audits a runbook book's controls (mechanism, action, drill, escalation,\nowner), prints its compliance matrix, and flags drift between release\nnotes and the current coverage. Books on another frame are skipped.",
+	usage: [
+		"bun run check:runbooks [--book <book>] [--mode error] [--export <file>]",
+	],
+	options: [
+		["--book <book>", "One book (default: every book)"],
+		[
+			"--mode error",
+			"Exit 1 on any warning: an overdue review, an undrilled\ncontrol, or a control with no action",
+		],
+		["--export <file>", "Also write the compliance matrix to a JSON file"],
+	],
+	examples: [
+		"bun run check:runbooks",
+		"bun run check:runbooks -- --book on-call --mode error",
+	],
+});
 
 const requestedBook = optionalArg("--book");
 const mode = optionalArg("--mode") ?? "warn";

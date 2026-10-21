@@ -64,6 +64,19 @@ describe("findWorkspaceRoot", () => {
 
 		expect(findWorkspaceRoot(startDir)).toBe(packageRoot);
 	});
+
+	it("finds a standalone project's root, above the app's own package.json", () => {
+		const projectRoot = createTempDir();
+		const startDir = resolve(projectRoot, "apps/demo/src/pages/api");
+		mkdirSync(startDir, { recursive: true });
+		mkdirSync(resolve(projectRoot, "packages/astro-bookkit"), {
+			recursive: true,
+		});
+		writeFileSync(resolve(projectRoot, "package.json"), '{"name":"project"}');
+		writeFileSync(resolve(projectRoot, "apps/demo/package.json"), "{}");
+
+		expect(findWorkspaceRoot(startDir)).toBe(projectRoot);
+	});
 });
 
 describe("createBookMcpEndpointFromWorkspace", () => {
@@ -78,6 +91,8 @@ describe("createBookMcpEndpointFromWorkspace", () => {
 			"# CONTRIBUTING\n",
 		);
 		writeFileSync(resolve(workspaceRoot, "AGENTS.md"), "# AGENTS\n");
+		mkdirSync(resolve(workspaceRoot, "docs/guide"), { recursive: true });
+		writeFileSync(resolve(workspaceRoot, "docs/guide/checks.md"), "# Checks\n");
 		writeFileSync(
 			resolve(workspaceRoot, "package.json"),
 			'{"name":"fixture","scripts":{}}',
@@ -109,6 +124,7 @@ describe("createBookMcpEndpointFromWorkspace", () => {
 		expect(uris).toContain("bookkit://governance/README.md");
 		expect(uris).toContain("bookkit://governance/CONTRIBUTING.md");
 		expect(uris).toContain("bookkit://governance/AGENTS.md");
+		expect(uris).toContain("bookkit://governance/docs/guide/checks.md");
 	});
 
 	it("gracefully omits missing governance files", async () => {

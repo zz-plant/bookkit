@@ -58,6 +58,24 @@
 					"sameLever": 0.35,
 					"sameEvidence": 0.35,
 					"relationP": 0.5
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.35,
+					"sameEvidence": 0.3,
+					"relationP": 0.4,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.35,
+					"sameEvidence": 0.3,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -88,6 +106,24 @@
 					"sameLever": 0.45,
 					"sameEvidence": 0.35,
 					"relationP": 0.45
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.45,
+					"sameEvidence": 0.4,
+					"relationP": 0.45,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.4,
+					"sameEvidence": 0.35,
+					"relationP": 0.45,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -118,6 +154,24 @@
 					"sameLever": 0.85,
 					"sameEvidence": 0.75,
 					"relationP": 0.75
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_idea",
+					"sameLever": 0.85,
+					"sameEvidence": 0.75,
+					"relationP": 0.75,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_idea",
+					"sameLever": 0.88,
+					"sameEvidence": 0.85,
+					"relationP": 0.85,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -148,6 +202,24 @@
 					"sameLever": 0.12,
 					"sameEvidence": 0.1,
 					"relationP": 0.55
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "different_target",
+					"sameLever": 0.1,
+					"sameEvidence": 0.08,
+					"relationP": 0.5,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "different_target",
+					"sameLever": 0.07,
+					"sameEvidence": 0.07,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -178,6 +250,24 @@
 					"sameLever": 0.7,
 					"sameEvidence": 0.65,
 					"relationP": 0.55
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_idea",
+					"sameLever": 0.7,
+					"sameEvidence": 0.6,
+					"relationP": 0.62,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_idea",
+					"sameLever": 0.6,
+					"sameEvidence": 0.55,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -208,6 +298,24 @@
 					"sameLever": 0.05,
 					"sameEvidence": 0.06,
 					"relationP": 0.4
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.08,
+					"sameEvidence": 0.07,
+					"relationP": 0.45,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.08,
+					"relationP": 0.45,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -328,6 +436,24 @@
 					"sameLever": 0.45,
 					"sameEvidence": 0.35,
 					"relationP": 0.4
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "cause_effect",
+					"sameLever": 0.35,
+					"sameEvidence": 0.25,
+					"relationP": 0.5,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "cause_effect",
+					"sameLever": 0.4,
+					"sameEvidence": 0.35,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -388,6 +514,24 @@
 					"sameLever": 0.04,
 					"sameEvidence": 0.05,
 					"relationP": 0.6
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.05,
+					"relationP": 0.55,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "unrelated",
+					"sameLever": 0.05,
+					"sameEvidence": 0.06,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -418,6 +562,24 @@
 					"sameLever": 0.15,
 					"sameEvidence": 0.15,
 					"relationP": 0.55
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.12,
+					"relationP": 0.55,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.6,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -478,6 +640,24 @@
 					"sameLever": 0.9,
 					"sameEvidence": 0.85,
 					"relationP": 0.85
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_idea",
+					"sameLever": 0.88,
+					"sameEvidence": 0.8,
+					"relationP": 0.82,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_idea",
+					"sameLever": 0.88,
+					"sameEvidence": 0.85,
+					"relationP": 0.85,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -568,6 +748,24 @@
 					"sameLever": 0.15,
 					"sameEvidence": 0.12,
 					"relationP": 0.5
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "different_target",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.45,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "different_target",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.45,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -628,6 +826,24 @@
 					"sameLever": 0.15,
 					"sameEvidence": 0.1,
 					"relationP": 0.45
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.1,
+					"relationP": 0.5,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.1,
+					"sameEvidence": 0.08,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -658,6 +874,24 @@
 					"sameLever": 0.1,
 					"sameEvidence": 0.15,
 					"relationP": 0.55
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.12,
+					"sameEvidence": 0.12,
+					"relationP": 0.55,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.15,
+					"sameEvidence": 0.15,
+					"relationP": 0.6,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -688,6 +922,24 @@
 					"sameLever": 0.55,
 					"sameEvidence": 0.6,
 					"relationP": 0.5
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "cause_effect",
+					"sameLever": 0.4,
+					"sameEvidence": 0.4,
+					"relationP": 0.68,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "cause_effect",
+					"sameLever": 0.5,
+					"sameEvidence": 0.5,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -778,6 +1030,24 @@
 					"sameLever": 0.1,
 					"sameEvidence": 0.1,
 					"relationP": 0.75
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "before_after",
+					"sameLever": 0.1,
+					"sameEvidence": 0.08,
+					"relationP": 0.75,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "before_after",
+					"sameLever": 0.12,
+					"sameEvidence": 0.1,
+					"relationP": 0.72,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -808,6 +1078,24 @@
 					"sameLever": 0.4,
 					"sameEvidence": 0.35,
 					"relationP": 0.45
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.35,
+					"sameEvidence": 0.3,
+					"relationP": 0.45,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.35,
+					"sameEvidence": 0.3,
+					"relationP": 0.45,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -838,6 +1126,24 @@
 					"sameLever": 0.25,
 					"sameEvidence": 0.25,
 					"relationP": 0.45
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.25,
+					"sameEvidence": 0.25,
+					"relationP": 0.45,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "same_family",
+					"sameLever": 0.2,
+					"sameEvidence": 0.2,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},
@@ -898,6 +1204,24 @@
 					"sameLever": 0.08,
 					"sameEvidence": 0.1,
 					"relationP": 0.4
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-1.json",
+					"date": "2026-10-21",
+					"relation": "different_target",
+					"sameLever": 0.08,
+					"sameEvidence": 0.07,
+					"relationP": 0.55,
+					"command": "claude -p"
+				},
+				{
+					"judge": "rulings-2026-10-21-18-03/answer-3.json",
+					"date": "2026-10-21",
+					"relation": "different_target",
+					"sameLever": 0.08,
+					"sameEvidence": 0.08,
+					"relationP": 0.5,
+					"command": "claude -p"
 				}
 			]
 		},

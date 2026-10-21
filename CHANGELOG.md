@@ -3,6 +3,11 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — `bun run validate` reads its options
+
+- **`bun run validate -- --book <book>` checks that book alone.** It used to ignore every option and validate every book, so `--book on-call` printed four books, `--json` printed no JSON, and a mistyped flag passed silently. It now takes `--book`, `--release` (release rules for each book checked), and `--json` (with `--book`; one JSON object). An unknown option exits 1 with the closest match ("Unknown option --bok. Did you mean --book?"), and a misspelled book names the closest one. Without options it validates every book, as before.
+- **Migration:** `bookkit validate --all --json` now exits 1 and says `--json` needs one book, instead of printing several JSON documents one after another.
+
 ## 2026-10-21 — Check output says what its counts and bindings mean
 
 - **The warning count says when lines group warnings.** `validate` puts a file's warnings on one line, so a fresh book showed "WARNINGS (23)" above 10 lines. The header now reads "WARNINGS (23 on 10 lines; a file's warnings share one)"; it is unchanged when every warning has its own line.

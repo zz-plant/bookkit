@@ -12,7 +12,7 @@ The rules `bookkit check`, `validate`, `check:build`, `check:runbooks`, and `che
 
 ## Content rules
 
-`bun run bookkit check` and `bun run validate` (every book) apply each section's contract. `bun run bookkit check <file.mdx>` explains a single file, with the book's suggestions about it, and `bun run bookkit contract [section] [--json]` prints what each field needs. The rules that most often surprise an author:
+`bun run bookkit check` and `bun run validate` (every book, or one with `-- --book <book>`) apply each section's contract. `bun run bookkit check <file.mdx>` explains a single file, with the book's suggestions about it, and `bun run bookkit contract [section] [--json]` prints what each field needs. The rules that most often surprise an author:
 
 - **Required fields.** A mechanism needs a `slug` and `title`, an action a `slug`, a `mechanism`, and a name, and a chapter a `slug` and `title`; without them the file is an error. A missing definition, boundaries, steps, or trigger is a warning. A field written at the wrong level, where the build would ignore it, is an error (`FIELD_MISPLACED`).
 - **Bindings.** An action, chapter, or example naming a mechanism the book does not define is an error, with the closest slug suggested. An invalid or duplicate slug is an error.

@@ -1,4 +1,4 @@
-import yaml from "js-yaml";
+import { dump, load, YAMLException } from "js-yaml";
 
 /**
  * The one frontmatter parser: validation, search, exports, MCP, and the
@@ -28,7 +28,7 @@ export const parseFrontmatter = (raw: string): ParsedFrontmatter => {
 	if (!match) return { status: "missing", data: {}, body: raw };
 	const body = raw.slice(match[0].length).trim();
 	try {
-		const data = yaml.load(match[1] ?? "");
+		const data = load(match[1] ?? "");
 		if (data === undefined || data === null) {
 			return { status: "ok", data: {}, body };
 		}
@@ -43,7 +43,7 @@ export const parseFrontmatter = (raw: string): ParsedFrontmatter => {
 		};
 	} catch (error) {
 		const reason =
-			error instanceof yaml.YAMLException
+			error instanceof YAMLException
 				? `${error.reason} at line ${(error.mark?.line ?? 0) + 1}`
 				: String(error);
 		return { status: "invalid", data: {}, body, reason };
@@ -92,4 +92,4 @@ export const frontmatterTextFields = (
  * (quotes, colons, `#`, leading dashes) reads back as the same string.
  */
 export const formatFrontmatter = (data: Record<string, unknown>): string =>
-	`---\n${yaml.dump(data, { lineWidth: -1 })}---\n`;
+	`---\n${dump(data, { lineWidth: -1 })}---\n`;

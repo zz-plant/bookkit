@@ -23,7 +23,7 @@ jobs:
     # Recent runs: under 10 seconds.
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -38,7 +38,7 @@ jobs:
     # Recent runs: 3 to 5 minutes.
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -46,7 +46,7 @@ jobs:
           bun-version-file: package.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -57,7 +57,7 @@ jobs:
       # build re-renders only the cards whose page changed. The key changes
       # with the renderer and its fonts, which start a fresh cache.
       - name: Cache link-preview images
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: apps/*/node_modules/.cache/bookkit-og
           key: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-${{ github.run_id }}
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -113,7 +113,7 @@ jobs:
           bun-version-file: package.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -126,7 +126,7 @@ jobs:
 
       # Each Playwright version pins one Chromium build, so the version names
       # the cache.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ steps.playwright.outputs.version }}
@@ -139,7 +139,7 @@ jobs:
       # The link-preview images governance-and-tests saves (see above); this
       # job only reads them.
       - name: Restore link-preview images
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: apps/*/node_modules/.cache/bookkit-og
           key: bookkit-og-${{ hashFiles('packages/astro-bookkit/src/seo/og-image.ts', 'packages/astro-bookkit/src/seo/og-render.ts', 'bun.lock') }}-${{ github.run_id }}
@@ -171,7 +171,7 @@ jobs:
       BOOKKIT_MODEL_CACHE: ${{ github.workspace }}/../bookkit-models
       BOOKKIT_DOWNLOAD_MODEL: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -187,7 +187,7 @@ jobs:
           id="$(bun -e 'import { DEFAULT_EMBEDDING_MODEL_KEY, EMBEDDING_MODELS } from "./scripts/lib/embed-text.ts"; console.log(EMBEDDING_MODELS[DEFAULT_EMBEDDING_MODEL_KEY].id)')"
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ env.BOOKKIT_MODEL_CACHE }}
           key: embedding-model-${{ steps.model.outputs.id }}
@@ -210,7 +210,7 @@ jobs:
     # Recent runs: 1 to 3 minutes.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -218,7 +218,7 @@ jobs:
           bun-version-file: package.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 

@@ -155,8 +155,10 @@ jobs:
       # home page and hub, the touch-only menu, and the heading keys
       # (scripts/reader-wayfinding.browser.ts); feedback, a bad address,
       # and stored data shown as text (scripts/untrusted-text.browser.ts);
-      # and, on a server build of on-call, Ask asking before the reader's
-      # browser downloads its models (scripts/ask-panel.browser.ts).
+      # on a server build of on-call, Ask asking before the reader's
+      # browser downloads its models (scripts/ask-panel.browser.ts); and a
+      # Chromium started after another closed surviving a garbage
+      # collection (scripts/chromium-relaunch.browser.ts).
       # A case may run twice (scripts/lib/browser.fixture.ts), so the step's
       # limit leaves room for a slow run; it takes about 35 s.
       - name: Search and reading keys (browser tests)

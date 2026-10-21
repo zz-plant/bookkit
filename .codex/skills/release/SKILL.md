@@ -35,9 +35,8 @@ Use for release operations and versioned publication changes, such as:
 
 Minimum release lane checks:
 
-- `bun run validate`
-- `bun run validate:release`
-- `bun run check:upgrade -- --release`
+- `bun run validate` (release rules follow each book's `status`; `validate:release` is an alias)
+- `bun run verify -- --all`
 
 Recommended for route/UI release changes:
 
@@ -51,5 +50,5 @@ Recommended for route/UI release changes:
 - **What changed:**
 - **Reader impact:**
 - **Before/after behavior:** (required if release UX/routes changed)
-- **Checks run:** include `validate:release` and `check:upgrade -- --release`
+- **Checks run:** include `validate` and `verify -- --all`
 - **Migration/compatibility notes:** redirects, deprecations, or schema implications

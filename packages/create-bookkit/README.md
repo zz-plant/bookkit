@@ -27,9 +27,9 @@ Then, in the new project:
 
 ```bash
 bun install
+git init && git add -A && git commit -m "First draft"   # check:types lists files with git; deploy publishes from a commit
 bun run dev                    # preview the book
 bun run verify -- --all        # every check: types, content, shared wrappers, build
-git init && git add -A && git commit -m "First draft"   # deploy publishes from a commit
 bun run deploy -- --dry-run    # check content, build, verify dist/, stop before publishing
 bun run bookkit help           # every command
 ```
@@ -47,7 +47,7 @@ bun run bookkit help           # every command
 | `bookkit.json` | The engine version the project came from, and which scripts belong to it. |
 | `bun.lock` | Starts as the repository's lockfile, so a new project installs the versions the engine is tested with. |
 
-The project's `deploy` runs `bookkit deploy`, the same command the repository uses. It validates content, builds, checks `dist/` with `check:build`, and only then publishes to Cloudflare Workers. It publishes from a git commit, so initialize and commit the project first.
+The project's `deploy` runs `bookkit deploy`, the same command the repository uses. It validates content, builds, checks `dist/` with `check:build`, and only then publishes to Cloudflare Workers. It publishes from a git commit, and `verify` needs one too, so initialize and commit the project first.
 
 ## Update the engine
 

@@ -57,13 +57,11 @@ A traditional book is frozen at print time. A Bookkit book is a living codebase 
 
 **The key insight:** author decisions and engine expression are decoupled. Engine upgrades — new export formats, new AI features, new MCP tools — propagate to every book without touching content. Content edits don't break the build.
 
-**Enforceable constraints:**
+**Constraints, and what holds each one:**
 
-- `examplesMustBeSwappable` — changing an example must not change the mechanism it illustrates.
-- `orderingModel: "constraint-graph"` — reading sequence is derived from prerequisite dependencies, not a single canonical order.
-- `actionPrimitiveMaxMinutes: 10` — every tool step must be completable in a single focused session.
-
-These are not guidelines. They are compile-time checks.
+- **Actions take 10 minutes or less.** The toolkit schema rejects a `timeboxMinutes` over 10 (`TIMEBOX_TOO_LONG`), whatever `constraints.actionPrimitiveMaxMinutes` says.
+- **Reading order is a graph over the chapters.** Chapters are read in file order (or `order:`), and `prerequisites:` connect them. An unknown prerequisite is an error once the book is published, one that comes after its chapter is a warning, and readers see a chapter's prerequisites as "Read first". `constraints.orderingModel` records the intent; no check reads it.
+- **Examples are swappable.** Changing an example must not change the mechanism it illustrates. `check:suggestions` flags an example that restates its mechanism's definition; it advises and never fails a check, and no check reads `constraints.examplesMustBeSwappable`.
 
 ---
 
@@ -84,7 +82,7 @@ This is not a chatbot bolted onto a book. The content carries enough structure t
 
 When you treat a book as software, several things stop being optional:
 
-- **Structure becomes enforceable.** Frame steps are validated at build time, not reviewed by memory.
+- **Structure becomes enforceable.** Frame steps are checked by `validate`, not reviewed by memory.
 - **Examples become swappable.** Changing a case study doesn't change the mechanism it illustrates.
 - **The stack becomes replaceable.** The same content compiles into web, PDF, EPUB, or API output.
 - **Authorship becomes durable.** Decisions are explicit and machine-checkable. They survive tooling changes.

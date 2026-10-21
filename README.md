@@ -1,9 +1,9 @@
-# Bookkit — Recompilable Books (Astro + Bun)
+# Bookkit
 
 <p align="center">
   <a href="https://github.com/zz-plant/bookkit/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zz-plant/bookkit/ci.yml?branch=main&style=flat-square&label=tests" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-CC0--1.0-informational?style=flat-square" alt="License: CC0-1.0"></a>
-  <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%3E%3D1.3-black?style=flat-square&logo=bun&logoColor=white" alt="Bun"></a>
+  <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-1.3.14-black?style=flat-square&logo=bun&logoColor=white" alt="Bun 1.3.14"></a>
 </p>
 
 <picture>
@@ -13,7 +13,9 @@
 
 <sub>Two pages of the On-Call Runbook as Bookkit builds it: the Incident Triage mechanism, and the 10-minute tool that applies it.</sub>
 
-Bookkit is a **book compiler**, not a CMS and not an editor. A book is a specification with hard structure; the engine validates it, frames it, and renders it into verified artifacts. Content cannot drift into abstraction — the compiler stops it.
+Bookkit compiles a nonfiction book, written as MDX files, into a website with search, a PDF, an EPUB, and an MCP endpoint for AI agents. Each file is a typed record (a chapter, a mechanism, an action, an example, or a glossary entry), and Bookkit checks every record against its contract before it builds or publishes the book.
+
+It is a set of command-line tools in a [Bun](https://bun.sh) workspace, built on [Astro](https://astro.build). There is no editor and no CMS: you edit files, run `bun run bookkit`, and commit with git.
 
 > **AI may propose; the compiler decides.**
 
@@ -24,63 +26,58 @@ Bookkit is a **book compiler**, not a CMS and not an editor. A book is a specifi
 
 <sub>Real output of `bun run bookkit check` on a toolkit action broken on purpose: a 45-minute timebox, and a mechanism the On-Call Runbook doesn't define. `bun run verify`, which CI runs, fails on the same two errors.</sub>
 
-## Start here
+## Who it is for
 
-Writing goes through one command, `bun run bookkit`. After `bun install`:
+Bookkit fits a book that names the causes behind a problem and gives the reader an action for each one: an incident runbook, an operating procedure, a field guide, or an argument for change that ends in concrete remedies. Its contracts are built for that shape:
 
-```sh
-bun run bookkit                          # where each book stands, and the next thing to write
-bun run bookkit use running-hot          # pick your book once; commands default to it
-bun run bookkit new chapter "Repair has a clock"
-bun run bookkit dev                      # preview in the browser, live reload
-bun run bookkit check <file.mdx>         # what a file still needs, field by field, with fixes
-bun run bookkit try <folder>             # what your existing docs would become; writes nothing
-bun run verify                           # the checks your change needs, before you commit
-```
+- every action takes 10 minutes or less (`timeboxMinutes` over 10 is an error, and the limit is not configurable);
+- every action applies a mechanism the book defines;
+- the book declares a frame, and its overview chapter is checked for a heading per frame step.
 
-You don't have to memorize arguments. `bun run bookkit new` asks what to start (chapter, mechanism, tool, example) and anything else it needs, offering the book's mechanisms to pick from. A mistyped command, book, or mechanism gets the closest match suggested. `bun run bookkit help` lists every command.
+It is the wrong tool for fiction, memoir, essays, or narrative history. Those books have no mechanisms or 10-minute actions for the checks to hold them to, and the reader site is organized around both.
 
-### Already have documents? See what they would become
+It is also not a documentation-site generator or a blog engine: the site is built from the record types below, not from free-form pages.
 
-`bun run bookkit try <folder>` reads any folder of Markdown (a wiki export, a runbook repo, a blog archive) and writes nothing. It shows the shape Bookkit would hold the folder to and how much of it each document already has, the named ideas that recur across documents, and the commands that turn the folder into a book. Real output on three runbooks exported from a team wiki, trimmed to the analysis:
+Using it requires a terminal, git, and Markdown. You work in a text editor; nothing is edited in the browser.
 
-```txt
-$ bun run bookkit try runbooks
-  3 files, 150 words: 3 prose documents
+## Terms
 
-Shape: Runbook (detected from the wording, 100% of the signals)
-  Every document needs a section for each step: a heading or a "Label:" line whose words start like the step.
-    ✓ Ownership     2 of 3
-    ✓ Trigger       1 of 3
-    ✓ Steps         2 of 3
-    ✓ Escalation    2 of 3
-    ✓ Verification  1 of 3
-  2 of 3 would fail a runbook check today.
+| Term | What it is | Where it lives |
+| --- | --- | --- |
+| **Book** | One app: the author's decisions, the content, and the pages every book shares. | `apps/<slug>/` |
+| **Book config** | The author's decisions: title, status, frame, objectives, the book's causal claim, site URL, page copy. Typed by `BookConfig`. | `apps/<slug>/src/book.config.ts` |
+| **Chapter** | Prose, in reading order (file order, or `order:`). Its frontmatter lists the mechanisms it uses and the chapters to read first (`prerequisites:`). | `src/content/book/chapters/NN-<slug>.mdx` |
+| **Mechanism** | A named cause the book argues for: a one-sentence definition, what it is and is not, predictions, and tests. Its slug is a durable identifier; changing what it means is a breaking change. | `src/content/book/mechanisms/<slug>.mdx` |
+| **Toolkit action** (also: action primitive, tool) | Steps a reader can carry out in 10 minutes or less to act on one mechanism: a trigger, the steps, what failure looks like, and the legitimate demand it unlocks. | `src/content/book/toolkit/<slug>.mdx` |
+| **Frame** | The book's shape, chosen with `frame.slug`; the four frames are listed below. | `book.config.ts` |
+| **Example** | A case that shows one mechanism in one setting (`domain`). Replacing it must not change what the mechanism means. | `src/content/book/examples/<mechanism>/<slug>.mdx` |
+| **Glossary entry** | A term readers meet, optionally listing the mechanisms it names. | `src/content/book/glossary/<slug>.mdx` |
+| **Release note** | A version, a date, and what changed. The release notes page, the RSS feed, and the exports' metadata read it. | `src/content/book/releases/<date>-<slug>.mdx` |
 
-Ideas that recur (named across documents; register each once, then every document binds to it)
-  Incident Commander  3 times in 3 documents
-  Ledger Service      3 times in 2 documents
-  Refund Worker       2 times in 2 documents
+The frames and the steps each one requires:
 
-1 document uses {braces}, <tags>, HTML comments, or <autolinks>; import converts them so they compile as MDX.
-```
+| `frame.slug` | Required steps in `chapters/00-overview.mdx` |
+| --- | --- |
+| `intervention` (default) | recognition, exoneration, mechanism, agency |
+| `explainer` | definition, example, implication |
+| `field-guide` | steps, failure-modes, checklist |
+| `runbook` | ownership, trigger, steps, escalation, verification |
 
-The same analysis is a gate. `bun run bookkit check <folder> --frame runbook` exits 1 when a document is missing a section or a contract file breaks its contract, so a folder can be checked in CI where it lives, without converting it first. `--json` hands the whole result to a pipeline or an agent. To make the folder a book, `bun run bookkit new book <slug> --from <folder>` (it imports the folder into the new book), then `bun run bookkit propose <slug>`.
+A step counts when a heading (levels 1 to 4) begins with its name, hyphens included: `## Recognition`, `## Failure-modes`. A missing step is a warning. In a runbook book every action also needs `escalation` and `runbookSteps` (a warning in a draft, an error once published), and `bun run check:runbooks` derives the book's control coverage matrix.
 
-### Example: the On-Call Runbook
+### Status
 
-`apps/on-call/` compiles one operating procedure into a web book *and* an audit surface. Each control maps to a mechanism, each mechanism to a 10-minute tool, and each tool to a drill and an escalation ramp. `bun run check:runbooks` derives the compliance matrix:
+The book's `status` in `book.config.ts` decides which rules apply and whether search engines may index the book.
 
-```txt
-$ bun run check:runbooks
-COMPLIANCE on-call: 4/4 controls with tool coverage
-  DIAG-REPRO-01 → minimal-repro-doc [capture-repro] ✓drilled ⚠review overdue (due 2026-03-12)
-  ESC-RAMP-01 → bounded-escalation [ramp-escalation] ✓drilled ⚠review overdue (due 2026-03-12)
-  INC-TRIAGE-01 → incident-triage [classify-alert-severity] ✓drilled ⚠review overdue (due 2026-03-12)
-  REL-ROLLBACK-01 → rollback-first-change [identify-rollback-candidate] ✓drilled ⚠review overdue (due 2026-02-24)
-```
+| Book status | Checks | Search engines |
+| --- | --- | --- |
+| `draft`, or no status | Draft records are allowed. Broken links, unknown prerequisites, and unsafe links are warnings. | Every page is `noindex`, `robots.txt` disallows everything, and the sitemap is empty. |
+| `in-review` | As for `draft`, except that a book with no chapters is an error (`BOOK_EMPTY`). | As for `draft`. |
+| `published`, `stable` | Release rules: a draft record is an error (`DRAFT_IN_RELEASE`), as are broken links, unknown prerequisites, unsafe links, missing runbook fields, and a book with no chapters. `site.url` must be a public address and `site.indexable` must not be `false`. | Indexable. |
 
-(The reviews read as overdue because the book's release dates are fixtures.)
+Every chapter, mechanism, action, example, and glossary entry has its own `status` with the same four values (default `draft`). A draft record is still built and shown: chapter pages label any status other than published. A record marked `published` or `stable` is held to release rules even in a draft book.
+
+Errors exit 1 whatever the status; `bun run validate:release` is an alias of `bun run validate`.
 
 ## How a book compiles
 
@@ -89,380 +86,408 @@ COMPLIANCE on-call: 4/4 controls with tool coverage
   <img src="docs/assets/how-a-book-compiles-light.svg" width="880" alt="Diagram. Intent (book.config.ts) and content (src/content/book/) from the author, and proposals from agents and analyzers, all stop at one line: the compiler gates, which are contract, separation, corpus, and build. What passes becomes the read UI, PDF and EPUB, the MCP endpoint, and a coverage matrix for runbook books.">
 </picture>
 
-1. **The author decides intent** in `apps/<book>/src/book.config.ts`: goals, constraints, a frame (intervention, explainer, field-guide, or runbook).
-2. **Content binds to structure** in `apps/<book>/src/content/book/`: chapters, mechanisms, toolkit primitives, examples, glossary.
-3. **The compiler gates every change**: each file against its section's contract (required fields, tools of 10 minutes or less, mechanisms the book defines), separation of concerns, one meaning per mechanism across books, and a build whose `dist/` passes `check:build`. `bun run verify` runs these gates and CI runs `verify --all`. A framing chapter that lacks a step its frame requires gets a warning.
-4. **AI proposes, gates decide**: deterministic analyzers suggest mechanisms, prerequisite edges, example swaps, and runbook coverage — but nothing AI-generated bypasses a validator.
-5. **Verified artifacts compile out**: read UI, PDF/EPUB exports, an MCP endpoint, and (for runbook books) a coverage/compliance matrix.
-
-## What's here
-
-- **4 books on one engine**: three nonfiction books (`bad-people`, `running-hot`, `crumple-zone`) and the `on-call` runbook. `bun run list:books` is the source of truth.
-- **No silent drift**: schemas, frames, and shims are enforced by gates (`validate`, `check:shims`, `check:separation`), and `check:corpus` keeps a mechanism meaning one thing across books.
-
----
-
-## TL;DR (for developers and agents)
-
-- **Engine logic** lives in `packages/astro-bookkit/**`.
-- **Book decisions** live in `apps/<book>/src/book.config.ts`.
-- **Book content bindings** live in `apps/<book>/src/content/book/**`.
-- Do not put book-specific behavior in content files.
-- Run `bun run verify` before opening a PR: it runs the checks your change needs, and CI runs `verify --all`.
-
-For how the whole system fits together, see [`docs/architecture.md`](./docs/architecture.md). For contribution lanes and workflow, see [`CONTRIBUTING.md`](./CONTRIBUTING.md). For non-negotiable architectural rules, see [`AGENTS.md`](./AGENTS.md). For the reasoning behind the invariants, see [`docs/design-notes.md`](./docs/design-notes.md).
-
----
-
-## Documentation map
-
-| Document | Canonical for | Audience |
-| --- | --- | --- |
-| [`README.md`](./README.md) | Orientation + operational commands | Developers + maintainers |
-| [`docs/architecture.md`](./docs/architecture.md) | System structure: layers, pipelines, module map, import rules | Developers + agents |
-| [`AGENTS.md`](./AGENTS.md) | Architectural invariants + risk boundaries | Agents + reviewers |
-| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow + lanes | Human + AI contributors |
-| [`docs/design-notes.md`](./docs/design-notes.md) | Why the invariants exist + error philosophy | Reviewers + new contributors |
-| [`docs/authorship-model.md`](./docs/authorship-model.md) | "Book as Software" philosophy + three-pillar model | Authors + contributors |
-| [`docs/bets.md`](./docs/bets.md) | What gets worked on next and why: anchor, active bets, parked work | Maintainers + agents |
-| [`docs/tech-debt-register.md`](./docs/tech-debt-register.md) | The queue of cross-cutting debt | Maintainers |
-| [`CHANGELOG.md`](./CHANGELOG.md) | Dated behavior changes and migration notes | Everyone |
-| [`.codex/skills/`](./.codex/skills/README.md) | Lane checklists for agents (content, engine, release, reader typography) | Agents |
-| [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md), `apps/<book>/README.md` | Package- and book-local orientation | Engine and book contributors |
-
-Prefer linking to canonical docs over duplicating policy text.
-
----
-
-## Direction
-
-What gets built next is decided in [`docs/bets.md`](./docs/bets.md); the active bet is B1, keeping one author's books one argument with stable, non-overlapping mechanisms. Work that waits until a bet needs it, such as MCP and governance-API hardening and reader forking, is listed there too.
-
----
-
-## Workspace architecture
-
-Bookkit treats a book as an **executable specification**, not a static document; the philosophy is in [`docs/authorship-model.md`](./docs/authorship-model.md). The three layers (author decisions, engine, content bindings) are summarized in the TL;DR above and enforced by [`AGENTS.md`](./AGENTS.md).
-
-```txt
-.
-├─ apps/       # one directory per book: config, content, routes, thin runtime wiring
-├─ packages/   # astro-bookkit (the engine) + create-bookkit (project generator)
-├─ scripts/    # CLI entrypoints: governance gates, scaffolds, compile/export tasks
-└─ docs/       # architecture, bets, design notes, authorship model, debt register
-```
-
-**[`docs/architecture.md`](./docs/architecture.md) is canonical for the rest**: the engine module map, the tier rules that govern which module may import which, the two pipelines (Astro render vs. Bun governance CLI), the content-section contract, and the extension points for adding a frame, a schema field, a gate, or an agent tool.
-
-That document is verified rather than trusted — `bun run check:architecture` fails CI if it stops matching the tree, so the module map, layering, and import cycles it describes are the real ones. Book apps stay thin for one reason worth knowing up front: Vite resolves `import.meta.glob()` relative to the calling file and Astro discovers routes by filename, so `src/lib/book-runtime.ts` and `src/pages/**` must be app-local. Everything else is a re-export held identical across books by `bun run check:shims`.
-
----
+1. **The author decides intent** in `book.config.ts`: the objectives, the frame, and the book's causal claim.
+2. **Content binds to that intent** in `src/content/book/`. A chapter names the mechanisms it uses; an action names its mechanism.
+3. **The checks gate every change**: each file against its contract, content kept free of code (`check:separation`), one meaning per mechanism across books (`check:corpus`), and a build whose `dist/` passes `check:build`. `bun run verify` runs the checks a change needs.
+4. **Analyzers, agents, and judges propose; the author accepts.** Nothing they write skips a check ([Proposals and AI](#proposals-and-ai)).
+5. **The build emits** the reader site, the PDF and EPUB, the MCP endpoint, and, for a runbook book, the coverage matrix.
 
 ## Prerequisites
 
-- **Bun 1.3+** (workspace package manager + task runner)
-- **Node.js 22+** for Astro 7 compatibility
+- **Bun 1.3.14**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`.
+- **Node.js 22.12 or later**, which Astro 7 needs.
+- **git.** `bookkit deploy` publishes from a commit, and `check:types` lists files with git, so a new project needs `git init` and a first commit before `verify`.
+- **To publish:** a Cloudflare account, and `bunx wrangler login` once (or `CLOUDFLARE_API_TOKEN` in the environment).
+- **Optional:** Playwright's Chromium for the accessibility and browser checks (`bunx playwright install chromium`), and about 550 MB of disk for the embedding model that compares mechanisms by meaning. Bookkit asks before it downloads the model.
 
-Install dependencies:
+## Start here
 
-```bash
-bun install
+Pick one of three ways to start a book. Each ends with a book that builds; the starter text in it is yours to replace.
+
+### 1. A project of your own
+
+`create-bookkit` makes a standalone project with one book, a copy of the engine, and the CLI. Neither `create-bookkit` nor the engine is published to npm, so it runs from a clone:
+
+```sh
+git clone https://github.com/zz-plant/bookkit.git
+cd bookkit && bun install
+bun run create-bookkit ../my-book --title "My Book"    # the folder must be outside the clone
+cd ../my-book && bun install
+git init && git add -A && git commit -m "First draft"   # verify and deploy read git
+bun run verify -- --all                                 # types, content, shared pages, and a checked build
+bun run dev                                             # preview at http://localhost:4321
 ```
 
-### Codex setup (recommended)
+`--book <slug>` sets the slug (default: the folder name) and `--dir <folder>` imports a folder of notes as the first chapters. To take a newer engine later, pull the clone and run `bun run create-bookkit ../my-book --upgrade`. It replaces only what the engine owns (`packages/astro-bookkit/`, the scripts listed in `bookkit.json`, the shared pages, `tsconfig.base.json`, `bun.lock`, and the package entries it manages), lists what it changed, and never writes content or `book.config.ts`. A shared page you had edited is saved beside it as `_<name>.before-upgrade`. See [`packages/create-bookkit/README.md`](./packages/create-bookkit/README.md) for the project layout.
 
-To bootstrap local Codex usage for this repo (dependency install + skill linking + baseline checks):
+### 2. A book in this repository
 
-```bash
-bun run setup:codex
+In a clone, after `bun install`:
+
+```sh
+bun run bookkit new book my-book --title "My Book"     # --frame runbook|explainer|field-guide
+bun run bookkit dev my-book
 ```
 
-For faster iteration (skip install/checks), run:
+The book starts from the engine's starter (`packages/astro-bookkit/templates/starter/`): one placeholder chapter, mechanism, action, example, glossary entry, and release note, all drafts, in a `draft` book. `new book` formats the files, runs `bun install`, and makes the book the current one; commit the `bun.lock` change with it. `--skip-starter-content` leaves the content folders empty, and `--no-install` skips the install. `bun run new:book -- --book <slug>` is the same scaffold without the import option.
 
-```bash
-bash scripts/codex-setup.sh --skip-install --skip-checks
+To delete a book app, `bun run remove:book -- --book <slug>` shows what it would delete and asks you to type the name. `--dry-run` deletes nothing, `--yes` skips the question for scripts, and `--force` allows uncommitted changes in the book.
+
+### 3. From a folder of notes
+
+```sh
+bun run bookkit try ~/notes                              # what the folder would become; writes nothing
+bun run bookkit new book my-book --from ~/notes          # a new book whose chapters are the notes
+bun run bookkit import my-book --dir ~/notes --dry-run   # or into an existing book: the plan first
+bun run bookkit import my-book --dir ~/notes
 ```
 
----
+`try` names the frame the notes read as, how many documents carry each of its steps, the ideas that recur across documents, and the links and markup import would change. Import writes chapters only; mechanisms, actions, and glossary entries stay yours to define, and `bun run bookkit propose my-book` drafts them from the ideas that recur. What import does to each note is under [Import](#import).
+
+### Then replace the starter text
+
+The checks name every placeholder still in `book.config.ts`: the three `objectives`, `frame.intent`, and `causalStance`. Each is a warning in a draft and an error once the book is published. Set `site.url` to the address the book will have, write the chapters, and set `status: "published"` when the book should be found.
 
 ## Daily commands
 
-### Writing a book
+`bun run bookkit` with no command lists your books with their chapters, stubs, mechanisms, and actions, then the commands to write, check, preview, build, and deploy the current one. `bun run bookkit help` lists every command. At a terminal, a command missing an argument asks for it, and a mistyped command, book, or mechanism gets the closest match. Commands run from any folder inside the workspace.
 
-`bun run bookkit` with no command shows where each book stands — chapters (and how many are still stubs), mechanisms, tools — and what to run next. Everything an author does day to day goes through it:
+### Write
 
-```bash
-bun run bookkit                                         # where each book stands
-bun run bookkit new chapter running-hot "Repair has a clock"
-bun run bookkit new mechanism bad-people "Waiting as leverage"
-bun run bookkit dev running-hot                         # preview with live reload
-bun run bookkit dev stop running-hot                    # stop it, when an agent started it in the background (also: status, logs)
-bun run bookkit check running-hot                       # structure + overlap across books
-bun run bookkit help                                    # every command
+```sh
+bun run bookkit use my-book                             # later commands default to this book
+bun run bookkit new                                     # asks what to start, then anything it needs
+bun run bookkit new chapter "Repair has a clock"        # the next chapter, as a draft
+bun run bookkit new chapter "Who holds the lever" --after <chapter-slug>
+bun run bookkit new mechanism "Waiting as leverage" --definition "<one sentence>"
+bun run bookkit new tool waiting-as-leverage "Name the deadline"
+bun run bookkit new example waiting-as-leverage Housing "The repair queue"
+bun run bookkit new release "Second draft"              # releases/<date>-second-draft.mdx, next minor version
+bun run bookkit rename chapter <slug> <new-slug>        # slug, file, other chapters' prerequisites, and links
+bun run bookkit contract mechanism                      # the fields a section needs, and what to write in them
 ```
 
-- `use <book>` remembers the book you're working on (in `.bookkit/`, not committed), so book arguments can be left out, and `bookkit` with no command names its next stub to write. At a terminal, any command missing an argument asks for it; a mistyped name gets the closest match suggested.
-- `new chapter` numbers the file after the book's last chapter, starts it as a draft, and lists the book's mechanisms so the chapter binds existing slugs instead of naming new ones.
-- `new mechanism` looks across every book first. It refuses a slug another book already has (share that file instead) and lists mechanisms with overlapping wording; pass `--force` once you've checked none fits.
-- `check` runs the structure validator, then `check:corpus` across books. `--quick` skips the embedding model.
+`new chapter --after` renumbers the files after the one named when there is no gap. `new mechanism` first looks for a mechanism in any book that covers the same idea and lists it; at a terminal it asks before creating one anyway (`--force` skips the question). `rename chapter --dry-run` lists the changes without writing them.
 
-### Run a book app
+### Check
 
-```bash
-bun run bookkit dev bad-people
-bun run bookkit dev running-hot
+```sh
+bun run bookkit check                    # the current book: errors, overlap with other books, suggestions
+bun run bookkit check --all              # every book
+bun run bookkit check <file.mdx>         # one file, each finding with its field and a fix
+bun run bookkit check ./runbooks --frame runbook   # any Markdown folder, without making it a book
+bun run verify                           # the checks your change needs, chosen from the files it touches
 ```
 
-### Check a change
+`bookkit check <book>` runs three passes. Validation reports errors (which exit 1) and warnings. The corpus check compares the book's mechanisms with other books' (by meaning when the embedding model is present; `--quick` compares wording only) and fails while an overlap is unresolved. Suggestions report mechanisms named in prose but not bound, mechanisms no chapter lists, and recurring terms that may be ideas worth naming; they never fail the check. `bookkit check` on a folder exits 1 on a broken contract file and, with `--frame`, on a missing frame step, so a runbook repository can be gated in its own CI. [What the checks enforce](#what-the-checks-enforce) lists the rules.
 
-```bash
-bun run verify             # the checks your change needs, judged by the files it touches
-bun run verify -- --all    # everything CI runs (CI runs exactly this)
+`bun run verify -- --all` runs every gate: formatting and lint, types, tests, content, shared pages, the architecture map, and a build of every book followed by `check:build`. CI runs it on every push and pull request to `main`. `--list` shows the plan, and `--json` prints the results for an agent.
+
+### Preview
+
+```sh
+bun run bookkit dev                      # the current book at http://localhost:4321, with live reload
+bun run bookkit dev my-book --port 4400
 ```
 
-### Lint / format / types
+`bookkit dev` runs in the foreground until Ctrl-C (exit 130) or SIGTERM (exit 143). A port in use is reported instead of moving to another. `bun run bookkit dev stop|status|logs [book]` finds a server that `bookkit dev` runs in another terminal, or that `astro dev` left in the background.
 
-```bash
-bun run lint
-bun run format
-bun run check:types
+### Build and export
+
+```sh
+bun run bookkit build                    # apps/<book>/dist: the site, exports/book.pdf, exports/book.epub
+bun run bookkit export                   # a GitBook folder in apps/<book>/exports/gitbook
 ```
 
-### Tests
+`bookkit build` builds a book with content errors too; `bookkit deploy` is the command that refuses them. [Exports](#exports) covers what the PDF, EPUB, and GitBook folder contain.
 
-```bash
-bun run test
+### Publish
+
+```sh
+bun run bookkit deploy my-book --dry-run   # every check deploy runs, and wrangler's dry run; publishes nothing
+bun run bookkit deploy my-book --no-build  # publish exactly what that dry run built and checked
+bun run bookkit deploy my-book             # check, build, and publish
 ```
 
-### Validation
+[Deploy](#deploy) covers what deploy checks and how to publish from CI.
 
-```bash
-bun run validate
-bun run validate:release
+## Book configuration
+
+`apps/<book>/src/book.config.ts` exports `bookConfig`, typed `as const satisfies BookConfig`; each field is documented on the type in [`packages/astro-bookkit/src/book/config.ts`](./packages/astro-bookkit/src/book/config.ts). The fields an author sets most:
+
+| Field | Effect |
+| --- | --- |
+| `status` | `draft`, `in-review`, `published`, or `stable`; see [Status](#status). |
+| `frame.slug`, `frame.intent` | The frame, and what the book moves the reader through. |
+| `objectives`, `causalStance` | Who the reader is at the start and the end, and the book's causal claim. Both show on the "About this book" page (`/read/overview`). |
+| `author: { name, url? }` | The byline on the home page and in each page's colophon. |
+| `site.url` | The published address: canonical links, the sitemap, `robots.txt`, and the exports' links use it. |
+| `site.indexable` | `false` keeps a published book out of search engines and fails the release check. |
+| `site.minIndexableWords` | Chapters with less prose than this (default 60; `0` turns it off) stay readable but are `noindex` and left out of the sitemap and search. |
+| `site.runtime` | `"static"` (default) or `"server"`; see [Server runtime](#server-runtime). |
+| `home` | The home page's `kicker` and its mechanisms card (`mechanismsCard: { title, description }`). |
+| `readHub` | The reading hub's `lede` and its "Where to start" cards (`quickStartCards: [{ title, description, href, recommended?, funnelStep?, eyebrow? }]`). Leave the cards out for the defaults: About this book, the chapters in order, and "Start with chapter 1: <title>". |
+| `mechanismsIndex` | The mechanisms index's `lede`, and an `urgency` per mechanism slug (`urgent`, `high-leverage`, or `stabilize`) that orders the list and adds filters. A slug that names no mechanism is a warning in a draft and an error once published. |
+| `relatedBooks` | `[{ title, href, description? }]`, listed as "Other books" on the home page. |
+| `exports.pdf` | `false` publishes without a PDF. |
+| `exports.pdfFont` | A TTF or OTF file, relative to `apps/<book>/`, for scripts the bundled fonts lack, such as CJK. |
+| `previewAccess` | Token-gated previews. Static builds cannot honor it: `check:build` fails a static build that enables it. |
+| `features.aiQa` | `false` turns off the reader's Ask panel, which otherwise appears on a server runtime; see [What readers get](#what-readers-get). |
+| `reviewsAsOf` | For a runbook book whose content is an example: the date `check:runbooks` judges review cadence on, instead of today. |
+
+The home page, reading hub, and mechanisms index are shared pages, so their copy lives in these fields rather than in the page files.
+
+## What the checks enforce
+
+`bun run bookkit check` and `bun run validate` (every book) apply each section's contract. `bun run bookkit check <file.mdx>` explains a single file, and `bun run bookkit contract [section] [--json]` prints what each field needs. The rules that most often surprise an author:
+
+- **Required fields.** A mechanism needs a `slug` and `title`, an action a `slug`, a `mechanism`, and a name, and a chapter a `slug` and `title`; without them the file is an error. A missing definition, boundaries, steps, or trigger is a warning. A field written at the wrong level, where the build would ignore it, is an error (`FIELD_MISPLACED`).
+- **Bindings.** An action, chapter, or example naming a mechanism the book does not define is an error, with the closest slug suggested. An invalid or duplicate slug is an error.
+- **Reading order.** A prerequisite that comes after its chapter in reading order is a warning (`PREREQUISITE_ORDER`), as is a release note the release page cannot list (no version or date, or a date that is not YYYY-MM-DD).
+- **Links.** An address is allowed when it has no scheme (a page of the book, an anchor, a relative path) or uses `http`, `https`, `mailto`, `tel`, or `ftp`. Any other, such as `javascript:`, `vbscript:`, `data:`, or `file:`, is `UNSAFE_LINK` (an error in published content, a warning in a draft), in a Markdown link and in an `href`, `xlink:href`, `formaction`, `<iframe src>`, or quote `cite`. The site keeps the link's words and drops the address; an `<iframe>` without a safe `src` is left out. A link that opens a new window gets `rel="noopener"`.
+- **Raw HTML.** Content may use the elements Markdown writes, the presentational ones import keeps (`<kbd>`, `<details>`, `<sup>`, `<span>`, tables, …), and an `<iframe>` with a safe `src`; the list is `packages/astro-bookkit/src/utils/html-allowlist.ts`. Each element keeps the global attributes (`id`, `class`, `title`, `lang`, `dir`, `role`, `aria-*`) and its own (`href` on `<a>`, `src` and `alt` on `<img>`, `colspan` on `<td>`, …). `<script>`, `<style>`, `<meta>`, `<link>`, `<base>`, `<template>`, `<noscript>`, and `<title>` are left out with what they hold, and any other element (a form, a button, an `<svg>`, a `<video>`) is left out keeping its contents. Event handlers, `style`, `data-*`, `srcdoc`, `set:html`, and unlisted attributes are removed. Each is `UNSAFE_HTML`, an error in published content and a warning in a draft, with the line, what goes, why, and the fix.
+- **Code in MDX.** An expression that is not a comment or a plain literal, a spread (`{...props}`), and an `import`/`export` block are removed, because the build would run them unchecked; components keep only plain props. These are `UNSAFE_HTML` too.
+- **Content is data.** Content files may not import modules or contain `<script>` or `<style>` (`check:separation`).
+- **Glossary links (advice).** Validation lists, as INFO, each chapter's first use of a glossary term that is not a link, with file and line. It never fails a check; `validate-book --json` reports it under `info`.
+
+`bun run check:build` inspects each built `dist/`, and deploy and CI run it after every build:
+
+- the home page, 404 page, `robots.txt`, sitemap, search index, release-notes feed, and `exports/book.epub` exist, and `exports/book.pdf` unless `exports.pdf` is `false`;
+- no page rendered as a preview lockout, and preview access refused on a static build;
+- a published or stable book is indexable; any other book is `noindex`; any book but a draft has at least one chapter page;
+- canonical links, `robots.txt`, and the sitemap name one host; every sitemap URL is a built page whose canonical is that URL, and every search result lands on a built page and heading;
+- author tools (`/read/analytics`, `/read/tools`, `/new-book`) are `noindex`;
+- every page's link-preview image exists (an SVG-only image is a warning); no client code ships as raw TypeScript; every `.json` file parses;
+- every PDF and EPUB in `dist/exports/` passes the engine's structural checks: no PDF link points at a destination the PDF lacks, no export link uses a scheme the link rule refuses, and no EPUB page holds an element or attribute the allowlist refuses.
+
+`bun run check:runbooks [--book <slug>]` audits a runbook book's controls (mechanism, action, drill, escalation, owner), prints its compliance matrix, and flags drift between release notes and the current coverage. `--mode error` fails on an overdue review, an undrilled control, or a control with no action.
+
+### Accessibility
+
+`bun run check:a11y` builds every book and runs axe-core over each page type and the open panels, in light and dark, at desktop and phone widths. It fails on a serious or critical violation. `bun run test:browser` drives search and the reading keys by keyboard. Both need Playwright's Chromium once (`bunx playwright install chromium`), and CI runs both in its `accessibility` job.
+
+## Proposals and AI
+
+Three things can propose changes to a book, and none can bypass a check:
+
+- **Analyzers.** `bun run check:suggestions [book]` lists overlapping mechanisms, recurring terms that are not registered (each with its count, files, and an example sentence), examples that restate a mechanism, and missing prerequisite edges. `bun run bookkit propose [book]` turns them into a proposal bundle: a frame reading, mechanism drafts, prerequisite edges, starter actions, and a `book.config.ts` draft. Both are deterministic (no model, no network) and write nothing until you ask.
+- **Agents**, through the [MCP endpoint](#mcp): `bookkit.check_content` compiles a candidate file without writing it, and the same checks decide.
+- **Judges**, an LLM or a person asked blind whether two mechanisms are one idea; see [Several books](#several-books-one-meaning-per-mechanism).
+
+```sh
+bun run bookkit propose my-book                       # review the bundle
+bun run bookkit propose my-book --write               # also save it to apps/my-book/proposals/
+bun run bookkit propose my-book --apply mechanisms --apply edges   # or --apply all
 ```
 
-### Full upgrade safety net
+`--apply` writes drafts into the content tree: `mechanisms/`, `toolkit/`, and chapters' `prerequisites:`. A mechanism draft has its name, `status: draft`, and the evidence, and leaves the definition, `is`, and `isNot` to you; a starter action is `<mechanism>--starter-tool`. It never overwrites a registered record, keeps the reading graph acyclic (an edge that would close a loop is skipped and named), and writes a config draft to `proposals/book.config.draft.ts`, never to the live `book.config.ts`. `--id <proposal>` keeps one proposal, and `--detect-frame` reports what the text implies even when the book declares a frame.
 
-```bash
-bun run check:upgrade
-bun run check:upgrade -- --release
+### Model downloads
+
+Comparing mechanisms by meaning uses `nomic-ai/nomic-embed-text-v1.5`, about 550 MB, through the optional `@xenova/transformers` dependency. It is downloaded once, and only with consent:
+
+- at a terminal, `bookkit check`, `bookkit similar --semantic`, and `check:corpus` ask first;
+- elsewhere, `--download-model` or `BOOKKIT_DOWNLOAD_MODEL=1` allows it; without either, wording alone is compared and the output says so;
+- the MCP tools compare meaning only when the model is cached or `BOOKKIT_DOWNLOAD_MODEL=1` is set in the MCP server's environment.
+
+The cache is inside `node_modules`, so a reinstall deletes it; set `BOOKKIT_MODEL_CACHE` to keep it elsewhere. `--quick` (`bookkit check`) and `--no-semantic` (`check:corpus`) skip the model.
+
+## Several books: one meaning per mechanism
+
+When one author keeps several books in a workspace, `bun run check:corpus` holds each mechanism to one meaning across them. `corpus.json` at the workspace root names the books that share a vocabulary; a book outside that list is compared only with itself. A lexical pass compares wording, a semantic pass compares meaning (cutoff 0.79 for the default model; `--threshold`), and judges' verdicts in `corpus-judgments.json` flag pairs that word the same idea differently. Close pairs are grouped into clusters, each one a decision for the author: one mechanism, or two with sharper boundaries.
+
+```sh
+export BOOKKIT_JUDGE_COMMAND="claude -p"      # any program that reads a prompt on stdin and prints its reply
+bun run bookkit judge <mechanism>             # three blind judges on its nearest pairs; records their calls
+bun run bookkit rule <a> <b> --distinct "<what each one's lever is>"
+bun run bookkit merge <keep> <drop> --reason "<the lever and evidence they share>" --dry-run
+bun run bookkit sync <mechanism>              # copy the copy edited last to the mechanism's other books
 ```
 
-### Build / compile / export
+- **`judge [mechanism]`** writes one blind prompt per judge under `.bookkit/judging/` and, with a judge command (`--run "<command>"` or `BOOKKIT_JUDGE_COMMAND`), asks each judge in an empty folder of its own and records the answers. Without one, paste each prompt into a fresh session, save the replies as `answer-<n>.json` in the request folder, and run `bookkit judge record`. A verdict stops applying when either mechanism's text changes.
+- **`rule <a> <b> --distinct "<reason>"`** records in `corpus.json` that two mechanisms are different ideas.
+- **`merge <keep> <drop> --reason "<why>"`** records that they are one: in every book of the corpus, `<drop>` becomes `<keep>` with one contract, its glossary entry and examples move, and references are rebound. It removes `/read/mechanisms/<drop>`; note that in a published book's release notes.
+- **`sync <mechanism>`** copies a shared mechanism's contract to its other books, so the copies do not drift.
 
-```bash
-bun run bookkit build bad-people            # the site, plus dist/exports/book.pdf and book.epub
-bun run compile:book -- --book bad-people
-bun run bookkit export bad-people           # a GitBook folder (apps/<book>/exports/gitbook), and where the PDF is
+`check:corpus --book <slug>` reports only the pairs that involve one book. `--mode error` exits 1 while a cluster, drift, or stale ruling remains; `--json` and `--export <file>` print machine output, and `--eval` scores the models and the judges against the author's recorded rulings.
+
+## What readers get
+
+- **Wayfinding.** Each chapter says "Chapter N of M". The menu lists the reading sections and marks the current one. The home page and reading hub offer "Continue: <chapter>" for the last chapter opened on this device, with Clear, and a draft book says it is a draft on both. `[` and `]` jump to the previous and next section heading on a page.
+- **Links both ways.** A mechanism page lists the chapters that use it and the glossary terms that name it. A chapter shows its prerequisites as "Read first" and the actions for its mechanisms. An action links its mechanism's examples and chapters, and a glossary term links each mechanism it lists.
+- **Toolkit pages** show a runbook action's owner, review cadence, steps by situation, escalation, and drills, in the order the PDF and EPUB use.
+- **Search** matches the words a page shows, including an action's trigger and steps, a mechanism's definition, and inline code; code blocks and MDX comments are left out. Results come in one list, best match first, each naming its section and, for a heading, its page. The search field is an ARIA combobox, so a screen reader announces the result the arrow keys select. A 404 page offers a search for the words of the missing address.
+- **Releases.** The release notes page and RSS feed list each release note, with dates as written, whatever the build's time zone. The version archive links each older version to its entry in the release notes.
+- **Ask** (server runtime only): a panel that answers a question from the book's passages and cites them. It is on unless `features.aiQa` is `false` (the starter sets `false`). The server writes the answer with `OPENAI_API_KEY` or `GROQ_API_KEY`; without either, the panel shows the matching passages. On a reader's first question, the browser downloads two small models from Hugging Face (`Xenova/all-MiniLM-L6-v2` and `Xenova/ms-marco-MiniLM-L-6-v2`) to rank passages; there is no prompt before the download, and the panel's "Turn off" button disables Ask in that browser.
+- **What search engines and link previews see.** A page's title is its own name and the book's short title; its description is the chapter's `summary`, a definition, an action's trigger, or the first paragraph. Every page gets a PNG link-preview image in the book's typefaces, and ends with a colophon: title, byline, `site.defaultMeta.description`, and a link to start reading.
+
+## Exports
+
+`bookkit build` writes `dist/exports/book.pdf` and `dist/exports/book.epub`, plus one PDF and EPUB per chapter under `dist/exports/chapters/`. The book files hold the whole book in reading order: the chapters, each mechanism followed by its actions, the glossary, and the examples, with a table of contents and, in the PDF, bookmarks. Title, author, and language come from `book.config.ts`, the version and date from the latest release note, and a rebuild of unchanged content is byte-identical.
+
+- **Markdown.** Inline code, fenced code at any indentation, GFM tables, task lists, nested lists, reference-style links, footnotes, setext headings, rules, and HTML character references. The PDF draws code in Courier, tables as a grid that fits the page (row by row when columns would be too narrow), and footnotes as numbered notes after each entry; the EPUB uses EPUB 3 endnotes that link back.
+- **HTML.** The tags import keeps render in both formats: `<kbd>`, `<details>` (shown open, its summary in bold), `<sup>`, `<sub>`, HTML tables and lists, and `align`. Other tags show their text, a script's text never shows, and an embed (`<iframe>`) becomes a link to the page it shows, named by its title.
+- **Links.** Headings carry the site's ids. In the PDF, text is set in bold and italic faces and links are clickable: to a chapter, mechanism, or heading inside the PDF (`book.pdf#nameddest=chapters/overview`), else to the site. A link whose scheme the link rule refuses shows only its text.
+- **Images.** Images under the book's `public/` folder are embedded: PNG, JPEG, GIF, SVG, and WebP in the EPUB, PNG and JPEG in the PDF. A remote image (never downloaded), a missing file, or a format the export cannot carry shows its alt text instead, and the build warns; an image with no alt text is left out.
+- **Scripts.** The PDF's fonts cover Latin (with Latin Extended and Vietnamese), Greek, and Cyrillic, using Noto Sans (SIL Open Font License) beyond Western European text. For another script, such as CJK, set `exports.pdfFont`. Text the fonts cannot draw, or a script that needs shaping such as Devanagari, stops the build with the entries and characters at fault; set `exports: { pdf: false }` to publish the EPUB alone.
+
+`bun run bookkit export [book]` (or `bun run export:gitbook -- --book <book>`) writes a GitBook folder: one page per record in reading order, a `SUMMARY.md` with parts and nested actions, MDX converted to Markdown, links rewritten, local images in `.gitbook/assets/`, and the site's link rule and HTML allowlist applied. The default folder, `apps/<book>/exports/gitbook`, is gitignored; `--out <dir>` must be missing, empty, or an earlier export.
+
+## Import
+
+`bun run bookkit import <book> --dir <folder>` reads `.md`, `.mdx`, and `.markdown` files, subfolders included. `--dry-run` prints the plan and writes nothing.
+
+- **Titles and order.** A note's title comes from its frontmatter `title`, else its first `#` heading, else its file name; a leading `# Title` is removed from the body so it does not repeat. Ordering prefixes in file names (`01-`, `1.`, dates) set the reading order. `summary` or `description` carries over.
+- **Drafts.** Notes in a `drafts/` folder, or with `draft: true` or `published: false`, import as drafts; the rest as published.
+- **Skipped.** `README` and `index` files are skipped unless `--include-readme`. Frontmatter fields chapters have no place for (`tags`, `date`, …) are listed.
+- **Links and images.** Links between notes point at the new chapters, and local images are copied to `public/images/`. An address the link rule refuses is removed, the link keeps its words, and the report lists it under "Addresses removed" with its note and line.
+- **MDX.** HTML comments become MDX comments, `<https://…>` autolinks become links, and `{braces}`, tag-like `<placeholders>`, and `import`/`export` lines are escaped, so they render as written; code is left as it was. Common HTML is kept (`<details>`, `<kbd>`, `<img>`, `<sup>`, `<sub>`, tables, and an `<iframe>` with a web address), minus what the allowlist refuses, and other tags show as text. A note's `<script>` and `<style>` go with what they hold, an `<iframe>` with no title gets one from the page it shows, and the report lists all of it under "HTML left out".
+- **Compiled.** Every chapter is compiled with the book's MDX compiler, and a failure names the chapter, line, and source note.
+- **Re-import.** Importing the same folder again updates chapters in place and appends new notes. A chapter edited since its import is kept unless `--force`; `chapters/imported.json` records what came from where.
+
+## Deploy
+
+Every book builds to a static site and publishes to [Cloudflare Workers static assets](https://developers.cloudflare.com/workers/static-assets/). For deploy, a book is a folder in `apps/` with `src/book.config.ts` and `wrangler.jsonc` (Worker name `bookkit-<slug>`, `dist/` as the assets folder, the 404 page for misses, and URLs without trailing slashes).
+
+`bun run bookkit deploy [book...]` publishes all or none:
+
+1. `verify --all` (without its build of every book), so content errors in any book stop the run;
+2. a build of each selected book and `check:build` on its `dist/`;
+3. for a book on a custom domain, a comparison with the live page count (`--allow-page-drop` publishes when more than a quarter of the pages would disappear);
+4. `wrangler deploy` for each book, or wrangler's dry run with `--dry-run`.
+
+Refusals are listed in a summary with their reasons, and nothing is published unless every book passed. If wrangler then fails for one book, the books already published stay up. Each Worker version's message is `<sha12> <subject>` of the commit.
+
+- **Uncommitted changes** in the selected books, or outside `apps/`, refuse a real deploy; `--allow-dirty` publishes anyway and says so in the version message. `--dry-run` rehearses uncommitted work and exits 0 when it passes.
+- **`--no-build`** publishes the `dist/` an earlier deploy run built, checked, and stamped (in `apps/<book>/.bookkit/deploy-stamp.json`) at the current commit. It refuses a missing, stale, or edited `dist/`; `bookkit build` does not stamp.
+- **No book named** means the current book (`bookkit use`), else every book; `--all`, or `bun run deploy`, means every book. Unknown flags exit 1.
+
+The `*.workers.dev` address works at once and is `noindex` (`public/_headers`). For your own domain, set `site.url` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to the book's `wrangler.jsonc`; the next deploy attaches the domain, whose zone must be on your Cloudflare account.
+
+### Deploy from CI
+
+`.github/workflows/deploy.yml` publishes after CI passes on a push to `main`, or when run by hand on `main`. It is off until you turn it on:
+
+1. Set the repository variable `DEPLOY_BOOKS` (Settings → Secrets and variables → Actions → Variables) to the books to publish, separated by spaces, or to `--all`.
+2. Add the `CLOUDFLARE_API_TOKEN` secret, and `CLOUDFLARE_ACCOUNT_ID` if the token can see more than one account.
+
+With no `DEPLOY_BOOKS` the job is skipped; with `DEPLOY_BOOKS` and no token it fails. The token is visible only to the publish step, which runs `--no-build` on what the job's dry run checked. A run for a commit that `main` has moved past publishes nothing. Forks do not inherit the variable, so a fork publishes only what its own `DEPLOY_BOOKS` names.
+
+### Static and server builds
+
+With `site.runtime` unset or `"static"`, the build serves the reader site, search, the exports, the sitemap, `robots.txt`, RSS, link-preview images, the MCP manifest (`GET /api/mcp.json`), and the `_headers` rules. Routes that need a request handler (feedback, analytics, the Ask panel, release webhooks and email, MCP tool calls) get no file in `dist/`, so they 404, and pages leave out the feedback widget, the Ask panel and its in-browser models, analytics beacons, and the language and version switchers.
+
+`previewAccess` cannot protect static files, because Astro prerenders the pages; protect drafts at the edge (for example Cloudflare Access) instead.
+
+## Server runtime
+
+`site.runtime: "server"` runs the `/api/*` routes on demand while pages stay prerendered. It needs an Astro adapter in `astro.config.mjs` (for example `@astrojs/node`); a build without one stops and says so. The bundled `wrangler.jsonc` serves static assets only, so `bookkit deploy` does not run these routes.
+
+The server reads its environment:
+
+| Variable | Effect |
+| --- | --- |
+| `BOOKKIT_AUTHOR_TOKEN` | Required. 32 or more random characters (`openssl rand -hex 32`), sent as `Authorization: Bearer <token>`. It gates the release webhook and email routes (under `bookkit dev` too), the analytics, feedback, and preview-analytics reads, and MCP `tools/call`; the reads and tool calls are open under `bookkit dev`. Without it these answer 500 and the server log says why; a wrong token gets 401. |
+| `BOOKKIT_DATA_DIR` | Where the server keeps what readers send; see [Where data lives](#where-data-lives). |
+| `BOOKKIT_RELEASE_WEBHOOKS`, `BOOKKIT_RELEASE_EMAIL_TARGETS` | Delivery targets for release notifications, as JSON arrays or comma-separated URLs ([`releases/README.md`](./packages/astro-bookkit/src/releases/README.md)). |
+| `OPENAI_API_KEY`, `GROQ_API_KEY` | The Ask panel's answers: OpenAI (`gpt-4o-mini`) first, Groq (`llama-3.1-8b-instant`) as the fallback. With neither, `/api/qa.json` answers 503. |
+
+```sh
+curl -X POST -H "Authorization: Bearer $BOOKKIT_AUTHOR_TOKEN" https://<site>/api/release-webhook.json
 ```
 
-### Chapters and releases
+Reader routes refuse a body over their limit (413) and more requests per minute from one client address than their limit (429); Q&A also caps a server process at 60 questions a minute. Behind a proxy, the adapter must report each reader's address, or every reader shares one limit. On `/read/analytics`, enter the author token once to see what readers sent; the browser keeps it per book and the same panel forgets it.
 
-```bash
-bun run bookkit new chapter "Who holds the lever" --after people-as-infrastructure   # renumbers the files after it
-bun run bookkit rename chapter queue waiting-line   # slug, file name, other chapters' prerequisites, and links
-bun run bookkit new release "Second draft"           # releases/<date>-second-draft.mdx at the next minor version
-```
+## Where data lives
 
-Reading order is the chapters' file order (or `order:`). A chapter whose prerequisite comes after it in that order gets a warning, as does a release note the release page cannot list (no version or date, or a date that is not YYYY-MM-DD). `bookkit check <book>` ends with the book's suggestions: mechanisms named in prose but not bound, mechanisms no chapter lists, and recurring terms that may be ideas worth naming.
-
-### Deploy
-
-Every book builds to a static site and ships to [Cloudflare Workers static assets](https://developers.cloudflare.com/workers/static-assets/). Each app carries a `wrangler.jsonc` (Worker name `bookkit-<slug>`, `dist/` as the asset directory, `404.html` for misses, and URLs served without trailing slashes so they match the canonical links in the sitemap).
-
-```bash
-bun run qa                                   # every CI gate (same as bun run verify -- --all)
-bun run bookkit deploy on-call --dry-run     # check content + build + verify dist/ + wrangler dry run
-bun run bookkit deploy on-call               # publish one book
-bun run bookkit deploy                       # publish the current book (bookkit use); every book if none is set
-bun run deploy                               # publish every book (same as bookkit deploy --all)
-```
-
-`deploy` checks each book's content before building it, with the per-book check `bun run verify` runs, and refuses to publish a book with a content error or a `dist/` that fails `bun run check:build` (see below). Each error is listed with its file and fix. A refusal exits non-zero and ends the run: books already published stay up, and the rest are not attempted. Uncommitted changes are refused for a real deploy; `--dry-run` rehearses them anyway (it stamps nothing, so commit before publishing). Deploy runs `verify --all` without its build of every book, then builds only the books it publishes. `bookkit build` does not check content, so a book with errors still builds. To publish on every merge to `main`, add a `CLOUDFLARE_API_TOKEN` secret to the repository (plus `CLOUDFLARE_ACCOUNT_ID` if the token can see more than one account); `.github/workflows/deploy.yml` then runs `bookkit deploy --all` and does nothing until the secret exists. Before the first real deploy: run `wrangler login` once. The `*.workers.dev` address works immediately and is marked `noindex` by `public/_headers`. To publish on your own domain, set `site.url` in `apps/<book>/src/book.config.ts` to it and add `"routes": [{ "pattern": "<domain>", "custom_domain": true }]` to `apps/<book>/wrangler.jsonc`; the next deploy attaches it (the zone must be on your Cloudflare account). Until then, `deploy` says which domain its canonical links name and that the Worker does not serve it.
-
-What a static deployment serves, and what it cannot:
-
-- **Served**: the read UI, search, PDF/EPUB exports, sitemap, robots.txt, RSS, OG images, the MCP discovery manifest (`GET /api/mcp.json`), and the `_headers` security and caching rules.
-- **Left out**: everything that needs a request handler. Feedback and analytics collection, AI Q&A synthesis, release webhooks and email, and MCP JSON-RPC calls (`POST /api/mcp.json`) all need on-demand rendering plus durable storage, which the current file-backed handlers do not have. With `site.runtime` unset or `"static"` (the default), pages leave out the feedback widget, the Ask panel, analytics beacons, and the language and version switchers (other locales and versions are rewritten per request, so they have no built pages). Set `site.runtime: "server"` in `book.config.ts` when an adapter serves the API routes.
-- **Not enforceable**: `previewAccess`. Astro runs middleware while prerendering, so a token gate cannot protect static files; the engine skips it for prerendered routes and warns during the build. Protect drafts at the edge (for example Cloudflare Access) instead.
-
-`bun run check:build` verifies each `dist/`: no page rendered as a preview lockout, real PDF and EPUB bytes, the 404 page and SEO artifacts present, one site URL across canonical links, robots.txt, and the sitemap, no `noindex` on a book whose status is `published`, no client code shipped as raw TypeScript, every sitemap URL a built page whose canonical is that same URL, author tools (`/read/analytics`, `/read/tools`, `/new-book`) marked `noindex`, and every page's link-preview image present and not SVG. CI runs it after every build.
-
-What search engines see: each page's title is its own name followed by the book's short title (the text before the colon). Its description is the chapter's `summary`, a mechanism's or glossary term's definition, a tool's trigger, or an example's `summary`, falling back to the page's first paragraph and then to `site.defaultMeta.description`. Chapters with fewer than `site.minIndexableWords` words of prose (default 60) are outlines or stubs: they stay readable but carry `noindex` and are left out of the sitemap. Canonical URLs have no trailing slash, matching the host and the sitemap. Every page ends with a colophon: the book's title, the byline when `author: { name }` is set in `book.config.ts`, `site.defaultMeta.description` as its one-line pitch, and a link to start reading. What a shared link shows: the `bookkit()` integration in `astro.config.mjs` renders a PNG preview for every page after the build (`/og/<page path>.png`), with the page's title and description in the book's own typefaces; a page that passes its own `ogImage` keeps it.
-
-### Helpful utilities
-
-```bash
-bun run list:books
-bun run check:separation
-bun run check:architecture
-bun run check:concepts
-bun run check:suggestions
-bun run check:corpus
-bun run check:runbooks
-bun run check:runbooks -- --mode error
-bun run check:todos
-bun run check:shims
-bun run stack:capabilities
-```
-
-From a new mechanism to a ruling, every step names the next:
-
-```bash
-bun run bookkit new mechanism running-hot "Waiting room" --definition "<one sentence>"   # checks every book for one that fits
-bun run bookkit check apps/running-hot/src/content/book/mechanisms/waiting-room.mdx
-export BOOKKIT_JUDGE_COMMAND="claude -p"                   # once: any command that reads a prompt on stdin
-bun run bookkit judge waiting-room                         # asks three blind judges about its nearest pairs, records their calls
-bun run bookkit rule waiting-room attrition-by-queue --distinct "<what each one's lever is>"
-# or, if they are one idea:
-bun run bookkit merge attrition-by-queue waiting-room --reason "<the lever and evidence they share>"
-```
-
-`bun run check:suggestions [--book <slug>]` is the AI assistance layer: it analyzes a book and reports actionable, deterministic suggestions — overlapping mechanisms, unregistered recurring concepts (with candidate mechanism drafts), examples that restate a mechanism instead of illustrating it, and missing prerequisite edges for the reading graph. It never writes files; it proposes and you approve.
-
-`bun run check:corpus [--books a,b,c]` runs the overlap check across books, so one author's books can't name the same idea twice without anyone noticing. A lexical pass compares wording; a semantic pass compares meaning with a local embedding model (`nomic-ai/nomic-embed-text-v1.5` via the optional `@xenova/transformers` dependency; the first run downloads about 520 MB, cached in `BOOKKIT_MODEL_CACHE` when set). `--model minilm` runs the earlier 25 MB model instead, and `--eval` scores every available model against the merges recorded in `corpus.json`, so a model or cutoff change is measured against the author's own rulings. Each mechanism's vector is stored beside the model, so a run where no mechanism changed loads no model (about 0.2 s instead of 5 s). A third signal comes from judges: `bun run bookkit judge [mechanism]` writes the author's merge rule (same lever, same evidence) as a blind question, one prompt per judge (three by default, `--judges <n>`), each holding its own copy of the pairs in its own order, under `.bookkit/judging/`. With a mechanism it asks about that one's three nearest pairs with no verdict or ruling (every merge on record was among the two closest pairs in the whole corpus); without, about flagged pairs with no verdict, pairs whose text changed, then the closest unjudged ones. With a judge command (`--run "<command>"`, or `BOOKKIT_JUDGE_COMMAND`: any program that reads a prompt on stdin and prints the reply, such as `claude -p`), `bookkit judge` asks every judge itself, at once, each in an empty folder of its own so it sees nothing but its prompt, then records the answers into `corpus-judgments.json` and lists the pairs left for you to settle. A reply that does not answer every pair is kept in `judge-<n>/reply.txt` and nothing is recorded; `bun run bookkit judge run` asks those judges again. Without a command, paste each prompt into a fresh session (an LLM or a person), save the replies as `answer-<n>.json` in the request folder, and `bun run bookkit judge record` reads the newest answered request. (`check:corpus --judge-prompt <dir> [--judge-for <slug>]` and `--judge-record <dir>` do the same with a folder you choose.) `bookkit check <mechanism file>` shows the judges' calls on that mechanism and says when any of its three nearest have no verdict or ruling (by meaning when `check:corpus` has stored their vectors, else by wording; `--quick` for wording). `bun run bookkit rule <a> <b> --distinct "<reason>"` records the author's ruling in `corpus.json`, in the file's own layout. `bun run bookkit merge <keep> <drop> --reason "<why>"` is the other ruling, one idea: in every book of their corpus, `<drop>` becomes `<keep>` with one contract (`<keep>`'s title and definition, or `--definition`, and both mechanisms' items without repeats), its glossary entry and examples move to `<keep>` with the old term kept as an alias, and its references are rebound (frontmatter, `/read/` links, slug strings in `book.config.ts` and pages, slug-only list items), while tools keep their slugs. `corpus.json` records the merge with both mechanisms as they were, and rulings on `<drop>` carry over. It lists every change (`--dry-run` writes nothing) and the lines that still name `<drop>` in prose. A pair any judge calls the same idea is flagged even when its wording differs, and every flagged pair shows the judges' call: likely one mechanism, a split for the author to settle, or not the same idea with a draft reason for the ruling. Verdicts are stored with a hash of both texts and stop applying when either changes, and CI reads them without a model. `--eval` also scores the judges' decision table against the rulings. Overlapping pairs are grouped into clusters, each one a candidate for "one mechanism" or "distinct, sharpen the boundaries". A slug names one mechanism across the corpus: books that share a mechanism carry copies under the same slug, and the check reports drift if the copies' contracts differ; `bun run bookkit sync <mechanism>` copies the copy edited last (or `--from <book>`) to the others. `corpus.json` at the repo root names the default books, records pairs the author has ruled distinct (each with a reason), and keeps each merge the author made with both mechanisms as they were before it. Pass `--no-semantic` to skip the model, `--threshold <n>` to change the semantic cutoff (each model has its own; nomic's is 0.79), `--json` or `--export <file>` for machine output, and `--mode error` to exit 1 while any cluster, drift, or stale ruling remains. Like `check:suggestions`, it never writes content.
-
-`bun run bookkit propose <book>` is the materialization layer: it turns the suggestion set into a reviewable **proposal bundle** — an end-to-end trace from raw source to compiled structure. Give it a book that is imported-but-unstructured (or any book mid-edit) and it returns: a frame proposal (runbook vs intervention, from keyword signals), drafts for every unregistered recurring mechanism, prerequisite edges the reading graph is missing, toolkit bindings for uncovered mechanisms, and a `book.config.ts` draft for a book that has none.
-
-```bash
-bun run bookkit propose <book>                 # review the bundle
-bun run bookkit propose <book> --write          # write bundle artifacts to apps/<book>/proposals/
-bun run bookkit propose <book> --apply mechanisms --apply tools --apply edges --apply config
-```
-
-`--apply` materializes approved proposals into the content tree (`mechanisms/`, `toolkit/`, chapters' `prerequisites:` for `--apply edges`, and a config draft under `proposals/`), refusing to overwrite or redefine anything already registered. Edges keep the reading graph acyclic: one that would close a loop is skipped and named. Frame choice, mechanism identity, and config stay author decisions — the tool proposes and writes draft structure, never a live `book.config.ts`. Pass `--detect-frame` to see what the content implies even when a frame is already declared, and `--id <proposal>` to accept a specific proposal.
-
-`bun run check:runbooks [--book <slug>]` is the runbook verification layer: for runbook-frame books it audits control coverage (mechanism → tool → drill → escalation → owner), derives the compliance matrix, and joins release narratives against HEAD coverage to flag drift. Pass `--mode error` to fail on any open coverage item.
-
-### MCP endpoint for agentic clients
-
-Book apps expose an MCP endpoint (for example `apps/bad-people/src/pages/api/mcp.json.ts`) so agentic LLM clients can:
-
-- list/read content and governance resources
-- discover lane skills under `.codex/skills/**`
-- call deterministic workspace tools (`bookkit.list_books`, `bookkit.read_book`, `bookkit.list_skills`, `bookkit.validate_book`, etc.)
-- scaffold a new book via guarded mutation tooling (`bookkit.create_book`) when explicit creation is required
-
-Use this as the default machine interface instead of ad-hoc repository scraping. On a static deployment only the `GET` manifest is served; tool calls need an on-demand runtime (run `bun run bookkit dev <book>` locally).
-
-For agents working in this repository, the same tools run over stdio with no dev server: `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the first book otherwise). `.mcp.json` registers it as `bookkit`, so Claude Code offers it on first use. Two tools make content compilable by an agent: `bookkit.get_content_contract` (the fields each kind of file needs, what to write in them, the frontmatter's JSON Schema, and a template that compiles) and `bookkit.check_content` (compile one candidate file without writing it; each finding has a code, the field, and a fix). `bookkit.validate_book` returns the same structured findings for a whole book. Without MCP, `bun run bookkit contract [section]` and `bun run bookkit check <file.mdx> [--json]` do the same from the shell. Checking a mechanism file, either way, also lists existing mechanisms in any book that share its wording, noting pairs `corpus.json` already rules distinct. Two tools serve bet B1: `bookkit.find_similar_mechanisms` (does a mechanism for this idea already exist, in any book? pass `semantic: true` to compare meaning, not just wording) and `bookkit.check_corpus` (overlap, drift, and stale rulings across books). Tool results follow MCP: a `text` content item with the JSON, plus the same object as `structuredContent`.
-
-### CI
-
-GitHub Actions runs on every push and PR to `main`:
-
-- `bun run lint` — Biome style check
-- `bun run check:types` — every app and package end to end: `.ts` with TypeScript 7, `.astro` with `astro check` (`-- --no-astro` skips the second pass; `-- --tsc` uses TypeScript 5 for the first). A project that passed is skipped while nothing it reads has changed (its folder, the folders it imports, `bun.lock`, the shared tsconfig), so a re-run after an unrelated edit takes about a second; `-- --no-cache` checks everything, as CI always does.
-- `bun run check:separation` — content boundary enforcement
-- `bun run check:architecture` — architecture doc matches the tree (module map, tiers, cycles)
-- `bun run check:todos` — TODO policy check
-- `bun run check:shims` — shim consistency
-- `bun run validate` — schema + frame validation for all books
-- `bun run test` — Bun test runner across all suites
-- `bun run build:all` — static build of every book
-- `bun run check:build` — deployability check on every `dist/`
-
-
-### Task-driven command recipes
-
-| If you need to… | Run | Why |
+| Path | What | Committed |
 | --- | --- | --- |
-| iterate on one book UI quickly | `bun run bookkit dev bad-people` | Fast local feedback loop for content + layout work |
-| verify architecture invariants before review | `bun run validate && bun run check:separation && bun run check:architecture` | Catches frame/content boundary regressions and architecture-doc drift |
-| sanity-check concept registry hygiene | `bun run check:concepts` | Prevents floating named concepts |
-| find mechanisms that name the same idea in different books | `bun run check:corpus -- --books <a>,<b>` | Semantic and lexical overlap across a body of work |
-| get AI-style editing suggestions | `bun run check:suggestions -- --book bad-people` | Flags overlaps, example restatement, and missing graph edges |
-| see what an existing folder of docs would become | `bun run bookkit try ./docs` | Read-only: shape, gaps per document, recurring ideas, and the commands to convert it |
-| gate any Markdown folder in CI, without converting it | `bun run bookkit check ./runbooks --frame runbook [--json]` | Exits 1 on a missing section or a broken contract file |
-| turn raw markdown into structured content | `bun run bookkit import <slug> --dir ./notes && bun run bookkit propose <slug> --apply mechanisms --apply tools` | Imports prose, then materializes mechanism/tool drafts from recurring concepts |
-| test release readiness | `bun run validate:release && bun run check:upgrade -- --release` | Exercises strict validation path |
-| rebuild end-user artifacts | `bun run bookkit build bad-people && bun run export:gitbook -- --book bad-people` | Ensures compile + export surfaces stay healthy |
-| run all quality gates | `bun run verify -- --all` (or `bun run qa`) | Exactly what CI runs, including the builds and `dist/` verification |
+| `.bookkit/local.json` (workspace root) | The current book, set by `bookkit use`. | No |
+| `.bookkit/dev/` | The dev servers `bookkit dev` started. | No |
+| `.bookkit/judging/` | Judge requests and answers. | No |
+| `corpus.json`, `corpus-judgments.json` | Which books share a vocabulary, the author's rulings and merges, and judges' verdicts. | Yes |
+| `apps/<book>/dist/` | The built site and exports. | No |
+| `apps/<book>/.bookkit/` | The deploy stamp, and on a server what readers send: `reader-analytics.jsonl`, `preview-analytics.jsonl`, `export-analytics.jsonl`, `release-analytics.jsonl`, `feedback-events.jsonl` (plus `feedback-events.json` from before feedback became append-only). | No |
+| `apps/<book>/proposals/`, `apps/<book>/exports/` | `propose --write` bundles and the GitBook export. | No |
+| `node_modules/@xenova/transformers/.cache/` | The embedding model, unless `BOOKKIT_MODEL_CACHE` is set. | No |
 
----
+`BOOKKIT_DATA_DIR`, resolved against the server's working directory, replaces `apps/<book>/.bookkit/` for reader data. Set it when the server runs outside the folder the book was built in (a copied `dist/`, a container), and give each book its own. Under `bookkit dev` the records go to `apps/<book>/.bookkit/`; deleting those files clears what the dashboards read. The release log names each delivery by its target's name, or its scheme and host, never its URL. On Cloudflare Workers the handlers cannot write files, so reader records are dropped and the server logs a warning.
 
-## Troubleshooting and diagnostics
+## MCP
 
-### Build succeeds but every page is a "preview required" lockout
+Bookkit serves its content and checks to AI agents over the Model Context Protocol, in two ways:
 
-- `previewAccess.enabled` was true while every token was expired or revoked, and Astro rendered the middleware's 401 page into `dist/`. The engine now bypasses the gate for prerendered routes, and `bun run check:build` fails on any lockout page, so this cannot ship silently.
-- Disable `previewAccess` for published books; static output cannot honor tokens anyway.
+- **stdio, in a workspace:** `bun run mcp` (`-- --book <slug>` picks the book the content tools read; the default is the first folder under `apps/`). `.mcp.json` registers it as `bookkit`, so Claude Code offers it in this repository with no server running.
+- **HTTP, from a book:** `bookkit dev` answers `POST /api/mcp.json`. A static build serves only the `GET` manifest, whose `toolCalls.served` says whether the address answers tool calls; on a server deployment, `tools/call` needs the author token, and `resources/*` and `tools/list` do not.
 
-### Validation fails but content "looks right"
+The tools, each prefixed `bookkit.`: `list_books`, `read_book`, `list_content`, `list_mechanisms`, `list_skills`, `get_content_contract`, `check_content`, `validate_book`, `compile_book`, `export_book`, `check_separation`, `check_corpus`, `find_similar_mechanisms`, and `create_book` (`book` and `title`). `get_content_contract` returns each section's fields, its JSON Schema, and a template that compiles; `check_content` compiles one candidate file without writing it. `validate_book`, `compile_book`, and `check_content` apply the book's status rule; `releaseMode: true` on `validate_book` or `check_content` forces release rules on a draft, and `check_content` reports `bookStatus` and `releaseRules`. Results carry a `text` item with the JSON and the same object as `structuredContent`. Without MCP, `bun run bookkit contract` and `bun run bookkit check <file> --json` give the same answers.
 
-- Re-check required frame sections (headings/fields must be structurally present, not implied in prose).
-- Release rules (no drafts; broken links and prerequisites are errors) apply once `status` in `book.config.ts` is `published` or `stable`; `validate:release` runs the same check.
-- Fix the failing record rather than relaxing validator strictness.
+## Troubleshooting
 
-### Build passes but outputs feel semantically off
+**`check:types` fails with "git ls-files failed: not a git repository".** A new standalone project has no git history yet. Run `git init && git add -A && git commit -m "First draft"`, then `bun run verify -- --all`.
 
-- Run `bun run check:concepts` and review glossary/mechanism drift.
-- Confirm example edits did not mutate mechanism definitions.
-- Re-run `bun run compile:book -- --book bad-people --mode error --no-drafts` to catch hidden assumptions.
-- Run `bun run check:corpus` to catch a mechanism that restates one in another book.
+**A published book fails with `DRAFT_IN_RELEASE`.** Some record still has `status: draft` (or none). Finish it and set its status, or move the book back to `in-review` until it is done.
 
----
+**The book builds but search engines never see it.** Its status is not `published` or `stable`, or `site.indexable` is `false`, so every page is `noindex`. A `*.workers.dev` address is `noindex` regardless; publish on the domain in `site.url`.
 
-## Migration notes
+**A chapter is missing from search and the sitemap.** It has fewer words of prose than `site.minIndexableWords` (default 60), so it counts as a stub. `bun run bookkit` lists the stubs.
 
-Breaking changes and their migrations are recorded in [`CHANGELOG.md`](./CHANGELOG.md), newest first.
+**`bookkit check` says "semantic pass unavailable".** The embedding model is not downloaded, and there was no terminal to ask. Pass `--download-model`, set `BOOKKIT_DOWNLOAD_MODEL=1`, or use `--quick`.
 
----
+**`check:build` refuses preview access.** `previewAccess.enabled` is `true` on a static build, where a token gate cannot protect prerendered files. Set it to `false`, or serve the book with the server runtime.
 
-## Create a new book
+**Deploy refuses with "uncommitted changes".** Commit them, or rehearse with `--dry-run`. `--no-build` refuses a `dist/` that a deploy run did not stamp at the current commit; run `deploy <book> --dry-run` first.
 
-Use the scaffold command (defaults to template `bad-people`):
+**The build stops because the PDF cannot draw some characters.** The book uses a script the bundled fonts lack, or one that needs shaping. Set `exports.pdfFont` to a TTF or OTF font that covers it, or `exports: { pdf: false }`; the EPUB is not affected.
 
-```bash
-bun run new:book -- --book <new-book> --title "Your Book Title"
+**A link renders as plain text.** Its address uses a scheme the link rule refuses (`UNSAFE_LINK`); `bookkit check` names the file and line.
+
+**A tag, attribute, or `{expression}` is missing from the page.** The HTML allowlist removed it (`UNSAFE_HTML`). `bookkit check` names the line and says what to write instead, for example an `.svg` file shown as an image in place of inline `<svg>`.
+
+**`bookkit dev` says the port is in use.** Another server holds it: `bun run bookkit dev status` finds one Bookkit started, or pass `--port <n>`.
+
+**A semantic overlap appears after a model or threshold change.** Run `bun run check:corpus -- --eval` to score the models against the recorded rulings before you rule on the pair.
+
+## Example books in this repository
+
+| Book | Frame | Status |
+| --- | --- | --- |
+| [`apps/on-call`](./apps/on-call) | runbook | published |
+| [`apps/bad-people`](./apps/bad-people) | intervention | draft |
+| [`apps/running-hot`](./apps/running-hot) | intervention | draft |
+| [`apps/crumple-zone`](./apps/crumple-zone) | intervention | draft |
+
+The On-Call Runbook is the one to read first: four mechanisms, each with one action of 10 minutes, a drill, and an escalation. `check:runbooks` prints its compliance matrix:
+
+```txt
+$ bun run check:runbooks
+REVIEW DATES on-call: judged as of 2026-02-10 (reviewsAsOf in book.config.ts), not today
+COMPLIANCE on-call: 4/4 controls with tool coverage
+  DIAG-REPRO-01 → minimal-repro-doc [capture-repro] ✓drilled ·review due 2026-03-12
+  ESC-RAMP-01 → bounded-escalation [ramp-escalation] ✓drilled ·review due 2026-03-12
+  INC-TRIAGE-01 → incident-triage [classify-alert-severity] ✓drilled ·review due 2026-03-12
+  REL-ROLLBACK-01 → rollback-first-change [identify-rollback-candidate] ✓drilled ·review due 2026-02-24
 ```
 
-Then:
+The other three are drafts by one author, held to one vocabulary through `corpus.json`. `bun run list:books` names every book in the workspace.
 
-1. Update `apps/<new-book>/src/book.config.ts`.
-2. Replace starter content under `src/content/book/**`.
-3. Run `bun run validate` and `bun run validate:release`.
-4. Run `bun run bookkit dev <new-book>` to iterate locally.
+## Working on Bookkit
 
-Do not fork the engine to customize one book.
+Engine code lives in `packages/astro-bookkit/`, the standalone generator in `packages/create-bookkit/`, the CLI and checks in `scripts/`, and the books in `apps/`. Books never fork the engine, and the engine never names a book; a book varies through its config or an engine capability. A book app owns its content and the starter's files (`book.config.ts`, `src/lib/read-copy.ts`, the examples index, `package.json`, `wrangler.jsonc`, `README.md`, `TODOS.md`). Every other file is a shim copied from `packages/astro-bookkit/templates/book-app/`: `bun run check:shims` fails when one drifts, and `bun run sync:shims` rewrites them.
 
-### Import from existing markdown
-
-To pull prose in from a folder of existing `.md`/`.mdx` files (chapter layer only):
-
-```bash
-bun run bookkit try /path/to/markdown                    # first, if you want to see what you'd get
-bun run bookkit import <new-book> --dir /path/to/markdown
-```
-
-Import writes chapters and never touches mechanisms, toolkit, or glossary — those stay author-gated so the compiler's separation invariants hold. It takes exports as they come: a source's own frontmatter becomes the chapter's (its `title`, and `summary` or `description`), a leading `# Title` becomes the title instead of repeating on the page, and text MDX cannot compile is converted (HTML comments to MDX comments, `<https://…>` autolinks to links, `{braces}` and tag-like `<placeholders>` escaped so they render as written). Code is left exactly as it was. Then follow the printed next steps: `propose` drafts mechanisms and tools from the ideas that recur.
-
-To remove a scaffolded book app:
-
-```bash
-bun run remove:book -- --book <book-slug>
-```
-
-### Scaffold a standalone project
-
-To generate a self-contained book project (app + vendored engine + checker scripts) in a new directory:
-
-```bash
-bun run create-bookkit <dir> --book <slug> --title "Book Title" [--dir /path/to/markdown]
-```
-
-The generated project works without publishing anything: `packages/astro-bookkit/` is vendored into it. Try it:
-
-```bash
-cd <dir> && bun install
-bun run validate
-bun run dev
-```
-
-Switch from `intervention` to `runbook` in `src/book.config.ts` to add drill-owned actions, and `bun run runbooks` produces the compliance matrix.
-
----
+| Document | Covers |
+| --- | --- |
+| [`docs/architecture.md`](./docs/architecture.md) | Layers, the two pipelines, the engine module map, and import tiers. `check:architecture` keeps it true. |
+| [`AGENTS.md`](./AGENTS.md) | The invariants every change must keep. |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Lanes, the checks each change needs, tests, and CI. |
+| [`docs/design-notes.md`](./docs/design-notes.md) | Why the invariants exist. |
+| [`docs/authorship-model.md`](./docs/authorship-model.md) | The "book as software" model behind the three layers. |
+| [`docs/bets.md`](./docs/bets.md) | What the maintainers work on next (`bun run bookkit bets` measures the active bet). |
+| [`docs/tech-debt-register.md`](./docs/tech-debt-register.md) | Known cross-cutting debt. |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Dated behavior changes and migration notes, newest first. |
+| [`packages/astro-bookkit/README.md`](./packages/astro-bookkit/README.md) | The engine package. |
+| [`.codex/skills/`](./.codex/skills/README.md) | Checklists for agents by lane. |
 
 ## License
 
-This project is dedicated to the public domain under [CC0 1.0 Universal](./LICENSE).
+Dedicated to the public domain under [CC0 1.0 Universal](./LICENSE).

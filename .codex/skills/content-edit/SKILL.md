@@ -47,7 +47,7 @@ The compiler decides whether content is valid; a draft is a proposal until it pa
 ## Required checks
 
 1. `bun run verify` (see the `verify` skill). For a content edit it validates and builds the book you touched, checks separation, and, when a mechanism changed, compares mechanisms across books.
-2. Lane B escalation (definition/boundary shifts): `bun run validate:release`.
+2. Lane B escalation (definition/boundary shifts): `bun run check:corpus`. Release rules already follow the book's `status`, so `validate:release` (an alias of `validate`) adds nothing.
 
 ## PR note template
 

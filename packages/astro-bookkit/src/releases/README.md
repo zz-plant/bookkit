@@ -16,14 +16,14 @@ import {
   createReleaseEmailEndpoint,
 } from "@bookkit/astro-bookkit";
 
-// Example for an RSS feed endpoint (e.g., pages/rss.xml.ts)
+// Example for an RSS feed endpoint (e.g., src/pages/release-notes.xml.ts)
 export const { GET } = createReleaseNotesRssEndpoint({
   modules: releaseModules,
   siteUrl,
   bookTitle,
 });
 
-// Example for a webhook endpoint (e.g., pages/api/webhooks.ts)
+// Example for a webhook endpoint (e.g., src/pages/api/release-webhook.json.ts)
 export const { POST } = createReleaseWebhookEndpoint({
   modules: releaseModules,
   book: { slug: bookConfig.slug, title: bookConfig.title },
@@ -41,8 +41,10 @@ export const { POST } = createReleaseWebhookEndpoint({
 
 The two target variables take JSON arrays or comma-separated URLs. Objects may
 include `url`, `name`, `headers`, `secret`, `enabled`, `provider`. The response
-names each delivery by its `name`, or by its URL's host, and never includes a
-target's URL, headers, or secret.
+names each delivery by its `name`, or by its URL's scheme and host
+(`https://hooks.slack.com`), and never includes a target's URL, headers, or
+secret. The release log (`release-analytics.jsonl` in the book's data folder)
+records the same label, and error messages are cleaned of the target's URL.
 
 ```sh
 curl -X POST -H "Authorization: Bearer $BOOKKIT_AUTHOR_TOKEN" \

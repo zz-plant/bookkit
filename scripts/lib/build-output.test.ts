@@ -358,3 +358,146 @@ describe("inspectBuildOutput", () => {
 		expect(result.findings[0]?.message).toContain("SVG");
 	});
 });
+
+describe("a page's content", () => {
+	let dist: string;
+
+	beforeEach(async () => {
+		dist = mkdtempSync(join(tmpdir(), "bookkit-dist-"));
+		await writeHealthyDist(dist);
+	});
+
+	afterEach(() => {
+		rmSync(dist, { recursive: true, force: true });
+	});
+
+	const CHAPTER =
+		'<section class="content-block chapter-content" data-chapter-sections>';
+	const SECTION = '<section class="content-block">';
+
+	/** A built page: content in its content section, inside the engine's chrome, which holds what content may not. */
+	const page = (content: string, section = CHAPTER) =>
+		`<!doctype html><html><head><title>Drills</title><script type="module" src="/_astro/ui.js"></script></head><body data-analytics-key="on-call"><header><button data-search-toggle style="color:red">Search</button><svg viewBox="0 0 1 1"><path d="M0 0"/></svg></header><main><article>${section}${content}</section></article><form data-qa-form><textarea></textarea></form></main><script>window.x = 1;</script></body></html>`;
+
+	/** What the site's own Markdown writes (Astro's defaults) that raw HTML may not. */
+	const MARKDOWN = [
+		'<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8;overflow-x:auto" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#F97583">const</span><span style="color:#79B8FF"> x</span></span></code></pre>',
+		'<p>A note.<sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="true" aria-describedby="footnote-label">1</a></sup></p>',
+		'<ul class="contains-task-list"><li class="task-list-item"><input type="checkbox" checked disabled/> done</li></ul>',
+		'<table><thead><tr><th style="text-align:left">a</th></tr></thead><tbody><tr><td style="text-align:right">1</td></tr></tbody></table>',
+		'<iframe width="560" height="315" src="https://www.youtube.com/embed/x" title="YouTube video player" frameborder="0" allowfullscreen></iframe>',
+		'<section data-footnotes="true" class="footnotes"><h2 class="sr-only" id="footnote-label">Footnotes</h2><ol><li id="user-content-fn-1"><p>The note. <a href="#user-content-fnref-1" data-footnote-backref aria-label="Back to reference 1" class="data-footnote-backref">↩</a></p></li></ol></section>',
+	].join("\n");
+
+	it("passes what the site's Markdown writes, and leaves the engine's chrome around it alone", async () => {
+		write(dist, "read/chapters/drills/index.html", page(MARKDOWN));
+		write(dist, "read/toolkit/ramp/index.html", page("<p>Words</p>", SECTION));
+		write(dist, "es/read/glossary/sev/index.html", page("<p>P</p>", SECTION));
+		write(dist, "release-notes/index.html", page("<p>Notes</p>", SECTION));
+		// Lists, the hub, and the home page show no content of their own.
+		write(dist, "read/chapters/index.html", page("<button>x</button>"));
+		write(dist, "read/index.html", page("<button>x</button>", SECTION));
+
+		const result = await inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.findings).toEqual([]);
+	});
+
+	it("fails a page whose content holds HTML content may not, naming each part and why", async () => {
+		write(
+			dist,
+			"read/chapters/drills/index.html",
+			page(
+				[
+					MARKDOWN,
+					'<p onclick="alert(1)">a</p>',
+					"<script>alert(2)</script>",
+					'<img src="x" onerror="alert(3)">',
+					'<span style="position:fixed;inset:0">cover</span>',
+					'<a href="java&#x09;script:alert(4)">link</a>',
+					'<section data-footnotes><p data-resume-reading="">p</p></section>',
+				].join(""),
+			),
+		);
+
+		const result = await inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(false);
+		expect(result.findings).toEqual([
+			{
+				level: "error",
+				file: "read/chapters/drills/index.html",
+				message: [
+					"Its content holds HTML a book's content may not: ",
+					'<p onclick="alert(1)">, since an event handler runs script, and a book\'s content runs none; ',
+					"<script>, since a book's content runs no script; ",
+					'<img onerror="alert(3)">, since an event handler runs script, and a book\'s content runs none; ',
+					'<span style="position:fixed;inset:0">, since inline style can restyle or cover the page, which takes its styling from the book\'s stylesheet; ',
+					'<a href="java\tscript:alert(4)">, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages; ',
+					"and 1 more. ",
+					"The site's Markdown step leaves such HTML out of every page it builds, so something added it after that step: a Markdown, MDX, or rehype plugin in astro.config.mjs, or a Bookkit bug to report with this message.",
+				].join(""),
+			},
+		]);
+	});
+
+	it("reads every content section of a page, and each locale's and release's", async () => {
+		write(
+			dist,
+			"read/toolkit/ramp/index.html",
+			page(
+				`<p>Steps</p></section>${SECTION}<p><button>Go</button></p>`,
+				SECTION,
+			),
+		);
+		write(
+			dist,
+			"fr/read/examples/a/b/index.html",
+			page('<video src="talk.mp4"></video>', SECTION),
+		);
+		write(
+			dist,
+			"release-notes/index.html",
+			page(`<p>v1</p></section>${SECTION}<style>body{}</style>`, SECTION),
+		);
+
+		const result = await inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(
+			result.findings
+				.map(({ file, message }) => [file, message.split(". The site")[0]])
+				.sort(),
+		).toEqual([
+			[
+				"fr/read/examples/a/b/index.html",
+				"Its content holds HTML a book's content may not: <video>, since <video> is not an element a book's content keeps",
+			],
+			[
+				"read/toolkit/ramp/index.html",
+				"Its content holds HTML a book's content may not: <button>, since a book's content collects nothing a reader types",
+			],
+			[
+				"release-notes/index.html",
+				"Its content holds HTML a book's content may not: <style>, since a book's pages take their styling from its stylesheet",
+			],
+		]);
+	});
+
+	it("warns when a page that shows content has no content section to read", async () => {
+		write(
+			dist,
+			"read/mechanisms/triage/index.html",
+			"<html><body><main><p>Words</p></main></body></html>",
+		);
+		// Release notes with no notes of their own have none.
+		write(dist, "release-notes/index.html", "<html><body></body></html>");
+
+		const result = await inspectBuildOutput({ book: "on-call", distDir: dist });
+		expect(result.ok).toBe(true);
+		expect(result.findings).toEqual([
+			{
+				level: "warning",
+				file: "read/mechanisms/triage/index.html",
+				message:
+					"Shows the book's content, but holds no <section class=\"content-block\"> around it, so check:build could not check that content's HTML. The engine's page templates (packages/astro-bookkit/templates/book-app/src/pages/read) wrap <Content /> in one; restore it in this page's template.",
+			},
+		]);
+	});
+});

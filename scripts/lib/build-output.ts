@@ -5,6 +5,13 @@ import {
 	inspectPdf,
 } from "../../packages/astro-bookkit/src/exports/inspect";
 import { AUTHOR_ONLY_PATHS } from "../../packages/astro-bookkit/src/seo/book";
+import { decodeEntities } from "../../packages/astro-bookkit/src/utils/character-references";
+import {
+	attributeRefusal,
+	CONTENT_ELEMENTS,
+	elementReason,
+	refusalReason,
+} from "../../packages/astro-bookkit/src/utils/html-allowlist";
 
 /**
  * Verifies that a book's `dist/` is something a public host can serve.
@@ -139,6 +146,176 @@ const pageFileFor = (distDir: string, pathname: string): string | null => {
 
 const canonicalOf = (html: string): string | undefined =>
 	html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
+
+/**
+ * Pages that show a book's content (a template's `<Content />`): a
+ * chapter, mechanism, tool, glossary term, or example, under any locale
+ * prefix, built as `x/index.html` or `x.html`; and the release notes.
+ */
+const READ_PAGE =
+	/(?:^|\/)read\/(?:chapters|mechanisms|toolkit|glossary|examples)\/(?!index\.html$).+\.html$/;
+const RELEASE_NOTES_PAGE = /(?:^|\/)release-notes(?:\/index)?\.html$/;
+
+/** Whether a built page (its path in dist/) shows a book's content. */
+export const showsContent = (rel: string): boolean =>
+	READ_PAGE.test(rel) || RELEASE_NOTES_PAGE.test(rel);
+
+/**
+ * The start tag of the section each page template wraps `<Content />` in:
+ * a chapter's, and every other page's. A tool's page also writes sections
+ * of its own this way, from its frontmatter; they are read too, and hold
+ * only HTML content may.
+ */
+const CONTENT_SECTION =
+	/<section class="content-block(?:"| chapter-content" data-chapter-sections)>/g;
+const SECTION_TAG = /<(\/?)section\b[^>]*>/g;
+
+/** What each content section holds: from its start tag to its `</section>`, footnotes' own section included. */
+export const contentRegions = (html: string): string[] =>
+	[...html.matchAll(CONTENT_SECTION)].map((match) => {
+		const start = (match.index ?? 0) + match[0].length;
+		SECTION_TAG.lastIndex = start;
+		let depth = 1;
+		for (let tag = SECTION_TAG.exec(html); tag; tag = SECTION_TAG.exec(html)) {
+			depth += tag[1] ? -1 : 1;
+			if (depth === 0) return html.slice(start, tag.index);
+		}
+		return html.slice(start);
+	});
+
+const PAGE_TAG =
+	/<([A-Za-z][\w:-]*)((?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*\/?>/g;
+const PAGE_ATTRIBUTE =
+	/([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+
+/** The inline colors Shiki gives a code block and its spans: color declarations, nothing that positions, covers, or loads. */
+const SHIKI_STYLE =
+	/^(?:\s*(?:color|background-color|font-style|font-weight|text-decoration|overflow-x|--shiki-[\w-]+)\s*:\s*[#\w\s.%,-]+;?)+\s*$/i;
+
+/**
+ * What the site's own Markdown writes that raw HTML may not (Astro's
+ * defaults): Shiki's highlighting on a code block, a table column's
+ * alignment, footnotes' `data-*` hooks, and a task list's checkbox.
+ */
+const writtenByMarkdown = (
+	element: string,
+	name: string,
+	value: string,
+): boolean => {
+	switch (element) {
+		case "pre":
+			return (
+				(name === "style" && SHIKI_STYLE.test(value)) ||
+				(name === "tabindex" && value === "0") ||
+				(name === "data-language" && /^[\w#+.-]*$/.test(value))
+			);
+		case "span":
+			return name === "style" && SHIKI_STYLE.test(value);
+		case "td":
+		case "th":
+			return (
+				name === "style" &&
+				/^text-align:\s*(?:left|center|right);?$/.test(value)
+			);
+		case "section":
+			return name === "data-footnotes";
+		case "a":
+			return name === "data-footnote-ref" || name === "data-footnote-backref";
+		case "input":
+			return (
+				(name === "type" && value === "checkbox") ||
+				name === "disabled" ||
+				name === "checked"
+			);
+		default:
+			return false;
+	}
+};
+
+const shortValue = (value: string): string =>
+	value.length > 60 ? `${value.slice(0, 59)}…` : value;
+
+/**
+ * What a content section holds that a book's content may not hold
+ * (`html-allowlist.ts`), each as `<img onerror="alert(1)">, which …`. The
+ * site's Markdown step leaves all of it out, so this finds only what
+ * reached the page after that step.
+ */
+export const contentMarkupProblems = (region: string): string[] => {
+	const problems = new Set<string>();
+	for (const [, rawElement, rawAttributes = ""] of region.matchAll(PAGE_TAG)) {
+		const element = rawElement.toLowerCase();
+		const attributes = [...rawAttributes.matchAll(PAGE_ATTRIBUTE)].map(
+			([, name, double, single, bare]) => ({
+				name: name.toLowerCase(),
+				value: decodeEntities(double ?? single ?? bare ?? ""),
+			}),
+		);
+		const checkbox =
+			element === "input" &&
+			attributes.some(
+				({ name, value }) => name === "type" && value === "checkbox",
+			) &&
+			attributes.some(({ name }) => name === "disabled");
+		if (!CONTENT_ELEMENTS.has(element) && !checkbox) {
+			problems.add(`<${element}>, since ${elementReason(element)}`);
+			continue;
+		}
+		for (const { name, value } of attributes) {
+			if (writtenByMarkdown(element, name, value)) continue;
+			const refusal = attributeRefusal(element, name, value);
+			if (!refusal) continue;
+			const shown = value
+				? `<${element} ${name}="${shortValue(value)}">`
+				: `<${element} ${name}>`;
+			problems.add(
+				`${shown}, since ${refusalReason(refusal, element, name, value)}`,
+			);
+		}
+	}
+	return [...problems];
+};
+
+/**
+ * What check:build says of a built page's content: an error when it holds
+ * HTML the allowlist refuses, and a warning when a page that shows content
+ * has no content section to read. The engine's own chrome and scripts,
+ * outside those sections, are not content.
+ */
+export const pageContentFindings = (
+	rel: string,
+	html: string,
+): BuildFinding[] => {
+	if (!showsContent(rel)) return [];
+	const regions = contentRegions(html);
+	if (regions.length === 0) {
+		// The release notes have none when no release has notes of its own.
+		return READ_PAGE.test(rel)
+			? [
+					{
+						level: "warning",
+						file: rel,
+						message:
+							"Shows the book's content, but holds no <section class=\"content-block\"> around it, so check:build could not check that content's HTML. The engine's page templates (packages/astro-bookkit/templates/book-app/src/pages/read) wrap <Content /> in one; restore it in this page's template.",
+					},
+				]
+			: [];
+	}
+	const problems = [...new Set(regions.flatMap(contentMarkupProblems))];
+	if (problems.length === 0) return [];
+	const listed = problems.slice(0, LISTED_PROBLEMS).join("; ");
+	const more =
+		problems.length > LISTED_PROBLEMS
+			? `; and ${problems.length - LISTED_PROBLEMS} more`
+			: "";
+	return [
+		{
+			level: "error",
+			file: rel,
+			message: `Its content holds HTML a book's content may not: ${listed}${more}. The site's Markdown step leaves such HTML out of every page it builds, so something added it after that step: a Markdown, MDX, or rehype plugin in astro.config.mjs, or a Bookkit bug to report with this message.`,
+		},
+	];
+};
 
 export const inspectBuildOutput = async ({
 	book,
@@ -436,6 +613,14 @@ export const inspectBuildOutput = async ({
 				relative(distDir, page),
 			);
 		}
+	}
+
+	// A page's content holds only the HTML content may (html-allowlist.ts),
+	// whatever step wrote it.
+	for (const file of files) {
+		const rel = relative(distDir, file).split("\\").join("/");
+		if (!showsContent(rel)) continue;
+		findings.push(...pageContentFindings(rel, readFileSync(file, "utf8")));
 	}
 
 	return {

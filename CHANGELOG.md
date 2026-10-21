@@ -3,6 +3,24 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — Judges scored per model; mechanisms as an eval rubric
+
+- **`bookkit judge` records which command answered.** When bookkit asks the judges itself, each vote in `corpus-judgments.json` gains `command`: the judge command without leading `NAME=value` assignments. Give `--run` more than once, or one command per line in `BOOKKIT_JUDGE_COMMAND`, and judge n is asked with the nth command in turn, so one panel can mix models. `bookkit judge --rulings` (`check:corpus --judge-prompt <dir> --judge-rulings`) asks about the ruled pairs themselves, merges as they read before, since those are the only votes `--eval` can score. Anything in the command other than leading assignments is committed with the votes, so pass keys through the environment.
+- **`check:corpus --eval` says how far its scores can be trusted.** It now scores each vote alone, per command (`command not recorded` for older votes), and counts the rulings on which every judge chose the same relation. A model's merges caught at its cutoff, the decision table's accuracy on the pairs it decides, and each command's accuracy now come with an exact one-sided 95% lower bound. Catching 3 of 3 merges bounds recall only at 36% or better. `--json` gains `judges.byCommand` and `judges.agreed`.
+- **`bookkit export [book] --rubric [--out <file>]`** writes the book's corpus as an eval rubric, by default to `apps/<book>/exports/rubric.json` (gitignored). It holds one criterion per mechanism (slug, definition, `appliesWhen`/`notWhen`, predictions, tests, `distinctFrom` with reasons, `mergedFrom`) and the author's rulings as labelled `same_idea`/`distinct` pairs. It also carries the merge rule and a `version` that changes with any criterion's text.
+
+Migration: none. The vote field and the eval output are additive; existing `corpus-judgments.json` files read as before. In the engine, `JudgeVote` gains an optional `command`, and `evaluateJudgments` returns `byCommand` and `agreed` as well. In the scripts, `runJudges` takes a list of commands.
+
+## 2026-10-21 — `bun run validate` reads its options
+
+- **`bun run validate -- --book <book>` checks that book alone.** It used to ignore every option and validate every book, so `--book on-call` printed four books, `--json` printed no JSON, and a mistyped flag passed silently. It now takes `--book`, `--release` (release rules for each book checked), and `--json` (with `--book`; one JSON object). An unknown option exits 1 with the closest match ("Unknown option --bok. Did you mean --book?"), and a misspelled book names the closest one. Without options it validates every book, as before.
+- **Migration:** `bookkit validate --all --json` now exits 1 and says `--json` needs one book, instead of printing several JSON documents one after another.
+
+## 2026-10-21 — Check output says what its counts and bindings mean
+
+- **The warning count says when lines group warnings.** `validate` puts a file's warnings on one line, so a fresh book showed "WARNINGS (23)" above 10 lines. The header now reads "WARNINGS (23 on 10 lines; a file's warnings share one)"; it is unchanged when every warning has its own line.
+- **A chapter's draft readout no longer counts an unknown slug as bound.** A misspelled slug in `mechanisms:` printed as `binds: context-dept` beside the error saying no such mechanism exists. It is now named apart (`binds: no mechanism yet (context-dept: not a mechanism of this book; see the error above)`), and `--json`'s `draft` gains `unknown`; `binds` holds only slugs the book defines.
+
 ## 2026-10-21 — Structure edits by command, and smaller fixes
 
 - **`bookkit rename mechanism [book] <slug> <new-slug> [--title "…"]`** changes a mechanism's slug in every book of its corpus, with what names it (chapters, actions, examples and their folder, glossary, links, config), and records the old slug in `corpus.json` so a stale reference names the new one. Before, `rename` pointed at `merge`, which needs both slugs to exist.

@@ -12,7 +12,12 @@ import {
 } from "../packages/astro-bookkit/src/suggestions";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { didYouMean, exitOnHelp } from "./lib/cli";
-import { type CorpusMergeRecord, evaluateCorpusModel } from "./lib/corpus-eval";
+import {
+	type CorpusMergeRecord,
+	type CorpusMergeSide,
+	evaluateCorpusModel,
+	lowerBound95,
+} from "./lib/corpus-eval";
 import {
 	JUDGMENTS_FILE,
 	matchJudgments,
@@ -68,7 +73,7 @@ exitOnHelp({
 		"Compares mechanisms across books: by wording, and by meaning with an\nembedding model when it is there. Books in corpus.json's shared corpus\nare checked against each other, every other book against itself.",
 	usage: [
 		"bun run check:corpus [--book <book> | --books <a,b>] [--no-semantic] [--mode error] [--json]",
-		"bun run check:corpus --judge-prompt <dir> [--judge-for <slug>] [--judge-top <n>] [--judges <n>]",
+		"bun run check:corpus --judge-prompt <dir> [--judge-for <slug> | --judge-rulings] [--judge-top <n>] [--judges <n>]",
 		"bun run check:corpus --judge-record <dir>",
 		"bun run check:corpus --eval [--model <name,...>]",
 	],
@@ -90,6 +95,7 @@ exitOnHelp({
 			"Write a blind prompt per judge for the closest pairs",
 		],
 		["--judge-for <slug>", "Only that mechanism's 3 nearest"],
+		["--judge-rulings", "Only the ruled pairs, which --eval scores"],
 		["--judge-top <n>", "How many pairs to ask about (default: 10)"],
 		["--judges <n>", "Judges per pair (default: 3)"],
 		[
@@ -141,6 +147,14 @@ const judgePromptDir = optionalArg("--judge-prompt");
 const askedBy = optionalArg("--asked-by");
 const judgeRecordDir = optionalArg("--judge-record");
 const judgeFor = optionalArg("--judge-for");
+// Ask about the ruled pairs themselves, so --eval can score a new panel.
+const judgeRulings = process.argv.includes("--judge-rulings");
+if (judgeRulings && judgeFor) {
+	console.error(
+		"--judge-rulings asks about every ruled pair; leave out --judge-for.",
+	);
+	process.exit(1);
+}
 const judgeCount = Number(optionalArg("--judges") ?? 3);
 if (!Number.isInteger(judgeCount) || judgeCount < 1) {
 	console.error(
@@ -559,6 +573,36 @@ function printJudged(pair: CorpusPair): void {
 function writeJudgeRequestFor(dir: string): void {
 	const embedded = vectors;
 	const bySlug = new Map(mechanisms.map((m) => [m.slug, m]));
+	if (judgeRulings) {
+		const merges = (corpusFile.merged ?? []).filter(
+			(merge) => merge.before.length === 2,
+		);
+		const ruledPairs = distinct.flatMap(
+			(ruling): Array<[CorpusMergeSide, CorpusMergeSide]> => {
+				const [a, b] = ruling.pair.map((slug) => bySlug.get(slug));
+				return a && b ? [[a, b]] : [];
+			},
+		);
+		const pairs: Array<[CorpusMergeSide, CorpusMergeSide]> = [
+			...merges.map((merge): [CorpusMergeSide, CorpusMergeSide] => [
+				merge.before[0],
+				merge.before[1],
+			]),
+			...ruledPairs,
+		];
+		if (pairs.length === 0) {
+			console.log(
+				"Nothing to judge: corpus.json has no rulings. bookkit rule and bookkit merge record them.",
+			);
+			return;
+		}
+		const prompts = writeJudgeRequest(dir, pairs, judgeCount);
+		console.log(
+			`Wrote the ${pairs.length} ruled pair(s) to judge in ${dir}: ${merges.length} merge(s), both mechanisms as they read before, and ${ruledPairs.length} ruled distinct. The judges see them blind, like any other pair; check:corpus --eval then scores their votes against your rulings, per command.`,
+		);
+		if (!askedBy) printAskInstructions(dir, prompts);
+		return;
+	}
 	if (judgeFor && !bySlug.has(judgeFor)) {
 		console.error(
 			`--judge-for ${judgeFor}: no mechanism with that slug and a definition.${didYouMean(judgeFor, [...bySlug.keys()])}`,
@@ -613,7 +657,11 @@ function writeJudgeRequestFor(dir: string): void {
 		`Wrote ${chosen.size} pair(s) to judge in ${dir}: ${flagged.length} flagged without a verdict, ${changed.length} changed since judged, the rest the closest unjudged${judgeFor ? ` to ${judgeFor}` : ""} by ${embedded ? "meaning" : "wording"}.`,
 	);
 	// bookkit judge asks them itself when it has a judge command.
-	if (askedBy) return;
+	if (!askedBy) printAskInstructions(dir, prompts);
+}
+
+/** How to ask the judges by hand and record their replies. */
+function printAskInstructions(dir: string, prompts: string[]): void {
 	console.log(
 		`\nAsk ${prompts.length} judge(s), each in a fresh session (an LLM or a person) that sees nothing but its prompt. Each prompt holds the pairs, in its own order; paste it as is:\n${prompts.map((prompt) => `  ${prompt}`).join("\n")}\nSave judge n's reply as ${join(dir, "answer-<n>.json")}, then: bun run bookkit judge record`,
 	);
@@ -708,6 +756,7 @@ async function runEval(): Promise<void> {
 	const pairCount = (slugs.length * (slugs.length - 1)) / 2;
 	const plural = (n: number, word: string) =>
 		`${n} ${word}${n === 1 ? "" : "s"}`;
+	const percent = (rate: number) => `${Math.floor(rate * 100)}%`;
 	console.log(
 		`CORPUS MODEL EVAL (${slugs.length} mechanisms, ${pairCount} pairs; ${plural(merged.length, "merge ruling")}, ${plural(distinct.length, "distinct ruling")})`,
 	);
@@ -737,8 +786,13 @@ async function runEval(): Promise<void> {
 			["at its cutoff", report.atThreshold],
 			["at the cutoff that catches every merge", report.atCatchAll],
 		] as const) {
+			// The catch-all cutoff is fitted to the merges, so no bound for it.
+			const bound =
+				at === report.atThreshold
+					? ` (so it catches ${percent(lowerBound95(at.mergesCaught, report.merges.length))}+ of such merges, at 95% confidence)`
+					: "";
 			console.log(
-				`  ${name} ${at.cutoff.toFixed(2)}: catches ${at.mergesCaught}/${report.merges.length} merges; flags ${plural(at.flagged, "pair")} today (${at.ruledDistinct} ruled distinct, ${at.unreviewed.length} unreviewed)`,
+				`  ${name} ${at.cutoff.toFixed(2)}: catches ${at.mergesCaught}/${report.merges.length} merges${bound}; flags ${plural(at.flagged, "pair")} today (${at.ruledDistinct} ruled distinct, ${at.unreviewed.length} unreviewed)`,
 			);
 		}
 		for (const pair of report.atThreshold.unreviewed) {
@@ -765,8 +819,9 @@ async function runEval(): Promise<void> {
 	console.log(
 		"  decision table (every judge says same idea: merge; some do: yours to rule; none do: distinct):",
 	);
+	const decided = table.right + table.wrong.length;
 	console.log(
-		`    ${table.right} right, ${table.wrong.length} wrong, ${table.left.length} left to you`,
+		`    ${table.right} right, ${table.wrong.length} wrong, ${table.left.length} left to you${decided > 0 ? ` (right on ${percent(lowerBound95(table.right, decided))}+ of the pairs it decides, at 95% confidence)` : ""}`,
 	);
 	for (const [label, misses] of [
 		["wrong", table.wrong],
@@ -786,12 +841,23 @@ async function runEval(): Promise<void> {
 			`    wrong: ${miss.pair.join(" ~ ")} (ruled ${miss.ruled}, score ${miss.call.score.toFixed(2)})`,
 		);
 	}
+	console.log(
+		`  one judge alone (each vote as its own call: same idea is a merge, anything else distinct), by the command that answered:`,
+	);
+	for (const tally of judges.byCommand) {
+		console.log(
+			`    ${tally.command ?? "command not recorded"}: ${tally.right} of ${tally.votes} votes right (${percent(lowerBound95(tally.right, tally.votes))}+ at 95% confidence)`,
+		);
+	}
+	console.log(
+		`  every judge chose the same relation on ${judges.agreed} of ${judges.scored} rulings; where they always agree, more judges add cost, not information`,
+	);
 	if (judges.unjudged.length > 0) {
 		console.log(
 			`  no verdicts on the text as ruled: ${judges.unjudged.map((pair) => pair.join(" ~ ")).join(", ")}`,
 		);
 	}
 	console.log(
-		"\n→ The table never needs a cutoff, so it cannot be fitted to these rulings; the score needs one, and a cutoff fitted on three merges can move with the fourth.",
+		"\n→ The table never needs a cutoff, so it cannot be fitted to these rulings; the score needs one, and a cutoff fitted on three merges can move with the fourth. The confidence bounds grow with every ruling recorded (bookkit rule, bookkit merge); a mixed panel (bookkit judge --run, more than once) scores each model on the same pairs.",
 	);
 }

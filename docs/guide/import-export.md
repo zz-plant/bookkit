@@ -23,3 +23,9 @@
 - **Scripts.** The PDF's fonts cover Latin (with Latin Extended and Vietnamese), Greek, and Cyrillic, using Noto Sans (SIL Open Font License) beyond Western European text. For another script, such as CJK, set `exports.pdfFont`. Text the fonts cannot draw, or a script that needs shaping such as Devanagari, stops the build with the entries and characters at fault; set `exports: { pdf: false }` to publish the EPUB alone.
 
 `bun run bookkit export [book]` (or `bun run export:gitbook -- --book <book>`) writes a GitBook folder: one page per record in reading order, a `SUMMARY.md` with parts and nested actions, MDX converted to Markdown, links rewritten, local images in `.gitbook/assets/`, and the site's link rule and HTML allowlist applied. The default folder, `apps/<book>/exports/gitbook`, is gitignored; `--out <dir>` must be missing, empty, or an earlier export.
+
+`bun run bookkit export [book] --rubric` writes the book's corpus (the shared corpus when `corpus.json` lists the book) as an eval rubric, `apps/<book>/exports/rubric.json` unless `--out <file>`, for grading text outside Bookkit against the book's ideas: a model's answers, someone else's draft, a case write-up.
+
+- **`criteria`**: one per mechanism, with its slug as a stable id, its definition, when it applies (`appliesWhen`, from `is`) and when it does not (`notWhen`, from `isNot`), its predictions and tests, the mechanisms you ruled a different idea with your reasons (`distinctFrom`), and those merged into it (`mergedFrom`).
+- **`pairs`**: your rulings as labelled examples. A merge is `same_idea`, with both texts as they read before it; a distinct ruling is `distinct`, with its reason. These are hard cases a grader gets wrong: different ideas that read alike.
+- **`rule`** is the merge rule judges are asked, and **`version`** changes whenever any criterion's text does, so a score can name the rubric it was given against.

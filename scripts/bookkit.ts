@@ -87,6 +87,7 @@ import {
 import {
 	JUDGE_COMMAND_ENV,
 	runJudges,
+	splitCommands,
 	unansweredJudges,
 } from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
@@ -104,6 +105,7 @@ import {
 	releaseSource,
 	releaseVersions,
 } from "./lib/release-notes";
+import { exportRubric } from "./lib/rubric";
 import { titleFromSlug } from "./lib/scaffold-book";
 import {
 	planMoveTool,
@@ -419,7 +421,7 @@ switch (findCommand(command)?.name ?? command) {
 	case "export": {
 		const target = targetBooks(
 			args,
-			"bun run bookkit export [book] [--out <dir>]",
+			"bun run bookkit export [book] [--out <dir>] [--rubric]",
 		);
 		if (target.books.length !== 1) {
 			console.error(
@@ -430,6 +432,24 @@ switch (findCommand(command)?.name ?? command) {
 		const [book] = target.books;
 		if (target.note) console.log(target.note);
 		const out = flagValue(args, "--out");
+		if (args.includes("--rubric")) {
+			const written = exportRubric(book, out && resolveFromCaller(out));
+			if ("error" in written) {
+				console.error(written.error);
+				process.exit(1);
+			}
+			const { rubric } = written;
+			const same = rubric.pairs.filter((pair) => pair.label === "same_idea");
+			const shown = relative(process.cwd(), written.path);
+			console.log(
+				`Rubric for ${rubric.books.join(", ")} (version ${rubric.version}): ${rubric.criteria.length} criteria, ${
+					rubric.pairs.length > 0
+						? `${rubric.pairs.length} labelled pairs (${same.length} same idea, ${rubric.pairs.length - same.length} distinct, with reasons)`
+						: "no labelled pairs yet (bookkit rule and bookkit merge add them)"
+				}.\nWritten to ${shown.startsWith("..") ? written.path : shown}`,
+			);
+			process.exit(0);
+		}
 		console.log(`\n📚 GitBook export of ${book}\n`);
 		const status = runScript("export-gitbook.ts", [
 			"--book",
@@ -1682,7 +1702,7 @@ function printDraft(draft: ChapterDraft) {
 			: `  draft: ${draft.words} words of prose.`,
 	);
 	console.log(
-		`  binds: ${draft.binds.length > 0 ? draft.binds.join(", ") : "no mechanism yet"}.`,
+		`  binds: ${draft.binds.length > 0 ? draft.binds.join(", ") : "no mechanism yet"}${draft.unknown.length > 0 ? ` (${draft.unknown.join(", ")}: not a mechanism of this book; see the error above)` : ""}.`,
 	);
 	if (draft.unbound.length > 0) {
 		console.log(
@@ -1858,36 +1878,49 @@ function newestAnswered(): { folder: string } | { error: string } {
 	};
 }
 
-/** The judge command: --run, else the environment's, unless --no-run. */
-function judgeCommand(rest: string[]): string | undefined {
-	if (rest.includes("--no-run")) return undefined;
-	return (
-		flagValue(rest, "--run") ??
-		(process.env[JUDGE_COMMAND_ENV]?.trim() || undefined)
+/**
+ * The judge commands: every --run, else the environment's, one per line,
+ * unless --no-run. With several, judge n is asked with the nth, in turn.
+ */
+function judgeCommands(rest: string[]): string[] {
+	if (rest.includes("--no-run")) return [];
+	const passed = rest.flatMap((arg, index) =>
+		arg === "--run" && rest[index + 1] && !rest[index + 1].startsWith("--")
+			? [rest[index + 1]]
+			: [],
 	);
+	return passed.length > 0
+		? passed
+		: splitCommands(process.env[JUDGE_COMMAND_ENV]);
 }
 
 /** How to have bookkit ask the judges itself. */
 function judgeCommandHint(): string {
-	return `To have bookkit ask them and record the answers: set ${JUDGE_COMMAND_ENV} to a command that reads a prompt on stdin and prints the reply (an LLM's command-line tool), or pass --run "<command>".`;
+	return `To have bookkit ask them and record the answers: set ${JUDGE_COMMAND_ENV} to a command that reads a prompt on stdin and prints the reply (an LLM's command-line tool), or pass --run "<command>". Several commands (one per line, or --run more than once) ask the judges in turn, so a panel can mix models.`;
 }
 
 /**
  * Asks the judges in `folder` that have not answered, with `command`, then
  * records the answers once every judge has one.
  */
-async function askAndRecord(folder: string, command: string): Promise<number> {
+async function askAndRecord(
+	folder: string,
+	commands: string[],
+): Promise<number> {
 	const waiting = unansweredJudges(folder);
 	if (waiting.length > 0) {
 		console.log(
-			`\nAsking ${waiting.length} judge(s), each on its own, with: ${command}`,
+			commands.length === 1
+				? `\nAsking ${waiting.length} judge(s), each on its own, with: ${commands[0]}`
+				: `\nAsking ${waiting.length} judge(s), each on its own, with ${commands.length} commands in turn: ${commands.join("; ")}`,
 		);
-		const results = await runJudges(folder, command);
+		const results = await runJudges(folder, commands);
 		for (const result of results) {
+			const asked = commands.length > 1 ? `${result.command}, ` : "";
 			console.log(
 				result.answer
-					? `  ✓ judge ${result.judge} (${result.seconds}s)`
-					: `  ✗ judge ${result.judge} (${result.seconds}s): ${result.error}`,
+					? `  ✓ judge ${result.judge} (${asked}${result.seconds}s)`
+					: `  ✗ judge ${result.judge} (${asked}${result.seconds}s): ${result.error}`,
 			);
 		}
 		if (results.some((result) => !result.answer)) {
@@ -1915,8 +1948,8 @@ async function judge(rest: string[]): Promise<number> {
 				? resolveFromCaller(rest[1])
 				: undefined;
 		if (rest[0] === "run") {
-			const command = judgeCommand(rest);
-			if (!command) {
+			const commands = judgeCommands(rest);
+			if (commands.length === 0) {
 				console.error(`No judge command. ${judgeCommandHint()}`);
 				return 1;
 			}
@@ -1927,7 +1960,7 @@ async function judge(rest: string[]): Promise<number> {
 				);
 				return 1;
 			}
-			return askAndRecord(folder, command);
+			return askAndRecord(folder, commands);
 		}
 		const found = named ? { folder: named } : newestAnswered();
 		if ("error" in found) {
@@ -1937,33 +1970,43 @@ async function judge(rest: string[]): Promise<number> {
 		return runScript("check-corpus.ts", ["--judge-record", found.folder]);
 	}
 	const slug = rest[0] && !rest[0].startsWith("--") ? rest[0] : undefined;
+	const rulings = rest.includes("--rulings");
+	if (rulings && slug) {
+		console.error(
+			"bookkit judge --rulings asks about every ruled pair; leave out the mechanism.",
+		);
+		return 1;
+	}
 	const passed = (name: string) => {
 		const index = rest.indexOf(name);
 		return index >= 0 && rest[index + 1] ? [name, rest[index + 1]] : [];
 	};
 	const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-	let folder = join(judgingDir(), `${slug ?? "corpus"}-${stamp}`);
+	const name = slug ?? (rulings ? "rulings" : "corpus");
+	let folder = join(judgingDir(), `${name}-${stamp}`);
 	for (let n = 2; existsSync(folder); n += 1) {
-		folder = join(judgingDir(), `${slug ?? "corpus"}-${stamp}-${n}`);
+		folder = join(judgingDir(), `${name}-${stamp}-${n}`);
 	}
-	const command = judgeCommand(rest);
+	const commands = judgeCommands(rest);
 	const status = runScript("check-corpus.ts", [
 		"--judge-prompt",
 		folder,
 		...(slug ? ["--judge-for", slug] : []),
+		// The ruled pairs need no ranking, so no model.
+		...(rulings ? ["--judge-rulings", "--no-semantic"] : []),
 		...passed("--judge-top"),
 		...passed("--judges"),
-		...(rest.includes("--quick") ? ["--no-semantic"] : []),
+		...(rest.includes("--quick") && !rulings ? ["--no-semantic"] : []),
 		...(rest.includes("--download-model") ? ["--download-model"] : []),
-		...(command ? ["--asked-by", command] : []),
+		...(commands.length > 0 ? ["--asked-by", commands.join("; ")] : []),
 	]);
 	// Nothing to judge writes no request.
 	if (status !== 0 || !existsSync(join(folder, "key.json"))) return status;
-	if (!command) {
+	if (commands.length === 0) {
 		console.log(`\n${judgeCommandHint()}`);
 		return 0;
 	}
-	return askAndRecord(folder, command);
+	return askAndRecord(folder, commands);
 }
 
 /**
@@ -2772,7 +2815,11 @@ Check
                                             mechanism's 3 nearest without a verdict, or the corpus's flagged and
                                             closest pairs; writes a prompt per judge in .bookkit/judging/. With a
                                             judge command (--run, or BOOKKIT_JUDGE_COMMAND), asks each one and
-                                            records the answers
+                                            records the answers with the command that gave them; several
+                                            (--run again, or one per line) ask the judges in turn
+  judge --rulings [--judges 3] [--run "<command>"]
+                                            ask judges about your ruled pairs, blind, so check:corpus --eval
+                                            can score a new panel (or model) against your rulings
   judge run [folder] [--run "<command>"]    ask the judges that have not answered (default: the newest request)
   judge record [folder]                     record answers saved by hand (default: the newest with answers)
   rule <a> <b> --distinct "<reason>"        rule two mechanisms different ideas, in corpus.json
@@ -2792,6 +2839,9 @@ Preview and publish
   dev stop|status|logs [book]               stop or find a dev server bookkit dev (or astro dev) left running
   build [book] [--all]                      build one book (no book: the current one, or all)
   export [book] [--out <dir>]               a GitBook folder of the book; says where the PDF and EPUB are
+  export [book] --rubric [--out <file>]     the book's corpus as an eval rubric: one criterion per mechanism,
+                                            and your rulings as labelled pairs (default:
+                                            apps/<book>/exports/rubric.json)
   publish [book] [--dry-run] [--records]  move a book from draft to published: checks it with release
                                             rules first, then sets status: "published" in book.config.ts;
                                             --records also marks its draft records published

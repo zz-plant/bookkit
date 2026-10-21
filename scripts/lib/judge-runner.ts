@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkAnswer } from "./corpus-judgments";
+import { checkAnswer, commandFile } from "./corpus-judgments";
 
 /**
  * Asks the judges of a `bookkit judge` request with a command the author
@@ -16,17 +16,40 @@ import { checkAnswer } from "./corpus-judgments";
  * as an LLM's command-line tool. Each judge is its own run of the command, in
  * an empty folder of its own, so it sees its prompt and nothing else: not the
  * key, not the other judges, not the repository. A reply that answers every
- * pair is saved as answer-<n>.json, where `bookkit judge record` reads it.
+ * pair is saved as answer-<n>.json, where `bookkit judge record` reads it,
+ * and the command beside it as judge-<n>/command.txt, so each vote records
+ * which command gave it. Given several commands (one per model, say), judge n
+ * is asked with the nth, in turn, so a panel can mix models and
+ * `check:corpus --eval` can score each one.
  */
 
 /** The environment variable that names the judge command. */
 export const JUDGE_COMMAND_ENV = "BOOKKIT_JUDGE_COMMAND";
+
+/**
+ * The command as a vote records it: without leading NAME=value assignments,
+ * which can hold keys. Anything else in the command is kept, in the
+ * repository, so pass secrets through the environment.
+ */
+export const commandLabel = (command: string): string =>
+	command
+		.trim()
+		.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S*)\s+)+/, "");
+
+/** The judge commands from --run (repeatable) or the environment, one per line. */
+export const splitCommands = (value: string | undefined): string[] =>
+	(value ?? "")
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean);
 
 /** How long one judge may take before it is stopped. */
 const TIMEOUT_MS = 10 * 60 * 1000;
 
 export type JudgeResult = {
 	judge: number;
+	/** The command that asked it, as recorded. */
+	command: string;
 	/** The answer file written, when the reply answered every pair. */
 	answer?: string;
 	/** Why it was not, and where the reply was kept. */
@@ -65,6 +88,7 @@ const askOne = async (
 ): Promise<JudgeResult> => {
 	const started = Date.now();
 	const seconds = () => Math.round((Date.now() - started) / 1000);
+	const label = commandLabel(command);
 	const text = readFileSync(prompt, "utf8");
 	// An empty folder, so a judge that can read files finds nothing to read.
 	const room = mkdtempSync(join(tmpdir(), "bookkit-judge-"));
@@ -90,6 +114,7 @@ const askOne = async (
 			writeFileSync(kept, `${reply}${errors}`);
 			return {
 				judge,
+				command: label,
 				error: `the command exited with ${child.signalCode ?? code}${errors.trim() ? `: ${errors.trim().split("\n").pop()}` : ""} (output in ${kept})`,
 				seconds: seconds(),
 			};
@@ -100,25 +125,32 @@ const askOne = async (
 			writeFileSync(kept, reply);
 			return {
 				judge,
+				command: label,
 				error: `${problem} (reply in ${kept})`,
 				seconds: seconds(),
 			};
 		}
 		const answer = join(folder, file);
 		writeFileSync(answer, reply.endsWith("\n") ? reply : `${reply}\n`);
-		return { judge, answer, seconds: seconds() };
+		writeFileSync(commandFile(folder, judge), `${label}\n`);
+		return { judge, command: label, answer, seconds: seconds() };
 	} finally {
 		rmSync(room, { recursive: true, force: true });
 	}
 };
 
-/** Asks every judge in the folder that has no answer yet, all at once. */
+/**
+ * Asks every judge in the folder that has no answer yet, all at once: judge n
+ * with the nth command, in turn.
+ */
 export const runJudges = (
 	folder: string,
-	command: string,
-): Promise<JudgeResult[]> =>
-	Promise.all(
+	commands: readonly string[],
+): Promise<JudgeResult[]> => {
+	if (commands.length === 0) throw new Error("No judge command to run.");
+	return Promise.all(
 		unansweredJudges(folder).map(({ judge, prompt }) =>
-			askOne(folder, judge, prompt, command),
+			askOne(folder, judge, prompt, commands[(judge - 1) % commands.length]),
 		),
 	);
+};

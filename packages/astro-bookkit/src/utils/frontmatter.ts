@@ -1,4 +1,32 @@
-import yaml from "js-yaml";
+import {
+	binaryTag,
+	CORE_SCHEMA,
+	DUMP_SCHEMA,
+	dump,
+	load,
+	mergeTag,
+	omapTag,
+	pairsTag,
+	Schema,
+	setTag,
+	timestampTag,
+	YAMLException,
+} from "js-yaml";
+
+/**
+ * js-yaml 4's default schema, rebuilt from js-yaml 5's tags: YAML 1.2 core
+ * plus timestamps, merge keys and the other extras frontmatter has always been
+ * read with. js-yaml 5's default reads `date: 2026-03-02` as a string.
+ */
+const FRONTMATTER_SCHEMA = new Schema([
+	...CORE_SCHEMA.tags,
+	timestampTag,
+	mergeTag,
+	binaryTag,
+	omapTag,
+	pairsTag,
+	setTag,
+]);
 
 /**
  * The one frontmatter parser: validation, search, exports, MCP, and the
@@ -28,7 +56,7 @@ export const parseFrontmatter = (raw: string): ParsedFrontmatter => {
 	if (!match) return { status: "missing", data: {}, body: raw };
 	const body = raw.slice(match[0].length).trim();
 	try {
-		const data = yaml.load(match[1] ?? "");
+		const data = load(match[1] ?? "", { schema: FRONTMATTER_SCHEMA });
 		if (data === undefined || data === null) {
 			return { status: "ok", data: {}, body };
 		}
@@ -43,7 +71,7 @@ export const parseFrontmatter = (raw: string): ParsedFrontmatter => {
 		};
 	} catch (error) {
 		const reason =
-			error instanceof yaml.YAMLException
+			error instanceof YAMLException
 				? `${error.reason} at line ${(error.mark?.line ?? 0) + 1}`
 				: String(error);
 		return { status: "invalid", data: {}, body, reason };
@@ -90,6 +118,9 @@ export const frontmatterTextFields = (
 /**
  * A frontmatter block for `data`, written by js-yaml so any title or summary
  * (quotes, colons, `#`, leading dashes) reads back as the same string.
+ * `DUMP_SCHEMA` quotes values a YAML 1.1 reader would turn into booleans or
+ * numbers (`yes`, `on`, `017`), as js-yaml 4 did, so Astro's own frontmatter
+ * parser reads them as strings too.
  */
 export const formatFrontmatter = (data: Record<string, unknown>): string =>
-	`---\n${yaml.dump(data, { lineWidth: -1 })}---\n`;
+	`---\n${dump(data, { lineWidth: -1, schema: DUMP_SCHEMA })}---\n`;

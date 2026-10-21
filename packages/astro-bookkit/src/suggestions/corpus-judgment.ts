@@ -38,6 +38,11 @@ export type JudgeVote = {
 	sameEvidence: number;
 	/** The judge's confidence in its relation, when given. */
 	relationP?: number;
+	/**
+	 * The command that answered, when bookkit asked the judge itself
+	 * (`bookkit judge --run`), so judges can be scored per model.
+	 */
+	command?: string;
 };
 
 /** The verdicts recorded on one pair of mechanisms, as they read today. */
@@ -184,6 +189,20 @@ export type JudgmentEval = {
 	 * among the other rulings.
 	 */
 	scoreCutoff: { right: number; wrong: JudgmentEvalMiss[] };
+	/**
+	 * Each vote alone, as a table with one judge (same idea: merge; anything
+	 * else: distinct), grouped by the command that answered (null: not
+	 * recorded). Set beside the table, it says what the extra judges add, and
+	 * per command, which model judges best.
+	 */
+	byCommand: Array<{
+		command: string | null;
+		votes: number;
+		right: number;
+		wrong: number;
+	}>;
+	/** Judged rulings on which every judge chose the same relation. */
+	agreed: number;
 };
 
 /**
@@ -206,8 +225,28 @@ export const evaluateJudgments = (
 			.map((ruling) => ruling.pair),
 		table: { right: 0, wrong: [], left: [] },
 		scoreCutoff: { right: 0, wrong: [] },
+		byCommand: [],
+		agreed: 0,
 	};
+	const commands = new Map<string | null, JudgmentEval["byCommand"][number]>();
 	for (const ruling of judged) {
+		if (new Set(ruling.votes.map((vote) => vote.relation)).size === 1)
+			result.agreed += 1;
+		for (const vote of ruling.votes) {
+			const command = vote.command ?? null;
+			const tally = commands.get(command) ?? {
+				command,
+				votes: 0,
+				right: 0,
+				wrong: 0,
+			};
+			tally.votes += 1;
+			if ((vote.relation === "same_idea") === (ruling.ruled === "merge"))
+				tally.right += 1;
+			else tally.wrong += 1;
+			commands.set(command, tally);
+		}
+
 		const call = decidePair(ruling.votes) as PairCall;
 		const miss = { pair: ruling.pair, ruled: ruling.ruled, call };
 		if (call.call === "split") result.table.left.push(miss);
@@ -228,5 +267,8 @@ export const evaluateJudgments = (
 		if (merged === (ruling.ruled === "merge")) result.scoreCutoff.right += 1;
 		else result.scoreCutoff.wrong.push(miss);
 	}
+	result.byCommand = [...commands.values()].sort(
+		(a, b) => b.right / b.votes - a.right / a.votes || b.votes - a.votes,
+	);
 	return result;
 };

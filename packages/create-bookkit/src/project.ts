@@ -75,7 +75,6 @@ const PROJECT_SCRIPT_ALIASES: Record<string, string> = {
 const PROJECT_DEV_DEPENDENCIES = [
 	"@astrojs/check",
 	"@types/bun",
-	"@types/js-yaml",
 	"@types/node",
 	"typescript",
 	"typescript-native",

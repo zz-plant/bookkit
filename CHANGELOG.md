@@ -3,11 +3,6 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
-## 2026-10-21 — Builds again on js-yaml 5 and the Astro that needs Node 22.22
-
-- **Frontmatter parsing imports js-yaml by name.** js-yaml 5 (#335) has no default export, so every script that read frontmatter stopped at `Missing 'default' export in module 'js-yaml.mjs'`, and CI failed before any check ran. `utils/frontmatter.ts` now imports `load`, `dump`, and `YAMLException`; with the default schema the books parse as before (`verify --all` validates and builds all four).
-- **`engines.node` is `>=22.22.0`**, the minimum the locked Astro declares, so `toolchain-pins` passes again. **Migration:** a machine on Node 22.12–22.21 needs a newer Node 22 to build.
-
 ## 2026-10-21 — Check output says what its counts and bindings mean
 
 - **The warning count says when lines group warnings.** `validate` puts a file's warnings on one line, so a fresh book showed "WARNINGS (23)" above 10 lines. The header now reads "WARNINGS (23 on 10 lines; a file's warnings share one)"; it is unchanged when every warning has its own line.

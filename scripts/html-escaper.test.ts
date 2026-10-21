@@ -43,15 +43,6 @@ const files = (dir: string): string[] =>
 			})
 		: [];
 
-/** Writes that are not an escaper's, each with the reason. */
-const ALLOWED: Array<{ file: string; text: string; why: string }> = [
-	{
-		file: "packages/astro-bookkit/src/utils/markdown.ts",
-		text: 'embedTitle(source).replace(/"/g, "&quot;")',
-		why: "an MDX attribute holding the title the engine names an embed with (`embedTitle`: a service's name or a host, which holds no & or <), so only a quote could end it",
-	},
-];
-
 /** A quoted character reference: what an escaper writes in place of `&`, `<`, `>`, `"`, or `'`. */
 const REFERENCE_LITERAL = /["'`]&(?:amp|lt|gt|quot|apos|#39|#x27);["'`]/;
 const COMMENT = /^\s*(?:\/\/|\/\*|\*)/;
@@ -67,12 +58,7 @@ describe("escaping text into HTML and XML", () => {
 				: readFileSync(join(root, file), "utf8")
 						.split("\n")
 						.flatMap((line, index) =>
-							!COMMENT.test(line) &&
-							REFERENCE_LITERAL.test(line) &&
-							!ALLOWED.some(
-								(allowed) =>
-									allowed.file === file && line.includes(allowed.text),
-							)
+							!COMMENT.test(line) && REFERENCE_LITERAL.test(line)
 								? [`${file}:${index + 1}: ${line.trim()}`]
 								: [],
 						),

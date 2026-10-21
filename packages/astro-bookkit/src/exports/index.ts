@@ -1,4 +1,5 @@
 export { escapeHtml } from "../utils/character-references";
+export type { InlineImage } from "../utils/markdown-blocks";
 export type { ExportAnalyticsEvent } from "./analytics";
 export { recordExportEvent } from "./analytics";
 export type { ExportReadingOrderOptions } from "./content-parsing";
@@ -35,7 +36,6 @@ export {
 	formatBytes,
 	formatExportUpdatedDate,
 } from "./link-metadata-helpers";
-export type { InlineImage } from "./markdown-blocks";
 export type { ImageResolver, LinkResolver } from "./markdown-to-html";
 export { markdownToHtml } from "./markdown-to-html";
 export type { PdfFontFile } from "./pdf-fonts";

@@ -11,19 +11,22 @@ import {
 	rgb,
 } from "pdf-lib";
 import { HAS_SCHEME, isSafeLink } from "../utils/links";
-import { defaultImageLoader, imageWarning, warnWith } from "./images";
 import type {
 	InlineImage,
 	MarkdownBlock,
 	MarkdownDocument,
-} from "./markdown-blocks";
-import { type HeadingBlock, parseEntryMarkdown } from "./markdown-headings";
+} from "../utils/markdown-blocks";
+import {
+	type HeadingBlock,
+	parseEntryMarkdown,
+} from "../utils/markdown-headings";
 import {
 	createNoteNumbers,
 	type InlineNode,
 	type NoteNumbers,
 	parseInline,
-} from "./markdown-inline";
+} from "../utils/markdown-inline";
+import { defaultImageLoader, imageWarning, warnWith } from "./images";
 import {
 	imageAltText,
 	readLinkTarget,

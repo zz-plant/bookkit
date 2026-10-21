@@ -873,6 +873,54 @@ export const withoutUnsafeMarkup = (
 	return text;
 };
 
+/** An embed the site keeps that has no title: its `src`, and its 1-based line. */
+export type UntitledEmbed = { src: string; line: number };
+
+/**
+ * Each `<iframe>` the site keeps (one with a safe `src`) that has no title,
+ * or an empty one, in source order. A screen reader names a frame by its
+ * title, and check:a11y fails a page holding a frame without one. Import
+ * gives each embed a title; one written by hand may have none. Tags are
+ * read as `findUnsafeMarkup` reads them, so code, comments, and what an
+ * expression holds are skipped, and so is an embed it already reports: a
+ * `src` the site removes, or a title written as an expression.
+ */
+export const findUntitledEmbeds = (
+	markdown: string,
+	options: FindUnsafeMarkupOptions = {},
+): UntitledEmbed[] => {
+	const masked = maskNonProse(markdown);
+	const jsx = options.tags !== "html";
+	const found: UntitledEmbed[] = [];
+	for (let index = 0; index < masked.length; index += 1) {
+		const char = masked[index];
+		if (char === "\\") {
+			index += 1;
+		} else if (jsx && char === "{") {
+			const end = closingBrace(masked, index);
+			if (end >= 0) index = end;
+		} else if (char === "<") {
+			const tag = readTag(masked, index, jsx);
+			if (!tag) continue;
+			index = tag.end - 1;
+			// In MDX a capitalized name is a component.
+			const element = jsx && !/^[a-z]/.test(tag.name) ? "" : tag.name;
+			if (tag.closing || element.toLowerCase() !== "iframe") continue;
+			const attribute = (name: string) =>
+				tag.attributes.find((each) => each.name?.toLowerCase() === name);
+			const src = attribute("src")?.value?.trim();
+			if (!src || attributeRefusal("iframe", "src", src)) continue;
+			const title = attribute("title");
+			if (title && (title.value === null || title.value.trim())) continue;
+			found.push({
+				src,
+				line: markdown.slice(0, tag.start).split("\n").length,
+			});
+		}
+	}
+	return found;
+};
+
 /** One `<tag>` in prose, and how `toMdxBody` writes it. */
 type TagToken = {
 	name: string;

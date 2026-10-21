@@ -1,9 +1,5 @@
 import { posix } from "node:path";
 import { entryMarkdown } from "../../packages/astro-bookkit/src/exports/content-parsing";
-import {
-	dropMdxComments,
-	replaceImages,
-} from "../../packages/astro-bookkit/src/exports/markdown-blocks";
 import { readLinkTarget } from "../../packages/astro-bookkit/src/exports/markdown-to-html";
 import type {
 	ExportEntry,
@@ -16,6 +12,10 @@ import {
 	splitFencedCode,
 	withoutUnsafeMarkup,
 } from "../../packages/astro-bookkit/src/utils/markdown";
+import {
+	dropMdxComments,
+	replaceImages,
+} from "../../packages/astro-bookkit/src/utils/markdown-blocks";
 
 /**
  * A book as a GitBook folder: one Markdown page per record, in the reading

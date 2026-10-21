@@ -7,7 +7,7 @@
  * and `---` into dashes (but not in code), one slugger per page, and no id
  * for a heading written as an HTML tag.
  *
- * Shared by exports/heading-ids.test.ts and utils/markdown.test.ts.
+ * Shared by exports/heading-ids.test.ts and utils/markdown-headings.test.ts.
  */
 export const SITE_HEADING_IDS: ReadonlyArray<[string, string | null]> = [
 	['Don\'t -- stop: the "quick" fix...', "dont--stop-the-quick-fix"],

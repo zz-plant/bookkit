@@ -36,7 +36,10 @@ let workspace: string;
 let appDir: string;
 
 beforeAll(() => {
-	({ workspace, appDir } = createBookWorkspace("export-build-", BOOK));
+	// check:build, which these builds must pass, wants each page's image.
+	({ workspace, appDir } = createBookWorkspace("export-build-", BOOK, {
+		linkPreviews: true,
+	}));
 });
 
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));

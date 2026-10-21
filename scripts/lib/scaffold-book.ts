@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { defaultFrames } from "../../packages/astro-bookkit/src/frames/defaults";
+import { didYouMean } from "../../packages/astro-bookkit/src/utils/did-you-mean";
 import { scaffoldSource } from "../../packages/astro-bookkit/src/validators/content-check";
 import { listFilesRecursive } from "../_lib";
 import { syncShimTemplatesToBook } from "../_shim-templates";
@@ -98,8 +99,9 @@ export const starterAppFiles = (
 export const frameNamed = (slug = "intervention") => {
 	const frame = defaultFrames.find((candidate) => candidate.slug === slug);
 	if (!frame) {
+		const slugs = defaultFrames.map((candidate) => candidate.slug);
 		throw new Error(
-			`No frame "${slug}". Frames: ${defaultFrames.map((candidate) => candidate.slug).join(", ")}.`,
+			`No frame "${slug}".${didYouMean(slug, slugs)} Frames: ${slugs.join(", ")}.`,
 		);
 	}
 	return frame;

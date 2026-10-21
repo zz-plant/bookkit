@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "../_lib";
 import {
+	chapterDraft,
 	chapterSource,
 	findSimilarMechanisms,
 	groupFindingsByFile,
@@ -31,6 +32,35 @@ describe("nextChapterFileName", () => {
 
 	it("starts at 01 in an empty book", () => {
 		expect(nextChapterFileName([], "Opening").fileName).toBe("01-opening.mdx");
+	});
+});
+
+describe("chapterDraft", () => {
+	const words = (n: number) =>
+		Array.from({ length: n }, () => "word").join(" ");
+	const chapter = (body: string) =>
+		`---\nslug: a\ntitle: "A"\nmechanisms:\n  - one\n---\n\n${body}\n`;
+
+	it("calls a chapter under site.minIndexableWords a stub, at the same count the build uses", () => {
+		const draft = chapterDraft(chapter(words(59)), ["one"], ["one", "two"]);
+		expect(draft).toMatchObject({ minimum: 60, stub: true, binds: ["one"] });
+		expect(chapterDraft(chapter(words(60)), ["one"], ["one"]).stub).toBe(false);
+	});
+
+	it("follows the book's own threshold, and 0 turns stubs off", () => {
+		expect(
+			chapterDraft(chapter(words(30)), [], [], { minIndexableWords: 20 }).stub,
+		).toBe(false);
+		expect(
+			chapterDraft(chapter(words(5)), [], [], { minIndexableWords: 0 }).stub,
+		).toBe(false);
+	});
+
+	it("lists the book's mechanisms the chapter does not bind, sorted", () => {
+		expect(
+			chapterDraft(chapter(words(70)), ["one"], ["three", "one", "two"])
+				.unbound,
+		).toEqual(["three", "two"]);
 	});
 });
 

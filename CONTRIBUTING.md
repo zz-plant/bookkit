@@ -2,7 +2,7 @@
 
 You do not need full-system context to contribute safely. Pick a lane, run checks, and keep architecture boundaries intact.
 
-For commands see [`README.md`](./README.md). For how the system is structured — layers, engine module map, import tiers — see [`docs/architecture.md`](./docs/architecture.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
+For commands see [`README.md`](./README.md), and for what each check enforces, [`docs/guide/`](./docs/guide/). For how the system is structured — layers, engine module map, import tiers — see [`docs/architecture.md`](./docs/architecture.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
 
 ---
 
@@ -147,7 +147,7 @@ Tests sit beside the code they cover (`*.test.ts`), and `bun run test` runs ever
 
 ## Validation and book status
 
-A book's `status` in `book.config.ts` decides the rules. A published or stable book gets release rules: no draft record in any section, broken links and unknown prerequisites are errors, and it must be indexable at a public URL. In a draft or in-review book, draft records are allowed, and broken links and unknown prerequisites are warnings. Errors exit 1 whatever the status. `validate:release` is the same command as `validate`; README → Status has the full table.
+A book's `status` in `book.config.ts` decides the rules. A published or stable book gets release rules: no draft record in any section, broken links and unknown prerequisites are errors, and it must be indexable at a public URL. In a draft or in-review book, draft records are allowed, and broken links and unknown prerequisites are warnings. Errors exit 1 whatever the status. `validate:release` is the same command as `validate`; [Status](./docs/guide/concepts.md#status) has the full table.
 
 If validation fails, fix the structure; do not weaken a rule to make it pass.
 
@@ -212,6 +212,6 @@ The canonical documents and their roles are listed once, in `AGENTS.md` → "Can
 | `semantic-corpus` | `check:corpus --mode error` with the embedding model downloaded, so mechanisms are compared by meaning; it fails if the meaning pass did not run. |
 | `standalone-project` | Scaffolds a project with `create-bookkit`, commits it, builds it failing on any `[WARN]` line, then runs its `verify -- --all` and `deploy -- --dry-run`. |
 
-`.github/workflows/deploy.yml` publishes after CI passes on `main`, only for the books the `DEPLOY_BOOKS` repository variable names (README → Deploy from CI).
+`.github/workflows/deploy.yml` publishes after CI passes on `main`, only for the books the `DEPLOY_BOOKS` repository variable names ([Deploy from CI](./docs/guide/publishing.md#deploy-from-ci)).
 
 PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

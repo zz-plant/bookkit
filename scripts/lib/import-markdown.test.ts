@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { parseFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
+import type { UnsafeMarkupEntry } from "../../packages/astro-bookkit/src/utils/markdown";
 import { checkContentItem } from "../../packages/astro-bookkit/src/validators/content-check";
 import { CHILD_TEST_TIMEOUT_MS, runChild } from "./child-process.fixture";
 import { compileMdx } from "./compile-mdx";
@@ -32,6 +33,28 @@ import { describeImport, nextSteps } from "./import-report";
  * folder, a `<details>` block, and braces and angle brackets in prose.
  */
 const FIXTURE = join(import.meta.dir, "fixtures", "import-notes");
+
+/** What import left out of a note, in brief: the line, what, and why. */
+const leftOut = (chapter: { unsafeMarkup: UnsafeMarkupEntry[] }) =>
+	chapter.unsafeMarkup.map((entry) => {
+		switch (entry.kind) {
+			case "link":
+				return `${entry.line} link ${JSON.stringify(entry.href)}`;
+			case "attribute":
+				return `${entry.line} <${entry.element} ${entry.attribute}> ${entry.refusal}`;
+			case "element":
+				return `${entry.line} <${entry.element}> keeps ${entry.keeps}`;
+			default:
+				return `${entry.line} ${entry.kind}`;
+		}
+	});
+
+/** Findings `bookkit check` has for a chapter import wrote. */
+const unsafeFindings = (content: string) =>
+	checkContentItem("chapter", content).findings.filter(
+		(finding) =>
+			finding.code === "UNSAFE_LINK" || finding.code === "UNSAFE_HTML",
+	);
 const BOOK = "notes-book";
 
 let workspace: string;
@@ -249,21 +272,21 @@ describe("planImport", () => {
 		expect(links.content).toContain(
 			"Run the script or [read it](https://example.com).",
 		);
-		expect(links.content).toContain("Open <a>the box</a> or the page.");
+		expect(links.content).toContain("Open the box or the page.");
 		expect(links.content).not.toMatch(/javascript|data:/);
 		expect(links.compile).toEqual({ ok: true });
-		expect(links.unsafeLinks).toEqual([
-			{ line: 6, href: "javascript:alert(1)" },
-			{ line: 7, href: "javascript:alert(2)", element: "a", attribute: "href" },
-			{ line: 7, href: "data:text/html;base64,PHNjcmlwdD4=" },
-			{ line: 9, href: "data:text/html;base64,PHNjcmlwdD4=" },
+		expect(leftOut(links)).toEqual([
+			'6 link "javascript:alert(1)"',
+			"7 <a href> address",
+			'7 link "data:text/html;base64,PHNjcmlwdD4="',
+			'9 link "data:text/html;base64,PHNjcmlwdD4="',
 		]);
 		const report = describeImport(result, {
 			dryRun: true,
 			bookDir: `apps/${BOOK}`,
 		}).join("\n");
 		expect(report).toContain(
-			'Links kept as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (4):\n  09-links.md:6  "javascript:alert(1)"\n  09-links.md:7  "javascript:alert(2)"',
+			'Addresses removed (a link keeps its words), since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (4):\n  09-links.md:6  "javascript:alert(1)"\n  09-links.md:7  "javascript:alert(2)"',
 		);
 	});
 
@@ -284,35 +307,77 @@ describe("planImport", () => {
 		const result = await plan();
 		const embeds = chapter(result, "10-embeds.md");
 
-		// Import keeps none of these elements as HTML: they show as text.
+		// An embed with no safe source goes. Import keeps none of the others
+		// as HTML: they show as text, without the address.
 		expect(embeds.content).toContain("\\<object>Fallback\\</object>");
-		expect(embeds.content).not.toMatch(/javascript|vbscript|data:/i);
+		expect(embeds.content).not.toMatch(/javascript|vbscript|data:|iframe/i);
 		expect(embeds.compile).toEqual({ ok: true });
-		expect(
-			checkContentItem("chapter", embeds.content).findings.filter(
-				(finding) => finding.code === "UNSAFE_LINK",
-			),
-		).toEqual([]);
-		expect(
-			embeds.unsafeLinks.map(({ element, attribute, line }) => [
-				line,
-				`<${element} ${attribute}>`,
-			]),
-		).toEqual([
-			[3, "<iframe src>"],
-			[4, "<embed src>"],
-			[5, "<object data>"],
-			[6, "<form action>"],
-			[6, "<button formaction>"],
-			[7, "<iframe src>"],
+		expect(unsafeFindings(embeds.content)).toEqual([]);
+		expect(leftOut(embeds)).toEqual([
+			"3 <iframe src> address",
+			"4 <embed src> address",
+			"5 <object data> address",
+			"6 <form action> address",
+			"6 <button formaction> address",
+			"7 <iframe src> address",
 		]);
 		const report = describeImport(result, {
 			dryRun: true,
 			bookDir: `apps/${BOOK}`,
 		}).join("\n");
 		expect(report).toContain(
-			'  10-embeds.md:3  <iframe src> "javascript:alert(1)"\n  10-embeds.md:4  <embed src> "data:text/html,x"\n  10-embeds.md:5  <object data> "javascript:alert(2)"\n  10-embeds.md:6  <form action> "javascript:alert(3)"\n  10-embeds.md:6  <button formaction> "javascript:alert(4)"\n  10-embeds.md:7  <iframe src> "vbscript:x"',
+			'  10-embeds.md:3  <iframe src> "javascript:alert(1)", with the <iframe>\n  10-embeds.md:4  <embed src> "data:text/html,x"\n  10-embeds.md:5  <object data> "javascript:alert(2)"\n  10-embeds.md:6  <form action> "javascript:alert(3)"\n  10-embeds.md:6  <button formaction> "javascript:alert(4)"\n  10-embeds.md:7  <iframe src> "vbscript:x", with the <iframe>',
 		);
+	});
+
+	it("leaves out a script, a style, and what a kept element may not carry, and lists each", async () => {
+		writeFileSync(
+			join(notes, "13-html.md"),
+			[
+				"# Pasted HTML",
+				"",
+				'<p align="center" onclick="alert(1)" style="color:red" data-resume-reading>Centered</p>',
+				'<img src="https://example.com/a.png" alt="A chart" onerror="alert(2)">',
+				"<script>alert(3)</script>",
+				"<style>p { display: none }</style>",
+				"Keys: <kbd>Ctrl</kbd>, and GET /users/<id>.",
+				"",
+			].join("\n"),
+		);
+		const result = await plan();
+		const html = chapter(result, "13-html.md");
+		expect(html.compile).toEqual({ ok: true });
+		expect(html.content).toContain('<p align="center">Centered</p>');
+		expect(html.content).toContain(
+			'<img src="https://example.com/a.png" alt="A chart" />',
+		);
+		expect(html.content).toContain(
+			"Keys: <kbd>Ctrl</kbd>, and GET /users/\\<id>.",
+		);
+		expect(html.content).not.toMatch(/alert|script|style|display|data-/);
+		expect(unsafeFindings(html.content)).toEqual([]);
+		expect(leftOut(html)).toEqual([
+			"3 <p onclick> handler",
+			"3 <p style> style",
+			"3 <p data-resume-reading> unlisted",
+			"4 <img onerror> handler",
+			"5 <script> keeps nothing",
+			"6 <style> keeps nothing",
+		]);
+		const report = describeImport(result, {
+			dryRun: true,
+			bookDir: `apps/${BOOK}`,
+		});
+		const at = report.findIndex((line) => line.startsWith("HTML left out"));
+		expect(report.slice(at, at + 7)).toEqual([
+			"HTML left out, since a book's content may lay out text, link, show images, and embed pages, but not run script or set its own style (6):",
+			'  13-html.md:3  <p onclick="alert(1)">: an event handler',
+			'  13-html.md:3  <p style="color:red">: inline style',
+			"  13-html.md:3  <p data-resume-reading>: not one the element keeps",
+			'  13-html.md:4  <img onerror="alert(2)">: an event handler',
+			"  13-html.md:5  <script>, with what it holds",
+			"  13-html.md:6  <style>, with what it holds",
+		]);
 	});
 
 	it("keeps a video or a map embedded from the web, as YouTube, Vimeo, and Google Maps hand them out", async () => {
@@ -322,9 +387,18 @@ describe("planImport", () => {
 			'<iframe src="https://player.vimeo.com/video/76979871?h=8272103f6e" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
 		const maps =
 			'<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.9!2d-73.98!3d40.75" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
+		// Without its style, which a book's content does not set, and with a
+		// title, which Google Maps leaves out and a screen reader needs.
+		const mapsKept = maps
+			.replace(' style="border:0;"', "")
+			.replace("></iframe>", ' title="Google Maps map"></iframe>');
 		// The address last in the tag: as text, GFM read it on through the `\\`
 		// of `\\</iframe>`, and the chapter did not compile.
 		const short = '<iframe src="https://www.youtube.com/embed/abc"></iframe>';
+		const shortKept = short.replace(
+			"></iframe>",
+			' title="YouTube video"></iframe>',
+		);
 		writeFileSync(
 			join(notes, "11-videos.md"),
 			[
@@ -345,32 +419,35 @@ describe("planImport", () => {
 				"",
 			].join("\n"),
 		);
-		const videos = chapter(await plan(), "11-videos.md");
+		const result = await plan();
+		const videos = chapter(result, "11-videos.md");
 		expect(videos.compile).toEqual({ ok: true });
 		expect(videos.htmlAsText).toBe(false);
-		for (const embed of [youtube, vimeo, maps, short]) {
+		for (const embed of [youtube, mapsKept, shortKept]) {
 			expect(videos.content).toContain(embed);
 		}
 		expect(videos.content).toContain(
-			'<iframe src="https://example.com/embed"></iframe>',
+			'<iframe src="https://example.com/embed" title="Embedded page from example.com"></iframe>',
 		);
-		// The unsafe one shows as text without its address.
-		expect(videos.content).toContain("\\<iframe>\\</iframe>");
-		expect(videos.content).not.toMatch(/javascript|srcdoc|<script/i);
-		expect(
-			checkContentItem("chapter", videos.content).findings.filter(
-				(finding) => finding.code === "UNSAFE_LINK",
-			),
-		).toEqual([]);
-		expect(
-			videos.unsafeLinks.map(({ line, element, attribute }) => [
-				line,
-				`<${element} ${attribute}>`,
-			]),
-		).toEqual([
-			[12, "<iframe srcdoc>"],
-			[14, "<iframe src>"],
+		// Vimeo's snippet has no title either.
+		expect(videos.content).toContain(
+			vimeo.replace("></iframe>", ' title="Vimeo video"></iframe>'),
+		);
+		// The unsafe one is left out.
+		expect(videos.content).not.toContain("\\<iframe");
+		expect(videos.content).not.toMatch(/javascript|srcdoc|<script|style=/i);
+		expect(unsafeFindings(videos.content)).toEqual([]);
+		expect(leftOut(videos)).toEqual([
+			"8 <iframe style> style",
+			"12 <iframe srcdoc> document",
+			"14 <iframe src> address",
 		]);
+		expect(videos.changes.titles).toBe(4);
+		expect(
+			describeImport(result, { dryRun: true, bookDir: `apps/${BOOK}` }),
+		).toContain(
+			"4 embeds with no title were each given one from the page it shows, so a screen reader can name it: 11-videos.md.",
+		);
 	});
 
 	it("compiles an address followed by a placeholder or an escaped tag", async () => {

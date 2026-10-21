@@ -1,7 +1,7 @@
 import { type FileAction, type ImportPlan, WRITES } from "./import-markdown";
 import {
 	describeConversions,
-	describeUnsafeLinks,
+	describeUnsafeMarkup,
 	sumConversions,
 } from "./import-rules";
 
@@ -126,6 +126,16 @@ export const describeImport = (
 			`Converted so every chapter compiles as MDX: ${conversions}.`,
 		);
 	}
+	const titled = plan.chapters.filter((chapter) => chapter.changes.titles > 0);
+	if (titled.length > 0) {
+		const count = titled.reduce(
+			(sum, chapter) => sum + chapter.changes.titles,
+			0,
+		);
+		lines.push(
+			`${count === 1 ? "An embed with no title was given one" : `${count} embeds with no title were each given one`} from the page it shows, so a screen reader can name it: ${titled.map((c) => c.source).join(", ")}.`,
+		);
+	}
 	const asText = plan.chapters.filter((chapter) => chapter.htmlAsText);
 	if (asText.length > 0) {
 		lines.push(
@@ -133,13 +143,16 @@ export const describeImport = (
 		);
 	}
 
-	const unsafeLinks = describeUnsafeLinks(
-		"Links kept as text",
+	const unsafe = describeUnsafeMarkup(
+		{ links: "Addresses removed", html: "HTML left out" },
 		plan.chapters.flatMap((chapter) =>
-			chapter.unsafeLinks.map((link) => ({ source: chapter.source, ...link })),
+			chapter.unsafeMarkup.map((entry) => ({
+				source: chapter.source,
+				...entry,
+			})),
 		),
 	);
-	if (unsafeLinks.length > 0) lines.push("", ...unsafeLinks);
+	if (unsafe.length > 0) lines.push("", ...unsafe);
 
 	if (plan.orphans.length > 0) {
 		lines.push(

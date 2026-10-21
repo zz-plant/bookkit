@@ -141,48 +141,49 @@ describe("embedded documents and forms in the exports", () => {
 		});
 		const rule =
 			"an export links only to http, https, mailto, tel, and ftp addresses and to its own pages";
+		const element = (name: string, why: string) =>
+			`${path} has <${name}>; an export holds only the HTML a book's content may, and ${why}`;
 		expect(
-			(await inspectEpub(tampered)).filter((problem) => problem.includes(rule)),
+			(await inspectEpub(tampered)).filter((problem) =>
+				problem.startsWith(`${path} has <`),
+			),
 		).toEqual([
 			`${path} has <iframe src="javascript:alert(1)">; ${rule}`,
-			`${path} has <embed src="vbscript:x">; ${rule}`,
-			`${path} has <object data="javascript:alert(2)">; ${rule}`,
-			`${path} has <form action="data:text/html,x">; ${rule}`,
-			`${path} has <button formaction="javascript:alert(3)">; ${rule}`,
+			element("embed", "<embed> is not an element a book's content keeps"),
+			element("object", "<object> is not an element a book's content keeps"),
+			element("form", "a book's content collects nothing a reader types"),
+			element("button", "a book's content collects nothing a reader types"),
+			element("form", "a book's content collects nothing a reader types"),
 		]);
 	});
 });
 
-// Attributes no address check can vouch for: the exports leave out each
-// element and keep what it holds, as the site does. The animated link's own
-// address is a web address, which stays once its animation is gone.
+// Attributes no address check can vouch for: the exports leave out a
+// document in srcdoc, a spread, and an SVG's links and animations, keeping
+// what they hold, as the site does. A spread goes, and the attributes
+// written out stay: a link's web address, a <kbd>.
 const UNCHECKABLE = [
 	'<iframe srcdoc="<script>alert(1)</script>"></iframe>',
 	'<iframe {...{ src: "javascript:alert(2)" }}></iframe>',
 	'<a {...{ href: "javascript:alert(3)" }}>spread words</a> and <a href="https://example.com/" {...{ href: "javascript:alert(4)" }}>override words</a>',
 	'<kbd {...props}>kbd words</kbd> <img {...{ src: "pic.png" }} alt="spread image" />',
 	'<svg><a xlink:href="javascript:alert(5)"><text>svg words</text></a></svg>',
-	'<svg><a href="https://example.com/"><animate attributeName="href" values="javascript:alert(6)" /><text>animated words</text></a></svg>',
+	'<svg><a href="https://example.com/svg"><animate attributeName="href" values="javascript:alert(6)" /><text>animated words</text></a></svg>',
 ].join("\n\n");
-const UNCHECKABLE_WORDS = [
-	"spread words and override words",
-	"kbd words",
-	"svg words",
-	"animated words",
-];
 
 describe("srcdoc, spreads, and animated addresses in the exports", () => {
 	it("are left out of the EPUB, which keeps what they hold", async () => {
 		const epub = await createEpubExport(chaptersBundle([["a", UNCHECKABLE]]));
 		expect(await inspectEpub(epub)).toEqual([]);
 		const chapter = articleBody(await epubChapter(epub, "a"));
-		expect(chapter).not.toMatch(
-			/script|srcdoc|\.\.\.|xlink|<(iframe|kbd|img|animate)\b/,
+		expect(chapter).toBe(
+			[
+				'<p><span>spread words</span> and <a href="https://example.com/">override words</a></p>',
+				"<p><kbd>kbd words</kbd></p>",
+				"<p><span>svg words</span></p>",
+				'<p><a href="https://example.com/svg">animated words</a></p>',
+			].join("\n"),
 		);
-		for (const words of UNCHECKABLE_WORDS) expect(chapter).toContain(words);
-		expect(chapter.match(/<a\b[^>]*>/g)).toEqual([
-			'<a href="https://example.com/">',
-		]);
 	});
 
 	it("are left out of the PDF", async () => {
@@ -190,6 +191,7 @@ describe("srcdoc, spreads, and animated addresses in the exports", () => {
 		expect(await inspectPdf(pdf)).toEqual([]);
 		expect((await extractPdfLinks(pdf)).map((link) => link.uri)).toEqual([
 			"https://example.com/",
+			"https://example.com/svg",
 		]);
 	});
 
@@ -204,7 +206,8 @@ describe("srcdoc, spreads, and animated addresses in the exports", () => {
 				"<p>x</p>",
 				[
 					'<iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>',
-					'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href="javascript:alert(2)"><animate attributeName="href" values="javascript:alert(3)"/><text>t</text></a></svg>',
+					'<p><a xlink:href="javascript:alert(2)">t</a></p>',
+					'<svg xmlns="http://www.w3.org/2000/svg"><animate attributeName="href" values="javascript:alert(3)"/></svg>',
 				].join(""),
 			),
 		);
@@ -218,7 +221,8 @@ describe("srcdoc, spreads, and animated addresses in the exports", () => {
 		expect(reported).toEqual([
 			`${path} has <iframe srcdoc="<script>alert(1)</script>">; an export holds no document written into an attribute`,
 			`${path} has <a xlink:href="javascript:alert(2)">; an export links only to http, https, mailto, tel, and ftp addresses and to its own pages`,
-			`${path} has <animate attributename="href">; an export links only to http, https, mailto, tel, and ftp addresses and to its own pages`,
+			`${path} has <svg>; an export holds only the HTML a book's content may, and an inline <svg> can run script and load addresses`,
+			`${path} has <animate>; an export holds only the HTML a book's content may, and <animate> is not an element a book's content keeps`,
 		]);
 	});
 });

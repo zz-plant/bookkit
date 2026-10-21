@@ -5,7 +5,7 @@ import {
 	bookkit,
 	optionalDependencies,
 } from "./integration";
-import { safeLinksMdastPlugins } from "./markdown/safe-links";
+import { safeHtmlMdastPlugins } from "./markdown/safe-html";
 
 type Command = "dev" | "build";
 
@@ -91,7 +91,7 @@ describe("bookkit() integration", () => {
 		);
 	});
 
-	it("adds the safe-link rules to the book's Markdown processor, and says when it cannot", () => {
+	it("adds the link and HTML rules to the book's Markdown processor, and says when it cannot", () => {
 		const hooks = bookkit().hooks as Record<
 			string,
 			(params: Record<string, unknown>) => void
@@ -118,9 +118,9 @@ describe("bookkit() integration", () => {
 			options: { mdastPlugins: [], hastPlugins: [], features: {} },
 		};
 		expect(setUpWith(processor)).toEqual([]);
-		expect(processor.options.mdastPlugins).toEqual(safeLinksMdastPlugins);
+		expect(processor.options.mdastPlugins).toEqual(safeHtmlMdastPlugins);
 		expect(setUpWith({ name: "custom", options: {} })).toEqual([
-			"markdown.processor \"custom\" in astro.config.mjs is not one Bookkit can add its link check to, so links to javascript:, vbscript:, and data: addresses in the book's content are kept. Remove markdown.processor to use Astro's default.",
+			"markdown.processor \"custom\" in astro.config.mjs is not one Bookkit can add its HTML check to, so scripts, event handlers, and links to javascript:, vbscript:, and data: addresses in the book's content reach its pages. Remove markdown.processor to use Astro's default.",
 		]);
 	});
 

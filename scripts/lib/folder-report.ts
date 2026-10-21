@@ -10,7 +10,7 @@ import { listBookDirs, repoRoot, slugify } from "../_lib";
 import {
 	countConversions,
 	describeConversions,
-	describeUnsafeLinks,
+	describeUnsafeMarkup,
 	importSkipReason,
 	sumConversions,
 } from "./import-rules";
@@ -150,18 +150,22 @@ export const mdxConversionSummary = (preview: FolderPreview): string | null => {
 };
 
 /**
- * The links import would keep as their text in the notes it imports, listed
- * with their file and line as `bookkit import` lists them.
+ * What import would leave out of the notes it imports, listed with their
+ * file and line as `bookkit import` lists them: the addresses it would
+ * remove (a link keeps its words), and the HTML it would leave out.
  */
-export const unsafeLinksSummary = (preview: FolderPreview): string[] =>
-	describeUnsafeLinks(
-		"Links import would keep as text",
+export const unsafeMarkupSummary = (preview: FolderPreview): string[] =>
+	describeUnsafeMarkup(
+		{
+			links: "Addresses import would remove",
+			html: "HTML import would leave out",
+		},
 		preview.documents.flatMap((doc) =>
 			importSkipReason(doc.path)
 				? []
-				: (doc.unsafeLinks ?? []).map((link) => ({
+				: (doc.unsafeMarkup ?? []).map((entry) => ({
 						source: doc.path,
-						...link,
+						...entry,
 					})),
 		),
 	);
@@ -248,8 +252,8 @@ export const printTry = (target: string, preview: FolderPreview) => {
 
 	const conversions = mdxConversionSummary(preview);
 	if (conversions) console.log(`\n${conversions}`);
-	const unsafeLinks = unsafeLinksSummary(preview);
-	if (unsafeLinks.length > 0) console.log(`\n${unsafeLinks.join("\n")}`);
+	const leftOut = unsafeMarkupSummary(preview);
+	if (leftOut.length > 0) console.log(`\n${leftOut.join("\n")}`);
 
 	const slug = slugify(basename(resolveFromCaller(target))) || "my-book";
 	const title = slug

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CHILD_TEST_TIMEOUT_MS } from "../../../../scripts/lib/child-process.fixture";
-import { KEPT_ELEMENTS } from "../utils/markdown";
+import { KEPT_ELEMENTS } from "../utils/html-allowlist";
 import { createEpubExport } from "./epub-generator";
 import {
 	articleBody,
@@ -199,9 +199,9 @@ const EPUB_CASES: Array<[string, string, string]> = [
 	["source", 'Before <source src="/a.webp"> after', "<p>Before  after</p>"],
 ];
 
-/** Tags outside the allowlist: left out, their text kept. */
+/** Tags outside the allowlist: left out, their text kept; a script's goes with it. */
 const DROPPED_CASES: Array<[string, string]> = [
-	["<script>alert(1)</script> stays text", "<p>alert(1) stays text</p>"],
+	["<script>alert(1)</script> leaves no text", "<p>leaves no text</p>"],
 	['<font color="red">red</font> words', "<p>red words</p>"],
 	[
 		'<Callout type="warning">\nCheck the owner.\n</Callout>',
@@ -356,7 +356,7 @@ describe("HTML import keeps, in the PDF", () => {
 				"<table><tr><th>Signal</th></tr><tr><td>Pager</td></tr></table>",
 				"<figure>\n<figcaption>The caption</figcaption>\n</figure>",
 				"<hr>",
-				"<script>alert(1)</script> stays text",
+				"<script>alert(1)</script> leaves no text",
 			].join("\n\n"),
 		);
 		expect(fontOf(runs, "Timeline")).toBe("Helvetica-Bold");
@@ -382,7 +382,7 @@ describe("HTML import keeps, in the PDF", () => {
 				"Signal",
 				"Pager",
 				"The caption",
-				"alert(1) stays text",
+				"leaves no text",
 			]),
 		).toEqual([]);
 		expect(

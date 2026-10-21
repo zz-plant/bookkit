@@ -2,6 +2,7 @@ import {
 	FENCE_OPENING,
 	normalizeLabel,
 	splitFencedCode,
+	withoutUnsafeMarkup,
 } from "../utils/markdown";
 import {
 	BLOCK_TAGS,
@@ -875,10 +876,17 @@ const figureBlocks = (children: Node[], definitions: Definitions) => {
 /**
  * Headings, paragraphs, lists (nested by indentation), quotes, fenced code,
  * GFM tables, and the HTML blocks import keeps, in order; plus the link and
- * footnote definitions, which are not shown where they are written.
+ * footnote definitions, which are not shown where they are written. What the
+ * site leaves out (`withoutUnsafeMarkup`: a script and what it holds, an
+ * event handler, an unsafe link's address, an MDX expression) is left out
+ * first, so the PDF, the EPUB, and the search index hold what the page
+ * does.
  */
 export const parseMarkdown = (markdown: string): MarkdownDocument => {
 	const definitions: Definitions = { links: new Map(), notes: new Map() };
-	const blocks = flowBlocks(blockTree(markdown), definitions);
+	const blocks = flowBlocks(
+		blockTree(withoutUnsafeMarkup(markdown)),
+		definitions,
+	);
 	return { blocks, ...definitions };
 };

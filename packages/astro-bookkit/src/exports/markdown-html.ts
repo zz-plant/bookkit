@@ -2,15 +2,16 @@ import { decodeEntities } from "../utils/character-references";
 import {
 	BLOCK_ELEMENTS,
 	KEPT_ELEMENTS,
-	SPREAD,
 	VOID_ELEMENTS,
-} from "../utils/markdown";
+} from "../utils/html-allowlist";
+import { SPREAD } from "../utils/markdown";
 
 /**
  * Raw HTML in Markdown, as the exports read it: tags, their attributes, and
- * character references. The exports render the elements import keeps
- * (`KEPT_ELEMENTS`), which the site renders too, and drop any other tag
- * while keeping its text.
+ * character references. What the allowlist does not keep is gone before
+ * (`parseMarkdown` runs `withoutUnsafeMarkup`); of the rest, the exports
+ * render the elements import keeps (`KEPT_ELEMENTS`), and drop any other
+ * tag while keeping its text.
  */
 
 /** An HTML or JSX tag (`<kbd>`, `</details>`, `<img src="…" />`); JSX values in braces, and spreads, are allowed. */

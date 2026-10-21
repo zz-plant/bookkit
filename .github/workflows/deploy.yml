@@ -37,6 +37,9 @@ jobs:
         (github.event_name == 'workflow_dispatch' &&
          github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
+    # It verifies, builds, and checks the books as governance-and-tests does
+    # (3 to 5 minutes), then uploads them.
+    timeout-minutes: 30
     env:
       DEPLOY_BOOKS: ${{ vars.DEPLOY_BOOKS }}
       # The commit CI passed, not whatever main points to by now.

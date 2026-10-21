@@ -11,9 +11,10 @@ import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	createSlugger,
 	type MdxConversion,
+	markupEntry,
 	stripMarkdown,
 	toMdxBody,
-	type UnsafeLink,
+	type UnsafeMarkupEntry,
 } from "../utils/markdown";
 import {
 	type ContentFinding,
@@ -62,12 +63,12 @@ export type FolderDocument = {
 	/** What import would change for the body to compile as MDX (prose only). */
 	mdx?: MdxConversion;
 	/**
-	 * Links import would keep as their text (prose only), as its report lists
-	 * them; `line` is in the file. Contract files report them as UNSAFE_LINK.
+	 * What import would leave out (prose only): links it keeps as their
+	 * text, and raw HTML the allowlist does not keep, as its report lists
+	 * them; `line` is in the file. Contract files report them as UNSAFE_LINK
+	 * and UNSAFE_HTML.
 	 */
-	unsafeLinks?: Array<
-		Pick<UnsafeLink, "line" | "href" | "element" | "attribute">
-	>;
+	unsafeMarkup?: UnsafeMarkupEntry[];
 	findings: FolderFinding[];
 };
 
@@ -371,13 +372,8 @@ export const previewFolder = (
 			words: countWords(entry.body),
 			frameSteps: { covered, missing },
 			mdx: converted?.changes,
-			unsafeLinks: converted?.unsafeLinks.map(
-				({ line, href, element, attribute }) => ({
-					line: bodyLine + line,
-					href,
-					element,
-					attribute,
-				}),
+			unsafeMarkup: converted?.unsafeMarkup.map((found) =>
+				markupEntry(found, bodyLine),
 			),
 			findings,
 		};

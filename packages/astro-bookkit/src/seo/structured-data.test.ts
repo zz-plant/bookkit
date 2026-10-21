@@ -3,6 +3,7 @@ import {
 	createBreadcrumbListStructuredData,
 	createBreadcrumbListStructuredDataFromTrail,
 	createDefinedTermStructuredData,
+	structuredDataJson,
 } from "./structured-data";
 
 describe("structured data helpers", () => {
@@ -85,6 +86,16 @@ describe("structured data helpers", () => {
 			termCode: "delay-as-force",
 			url: "https://example.com/read/mechanisms/delay-as-force",
 			inDefinedTermSet: "https://example.com/read/mechanisms",
+		});
+	});
+
+	it("writes JSON for a <script> that a title's </script> cannot end", () => {
+		const json = structuredDataJson({
+			name: "Drills </script><script>alert(1)</script>",
+		});
+		expect(json).not.toContain("<");
+		expect(JSON.parse(json)).toEqual({
+			name: "Drills </script><script>alert(1)</script>",
 		});
 	});
 });

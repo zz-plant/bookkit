@@ -16,16 +16,14 @@ import {
 } from "../../packages/astro-bookkit/src/utils/frontmatter";
 import {
 	type MdxConversion,
+	markupEntry,
 	splitFencedCode,
 	stripMarkdown,
 	toMdxBody,
+	type UnsafeMarkupEntry,
 } from "../../packages/astro-bookkit/src/utils/markdown";
 import { compileMdx, type MdxCompileResult } from "./compile-mdx";
-import {
-	INDEX_NAMES,
-	importSkipReason,
-	type NoteUnsafeLink,
-} from "./import-rules";
+import { INDEX_NAMES, importSkipReason } from "./import-rules";
 
 /**
  * `bookkit import`: turns a folder of Markdown notes into a book's chapters.
@@ -102,8 +100,12 @@ export type PlannedChapter = {
 	changes: MdxConversion;
 	/** Raw HTML is shown as text: kept as HTML, the chapter did not compile. */
 	htmlAsText: boolean;
-	/** Links kept as their text, since the site would not link them; `line` is in the note. */
-	unsafeLinks: NoteUnsafeLink[];
+	/**
+	 * What import left out: links kept as their text, since the site would
+	 * not link them, and raw HTML the allowlist does not keep; `line` is in
+	 * the note.
+	 */
+	unsafeMarkup: UnsafeMarkupEntry[];
 	/** Source frontmatter fields the chapter schema has no place for. */
 	leftOut: string[];
 	compile: MdxCompileResult;
@@ -678,13 +680,8 @@ export const planImport = async (
 			content,
 			changes: converted.changes,
 			htmlAsText,
-			unsafeLinks: converted.unsafeLinks.map(
-				({ line, href, element, attribute }) => ({
-					line: linesBefore + line,
-					href,
-					element,
-					attribute,
-				}),
+			unsafeMarkup: converted.unsafeMarkup.map((found) =>
+				markupEntry(found, linesBefore),
 			),
 			leftOut: Object.keys(note.data).filter((key) => !MAPPED_FIELDS.has(key)),
 			compile: compiled,

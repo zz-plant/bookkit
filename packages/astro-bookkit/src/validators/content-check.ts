@@ -8,8 +8,17 @@ import {
 	toolkitSchema,
 } from "../schemas";
 import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
+import {
+	elementReason,
+	extraPermissions,
+	refusalReason,
+} from "../utils/html-allowlist";
 import { SAFE_SCHEME_LIST } from "../utils/links";
-import { findUnsafeLinks, type UnsafeLink } from "../utils/markdown";
+import {
+	findUnsafeMarkup,
+	markupEntry,
+	type UnsafeMarkupEntry,
+} from "../utils/markdown";
 
 /**
  * What each kind of content file must contain to compile, and a checker that
@@ -465,6 +474,7 @@ export type ContentFindingCode =
 	| "UNKNOWN_PREREQUISITE"
 	| "BROKEN_LINK"
 	| "UNSAFE_LINK"
+	| "UNSAFE_HTML"
 	| "DRAFT_IN_RELEASE"
 	| "MDX_HTML_COMMENT";
 
@@ -506,64 +516,134 @@ export type ContentCheckContext = {
 const shortened = (value: string): string =>
 	value.length > 60 ? `${value.slice(0, 59)}…` : value;
 
+/** An attribute as a message shows it: `<img onerror="alert(1)">`, `<a {...props}>`. */
+const shownAttribute = (found: UnsafeMarkupEntry & { kind: "attribute" }) => {
+	const { attribute, element, expression, value } = found;
+	if (attribute === "{...}") return `<${element} ${shortened(value)}>`;
+	if (!expression && !value) return `<${element} ${attribute}>`;
+	return `<${element} ${attribute}=${expression ? shortened(value) : JSON.stringify(shortened(value))}>`;
+};
+
+/** How to do without an element the site leaves out, keeping what it holds. */
+const unwrapFix = (element: string): string => {
+	if (element === "svg") {
+		return "Save the drawing as an .svg file and show it as an image: ![What it shows](/images/drawing.svg).";
+	}
+	if (element === "video" || element === "audio") {
+		return `Link to the recording, or embed the page that plays it with an <iframe src="https://…">.`;
+	}
+	if (elementReason(element).includes("collects nothing")) {
+		return "Link to the form where it is hosted.";
+	}
+	return `Remove the <${element}> tags, keeping what they hold, or write it in Markdown.`;
+};
+
+/** The fix for an attribute the site removes. */
+const attributeFix = (found: UnsafeMarkupEntry & { kind: "attribute" }) => {
+	const { attribute, element, value } = found;
+	switch (found.refusal) {
+		case "document":
+			return `Point src at a web address or a page of the book in place of srcdoc, or remove the <${element}>.`;
+		case "raw-html":
+			return "Write the HTML out in the page, or remove set:html.";
+		case "expression":
+			return `Write ${attribute} as a plain string, as in ${attribute}="…".`;
+		case "spread":
+			return 'Write each attribute out with a plain string value, as in href="https://example.com".';
+		case "permission":
+			return `Remove ${extraPermissions(value).join(", ")} from allow.`;
+		default:
+			return `Remove ${attribute}.`;
+	}
+};
+
 /**
- * What an unsafe link finding says: a link keeps its words on the site, and
- * an element with an unsafe attribute (`<iframe src>`, `<form action>`,
- * `<iframe srcdoc>`, a spread, …) keeps only what it contains.
+ * What a finding says about something the site leaves out: a link to an
+ * unsafe address (`UNSAFE_LINK`), which keeps its words; or raw HTML the
+ * allowlist does not keep (`UNSAFE_HTML`): an element, an attribute, an
+ * MDX expression, or an `import`/`export` block.
  */
-const unsafeLinkFinding = (
+const unsafeMarkupFinding = (
 	label: string,
-	link: UnsafeLink,
-	line: number,
-): Pick<ContentFinding, "message" | "fix"> => {
-	const computed = link.href.startsWith("{");
-	const attribute = link.attribute ?? "href";
-	const element = link.element;
-	if (!element || attribute === "href") {
-		return computed
-			? {
-					message: `${label} has a link on line ${line} whose address is an expression (href=${link.href}), which the build cannot check, so the site shows only its words`,
-					fix: 'Write the address as a plain string, as in href="https://example.com".',
-				}
-			: {
-					message: `${label} links to ${JSON.stringify(link.href)} on line ${line}, which the site shows only as words: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
-					fix: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
-				};
-	}
-	const keeps = `so the site leaves out the <${element}> and keeps only what it contains`;
-	if (attribute === "{...}") {
+	found: UnsafeMarkupEntry,
+): Pick<ContentFinding, "code" | "message" | "fix"> => {
+	const { line } = found;
+	const linksOnly = `a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`;
+	if (found.kind === "link") {
 		return {
-			message: `${label} has <${element} ${shortened(link.href)}> on line ${line}, a spread whose attributes the build cannot check, ${keeps}`,
-			fix: 'Write each attribute out with a plain string value, as in href="https://example.com".',
+			code: "UNSAFE_LINK",
+			message: `${label} links to ${JSON.stringify(found.href)} on line ${line}, which the site shows only as words: ${linksOnly}`,
+			fix: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
 		};
 	}
-	if (attribute === "srcdoc") {
-		return {
-			message: `${label} has <${element} srcdoc=${computed ? shortened(link.href) : JSON.stringify(shortened(link.href))}> on line ${line}, a document written into the page that would run with the page's own rights, ${keeps}`,
-			fix: `Point src at a web address or a page of the book in place of srcdoc, or remove the <${element}>.`,
-		};
-	}
-	if (attribute === "attributename") {
-		return computed
+	if (found.kind === "attribute" && found.refusal === "address") {
+		const { attribute, element, expression } = found;
+		if (element === "a" && attribute === "href") {
+			return expression
+				? {
+						code: "UNSAFE_LINK",
+						message: `${label} has a link on line ${line} whose address is an expression (href=${found.value}), which the build cannot check, so the site shows only its words`,
+						fix: 'Write the address as a plain string, as in href="https://example.com".',
+					}
+				: {
+						code: "UNSAFE_LINK",
+						message: `${label} links to ${JSON.stringify(found.value)} on line ${line}, which the site shows only as words: ${linksOnly}`,
+						fix: "Link to a web or mail address or a page of the book, or keep the words and remove the link.",
+					};
+		}
+		const embed = element === "iframe";
+		return expression
 			? {
-					message: `${label} has <${element} attributeName=${link.href}> on line ${line}, which may change an address the build cannot check, ${keeps}`,
-					fix: 'Write the attribute name as a plain string, as in attributeName="opacity".',
+					code: "UNSAFE_LINK",
+					message: `${label} has ${shownAttribute(found)} on line ${line}, an address the build cannot check, so the site ${embed ? `leaves out the <${element}>` : `removes ${attribute}`}`,
+					fix: `Write the address as a plain string, as in ${attribute}="https://example.com".`,
 				}
 			: {
-					message: `${label} has <${element} attributeName=${JSON.stringify(link.href)}> on line ${line}, which changes an address after the page loads, past the check of the link itself, ${keeps}`,
-					fix: `Animate an attribute other than ${link.href}, or remove the <${element}>.`,
+					code: "UNSAFE_LINK",
+					message: `${label} has ${shownAttribute(found)} on line ${line}, ${embed ? "which the site leaves out" : "an address the site removes"}: ${linksOnly}`,
+					fix: `Point ${attribute} at a web address or a page of the book, or remove ${embed ? `the <${element}>` : "it"}.`,
 				};
 	}
-	const tag = `<${element} ${attribute}=${computed ? link.href : JSON.stringify(link.href)}>`;
-	return computed
-		? {
-				message: `${label} has ${tag} on line ${line}, an address the build cannot check, ${keeps}`,
-				fix: `Write the address as a plain string, as in ${attribute}="https://example.com".`,
-			}
-		: {
-				message: `${label} has ${tag} on line ${line}, which the site leaves out, keeping only what the <${element}> contains: a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
-				fix: `Point ${attribute} at a web address or a page of the book, or remove the <${element}>.`,
+	if (found.kind === "attribute") {
+		return {
+			code: "UNSAFE_HTML",
+			message: `${label} has ${shownAttribute(found)} on line ${line}, and the site removes ${found.attribute === "{...}" ? "the spread" : found.attribute}: ${refusalReason(found.refusal, found.element, found.attribute, found.expression ? null : found.value)}`,
+			fix: attributeFix(found),
+		};
+	}
+	if (found.kind === "element") {
+		const { element } = found;
+		if (element === "iframe") {
+			return {
+				code: "UNSAFE_HTML",
+				message: `${label} has an <iframe> with no src on line ${line}, which the site leaves out: it would show nothing`,
+				fix: 'Give it the address of the page it embeds, as in <iframe src="https://www.youtube.com/embed/…">, or remove it.',
 			};
+		}
+		return found.keeps === "nothing"
+			? {
+					code: "UNSAFE_HTML",
+					message: `${label} has <${element}> on line ${line}, which the site leaves out with everything inside it: ${elementReason(element)}`,
+					fix: `Remove the <${element}>.`,
+				}
+			: {
+					code: "UNSAFE_HTML",
+					message: `${label} has <${element}> on line ${line}, which the site leaves out, keeping what it holds: ${elementReason(element)}`,
+					fix: unwrapFix(element),
+				};
+	}
+	if (found.kind === "expression") {
+		return {
+			code: "UNSAFE_HTML",
+			message: `${label} has an expression on line ${line} (${shortened(found.source)}), which the site leaves out: the build would run it, and what it writes is not checked`,
+			fix: "Write it out as text or Markdown. To show braces, escape them: \\{ and \\}.",
+		};
+	}
+	return {
+		code: "UNSAFE_HTML",
+		message: `${label} has an ${found.source.startsWith("import") ? "import" : "export"} block on line ${line}, code the build would run, which the site leaves out`,
+		fix: "Remove it: content holds no code. Behavior comes from the engine or book.config.ts.",
+	};
 };
 
 /** Body text outside code, where an HTML comment would reach the MDX compiler. */
@@ -945,11 +1025,10 @@ export const checkContentItem = (
 
 	const bodyLine = linesBeforeBody(source, body);
 	const tags = context.format === "md" ? "html" : "jsx";
-	for (const link of findUnsafeLinks(body, { tags })) {
+	for (const found of findUnsafeMarkup(body, { tags })) {
 		findings.push({
 			level: released ? "error" : "warning",
-			code: "UNSAFE_LINK",
-			...unsafeLinkFinding(label, link, bodyLine + link.line),
+			...unsafeMarkupFinding(label, markupEntry(found, bodyLine)),
 		});
 	}
 

@@ -13,11 +13,12 @@ import {
 } from "pdf-lib";
 import { decodeEntities } from "../utils/character-references";
 import {
-	isDocumentAttribute,
-	isSafeLink,
-	isUnsafeAttribute,
-	SAFE_SCHEME_LIST,
-} from "../utils/links";
+	attributeRefusal,
+	CONTENT_ELEMENTS,
+	elementReason,
+	refusalReason,
+} from "../utils/html-allowlist";
+import { isSafeLink, SAFE_SCHEME_LIST } from "../utils/links";
 
 /**
  * Structural checks for built exports, deeper than "the file starts with the
@@ -150,8 +151,15 @@ const startsWithStoredMimetype = (bytes: Uint8Array): boolean => {
 const MODIFIED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 const HREF = /\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-const OPENING_TAG = /<([A-Za-z][\w:-]*)(\s[^<>]*)>/g;
+const OPENING_TAG = /<([A-Za-z][\w:-]*)(\s[^<>]*?)?\/?>/g;
 const TAG_ATTRIBUTE = /\s([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+
+/** What an EPUB's pages write around the content: the body, and the table of contents. */
+const EPUB_ELEMENTS: ReadonlySet<string> = new Set(["body", "nav"]);
+
+/** The part of a content document a reader sees, from `<body` on. */
+const bodyOf = (xhtml: string): string =>
+	xhtml.slice(Math.max(0, xhtml.search(/<body[\s>]/)));
 
 /** What is wrong with a link whose scheme an export must not link to, or null for a safe link. */
 const unsafeLinkProblem = (href: string): string | null =>
@@ -163,10 +171,12 @@ const unsafeLinkProblem = (href: string): string | null =>
  * What stops an EPUB from opening reliably, or safely: the OCF container,
  * the package metadata EPUB 3 requires, a manifest item, link, or image with
  * no file behind it, an image the manifest does not list, a content
- * document that is not well-formed XHTML, or a link, embedded document, or
- * form address with a scheme that runs code or carries a document
- * (`javascript:`, `vbscript:`, `data:`), an `<iframe srcdoc>`, or an SVG
- * animation that sets an `href`.
+ * document that is not well-formed XHTML, a link with a scheme that runs
+ * code or carries a document (`javascript:`, `vbscript:`, `data:`), or, in a
+ * page's body, HTML the allowlist does not keep (`html-allowlist.ts`): an
+ * element such as `<script>`, `<iframe>`, or `<svg>`, or an attribute such
+ * as an event handler, `style`, or `srcdoc`. The EPUB's own `<nav>` and
+ * `epub:type` are allowed.
  */
 export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 	const problems: string[] = [];
@@ -261,29 +271,48 @@ export const inspectEpub = async (bytes: Uint8Array): Promise<string[]> => {
 			if (!zip.file(target))
 				problems.push(`${path} links to ${href}, which is not in the book`);
 		}
-		// Images, and the attributes no export writes: an embedded document's
-		// address (`<iframe src>`, `<object data>`) or a form's (`action`,
-		// `formaction`), an `<iframe srcdoc>`, or an animation of an `href`.
-		for (const [, element, attributes] of xhtml.matchAll(OPENING_TAG)) {
-			for (const [, rawName, double, single] of attributes.matchAll(
+		// What the body holds: only the HTML a book's content may, and images
+		// the book carries.
+		for (const [, rawElement, attributes] of bodyOf(xhtml).matchAll(
+			OPENING_TAG,
+		)) {
+			const element = rawElement.toLowerCase();
+			if (!CONTENT_ELEMENTS.has(element) && !EPUB_ELEMENTS.has(element)) {
+				problems.push(
+					`${path} has <${element}>; an export holds only the HTML a book's content may, and ${elementReason(element)}`,
+				);
+				continue;
+			}
+			for (const [, rawName, double, single] of (attributes ?? "").matchAll(
 				TAG_ATTRIBUTE,
 			)) {
 				const name = rawName.toLowerCase();
 				const value = double ?? single ?? "";
-				const address = decodeEntities(value);
-				if (name !== "href" && isUnsafeAttribute(element, name, address)) {
+				const decoded = decodeEntities(value);
+				// Links were checked above; `epub:type` and namespaces are the EPUB's own.
+				if (
+					name === "href" ||
+					name === "epub:type" ||
+					name.startsWith("xmlns")
+				) {
+					continue;
+				}
+				const refusal = attributeRefusal(element, name, decoded);
+				if (refusal) {
 					const shown =
-						address.length > 60 ? `${address.slice(0, 59)}…` : address;
+						decoded.length > 60 ? `${decoded.slice(0, 59)}…` : decoded;
 					problems.push(
-						`${path} has <${element.toLowerCase()} ${name}="${shown}">; ${
-							isDocumentAttribute(element, name)
-								? "an export holds no document written into an attribute"
-								: `an export links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`
+						`${path} has <${element} ${name}="${shown}">; ${
+							refusal === "address"
+								? `an export links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`
+								: refusal === "document"
+									? "an export holds no document written into an attribute"
+									: refusalReason(refusal, element, name, decoded)
 						}`,
 					);
 					continue;
 				}
-				if (name !== "src" || !value) continue;
+				if (name !== "src" || element !== "img" || !value) continue;
 				if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
 					problems.push(
 						`${path} shows ${value} from outside the book; an EPUB carries its images`,

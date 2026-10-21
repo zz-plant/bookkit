@@ -2,6 +2,15 @@ import { canonicalPageUrl } from "./urls";
 
 export type StructuredData = Record<string, unknown>;
 
+/**
+ * Structured data as the text of a `<script type="application/ld+json">`.
+ * Every `<` is written `\u003c`, which JSON reads the same, so a title from
+ * content holding `</script><script>…` cannot end the script and start
+ * another.
+ */
+export const structuredDataJson = (data: unknown): string =>
+	JSON.stringify(data).replace(/</g, "\\u003c");
+
 /** Who wrote the book, from `bookConfig.author`. */
 export type BookAuthor = { name: string; url?: string };
 

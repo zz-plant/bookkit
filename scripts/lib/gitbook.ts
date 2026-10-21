@@ -13,9 +13,8 @@ import type {
 import { formatFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
 import { HAS_SCHEME } from "../../packages/astro-bookkit/src/utils/links";
 import {
-	findUnsafeLinks,
 	splitFencedCode,
-	withoutUnsafeLinks,
+	withoutUnsafeMarkup,
 } from "../../packages/astro-bookkit/src/utils/markdown";
 
 /**
@@ -74,10 +73,12 @@ const outsideCode = (text: string, rewrite: (prose: string) => string) => {
  * export lines, and component tags (keeping what they wrap) are dropped;
  * links to read pages point at the folder's pages; local images are copied
  * in; other site links point at the site. Code blocks are left as written.
- * The site's link rule holds (`findUnsafeLinks`): a link to a `javascript:`,
- * `vbscript:`, or `data:` address keeps only its words, and an element loses
- * an unsafe address, an `<iframe srcdoc>`, or a spread attribute, so it
- * links to, loads, and submits to nothing.
+ * What the site leaves out goes here too (`withoutUnsafeMarkup`): a link to
+ * a `javascript:`, `vbscript:`, or `data:` address keeps only its words, a
+ * script or style goes with what it holds, an element the allowlist does
+ * not keep leaves what it holds, and a kept element loses an event handler,
+ * `style`, `srcdoc`, an unsafe address, or any other attribute it may not
+ * carry.
  */
 export const mdxToGitbookMarkdown = (
 	entry: ExportEntry,
@@ -128,9 +129,7 @@ export const mdxToGitbookMarkdown = (
 			)
 			.join("\n");
 	const markdown = entryMarkdown(entry);
-	return splitFencedCode(
-		withoutUnsafeLinks(markdown, findUnsafeLinks(markdown)),
-	)
+	return splitFencedCode(withoutUnsafeMarkup(markdown))
 		.map((segment) => (segment.code ? segment.text : prose(segment.text)))
 		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")

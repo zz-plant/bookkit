@@ -14,7 +14,7 @@ import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
 import { compileBookFindings } from "./lib/compile-mdx";
-import { parseFrontmatter } from "./lib/content-frontmatter";
+import { checkReleaseNote } from "./lib/release-notes";
 import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
 
@@ -146,31 +146,10 @@ if (existsSync(join(workspaceRoot, releasesDir))) {
 	for (const name of listFilesRecursive(join(workspaceRoot, releasesDir))) {
 		if (!/\.mdx?$/.test(name)) continue;
 		const file = join(releasesDir, name);
-		const { data } = parseFrontmatter(
+		for (const finding of checkReleaseNote(
 			readFileSync(join(workspaceRoot, file), "utf8"),
-		);
-		const version = typeof data.version === "string" ? data.version : "";
-		const date = typeof data.date === "string" ? data.date : "";
-		const missing = [!version && "version", !date && "date"].filter(Boolean);
-		if (missing.length > 0) {
-			findings.push({
-				level: "warning",
-				code: "RELEASE_NOTE_INCOMPLETE",
-				file,
-				message: `Release note has no ${missing.join(" or ")}, so the release notes page leaves it out`,
-				fix: 'Add version: "x.y.z" and date: "YYYY-MM-DD", or start one with bun run bookkit new release.',
-			});
-		} else if (
-			!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-			Number.isNaN(Date.parse(date))
-		) {
-			findings.push({
-				level: "warning",
-				code: "RELEASE_NOTE_DATE",
-				file,
-				message: `Release note date "${date}" is not a YYYY-MM-DD date, so it sorts out of place`,
-				fix: 'Write the date as YYYY-MM-DD, e.g. date: "2026-10-20".',
-			});
+		)) {
+			findings.push({ ...finding, file });
 		}
 	}
 }

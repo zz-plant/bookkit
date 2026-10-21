@@ -144,3 +144,42 @@ export const withMechanisms = (
 	text: string,
 	slugs: readonly string[],
 ): string => withListItems(text, "mechanisms", slugs);
+
+/**
+ * A record with `slugs` taken out of the frontmatter list `key`, block or
+ * inline; a list left empty goes with its key.
+ */
+export const withoutListItems = (
+	text: string,
+	key: string,
+	slugs: readonly string[],
+): string => {
+	const match = text.match(FRONTMATTER);
+	if (!match) return text;
+	const current = arrayValue(parseFrontmatter(text).data[key] ?? null);
+	if (!slugs.some((slug) => current.includes(slug))) return text;
+	const kept = current.filter((item) => !slugs.includes(item));
+	const lines = match[1].split("\n");
+	const at = lines.findIndex((line) => new RegExp(`^${key}:`).test(line));
+	if (at < 0) return text;
+	let end = at + 1;
+	while (end < lines.length && /^\s+-\s/.test(lines[end])) end += 1;
+	const inline = /\[.*\]/.test(lines[at]);
+	const block =
+		kept.length === 0
+			? []
+			: inline
+				? [`${key}: [${kept.join(", ")}]`]
+				: [
+						`${key}:`,
+						...lines.slice(at + 1, end).filter((line) => {
+							const item = line
+								.replace(/^\s+-\s+/, "")
+								.trim()
+								.replace(/^(["'])(.*)\1$/, "$2");
+							return !slugs.includes(item);
+						}),
+					];
+	lines.splice(at, end - at, ...block);
+	return `${match[0].replace(match[1], () => lines.join("\n"))}${text.slice(match[0].length)}`;
+};

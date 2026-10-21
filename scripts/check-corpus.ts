@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	analyzeCorpusOverlap,
@@ -32,6 +32,7 @@ import {
 	embedTexts,
 	resolveEmbeddingModel,
 } from "./lib/embed-text";
+import { unansweredJudges } from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
 
 /**
@@ -263,8 +264,13 @@ if (judgeRecordDir) {
 	}
 	judgmentRecords = mergeRecords(judgmentRecords, read.records);
 	writeJudgments(repoRoot(), judgmentRecords);
+	// The request asked for one judge per judge-<n> folder; say how many answered.
+	const asked = readdirSync(judgeRecordDir).filter((name) =>
+		/^judge-\d+$/.test(name),
+	).length;
+	const waiting = unansweredJudges(judgeRecordDir).length;
 	console.log(
-		`Recorded ${read.judges.length} judge(s) on ${read.records.length} pair(s) in ${JUDGMENTS_FILE}:`,
+		`Recorded ${read.judges.length}${asked > read.judges.length ? ` of the ${asked}` : ""} judge(s) on ${read.records.length} pair(s) in ${JUDGMENTS_FILE}${waiting > 0 ? `; ${waiting} ${waiting === 1 ? "has" : "have"} not answered (bun run bookkit judge run asks ${waiting === 1 ? "it" : "them"}), and a pair's call needs a majority` : ""}:`,
 	);
 	const open: Array<[string, string]> = [];
 	for (const judgment of matchJudgments(read.records, mechanisms).current) {

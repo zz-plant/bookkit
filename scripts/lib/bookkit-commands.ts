@@ -69,7 +69,7 @@ const NEW_KINDS: readonly BookkitCommand[] = [
 				],
 				[
 					"--after <chapter>",
-					"Put it after that chapter (its slug or file name),\nrenumbering the files after it",
+					"Put it after that chapter (its slug, file name, or\nnumber), renumbering the files after it",
 				],
 			],
 			notes:
@@ -137,6 +137,27 @@ const NEW_KINDS: readonly BookkitCommand[] = [
 			],
 			examples: [
 				'bun run bookkit new example bad-people delay-as-force Housing "The repair request"',
+			],
+		},
+	},
+	{
+		name: "glossary",
+		help: {
+			summary:
+				"Starts a glossary entry: a term readers meet, with its definition.",
+			usage: [
+				'bun run bookkit new glossary [book] "<term>" [--definition "<one sentence>"] [--mechanism <slug>]',
+			],
+			options: [
+				BOOK,
+				['"<term>"', "The term; its slug and file name come from it"],
+				['--definition "<sentence>"', "What it means, in one sentence"],
+				["--mechanism <slug>", "A mechanism the term names"],
+			],
+			notes:
+				"Writes apps/<book>/src/content/book/glossary/<slug>.mdx. Link the term\nwhere a chapter first uses it; bookkit check lists first uses that are\nnot linked.",
+			examples: [
+				'bun run bookkit new glossary "Pager queue" --definition "Alerts waiting for an owner."',
 			],
 		},
 	},
@@ -249,8 +270,9 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 			summary:
 				"Checks a book: its structure, mechanisms that overlap across books,\nand (advisory) suggestions. Or one content file, with each finding's\nfield and fix. Or any Markdown where it is, without making it a book.",
 			usage: [
-				"bun run bookkit check [book] [--all] [--quick] [--download-model]",
+				"bun run bookkit check [book] [--all] [--quick] [--info] [--download-model]",
 				"bun run bookkit check <file.mdx> [--json] [--quick]",
+				"bun run bookkit check <book folder> [--json]",
 				"bun run bookkit check <folder|file> [--frame <slug>] [--json] [--release]",
 			],
 			options: [
@@ -264,7 +286,15 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 					"Compare mechanisms by wording only, without the 550 MB\nembedding model",
 				],
 				["--download-model", "Download the model without asking"],
-				["<file.mdx>", "One content file of a book"],
+				["--info", "Also the info-level suggestions"],
+				[
+					"<file.mdx>",
+					"One content file of a book (or a release note), with the\nbook's suggestions about it",
+				],
+				[
+					"<book folder>",
+					"A folder of a book's content, with the book's rules",
+				],
 				["<folder|file>", "Markdown outside a book: the content contract"],
 				["--frame <slug>", "Also each step of this frame, in every document"],
 				["--release", "Check it as a published book, so drafts are errors"],
@@ -286,12 +316,16 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				"Prints the fields each content section needs, what each one means, and\na file that compiles.",
 			usage: ["bun run bookkit contract [section] [--json]"],
 			options: [
-				["[section]", `One of: ${CONTENT_SECTIONS.join(", ")} (default: all)`],
+				[
+					"[section]",
+					`One of: ${CONTENT_SECTIONS.join(", ")}, or release (default:\nevery content section)`,
+				],
 				["--json", "The contracts as JSON"],
 			],
 			examples: [
 				"bun run bookkit contract",
 				"bun run bookkit contract mechanism --json",
+				"bun run bookkit contract release",
 			],
 		},
 	},
@@ -427,15 +461,19 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		help: {
 			summary:
 				"Copies one copy of a mechanism's contract to its other books in the\ncorpus, so every copy reads the same.",
-			usage: ["bun run bookkit sync <mechanism> [--from <book>] [--dry-run]"],
+			usage: [
+				"bun run bookkit sync <mechanism> [--from <book>] [--to <book>] [--dry-run]",
+			],
 			options: [
 				["<mechanism>", "The mechanism's slug"],
 				["--from <book>", "The copy to keep (default: the one edited last)"],
+				["--to <book>", "Share it with a book that has no copy yet"],
 				["--dry-run", "List the changes; write nothing"],
 			],
 			examples: [
 				"bun run bookkit sync delay-as-force --dry-run",
 				"bun run bookkit sync delay-as-force --from bad-people",
+				"bun run bookkit sync delay-as-force --to on-call",
 			],
 		},
 	},
@@ -443,20 +481,22 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		name: "rename",
 		help: {
 			summary:
-				"Renames a chapter's slug, and with it the file name, other chapters'\nprerequisites, and links to it.",
+				"Renames a chapter's slug, and with it the file name, other chapters'\nprerequisites, and links to it. Or a mechanism's slug, in every book of\nits corpus, with everything that names it.",
 			usage: [
 				'bun run bookkit rename chapter [book] <slug> <new-slug> [--title "<title>"] [--dry-run]',
+				'bun run bookkit rename mechanism [book] <slug> <new-slug> [--title "<title>"] [--dry-run]',
 			],
 			options: [
 				["[book]", "The book (default: the current one, or the only one)"],
-				["<slug> <new-slug>", "The chapter's slug, and the one it gets"],
+				["<slug> <new-slug>", "The slug, and the one it gets"],
 				['--title "<title>"', "A new title as well"],
 				["--dry-run", "List the changes; write nothing"],
 			],
 			notes:
-				"Only chapters are renamed this way; a mechanism's slug changes with\nbun run bookkit merge.",
+				"A mechanism's rename moves its file, glossary entry, and examples, and\nrebinds chapters, actions, links, and config; corpus.json records the\nold slug. Its old page, /read/mechanisms/<slug>, is gone.",
 			examples: [
 				"bun run bookkit rename chapter on-call drills practice-drills --dry-run",
+				'bun run bookkit rename mechanism delay-as-force waiting-as-leverage --title "Waiting as leverage" --dry-run',
 			],
 		},
 	},
@@ -517,6 +557,49 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 			examples: [
 				"bun run bookkit export on-call",
 				"bun run bookkit export on-call --out ../on-call-gitbook",
+			],
+		},
+	},
+	{
+		name: "remove",
+		help: {
+			summary:
+				"Removes a chapter, mechanism, or tool, and the entries that name it\n(other chapters' prerequisites, mechanisms: lists), listing the lines\nthat still mention it. remove book deletes a book app.",
+			usage: [
+				"bun run bookkit remove chapter|mechanism|tool [book] <slug> [--dry-run] [--with-records]",
+				"bun run bookkit remove book <slug> [--dry-run]",
+			],
+			options: [
+				BOOK,
+				["<slug>", "The record's slug (a tool's file name works too)"],
+				["--dry-run", "List the changes; write nothing"],
+				[
+					"--with-records",
+					"For a mechanism: remove its tools and examples too",
+				],
+			],
+			examples: [
+				"bun run bookkit remove chapter on-call drills --dry-run",
+				"bun run bookkit remove mechanism on-call bounded-escalation --with-records --dry-run",
+			],
+		},
+	},
+	{
+		name: "move",
+		help: {
+			summary:
+				"Binds a tool to another mechanism. Its slug and URL stay as they are.",
+			usage: [
+				"bun run bookkit move tool [book] <tool> --to <mechanism> [--dry-run]",
+			],
+			options: [
+				BOOK,
+				["<tool>", "The tool's slug or file name"],
+				["--to <mechanism>", "The mechanism it binds to"],
+				["--dry-run", "Show the change; write nothing"],
+			],
+			examples: [
+				"bun run bookkit move tool on-call identify-rollback-candidate --to bounded-escalation",
 			],
 		},
 	},

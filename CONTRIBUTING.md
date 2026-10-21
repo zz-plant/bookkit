@@ -2,7 +2,7 @@
 
 You do not need full-system context to contribute safely. Pick a lane, run checks, and keep architecture boundaries intact.
 
-For commands see [`README.md`](./README.md). For how the system is structured — layers, engine module map, import tiers — see [`docs/architecture.md`](./docs/architecture.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
+For commands see [`README.md`](./README.md), and for what each check enforces, [`docs/guide/`](./docs/guide/). For how the system is structured — layers, engine module map, import tiers — see [`docs/architecture.md`](./docs/architecture.md). For hard invariants see [`AGENTS.md`](./AGENTS.md).
 
 ---
 
@@ -12,7 +12,7 @@ For commands see [`README.md`](./README.md). For how the system is structured �
 2. Make a focused change.
 3. Run `bun run verify`. It reads what changed since `origin/main` and runs the checks those paths need (table below), reporting content findings only for the files you touched. `--all` runs every gate. The gates live in one list, `scripts/lib/verify-plan.ts`; CI runs `verify --all` and the other jobs under [CI](#ci). `--list` shows the plan; `--json` is for agents. On GitHub Actions, findings with a file also annotate the PR.
 4. Release rules follow each book's `status`, so `verify` already applies them to a published or stable book. `bun run validate:release` is an alias of `bun run validate`, and `check:upgrade` runs a subset of `verify --all`.
-5. If you changed the reader UI (`components/`, `layouts/`, `styles/`, or a page template), run `bun run check:a11y`. It builds every book and runs axe-core over each page type in light and dark, at desktop and phone widths, failing on serious or critical violations. It needs Playwright's Chromium once: `bunx playwright install chromium`. If you changed search or the reading keys, also run `bun run test:browser`, which drives them by keyboard. CI runs both in their own job.
+5. If you changed the reader UI (`components/`, `layouts/`, `styles/`, or a page template), run `bun run check:a11y`. It builds every book and runs axe-core over each page type in light and dark, at desktop and phone widths, failing on serious or critical violations. It needs Playwright's Chromium once: `bunx playwright install chromium`. If you changed search, the reading keys, or a script that shows text the book did not write (what readers send, the address, what the browser stores), also run `bun run test:browser`, which drives search and the reading keys by keyboard and checks that such text shows as text. CI runs both in their own job.
 
 ### Pre-flight: classify the change before coding
 
@@ -147,7 +147,7 @@ Tests sit beside the code they cover (`*.test.ts`), and `bun run test` runs ever
 
 ## Validation and book status
 
-A book's `status` in `book.config.ts` decides the rules. A published or stable book gets release rules: no draft record in any section, broken links and unknown prerequisites are errors, and it must be indexable at a public URL. In a draft or in-review book, draft records are allowed, and broken links and unknown prerequisites are warnings. Errors exit 1 whatever the status. `validate:release` is the same command as `validate`; README → Status has the full table.
+A book's `status` in `book.config.ts` decides the rules. A published or stable book gets release rules: no draft record in any section, broken links and unknown prerequisites are errors, and it must be indexable at a public URL. In a draft or in-review book, draft records are allowed, and broken links and unknown prerequisites are warnings. Errors exit 1 whatever the status. `validate:release` is the same command as `validate`; [Status](./docs/guide/concepts.md#status) has the full table.
 
 If validation fails, fix the structure; do not weaken a rule to make it pass.
 
@@ -208,10 +208,12 @@ The canonical documents and their roles are listed once, in `AGENTS.md` → "Can
 | --- | --- |
 | `audit` | `bun audit --audit-level=high`: fails on a high or critical advisory in `bun.lock`. |
 | `governance-and-tests` | `bun run verify -- --all` (every gate in `scripts/lib/verify-plan.ts`, including the build of every book and `check:build`), then `bookkit deploy --all --dry-run`, which must reach wrangler for every book with the commit's message. |
-| `accessibility` | `bun run check:a11y` (axe-core over every page type and the open panels, light and dark, desktop and phone) and `bun run test:browser` (search and the reading keys, by keyboard). |
+| `accessibility` | `bun run check:a11y` (axe-core over every page type and the open panels, light and dark, desktop and phone) and `bun run test:browser` (search and the reading keys, by keyboard; text from readers, the address, and storage shown as text). |
 | `semantic-corpus` | `check:corpus --mode error` with the embedding model downloaded, so mechanisms are compared by meaning; it fails if the meaning pass did not run. |
 | `standalone-project` | Scaffolds a project with `create-bookkit`, commits it, builds it failing on any `[WARN]` line, then runs its `verify -- --all` and `deploy -- --dry-run`. |
 
-`.github/workflows/deploy.yml` publishes after CI passes on `main`, only for the books the `DEPLOY_BOOKS` repository variable names (README → Deploy from CI).
+`.github/workflows/deploy.yml` publishes after CI passes on `main`, only for the books the `DEPLOY_BOOKS` repository variable names ([Deploy from CI](./docs/guide/publishing.md#deploy-from-ci)).
+
+A ruleset on `main` takes changes only by pull request, needs all five jobs above to pass, and refuses force-pushes and deletion. A job renamed in `ci.yml` must be renamed in the ruleset too (Settings → Rules), or every PR waits on a check that never reports. PRs merge with a merge commit. Dependabot (`.github/dependabot.yml`) opens one grouped PR a week for GitHub Actions and one for `bun.lock`.
 
 PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

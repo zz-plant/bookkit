@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/zz-plant/bookkit/blob/main/CONTRIBUTING.md
+    about: Lanes, the checks each change needs, and how PRs are described.
+  - name: Report a vulnerability privately
+    url: https://github.com/zz-plant/bookkit/security/advisories/new
+    about: Don't open a public issue for a security problem.

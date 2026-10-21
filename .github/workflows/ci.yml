@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to a PR cancels that PR's run in progress. Runs on main each
+# finish, since Deploy waits on them.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
   # Fails on a high or critical advisory in bun.lock; `bun audit` lists the
   # moderate and low ones. Reads the lockfile, so it needs no install.
@@ -144,9 +153,10 @@ jobs:
       # aria-activedescendant follows the arrow keys, and Enter opens the
       # selected result (scripts/search-panel.browser.ts); "Continue" on the
       # home page and hub, the touch-only menu, and the heading keys
-      # (scripts/reader-wayfinding.browser.ts).
+      # (scripts/reader-wayfinding.browser.ts); and feedback, a bad address,
+      # and stored data shown as text (scripts/untrusted-text.browser.ts).
       # A case may run twice (scripts/lib/browser.fixture.ts), so the step's
-      # limit leaves room for a slow run; it takes about 25 s.
+      # limit leaves room for a slow run; it takes about 35 s.
       - name: Search and reading keys (browser tests)
         timeout-minutes: 15
         run: bun run test:browser

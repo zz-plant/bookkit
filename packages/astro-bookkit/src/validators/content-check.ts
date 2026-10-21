@@ -7,6 +7,7 @@ import {
 	mechanismSchema,
 	toolkitSchema,
 } from "../schemas";
+import { SLUG_PATTERN } from "../schemas/slug";
 import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	elementReason,
@@ -676,7 +677,7 @@ const READ_LINK =
 	/(?:\]\(\s*<?|\b(?:href|src)\s*=\s*["']|^[ \t]*\[[^\]\n]+\]:[ \t]*<?)((?:\/[a-z]{2}(?:-[a-z0-9]+)?)?\/read\/([a-z]+)\/([^\s)"'<>#?]+))/gim;
 
 /** What the read routes and the schemas accept as a slug. */
-const isValidSlug = (value: string): boolean => /^[a-z0-9-]+$/.test(value);
+const isValidSlug = (value: string): boolean => SLUG_PATTERN.test(value);
 
 /** The slug an author most likely meant: lowercase words joined by hyphens. */
 const suggestedSlug = (value: string): string =>
@@ -764,9 +765,7 @@ const notAListFinding = (
 		.split(/\s*,\s*/)
 		.map((item) => item.trim())
 		.filter(Boolean);
-	const items = parts.every((part) => /^[a-z0-9-]+$/.test(part))
-		? parts
-		: [value];
+	const items = parts.every(isValidSlug) ? parts : [value];
 	return {
 		level,
 		code: "FIELD_INVALID",

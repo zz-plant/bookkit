@@ -458,3 +458,89 @@ describe("the frame check of the overview chapter", () => {
 		);
 	});
 });
+
+describe("the frame book.config.ts declares", () => {
+	const frame = (slug: string, steps?: string[]) =>
+		writeConfig(
+			`\tframe: {\n\t\tslug: "${slug}",\n${steps ? `\t\tsteps: [${steps.map((step) => `"${step}"`).join(", ")}],\n` : ""}\t\tintent: "x",\n\t},\n`,
+		);
+	const frameFindings = () =>
+		check().findings.filter((finding) => finding.code.startsWith("FRAME_"));
+
+	it("is an error when no frame has its slug, with the nearest one, and nothing falls back to intervention", () => {
+		writeBook([["chapters/01-a.mdx", chapter("a")]]);
+		frame("runbok", ["ownership"]);
+		expect(frameFindings()).toEqual([
+			{
+				level: "error",
+				code: "FRAME_UNKNOWN",
+				field: "frame.slug",
+				file: join(root, "apps", "test-book", "src", "book.config.ts"),
+				message:
+					'Frame "runbok" is not one of Bookkit\'s frames, so the chapters were not checked against one. Did you mean runbook?',
+				fix: "Set frame.slug in book.config.ts to one of: intervention, explainer, field-guide, runbook.",
+			},
+		]);
+		expect(check().ok).toBe(false);
+	});
+
+	it("is an error when frame.steps names a step the frame does not have, or leaves out one it requires", () => {
+		writeBook([["chapters/01-a.mdx", chapter("a")]]);
+		frame("intervention", ["recogniton", "exoneration", "mechanism"]);
+		expect(
+			frameFindings().map(({ code, field, message }) => ({
+				code,
+				field,
+				message,
+			})),
+		).toEqual([
+			{
+				code: "FRAME_STEP_UNKNOWN",
+				field: "frame.steps",
+				message:
+					'frame.steps names "recogniton", which is not a step of the intervention frame. Did you mean recognition?',
+			},
+			{
+				code: "FRAME_STEP_REQUIRED",
+				field: "frame.steps",
+				message:
+					'frame.steps leaves out "recognition", which the intervention frame requires',
+			},
+			{
+				code: "FRAME_STEP_REQUIRED",
+				field: "frame.steps",
+				message:
+					'frame.steps leaves out "agency", which the intervention frame requires',
+			},
+		]);
+	});
+
+	it("checks the chapters for the steps frame.steps lists, in the frame's order", () => {
+		writeBook([
+			[
+				"chapters/01-a.mdx",
+				"---\nslug: a\ntitle: a\nstatus: draft\n---\n## Verification\n\n## Ownership\n",
+			],
+		]);
+		frame("runbook", [
+			"verification",
+			"ownership",
+			"trigger",
+			"steps",
+			"escalation",
+		]);
+		expect(frameFindings().map((finding) => finding.message)).toEqual([
+			'No chapter covers the "runbook" frame\'s step(s): trigger, steps, escalation',
+		]);
+	});
+
+	it("without steps, checks the frame's required steps; without a frame, the intervention frame's", () => {
+		writeBook([["chapters/01-a.mdx", chapter("a", "draft")]]);
+		frame("explainer");
+		expect(frameFindings().map((finding) => finding.message)).toEqual([
+			'No chapter covers the "explainer" frame\'s step(s): definition, example, implication',
+		]);
+		writeConfig("");
+		expect(frameFindings()).toEqual([]);
+	});
+});

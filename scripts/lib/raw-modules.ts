@@ -18,9 +18,9 @@ const listMdx = (dir: string): string[] =>
 		: [];
 
 /**
- * A book's raw content sources, read from disk and keyed as the apps'
- * `import.meta.glob` keys them (`../content/book/<section>/<file>`, relative
- * to `src/lib/`), so engine code gets what it gets inside a build.
+ * A book's raw content sources, read from disk and keyed as
+ * `virtual:bookkit/book` keys them (`../content/book/<section>/<file>`,
+ * relative to `src/lib/`), so engine code gets what it gets inside a build.
  */
 export const loadRawModules = (contentRoot: string): BookContentRawModules => {
 	const modules = {} as BookContentRawModules;

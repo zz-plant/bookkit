@@ -1,0 +1,271 @@
+---
+import BaseLayout from "../../../BaseLayout.astro";
+import {
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
+	resolveLocalizedModule,
+} from "../../../../localization";
+import { bookEntryPoints, bookConfig } from "../../../runtime";
+import Breadcrumbs from "../../../../components/Breadcrumbs.astro";
+import { getReadPageBreadcrumbCopy } from "../../../read-copy";
+import {
+	actionLinksForMechanisms,
+	buildLocalizedReadRoutePath,
+	chapterLinksForMechanism,
+	exampleLinksForMechanisms,
+	readRoutes,
+	termLinksForMechanism,
+} from "../../../../book";
+import { bookPageTitle, firstMetaDescription } from "../../../../seo/page-meta";
+import {
+	createBreadcrumbListStructuredDataFromTrail,
+	createDefinedTermStructuredData,
+} from "../../../../seo/structured-data";
+
+export async function getStaticPaths() {
+	const modules = bookEntryPoints.contentModules.mechanisms;
+	const localizedIndex = buildLocalizedContentIndex(modules, {
+		defaultLocale: "en",
+	});
+
+	return localizedIndex.slugs.map((slug) => ({
+		params: { slug },
+	}));
+}
+
+const modules = bookEntryPoints.contentModules.mechanisms;
+const localizedIndex = buildLocalizedContentIndex(modules, {
+	defaultLocale: "en",
+});
+const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+	locale: Astro.locals?.locale,
+});
+const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+	locale: Astro.locals?.locale,
+});
+
+if (!module) {
+	throw new Error(`Missing mechanism for slug: ${Astro.params.slug}`);
+}
+
+const { frontmatter, default: Content } = module;
+const metaDescription = firstMetaDescription(frontmatter.definition);
+const isFallback = missingSlugs.includes(frontmatter.slug);
+const hasPredictions =
+	Array.isArray(frontmatter.predictions) && frontmatter.predictions.length > 0;
+const hasTests =
+	Array.isArray(frontmatter.tests) && frontmatter.tests.length > 0;
+const hasIs = Array.isArray(frontmatter.is) && frontmatter.is.length > 0;
+const hasIsNot =
+	Array.isArray(frontmatter.isNot) && frontmatter.isNot.length > 0;
+const toolkitIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.toolkit,
+	{
+		defaultLocale: "en",
+	},
+);
+const exampleIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.examples,
+	{
+		defaultLocale: "en",
+	},
+);
+const { entries: toolkitEntries } = resolveLocalizedContent(toolkitIndex, {
+	locale: Astro.locals?.locale,
+});
+const { entries: exampleEntries } = resolveLocalizedContent(exampleIndex, {
+	locale: Astro.locals?.locale,
+});
+const relatedToolkit = actionLinksForMechanisms(
+	[frontmatter.slug],
+	toolkitEntries,
+);
+const relatedExamples = exampleLinksForMechanisms(
+	[frontmatter.slug],
+	exampleEntries,
+);
+// Where the book uses this mechanism: chapters that list it, terms that name it.
+const { entries: chapterEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const { entries: glossaryEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.glossary, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const usedInChapters = chapterLinksForMechanism(
+	frontmatter.slug,
+	chapterEntries,
+);
+const namedByTerms = termLinksForMechanism(frontmatter.slug, glossaryEntries);
+const requestPath = Astro.url.pathname;
+const mechanismUrl = new URL(requestPath, Astro.url).toString();
+const localizedReadRootPath = buildLocalizedReadRoutePath(
+	requestPath,
+	readRoutes.root,
+);
+const localizedSectionPath = buildLocalizedReadRoutePath(
+	requestPath,
+	readRoutes.mechanisms,
+);
+const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
+const breadcrumbItems = [
+	{
+		name: breadcrumbCopy.readingHub,
+		href: localizedReadRootPath,
+	},
+	{
+		name: breadcrumbCopy.mechanisms,
+		href: localizedSectionPath,
+	},
+	{
+		name: frontmatter.title,
+	},
+];
+const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
+	breadcrumbItems,
+	Astro.url,
+);
+const mechanismStructuredData = createDefinedTermStructuredData({
+	name: frontmatter.title,
+	description: frontmatter.definition,
+	termCode: frontmatter.slug,
+	url: mechanismUrl,
+	inDefinedTermSet: new URL(localizedSectionPath, Astro.url).toString(),
+});
+---
+<BaseLayout
+  title={bookPageTitle(frontmatter.title, bookConfig.title)}
+  description={metaDescription}
+  structuredData={[breadcrumbStructuredData, mechanismStructuredData]}
+>
+  <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
+  <div class="eyebrow">Mechanism{isFallback ? " · not yet translated" : ""}</div>
+  <h1 id={frontmatter.slug}>{frontmatter.title}</h1>
+  <p class="lede" id="definition">{frontmatter.definition}</p>
+
+  <nav class="jump-nav" aria-label="On this page">
+    {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+      <a class="pill" href="#recognize">How to recognize it</a>
+    )}
+    {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+      <a class="pill" href="#next-steps">Next steps</a>
+    )}
+    {(usedInChapters.length > 0 || namedByTerms.length > 0) && (
+      <a class="pill" href="#in-the-book">In the book</a>
+    )}
+  </nav>
+
+  <section class="content-block">
+    <Content />
+  </section>
+  {(hasIs || hasIsNot || hasPredictions || hasTests) && (
+    <section class="content-block" id="recognize">
+      <h2>How to recognize it</h2>
+      {hasIs && (
+        <>
+          <div class="eyebrow">This is</div>
+          <ul>
+            {frontmatter.is.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasIsNot && (
+        <>
+          <div class="eyebrow">This is not</div>
+          <ul>
+            {frontmatter.isNot.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasPredictions && (
+        <>
+          <div class="eyebrow">Predictions</div>
+          <ul>
+            {frontmatter.predictions.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasTests && (
+        <>
+          <div class="eyebrow">Quick tests</div>
+          <ul>
+            {frontmatter.tests.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  )}
+  {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
+    <section class="content-block" id="next-steps">
+      <h2>Next steps</h2>
+      {relatedToolkit.length > 0 && (
+        <>
+          <div class="eyebrow">Actions, shortest first</div>
+          <div class="stack">
+            {relatedToolkit.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+                <span class="meta">{link.meta}</span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+      {relatedExamples.length > 0 && (
+        <>
+          <div class="eyebrow">Examples</div>
+          <div class="stack">
+            {relatedExamples.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+                {link.meta && <span class="meta">{link.meta}</span>}
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )}
+  {(usedInChapters.length > 0 || namedByTerms.length > 0) && (
+    <section class="content-block" id="in-the-book">
+      <h2>In the book</h2>
+      {usedInChapters.length > 0 && (
+        <>
+          <div class="eyebrow">Chapters that use it</div>
+          <div class="stack">
+            {usedInChapters.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+      {namedByTerms.length > 0 && (
+        <>
+          <div class="eyebrow">Glossary</div>
+          <div class="stack">
+            {namedByTerms.map((link) => (
+              <a class="list-link" href={link.href}>
+                <strong>{link.label}</strong>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )}
+</BaseLayout>

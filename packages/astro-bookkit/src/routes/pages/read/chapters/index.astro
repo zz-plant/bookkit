@@ -1,0 +1,79 @@
+---
+import BaseLayout from "../../../BaseLayout.astro";
+import ExportPanel from "../../../../components/ExportPanel.astro";
+import ContentIndexList from "../../../../components/ContentIndexList.astro";
+import {
+	getBookExportLinks,
+	bookEntryPoints,
+	bookConfig,
+} from "../../../runtime";
+import {
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
+} from "../../../../localization";
+import { bookPageTitle } from "../../../../seo/page-meta";
+import {
+	buildTranslationLede,
+	chapterReadingOrder,
+	draftCopy,
+	readItemPath,
+} from "../../../../book";
+
+const { entries, completeness } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+// In reading order, as previous/next and "Chapter N of M" count it.
+const chapterItems = chapterReadingOrder(entries).map(
+	({ slug, module, isFallback }) => {
+		const frontmatter = module.frontmatter ?? {};
+		return {
+			href: readItemPath("chapters", slug),
+			title: frontmatter.title ?? "Untitled chapter",
+			status: String(frontmatter.status ?? "draft"),
+			badges: isFallback ? ["Not yet translated"] : null,
+		};
+	},
+);
+// A status only helps when chapters differ; if every chapter is a draft, say so once.
+const hasMixedStatus =
+	new Set(chapterItems.map((item) => item.status)).size > 1;
+const listedChapters = chapterItems.map(({ status, ...item }) => ({
+	...item,
+	eyebrow: hasMixedStatus && status !== "published" ? status : null,
+}));
+const draftCount = chapterItems.filter(
+	(item) => item.status === "draft",
+).length;
+const exportLinks = getBookExportLinks();
+const localizedLede = buildTranslationLede(
+	"The full argument, one chapter at a time.",
+	completeness,
+);
+---
+<BaseLayout title={bookPageTitle("Chapters", bookConfig.title)}>
+  <ContentIndexList
+    title="Chapters"
+    lede={localizedLede}
+    items={listedChapters}
+    filterPlaceholder="Filter by title"
+    alphaMode={false}
+  >
+    {draftCount > 0 && (
+      <details slot="after-header" class="content-block content-block--flush">
+        <summary>
+          <strong>{draftCount === chapterItems.length ? draftCopy.allChapters : draftCopy.someChapters}</strong>
+        </summary>
+        <p class="meta">{draftCopy.meaning}</p>
+      </details>
+    )}
+    <ExportPanel
+      slot="after-list"
+      title="Download the book"
+      description="PDF for print, EPUB for e-readers. Single chapters are on the Downloads page."
+      links={exportLinks}
+    />
+  </ContentIndexList>
+</BaseLayout>

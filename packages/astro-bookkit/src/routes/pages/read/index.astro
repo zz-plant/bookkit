@@ -1,0 +1,52 @@
+---
+import BaseLayout from "../../BaseLayout.astro";
+import ReadHub from "../../../components/ReadHub.astro";
+import DraftBookNote from "../../../components/DraftBookNote.astro";
+import ResumeReading from "../../../components/ResumeReading.astro";
+import { bookPageTitle } from "../../../seo/page-meta";
+import {
+	chapterLinksInReadingOrder,
+	chapterReadingOrder,
+	createDefaultReadHubSections,
+	createLocalizedReadHubSectionSummaries,
+} from "../../../book";
+import { createLatestSectionChangeMap } from "../../../releases/notes";
+import { bookEntryPoints, getReleaseNotes, bookConfig } from "../../runtime";
+import { readHubConfigFor } from "../../read-hub";
+
+const localeKey = Astro.locals?.locale;
+const sectionSummaries = createLocalizedReadHubSectionSummaries(
+	bookEntryPoints.contentModules,
+	{
+		locale: localeKey,
+		defaultLocale: "en",
+	},
+);
+
+const sections = createDefaultReadHubSections(
+	sectionSummaries,
+	createLatestSectionChangeMap(getReleaseNotes()),
+);
+const chapterEntries = sectionSummaries.chapters.entries;
+const chapterLinks = chapterLinksInReadingOrder(chapterEntries);
+const firstChapterSummary =
+	chapterReadingOrder(chapterEntries)[0]?.module.frontmatter?.summary;
+const readHubConfig = readHubConfigFor(
+	chapterLinks[0]
+		? {
+				title: chapterLinks[0].label,
+				href: chapterLinks[0].href,
+				summary:
+					typeof firstChapterSummary === "string"
+						? firstChapterSummary
+						: undefined,
+			}
+		: undefined,
+);
+---
+<BaseLayout title={bookPageTitle("Read", bookConfig.title)}>
+  <ReadHub {...readHubConfig} sections={sections} releaseFilterPlacement="intro">
+    <ResumeReading slot="status" chapters={chapterLinks} />
+    <DraftBookNote slot="status" status={bookConfig.status} />
+  </ReadHub>
+</BaseLayout>

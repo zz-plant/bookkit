@@ -143,11 +143,13 @@ describe("upgradeProject", () => {
 			"apps/garden/src/book.config.ts": read(
 				"apps/garden/src/book.config.ts",
 			).replace('"Garden"', '"The Garden"'),
-			"apps/garden/src/pages/read/examples/index.astro": `${read("apps/garden/src/pages/read/examples/index.astro")}\n<!-- edited -->\n`,
+			// A page the book keeps, replacing the engine's.
+			"apps/garden/src/pages/read/examples/index.astro":
+				"---\n---\n<h1>The author's own examples</h1>\n",
 			"scripts/mine.sh": "#!/bin/sh\n",
 		};
 		for (const [rel, content] of Object.entries(authored)) write(rel, content);
-		write("apps/garden/src/pages/404.astro", "drifted shim\n");
+		write("apps/garden/astro.config.mjs", "// drifted shim\n");
 		write("packages/astro-bookkit/src/index.ts", "// edited engine\n");
 		rmSync(join(dir, "apps/garden/TODOS.md"));
 		const stamp = JSON.parse(read("bookkit.json"));
@@ -164,11 +166,11 @@ describe("upgradeProject", () => {
 		for (const [rel, content] of Object.entries(authored)) {
 			expect(read(rel)).toBe(content);
 		}
-		expect(read("apps/garden/src/pages/404.astro")).toBe(
+		expect(read("apps/garden/astro.config.mjs")).toBe(
 			readFileSync(
 				join(
 					repoRoot,
-					"packages/astro-bookkit/templates/book-app/src/pages/404.astro",
+					"packages/astro-bookkit/templates/book-app/astro.config.mjs",
 				),
 				"utf8",
 			),
@@ -189,7 +191,7 @@ describe("upgradeProject", () => {
 		expect(summary).toContain(
 			"packages/astro-bookkit/: 1 replaced, 0 added, 0 removed",
 		);
-		expect(summary).toContain("replaced apps/garden/src/pages/404.astro");
+		expect(summary).toContain("replaced apps/garden/astro.config.mjs");
 		expect(summary).toContain("added    apps/garden/TODOS.md");
 		expect(summary).toContain(
 			"Left in place (not written by this version): scripts/mine.sh",
@@ -199,64 +201,59 @@ describe("upgradeProject", () => {
 
 	describe.each([
 		{
-			what: "home page",
-			file: "src/pages/index.astro",
-			saved: "src/pages/_index.astro.before-upgrade",
-			oldStarter: "---\n---\n<h1>The old starter's home page</h1>\n",
-			edit: "<p>The author's own welcome.</p>\n",
+			what: "shared page",
+			file: "src/pages/read/glossary/index.astro",
+			from: "book-app",
+			saved: "src/pages/read/glossary/_index.astro.before-upgrade",
 		},
 		{
-			what: "reading hub",
-			file: "src/lib/read-hub.ts",
-			saved: "src/lib/_read-hub.ts.before-upgrade",
-			oldStarter:
-				'export const readHubConfig = { hero: { title: "Reading hub" } };\n',
-			edit: "// The author's own cards.\n",
+			what: "runtime wiring",
+			file: "src/lib/book-runtime.ts",
+			from: "book-app",
+			saved: "src/lib/_book-runtime.ts.before-upgrade",
 		},
 		{
-			what: "mechanisms index",
-			file: "src/pages/read/mechanisms/index.astro",
-			saved: "src/pages/read/mechanisms/_index.astro.before-upgrade",
-			oldStarter: "---\n---\n<h1>Mechanisms</h1>\n",
-			edit: "<p>The author's own urgency order.</p>\n",
+			what: "starter page",
+			file: "src/pages/read/examples/index.astro",
+			from: "starter",
+			saved: "src/pages/read/examples/_index.astro.before-upgrade",
 		},
 	])(
-		"a $what from an engine that left it to the book",
-		({ file, saved, oldStarter, edit }) => {
+		"a $what an earlier engine wrote into the book, which the engine now serves",
+		({ file, from, saved }) => {
 			const page = `apps/garden/${file}`;
 			const savedAs = `apps/garden/${saved}`;
-			const shim = `packages/astro-bookkit/templates/book-app/${file}`;
+			const oldCopy = "---\n---\n<h1>As the earlier engine wrote it</h1>\n";
 
-			/** A project whose engine had the file in its starter, not its shims. */
+			/** A project whose engine shipped `file` as a shim or a starter file. */
 			const olderProject = (content: string) => {
 				createProject(source, dir, { book: "garden", title: "Garden" });
-				rmSync(join(dir, shim));
-				write(`packages/astro-bookkit/templates/starter/${file}`, oldStarter);
+				write(`packages/astro-bookkit/templates/${from}/${file}`, oldCopy);
 				write(page, content);
 			};
-			const shared = () => readFileSync(join(repoRoot, shim), "utf8");
 
-			it("replaces the starter's copy with the shared file", () => {
-				olderProject(oldStarter);
+			it("removes the unedited copy, and the folders it leaves empty", () => {
+				olderProject(oldCopy);
 				const result = upgradeProject(source, dir);
-				expect(read(page)).toBe(shared());
+				expect(existsSync(join(dir, page))).toBe(false);
+				expect(existsSync(join(dir, page, ".."))).toBe(false);
 				expect(existsSync(join(dir, savedAs))).toBe(false);
 				expect(result.changes).toContainEqual({
 					path: page,
-					action: "replaced",
+					action: "removed",
 				});
 			});
 
 			it("saves an edited copy beside it, where nothing reads it, and says where", () => {
-				const edited = `${oldStarter}${edit}`;
+				const edited = `${oldCopy}<p>The author's own words.</p>\n`;
 				olderProject(edited);
 				const result = upgradeProject(source, dir);
-				expect(read(page)).toBe(shared());
+				expect(existsSync(join(dir, page))).toBe(false);
 				expect(read(savedAs)).toBe(edited);
 				const summary = summarizeUpgrade(result).join("\n");
-				expect(summary).toContain(`replaced ${page}`);
+				expect(summary).toContain(`removed  ${page}`);
 				expect(summary).toContain(
-					`${page} is shared by every book from this version on, so your edited copy was replaced and saved as ${savedAs}.`,
+					`${page} is served by the engine from this version on, so your edited copy was removed and saved as ${savedAs}.`,
 				);
 
 				// A second upgrade has nothing left to save.

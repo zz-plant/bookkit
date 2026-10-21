@@ -110,7 +110,7 @@ export const createBookExportHelpersFromConfig = (
 	// Read on first use, once for the book and all its chapter downloads.
 	let pdfFontFiles: PdfFontFile[] | undefined;
 	const render: ExportRenderOptions = {
-		// Content modules are keyed relative to src/lib/, where the app globs them.
+		// Content modules are keyed relative to src/lib/ (see bookModuleSource in integration.ts).
 		loadImage: createFileImageLoader({
 			publicDir: folders.publicDir,
 			sourceBase: join(folders.root, "src", "lib"),

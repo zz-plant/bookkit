@@ -1,0 +1,19 @@
+---
+import { buildReleaseNotesPageProps } from "../../app-wrappers";
+import ReleaseNotesPage from "../../components/ReleaseNotesPage.astro";
+import {
+	bookConfig,
+	getOgImageForPath,
+	getReleaseNotes,
+	getVersionEntries,
+} from "../runtime";
+
+const viewModel = buildReleaseNotesPageProps({
+	book: bookConfig,
+	releases: getReleaseNotes(),
+	versionEntries: getVersionEntries(),
+	requestUrl: Astro.locals?.originalUrl ?? Astro.url.toString(),
+	ogImage: getOgImageForPath("/release-notes"),
+});
+---
+<ReleaseNotesPage {...viewModel} />

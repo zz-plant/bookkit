@@ -1,0 +1,44 @@
+---
+import BaseLayout from "../../../BaseLayout.astro";
+import ContentIndexList from "../../../../components/ContentIndexList.astro";
+import { createLocalizedContentList } from "../../../../localization";
+import { bookEntryPoints, bookConfig } from "../../../runtime";
+import { bookPageTitle } from "../../../../seo/page-meta";
+import { buildTranslationLede, readItemPath } from "../../../../book";
+import { toolkitDisplayName } from "../../../../schemas";
+
+const modules = bookEntryPoints.contentModules.toolkit;
+const { items: toolItems, completeness } = createLocalizedContentList(modules, {
+	defaultLocale: "en",
+	locale: Astro.locals?.locale,
+	mapEntry: ({ slug, module, isFallback }) => {
+		const { frontmatter } = module;
+		const name = toolkitDisplayName(frontmatter);
+		return {
+			href: readItemPath("toolkit", slug),
+			title: isFallback ? `${name} (not yet translated)` : name,
+			meta: [
+				frontmatter.mechanism,
+				frontmatter.timeboxMinutes ? `${frontmatter.timeboxMinutes} min` : null,
+			]
+				.filter(Boolean)
+				.join(" · "),
+		};
+	},
+	sort: (a, b) => a.title.localeCompare(b.title),
+});
+const localizedLede = buildTranslationLede(
+	"Actions you can take in ten minutes or less.",
+	completeness,
+);
+---
+<BaseLayout title={bookPageTitle("Toolkit", bookConfig.title)}>
+  <ContentIndexList
+    title="Toolkit"
+    lede={localizedLede}
+    items={toolItems}
+    filterMode="always"
+    filterPlaceholder="Filter by name or mechanism"
+    alphaMode="always"
+  />
+</BaseLayout>

@@ -68,7 +68,7 @@ export type FileImageLoaderOptions = {
 	publicDir: string;
 	/**
 	 * The folder entries' `source` paths are relative to (an app's
-	 * `src/lib/`, where its `import.meta.glob` calls are). Without it, a
+	 * `src/lib/`: see `bookModuleSource` in integration.ts). Without it, a
 	 * relative image path is reported instead of read.
 	 */
 	sourceBase?: string;

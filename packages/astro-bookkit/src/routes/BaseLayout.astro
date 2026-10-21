@@ -1,0 +1,53 @@
+---
+import BookLayout from "../layouts/BookLayout.astro";
+import { createBookLayoutState } from "../book";
+import {
+	bookConfig,
+	bookEntryPoints,
+	getVersionEntries,
+	getOgImageForPath,
+} from "./runtime";
+
+const versionEntries = getVersionEntries();
+const pathname = Astro.url.pathname;
+const resolvedOgImage = Astro.props.ogImage ?? getOgImageForPath(pathname);
+const layoutState = createBookLayoutState({
+	astro: {
+		props: {
+			...Astro.props,
+			ogImage: resolvedOgImage,
+		},
+		locals: Astro.locals,
+		url: Astro.url,
+	},
+	bookConfig,
+	versionEntries,
+	localizedContentModules: bookEntryPoints.localizedContentModules,
+	versionPrefix: "v",
+});
+const {
+	seoProps,
+	hasServerRuntime,
+	resolvedVersion,
+	bookTitle,
+	bookKey,
+	aiQaEnabled,
+	aiQaProvider,
+	aiQaProviders,
+	renderState,
+} = layoutState;
+---
+<BookLayout
+  bookTitle={bookTitle}
+  bookVersion={resolvedVersion}
+  bookKey={bookKey}
+  hasServerRuntime={hasServerRuntime}
+  aiQaEnabled={aiQaEnabled}
+  aiQaProvider={aiQaProvider}
+  aiQaProviders={aiQaProviders}
+  renderState={renderState}
+  bookDescription={bookConfig.site?.defaultMeta?.description}
+  {...seoProps}
+>
+  <slot />
+</BookLayout>

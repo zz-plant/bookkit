@@ -69,6 +69,12 @@ Errors exit 1 whatever the status; `bun run validate:release` is an alias of `bu
 
 The home page, reading hub, and mechanisms index are shared pages, so their copy lives in these fields rather than in the page files.
 
+## A book's own pages
+
+A book app holds no pages of its own by default. `bookkit()` in `astro.config.mjs` serves every book the engine's pages, API routes, and middleware (`packages/astro-bookkit/src/routes/`), reading the book's `book.config.ts` and content through the virtual module `virtual:bookkit/book`.
+
+To serve one page differently, put a file in `apps/<book>/src/pages/` that serves the same URL: `src/pages/read/examples/index.astro` (or `src/pages/read/examples.astro`) replaces `/read/examples`, and `src/pages/sitemap.xml.ts` replaces `/sitemap.xml`. It replaces that URL only; `/read/examples/[...slug]` stays the engine's. Names starting with `_` do not count, as Astro skips them. Start from the engine's file in `src/routes/pages/`, and read the book from `@bookkit/astro-bookkit/routes/runtime` (`bookConfig`, `bookEntryPoints`, and the rest of the book's runtime), with `@bookkit/astro-bookkit/routes/BaseLayout.astro` as the layout; `apps/running-hot/src/pages/read/examples/index.astro` does this. A file at a URL the engine does not serve is an ordinary Astro page.
+
 ## Where data lives
 
 | Path | What | Committed |

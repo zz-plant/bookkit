@@ -296,7 +296,7 @@ export const pageContentFindings = (
 						level: "warning",
 						file: rel,
 						message:
-							"Shows the book's content, but holds no <section class=\"content-block\"> around it, so check:build could not check that content's HTML. The engine's page templates (packages/astro-bookkit/templates/book-app/src/pages/read) wrap <Content /> in one; restore it in this page's template.",
+							"Shows the book's content, but holds no <section class=\"content-block\"> around it, so check:build could not check that content's HTML. The engine's pages (packages/astro-bookkit/src/routes/pages/read) wrap <Content /> in one; restore it in this page, or in the page the book keeps at that path under src/pages/.",
 					},
 				]
 			: [];
@@ -434,7 +434,7 @@ export const inspectBuildOutput = async ({
 		}
 		if (published === false && !noindex) {
 			error(
-				"Is indexable although the book status is not published or stable. An unreleased book must stay out of search: its layout should build every page noindex from bookConfig.status (run bun run check:shims).",
+				"Is indexable although the book status is not published or stable. An unreleased book must stay out of search: its layout should build every page noindex from bookConfig.status (packages/astro-bookkit/src/routes/BaseLayout.astro does; check a page the book keeps in src/pages/).",
 				"index.html",
 			);
 		}

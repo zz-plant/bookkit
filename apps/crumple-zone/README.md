@@ -6,7 +6,7 @@ This is a concrete Bookkit book instance.
 
 - `src/book.config.ts` (book-specific objective function and constraints)
 - `src/content/book/**` (replaceable content records)
-- `src/pages/**`, `src/layouts/**`, `src/lib/**` (book runtime + presentation)
+- `src/pages/**`, only for a page this book serves differently from every other (a file here replaces the engine's page at the same URL)
 
 ## What does not belong here
 

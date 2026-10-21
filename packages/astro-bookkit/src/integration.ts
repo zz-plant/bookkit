@@ -1,3 +1,4 @@
+import { existsSync, readdirSync } from "node:fs";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
@@ -89,6 +90,104 @@ export const onnxRuntimeWasmOnly = () => ({
 	},
 });
 
+/** What the engine's routes import to read the book they are built into. */
+export const BOOK_MODULE_ID = "virtual:bookkit/book";
+
+const RESOLVED_BOOK_MODULE_ID = `\0${BOOK_MODULE_ID}`;
+
+/** Every content section the book's routes read, with the files in it. */
+const CONTENT_GLOBS = {
+	chapters: "chapters/*.mdx",
+	mechanisms: "mechanisms/*.mdx",
+	toolkit: "toolkit/*.mdx",
+	glossary: "glossary/*.mdx",
+	examples: "examples/**/*.mdx",
+} as const;
+
+/** A path relative to `from`, with forward slashes. */
+const posixRelative = (from: URL, to: URL) =>
+	relative(fileURLToPath(from), fileURLToPath(to)).replaceAll("\\", "/");
+
+/**
+ * The source of `virtual:bookkit/book`: the book's `book.config.ts` and its
+ * content, globbed from the book's folder. A glob in a virtual module must
+ * start at the project root (`/src/...`); its keys are rewritten to
+ * `../content/book/...`, relative to src/lib/, where book apps globbed their
+ * content before the routes moved into the engine, so slugs and the exports'
+ * relative image paths read them as they always have.
+ */
+export const bookModuleSource = (srcFromRoot: string): string => {
+	const src = `/${srcFromRoot}/`;
+	const glob = (pattern: string, raw: boolean) =>
+		`rekey(import.meta.glob(${JSON.stringify(`${src}content/book/${pattern}`)}, { eager: true${raw ? ', query: "?raw", import: "default"' : ""} }))`;
+	const sections = (raw: boolean) =>
+		Object.entries(CONTENT_GLOBS)
+			.map(([section, pattern]) => `\t\t${section}: ${glob(pattern, raw)},`)
+			.join("\n");
+	return [
+		`import bookConfig from ${JSON.stringify(`${src}book.config`)};`,
+		"const rekey = (modules) =>",
+		"\tObject.fromEntries(",
+		`\t\tObject.entries(modules).map(([key, value]) => [key.replace(${JSON.stringify(src)}, "../"), value]),`,
+		"\t);",
+		"export { bookConfig };",
+		"export const modules = {",
+		"\tcontentModules: {",
+		sections(false),
+		"\t},",
+		"\tcontentRawModules: {",
+		sections(true),
+		"\t},",
+		`\treleaseModules: ${glob("releases/*.mdx", false)},`,
+		"};",
+		"",
+	].join("\n");
+};
+
+/** Serves `virtual:bookkit/book` for the book whose sources are at `srcFromRoot`. */
+export const bookModule = (srcFromRoot: string) => ({
+	name: "bookkit:book",
+	resolveId(source: string) {
+		return source === BOOK_MODULE_ID ? RESOLVED_BOOK_MODULE_ID : null;
+	},
+	load(id: string) {
+		return id === RESOLVED_BOOK_MODULE_ID
+			? bookModuleSource(srcFromRoot)
+			: null;
+	},
+});
+
+/** The engine's pages, injected into every book (see `routes/`). */
+const ENGINE_PAGES_DIR = new URL("./routes/pages/", import.meta.url);
+
+const PAGE_EXTENSION = /\.(astro|md|mdx|markdown|html|js|ts)$/;
+
+/** Page files under `dir`, relative to it, with forward slashes. */
+const listPages = (dir: URL): string[] => {
+	const path = fileURLToPath(dir);
+	if (!existsSync(path)) return [];
+	return readdirSync(path, { recursive: true })
+		.map((entry) => String(entry).replaceAll("\\", "/"))
+		.filter(
+			(file) =>
+				PAGE_EXTENSION.test(file) &&
+				// Astro skips files and folders whose name starts with `_`.
+				!file.split("/").some((part) => part.startsWith("_")),
+		)
+		.sort();
+};
+
+/**
+ * The URL a page file serves, the way Astro names file routes:
+ * `read/chapters/index.astro` is `/read/chapters`, `sitemap.xml.ts` is
+ * `/sitemap.xml`.
+ */
+export const routePatternOf = (file: string): string =>
+	`/${file.replace(PAGE_EXTENSION, "").replace(/(^|\/)index$/, "")}`.replace(
+		/(.)\/$/,
+		"$1",
+	);
+
 /**
  * Astro integration for Bookkit book applications.
  * Configures Vite SSR bundling and the optional dependencies, keeps unsafe
@@ -97,8 +196,14 @@ export const onnxRuntimeWasmOnly = () => ({
  * after a build writes the site's icons (see `seo/book-icons.ts`) and each
  * page's link-preview image (see `seo/og-image.ts`).
  *
- * API routes (`src/pages/api/**`) run on demand in `astro dev`, so POST works
- * there (MCP tool calls, feedback), and in a build when `runtime` is "server".
+ * Every book gets the engine's pages, API routes, and middleware
+ * (`routes/`), which read the book through `virtual:bookkit/book`. A file in
+ * the book's src/pages/ that serves the same URL replaces the engine's page:
+ * `src/pages/read/examples/index.astro` replaces `/read/examples`.
+ *
+ * API routes (`/api/**`, the engine's and any in the book's src/pages/api/)
+ * run on demand in `astro dev`, so POST works there (MCP tool calls,
+ * feedback), and in a build when `runtime` is "server".
  * A static build prerenders them: the MCP discovery manifest is written, and
  * the request handlers answer the prerender with no body, which leaves them
  * out of `dist/` (see `utils/http.ts`).
@@ -113,7 +218,14 @@ export function bookkit(
 	return {
 		name: "@bookkit/astro-bookkit",
 		hooks: {
-			"astro:config:setup": ({ command, config, logger, updateConfig }) => {
+			"astro:config:setup": ({
+				addMiddleware,
+				command,
+				config,
+				injectRoute,
+				logger,
+				updateConfig,
+			}) => {
 				if (command === "build" && serverRuntime && !config.adapter) {
 					throw new Error(
 						'site.runtime is "server" in src/book.config.ts, so the API routes run on demand, which needs an adapter. Add one to astro.config.mjs (for example @astrojs/node), or remove site.runtime to build a static site.',
@@ -131,9 +243,31 @@ export function bookkit(
 					fileURLToPath(config.root),
 					fileURLToPath(new URL("pages/api/", config.srcDir)),
 				).replaceAll("\\", "/")}/`;
+				const bookPages = new Set(
+					listPages(new URL("pages/", config.srcDir)).map(routePatternOf),
+				);
+				for (const page of listPages(ENGINE_PAGES_DIR)) {
+					const pattern = routePatternOf(page);
+					if (bookPages.has(pattern)) continue;
+					injectRoute({
+						pattern,
+						entrypoint: new URL(page, ENGINE_PAGES_DIR),
+						...(apiRoutesOnDemand && pattern.startsWith("/api/")
+							? { prerender: false }
+							: {}),
+					});
+				}
+				addMiddleware({
+					entrypoint: new URL("./routes/middleware.ts", import.meta.url),
+					order: "pre",
+				});
 				updateConfig({
 					vite: {
-						plugins: [optionalDependencies(), onnxRuntimeWasmOnly()],
+						plugins: [
+							bookModule(posixRelative(config.root, config.srcDir)),
+							optionalDependencies(),
+							onnxRuntimeWasmOnly(),
+						],
 						// Read by the reader UI: without request handlers the Ask
 						// island and the in-browser models it loads are compiled out.
 						define: {

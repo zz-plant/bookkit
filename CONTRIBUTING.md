@@ -117,7 +117,7 @@ Requirements:
 | `packages/create-bookkit/**`, `scripts/**` | types (`.ts` only), tests |
 | `apps/<book>/src/content/**` | validate that book, separation, named concepts (warnings only), build that book |
 | a mechanism file, `corpus.json`, `corpus-judgments.json` | mechanisms across books (wording, and judges' verdicts) |
-| `apps/<book>/**` (config, pages, lib) | types, shims, validate, build that book |
+| `apps/<book>/**` (config, content, pages) | types, shims, validate, build that book |
 | `docs/architecture.md` | architecture doc |
 | `TODOS.md` | todos |
 | `package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**` | as for engine code |

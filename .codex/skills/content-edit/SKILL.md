@@ -11,7 +11,7 @@ Use for changes under `apps/<book>/**`, especially:
 
 - `apps/<book>/src/content/book/**`
 - `apps/<book>/src/book.config.ts`
-- `apps/<book>/src/pages/**`
+- `apps/<book>/src/pages/**` (a page here replaces the engine's page at the same URL)
 - `apps/<book>/src/layouts/**`
 
 Do **not** use this skill for engine/schema/compiler changes in `packages/astro-bookkit/**`.

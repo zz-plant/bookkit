@@ -5,9 +5,9 @@ import { buildBook, createBookWorkspace } from "./lib/book-workspace.fixture";
 
 /**
  * Pages every book shares take their copy from book.config.ts: the home page
- * (templates/book-app/src/pages/index.astro) from `home`, the reading hub
- * (src/lib/read-hub.ts, read by src/pages/read/index.astro) from `readHub`,
- * and the mechanisms index (src/pages/read/mechanisms/index.astro) from
+ * (packages/astro-bookkit/src/routes/pages/index.astro) from `home`, the reading hub
+ * (src/routes/read-hub.ts, read by src/routes/pages/read/index.astro) from `readHub`,
+ * and the mechanisms index (src/routes/pages/read/mechanisms/index.astro) from
  * `mechanismsIndex`. A new book sets its own copy for each, builds, and its
  * pages show it.
  */

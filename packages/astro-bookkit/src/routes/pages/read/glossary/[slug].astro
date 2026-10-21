@@ -1,0 +1,124 @@
+---
+import BaseLayout from "../../../BaseLayout.astro";
+import {
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
+	resolveLocalizedModule,
+} from "../../../../localization";
+import { bookEntryPoints, bookConfig } from "../../../runtime";
+import Breadcrumbs from "../../../../components/Breadcrumbs.astro";
+import NextActionPanel from "../../../../components/NextActionPanel.astro";
+import { getReadPageBreadcrumbCopy } from "../../../read-copy";
+import { bookPageTitle, firstMetaDescription } from "../../../../seo/page-meta";
+import {
+	buildLocalizedReadRoutePath,
+	exampleLinksForMechanisms,
+	mechanismLinksForTerm,
+	readRoutes,
+} from "../../../../book";
+import { createBreadcrumbListStructuredDataFromTrail } from "../../../../seo/structured-data";
+import { pageFactsForModule } from "../../../../markdown/pageFacts";
+
+export async function getStaticPaths() {
+	const modules = bookEntryPoints.contentModules.glossary;
+	const localizedIndex = buildLocalizedContentIndex(modules, {
+		defaultLocale: "en",
+	});
+
+	return localizedIndex.slugs.map((slug) => ({
+		params: { slug },
+	}));
+}
+
+const modules = bookEntryPoints.contentModules.glossary;
+const mechanismIndex = buildLocalizedContentIndex(
+	bookEntryPoints.contentModules.mechanisms,
+	{
+		defaultLocale: "en",
+	},
+);
+const localizedIndex = buildLocalizedContentIndex(modules, {
+	defaultLocale: "en",
+});
+const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+	locale: Astro.locals?.locale,
+});
+const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+	locale: Astro.locals?.locale,
+});
+
+if (!module) {
+	throw new Error(`Missing glossary entry for slug: ${Astro.params.slug}`);
+}
+
+const { frontmatter, default: Content } = module;
+const isFallback = missingSlugs.includes(Astro.params.slug ?? "");
+const requestPath = Astro.url.pathname;
+const localizedReadRootPath = buildLocalizedReadRoutePath(
+	requestPath,
+	readRoutes.root,
+);
+const localizedSectionPath = buildLocalizedReadRoutePath(
+	requestPath,
+	readRoutes.glossary,
+);
+const { entries: mechanismEntries } = resolveLocalizedContent(mechanismIndex, {
+	locale: Astro.locals?.locale,
+});
+// The mechanisms this term names (its `mechanisms`, else the one sharing its
+// slug), and their examples.
+const termMechanisms = mechanismLinksForTerm(
+	{ slug: Astro.params.slug ?? "", mechanisms: frontmatter.mechanisms },
+	mechanismEntries,
+);
+const { entries: exampleEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.examples, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const termExamples = exampleLinksForMechanisms(
+	termMechanisms.map((link) => link.slug),
+	exampleEntries,
+).map((link) => ({
+	...link,
+	meta: link.meta ? `Example · ${link.meta}` : "Example",
+}));
+const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
+const breadcrumbItems = [
+	{ name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
+	{ name: breadcrumbCopy.glossary, href: localizedSectionPath },
+	{ name: frontmatter.term },
+];
+const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
+	breadcrumbItems,
+	Astro.url,
+);
+---
+<BaseLayout
+  title={bookPageTitle(frontmatter.term, bookConfig.title)}
+  description={firstMetaDescription(
+    frontmatter.definition,
+    pageFactsForModule(modules, bookEntryPoints.contentRawModules.glossary, module)?.excerpt,
+  )}
+  structuredData={[breadcrumbStructuredData]}
+>
+  <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
+  <div class="eyebrow">Glossary{isFallback ? " · not yet translated" : ""}</div>
+  <h1 id={frontmatter.slug}>{frontmatter.term}</h1>
+  <section class="content-block">
+    <Content />
+  </section>
+  <NextActionPanel
+    variant="compact"
+    title="Keep going"
+    links={[
+      ...(termMechanisms.length > 0
+        ? termMechanisms.map((link) => ({ ...link, label: `The ${link.label} mechanism` }))
+        : [{ href: readRoutes.mechanisms, label: "Mechanisms" }]),
+      ...(termExamples.length > 0
+        ? termExamples
+        : [{ href: readRoutes.examples, label: "Examples" }]),
+    ]}
+  />
+</BaseLayout>

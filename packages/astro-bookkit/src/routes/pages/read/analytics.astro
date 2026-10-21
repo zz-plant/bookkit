@@ -1,0 +1,55 @@
+---
+import { readRoutes } from "../../../book";
+import { runtimeFeatures } from "../../../seo/config";
+import AnalyticsDashboard from "../../../components/AnalyticsDashboard.astro";
+import AuthorAccessPanel from "../../../components/AuthorAccessPanel.astro";
+import FeedbackDashboard from "../../../components/FeedbackDashboard.astro";
+import PreviewLinksPanel from "../../../components/PreviewLinksPanel.astro";
+import { createPreviewLinks } from "../../../preview";
+import { bookConfig } from "../../runtime";
+import BaseLayout from "../../BaseLayout.astro";
+
+const lastUpdated = new Date().toLocaleDateString("en-US", {
+	month: "short",
+	day: "numeric",
+	year: "numeric",
+});
+
+const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
+	baseUrl: bookConfig.site?.url,
+	path: readRoutes.root,
+});
+
+// This dashboard is not access-controlled, so tokenized links are only rendered
+// in local development. A built site never contains them.
+const revealPreviewLinks = import.meta.env.DEV;
+
+// On a server, what readers sent is read with the author token; a static
+// site has no server to ask, so it shows this browser's own data only.
+const { hasServerRuntime } = runtimeFeatures(bookConfig);
+---
+<BaseLayout title={`Analytics • ${bookConfig.title}`} robots="noindex, nofollow">
+  <a class="back-link" href={readRoutes.root}>← Reading hub</a>
+  <div class="section-header">
+    <h1>Analytics</h1>
+    <p class="lede">
+      Page views, reading time, and scroll depth from anonymized sessions.
+    </p>
+  </div>
+
+  {hasServerRuntime && <AuthorAccessPanel />}
+
+  <PreviewLinksPanel
+    title="Private preview links"
+    description="Give reviewers access to a draft. You can let links expire or revoke them at any time."
+    links={previewLinks}
+    revealLinks={revealPreviewLinks}
+  />
+
+  <AnalyticsDashboard lastUpdated={lastUpdated} endpoint="/api/analytics.json" />
+
+  <section class="content-block">
+    <FeedbackDashboard endpoint="/api/feedback.json" />
+  </section>
+
+</BaseLayout>

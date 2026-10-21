@@ -594,6 +594,22 @@ export const writeAppPackages = (
 	return changes;
 };
 
+/**
+ * What to run in a new project, in an order that works: every check runs
+ * before `git init`, and deploy, which publishes from a commit, comes after.
+ */
+export const nextSteps = (
+	target: string,
+	{ installed }: { installed: boolean },
+): string => `
+Next:
+  cd ${target}${installed ? "" : "\n  bun install"}
+  bun run dev                    preview the book
+  bun run verify -- --all        every check, as CI runs them
+  git init && git add -A && git commit -m "First draft"
+                                 deploy publishes from a commit
+  bun run deploy -- --dry-run    check content, build, verify dist/, stop before publishing`;
+
 const GITIGNORE = `node_modules/
 dist/
 .astro/
@@ -612,7 +628,8 @@ bun install
 bun run dev                      # preview with live reload
 bun run bookkit check            # structure, plus mechanisms that overlap across books
 bun run verify -- --all          # every check: types, content, wrappers, build
-bun run deploy -- --dry-run      # check content, build, verify dist/, then stop before publishing (needs a git commit)
+git init && git add -A && git commit -m "First draft"   # deploy publishes from a commit
+bun run deploy -- --dry-run      # check content, build, verify dist/, then stop before publishing
 bun run bookkit help             # every command
 \`\`\`
 

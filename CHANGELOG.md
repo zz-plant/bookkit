@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — `--help` everywhere; the frame check reads whole headings; `verify` before `git init`
+
+- **Every `bookkit` command and package script answers `-h` and `--help`** with what it does, its arguments, and examples, and exits 0 without doing anything else. Before, `bookkit dev --help` started a dev server, `check:corpus`, `check:suggestions`, `check:runbooks`, `check:a11y`, and `mcp` ran, `export --help` and `try --help` exited 1, and `bun run prepare --help` had husky install hooks into a folder named `--help`. `bookkit help <command>` prints the same help. The commands and their help live in one table, `scripts/lib/bookkit-commands.ts`, which `bookkit` dispatches on; the shared helper is `exitOnHelp`/`formatUsage` in `scripts/lib/cli.ts`. `prepare` and `setup` now run `scripts/install-hooks.ts` and `scripts/setup.ts`, which do what `husky` and `mise trust && bun install` did.
+- **The frame check reads the whole heading.** A heading in `00-overview.mdx` counts for a step when its whole text, slugged as the site slugs heading ids, is the step's id, so `## Failure Modes` now counts for `failure-modes` (a new field-guide book warned about its own starter overview). Headings in fenced code or the frontmatter no longer count. `frameStepsInPage` and `markdownHeadings` are new engine exports.
+- **`verify -- --all` works in a project that is not a git repository yet.** `check:types` listed its files with `git ls-files`; outside a repository it now reads them from the disk, leaving out what the project's `.gitignore` files ignore, as git would. create-bookkit's next steps put `git init` and the first commit after `verify`, right before `deploy`, which still publishes from a commit.
+
+**Migration:** an overview heading that starts with a step's name but says more, such as `## Recognition and blame`, no longer counts for `recognition`; rename it to the step's name, or add a heading that is. The four books in this repository are unaffected.
+
 ## 2026-10-21 — The README is an entry point; the reference moves to `docs/guide/`
 
 - **The README keeps orientation and daily commands only**: what Bookkit is and who it is for, how a book compiles, the record types in brief, prerequisites, starting a book, the everyday commands, the example books, and a map of the documentation.

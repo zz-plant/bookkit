@@ -492,6 +492,7 @@ export {
 } from "./validators/content-check";
 export {
 	frameStepsInHeadings,
+	frameStepsInPage,
 	validateFrameDefinition,
 	validateFrameSteps,
 } from "./validators/frame";

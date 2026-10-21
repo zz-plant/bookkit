@@ -7,6 +7,17 @@ import {
 	shimPaths,
 	syncShimTemplatesToBook,
 } from "./_shim-templates";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary:
+		"Checks that every book's shared wrappers (the files every book app\nkeeps identical) match the engine's templates. With --write\n(bun run sync:shims), copies the templates into every book.",
+	usage: ["bun run check:shims", "bun run sync:shims"],
+	options: [
+		["--write", "Copy the templates into every book instead of checking"],
+	],
+	examples: ["bun run check:shims", "bun run sync:shims"],
+});
 
 const writeMode = process.argv.includes("--write");
 const books = listShimBooks();

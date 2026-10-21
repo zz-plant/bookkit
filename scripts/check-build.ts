@@ -5,6 +5,7 @@ import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
 import { extractBookStatusFromSource } from "../packages/astro-bookkit/src/validators/frame-config";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { formatInspection, inspectBuildOutput } from "./lib/build-output";
+import { exitOnHelp } from "./lib/cli";
 import {
 	extractPdfExportEnabled,
 	extractPreviewAccessEnabled,
@@ -19,10 +20,17 @@ import {
  * book must be indexable and have chapters; any other book must be noindex.
  * Preview access is refused, since a static host cannot enforce it. Run after
  * `bun run build:all`.
- *
- *   bun run check:build            # every book under apps/
- *   bun run check:build --book x   # one book
  */
+
+exitOnHelp({
+	summary:
+		"Checks each book's built dist/ is deployable: real pages, PDF and EPUB\nexports that pass their structural checks, the SEO files a public host\nneeds, one site URL across all of them, and the indexing its status\nsets.",
+	usage: ["bun run check:build [--book <book>]"],
+	options: [["--book <book>", "One book (default: every book under apps/)"]],
+	notes:
+		"Run it after a build (bun run build:all, or bun run bookkit build <book>).",
+	examples: ["bun run check:build", "bun run check:build -- --book on-call"],
+});
 
 const root = repoRoot();
 const requested = optionalArg("--book");

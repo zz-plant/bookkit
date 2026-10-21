@@ -11,6 +11,7 @@ import type {
 } from "../packages/astro-bookkit/src/mcp/types";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { loadBookConfigSummary } from "./lib/authoring";
+import { exitOnHelp } from "./lib/cli";
 import { loadRawModules } from "./lib/raw-modules";
 
 /**
@@ -18,12 +19,22 @@ import { loadRawModules } from "./lib/raw-modules";
  * (Claude Code, Codex, any MCP client). The same router serves the book
  * apps' HTTP endpoint; this needs no dev server.
  *
- *   bun run mcp                    # content tools read the first book
- *   bun run mcp -- --book on-call  # ...or a chosen one
- *
  * Registered in .mcp.json. One JSON-RPC message per line on stdin and
  * stdout; anything else goes to stderr.
  */
+
+exitOnHelp({
+	summary:
+		"Serves Bookkit's MCP tools over stdio, for agents working in this\nworkspace: one JSON-RPC message per line on stdin and stdout. .mcp.json\nregisters it; it needs no dev server.",
+	usage: ["bun run mcp [--book <book>]"],
+	options: [
+		[
+			"--book <book>",
+			"The book the content tools read (default: the first in apps/)",
+		],
+	],
+	examples: ["bun run mcp", "bun run mcp -- --book on-call"],
+});
 
 const root = repoRoot();
 const books = listBookDirs();

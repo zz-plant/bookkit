@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { listBookDirs, listPackageDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
 import type { GovernanceResult } from "./lib/governance-output";
 
 /**
@@ -16,6 +17,14 @@ import type { GovernanceResult } from "./lib/governance-output";
  *   4. the declared import cycles match the cycles that actually exist
  *   5. the workspace layout and content sections match the tree on disk
  */
+
+exitOnHelp({
+	summary:
+		"Checks docs/architecture.md against the code: the engine module map,\nthat imports only point down a tier, the declared import cycles, and\nthe workspace layout.",
+	usage: ["bun run check:architecture [--json]"],
+	options: [["--json", "The result as JSON"]],
+	examples: ["bun run check:architecture"],
+});
 
 const jsonMode = process.argv.includes("--json");
 const root = repoRoot();

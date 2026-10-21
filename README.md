@@ -65,7 +65,7 @@ The **frame** (`intervention`, `explainer`, `field-guide`, or `runbook`) sets th
 
 - **Bun 1.3.14**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`.
 - **Node.js 22.12 or later**, which Astro 7 needs.
-- **git.** `bookkit deploy` publishes from a commit, and `check:types` lists files with git, so a new project needs `git init` and a first commit before `verify`.
+- **git.** `bookkit deploy` publishes from a commit, so a project needs `git init` and a first commit before its first deploy. Every other command, `verify -- --all` included, works in a folder that is not a repository yet.
 - **To publish:** a Cloudflare account, and `bunx wrangler login` once (or `CLOUDFLARE_API_TOKEN` in the environment).
 - **Optional:** Playwright's Chromium for the accessibility and browser checks (`bunx playwright install chromium`), and about 550 MB of disk for the embedding model that compares mechanisms by meaning. Bookkit asks before it downloads the model.
 
@@ -82,9 +82,10 @@ git clone https://github.com/zz-plant/bookkit.git
 cd bookkit && bun install
 bun run create-bookkit ../my-book --title "My Book"    # the folder must be outside the clone
 cd ../my-book && bun install
-git init && git add -A && git commit -m "First draft"   # verify and deploy read git
-bun run verify -- --all                                 # types, content, shared pages, and a checked build
 bun run dev                                             # preview at http://localhost:4321
+bun run verify -- --all                                 # types, content, shared pages, and a checked build
+git init && git add -A && git commit -m "First draft"   # deploy publishes from a commit
+bun run deploy -- --dry-run                             # every check, then wrangler's dry run
 ```
 
 `--book <slug>` sets the slug and `--dir <folder>` imports a folder of notes as the first chapters. To take a newer engine later, pull the clone and run `bun run create-bookkit ../my-book --upgrade`; it replaces only what the engine owns and never writes content or `book.config.ts`. [`packages/create-bookkit/README.md`](./packages/create-bookkit/README.md) covers the project layout and upgrades.
@@ -117,7 +118,7 @@ The checks name every placeholder still in `book.config.ts`: the three `objectiv
 
 ## Daily commands
 
-`bun run bookkit` with no command lists your books and the commands for the current one; `bun run bookkit help` lists every command. Commands run from any folder in the workspace; a command missing an argument asks for it, and a mistyped name gets the closest match.
+`bun run bookkit` with no command lists your books and the commands for the current one; `bun run bookkit help` lists every command, and `--help` after any command or package script (`bun run bookkit dev --help`, `bun run check:corpus --help`) prints its arguments and examples without running it. Commands run from any folder in the workspace; a command missing an argument asks for it, and a mistyped name gets the closest match.
 
 ### Write
 

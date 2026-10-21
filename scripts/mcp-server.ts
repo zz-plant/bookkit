@@ -11,6 +11,7 @@ import type {
 } from "../packages/astro-bookkit/src/mcp/types";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { loadBookConfigSummary } from "./lib/authoring";
+import { readFocusBook } from "./lib/cli";
 import { loadRawModules } from "./lib/raw-modules";
 
 /**
@@ -18,16 +19,18 @@ import { loadRawModules } from "./lib/raw-modules";
  * (Claude Code, Codex, any MCP client). The same router serves the book
  * apps' HTTP endpoint; this needs no dev server.
  *
- *   bun run mcp                    # content tools read the first book
+ *   bun run mcp                    # content tools read the current book (bookkit use), else the first
  *   bun run mcp -- --book on-call  # ...or a chosen one
  *
+ * Every tool also takes `book` to work on another book in the workspace.
  * Registered in .mcp.json. One JSON-RPC message per line on stdin and
- * stdout; anything else goes to stderr.
+ * stdout; anything else goes to stderr. A long call (compile_book) does not
+ * hold up the others: each answers when it is done.
  */
 
 const root = repoRoot();
 const books = listBookDirs();
-const book = optionalArg("--book") ?? books[0];
+const book = optionalArg("--book") ?? readFocusBook(books) ?? books[0];
 
 if (!book || !books.includes(book)) {
 	process.stderr.write(
@@ -58,7 +61,7 @@ const isRequest = (value: unknown): value is JsonRpcRequest =>
 	value !== null &&
 	typeof (value as { method?: unknown }).method === "string";
 
-const respond = (request: unknown) => {
+const respond = async (request: unknown) => {
 	if (!isRequest(request)) {
 		return createJsonRpcError(
 			null,
@@ -67,7 +70,7 @@ const respond = (request: unknown) => {
 		);
 	}
 	try {
-		return handleRequest(options, request);
+		return await handleRequest(options, request);
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : String(error);
 		return request.id === undefined
@@ -87,12 +90,15 @@ lines.on("line", (line) => {
 		return;
 	}
 	if (Array.isArray(message)) {
-		const responses = message.map(respond).filter(Boolean);
-		if (responses.length > 0) send(responses);
+		void Promise.all(message.map(respond)).then((all) => {
+			const responses = all.filter(Boolean);
+			if (responses.length > 0) send(responses);
+		});
 		return;
 	}
-	const response = respond(message);
-	if (response) send(response);
+	void respond(message).then((response) => {
+		if (response) send(response);
+	});
 });
 
 process.stderr.write(

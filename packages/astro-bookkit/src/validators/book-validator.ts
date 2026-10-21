@@ -120,6 +120,35 @@ export const readBookStatus = (
 		: undefined;
 };
 
+/** The frame slug set in apps/<book>/src/book.config.ts, if any. */
+export const readBookFrame = (
+	workspaceRoot: string,
+	book: string,
+): string | undefined => {
+	const path = bookConfigPath(workspaceRoot, book);
+	return existsSync(path)
+		? extractFrameConfigFromSource(readFileSync(path, "utf8"))?.slug
+		: undefined;
+};
+
+/** Every slug the book's read routes serve, per section. */
+export const routeSlugsOf = (
+	sources: Record<ContentSection, Array<{ file: string; source: string }>>,
+): Record<ContentSection, Set<string>> =>
+	Object.fromEntries(
+		CONTENT_SECTIONS.map((section) => [
+			section,
+			new Set(
+				sources[section].flatMap(({ file, source }) => {
+					const frontmatter = parseFrontmatter(source);
+					return frontmatter.status === "ok"
+						? [routeSlug(file, frontmatter.data)]
+						: [];
+				}),
+			),
+		]),
+	) as Record<ContentSection, Set<string>>;
+
 export const readRetiredSlugs = (
 	workspaceRoot: string,
 ): Map<string, RetiredSlug> => {
@@ -368,16 +397,7 @@ export const checkBookContent = (
 			}),
 		]),
 	) as Record<ContentSection, ParsedSource[]>;
-	const slugs = Object.fromEntries(
-		CONTENT_SECTIONS.map((section) => [
-			section,
-			new Set(
-				parsed[section].flatMap(({ file, data }) =>
-					data ? [routeSlug(file, data)] : [],
-				),
-			),
-		]),
-	) as Record<ContentSection, Set<string>>;
+	const slugs = routeSlugsOf(sources);
 	const mechanismSlugs = mechanismSlugsFrom(
 		sources.mechanism.map(({ source }) => source),
 	);

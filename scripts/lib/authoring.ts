@@ -208,6 +208,12 @@ const loadCorpusEntries = (books: string[]): CorpusEntry[] => {
 const round = (value: number) => Math.round(value * 100) / 100;
 
 /**
+ * The wording score below which a match is a shared word or two, not a
+ * likely duplicate: what `similar`, `check`, and `new mechanism` show.
+ */
+export const WORDING_MATCH_MIN = 0.3;
+
+/**
  * Existing mechanisms, across every book, that a proposed one may duplicate.
  * Lexical by default: cheap, and a hint to look before coining a name, not a
  * ruling. Words that most mechanisms use ("people", "institution") count for
@@ -429,7 +435,7 @@ export const withCorpusScope = <T extends MechanismMatch>(
 export const similarForMechanismFile = (
 	frontmatter: Record<string, unknown> | null,
 	book: string,
-	minimumScore = 0.3,
+	minimumScore = WORDING_MATCH_MIN,
 ): SimilarForFile[] => {
 	const title = typeof frontmatter?.title === "string" ? frontmatter.title : "";
 	if (!title) return [];

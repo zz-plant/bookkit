@@ -15,12 +15,24 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 - **One book needs no name**: with one book in the workspace, `new`, `import`, `propose`, `dev`, and the rest take it. `preview`, `serve`, and `start` run `dev`; `init` and `create` run `new book`.
 - **`bookkit dev stop`** leaves the server it stops exiting 0, with "Stopped by bun run bookkit dev stop", not 143.
 - **Migration:** a script that relied on `deploy --dry-run` stamping `dist/` for `--no-build` adds `--full`. A book without `00-overview.mdx` may now show a `FRAME_STEP_MISSING` warning naming the steps no chapter covers; warnings never fail.
+## 2026-10-21 — MCP tools an agent can write a book with
+
+- **`bookkit.write_content`** checks a file as `check_content` does and, when it passes, writes it into the book: a chapter numbered after the last, an example under its mechanism, anything else as `<slug>.mdx`. It replaces an existing file only with `overwrite: true`, and never writes outside the section folder. An MCP client without file access can now author, not only check.
+- **`check_content` runs the checks `bookkit check <file>` runs**: prerequisites and `/read/` links against the book's slugs, the book's frame, and the MDX compiler the build uses (a literal `{` in prose is an error before the file is written). `validate_book` compiles every MDX file, as `bun run validate` does.
+- **Every content tool takes `book`.** `read_book`, `list_content`, and `list_mechanisms` read another workspace book from disk; a book that is not in the workspace is an error (`UNKNOWN_BOOK`) naming the ones that are, where before the served book's content came back.
+- **`read_book` returns an index** (section, slug, title, lines) unless given a `slug` or `full: true`, so a whole book no longer lands in the caller's context. `compile_book`, `export_book`, and `create_book` return the last 40 lines of output.
+- **An argument a tool does not take is an error** (`TOOL_ARGUMENTS`) naming the ones it does, instead of being ignored. Section names are accepted singular or plural (`chapter` or `chapters`) by every tool. `tools/list` carries MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`).
+- **Long calls no longer block the server.** Tools that run a command (`compile_book`, `export_book`, `check_corpus`, …) run it without blocking, so a ping or a read answers while a build runs, over stdio and HTTP.
+- **`create_book`** makes a slug from a title ("Field Notes" → `field-notes`, titled "Field Notes") and takes `frame`.
+- **Standalone projects.** `bun run mcp` serves the current book (`bookkit use`) by default. A project's dev server finds the project root (the folder with `apps/` and `packages/astro-bookkit/`), where it used to run tools in the app folder. New projects get `.mcp.json`, and `--upgrade` adds one when missing. create-bookkit's next steps commit first, then preview, check, and rehearse a deploy.
+- **`bookkit similar`** leaves out matches on a word or two (wording score below 0.3, the bar `check` and `new mechanism` already used).
+- **Migration:** `handleRequest`, `runTool`, and tool handlers now return promises; code that called them directly must `await` them. A `read_book` caller that relied on getting every record's text without `slug` must pass `full: true`. A call with an argument the tool does not take, which used to run, now returns an error.
 
 ## 2026-10-21 — The README is an entry point; the reference moves to `docs/guide/`
 
 - **The README keeps orientation and daily commands only**: what Bookkit is and who it is for, how a book compiles, the record types in brief, prerequisites, starting a book, the everyday commands, the example books, and a map of the documentation.
 - **Reference material moves, unchanged in substance, to `docs/guide/`**: `concepts.md` (terms, frames, status, `book.config.ts`, where data lives), `checks.md`, `import-export.md`, `reader-site.md`, `publishing.md` (deploy, CI, static and server builds, server runtime), `ai.md` (proposals, model downloads, MCP), `corpus.md`, and `troubleshooting.md`.
-- **The MCP governance resources** add `docs/guide/concepts.md`, `checks.md`, and `ai.md`, so an agent reading them still sees the contracts and check rules the README used to carry.
+- **The MCP governance resources** add `docs/guide/concepts.md`, `checks.md`, and `ai.md` (`GUIDE_GOVERNANCE_FILE_RESOURCES`), over stdio (`bun run mcp`) and over HTTP (`POST /api/mcp.json`), so an agent still sees the contracts and check rules the README used to carry. Workspace-root discovery still keys on README, CONTRIBUTING, and AGENTS only.
 
 **Migration:** links to README anchors such as `README.md#deploy` or `README.md#what-the-checks-enforce` now land on the README without the section; point them at the matching `docs/guide/` page.
 

@@ -3,6 +3,19 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — MCP tools an agent can write a book with
+
+- **`bookkit.write_content`** checks a file as `check_content` does and, when it passes, writes it into the book: a chapter numbered after the last, an example under its mechanism, anything else as `<slug>.mdx`. It replaces an existing file only with `overwrite: true`, and never writes outside the section folder. An MCP client without file access can now author, not only check.
+- **`check_content` runs the checks `bookkit check <file>` runs**: prerequisites and `/read/` links against the book's slugs, the book's frame, and the MDX compiler the build uses (a literal `{` in prose is an error before the file is written). `validate_book` compiles every MDX file, as `bun run validate` does.
+- **Every content tool takes `book`.** `read_book`, `list_content`, and `list_mechanisms` read another workspace book from disk; a book that is not in the workspace is an error (`UNKNOWN_BOOK`) naming the ones that are, where before the served book's content came back.
+- **`read_book` returns an index** (section, slug, title, lines) unless given a `slug` or `full: true`, so a whole book no longer lands in the caller's context. `compile_book`, `export_book`, and `create_book` return the last 40 lines of output.
+- **An argument a tool does not take is an error** (`TOOL_ARGUMENTS`) naming the ones it does, instead of being ignored. Section names are accepted singular or plural (`chapter` or `chapters`) by every tool. `tools/list` carries MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`).
+- **Long calls no longer block the server.** Tools that run a command (`compile_book`, `export_book`, `check_corpus`, …) run it without blocking, so a ping or a read answers while a build runs, over stdio and HTTP.
+- **`create_book`** makes a slug from a title ("Field Notes" → `field-notes`, titled "Field Notes") and takes `frame`.
+- **Standalone projects.** `bun run mcp` serves the current book (`bookkit use`) by default. A project's dev server finds the project root (the folder with `apps/` and `packages/astro-bookkit/`), where it used to run tools in the app folder. New projects get `.mcp.json`, and `--upgrade` adds one when missing. create-bookkit's next steps commit first, then preview, check, and rehearse a deploy.
+- **`bookkit similar`** leaves out matches on a word or two (wording score below 0.3, the bar `check` and `new mechanism` already used).
+- **Migration:** `handleRequest`, `runTool`, and tool handlers now return promises; code that called them directly must `await` them. A `read_book` caller that relied on getting every record's text without `slug` must pass `full: true`. A call with an argument the tool does not take, which used to run, now returns an error.
+
 ## 2026-10-20 — Bookkit for authors other than its creator (#262–#310)
 
 One entry for the pull requests from #262 to #310 that have no entry of their own. #259–#261, #274, #275, #279, #288–#290, #293, #295, and #297 are logged in the entries below. The README is rewritten for a new author: who Bookkit is for, its terms, prerequisites, three ways to start a book, and a section for each command. The migration notes come last.

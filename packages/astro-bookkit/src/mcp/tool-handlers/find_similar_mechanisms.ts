@@ -1,7 +1,10 @@
 import { runWorkspaceCommand } from "../command-runner";
 import type { ToolHandler } from "./types";
 
-export const handleFindSimilarMechanisms: ToolHandler = ({ options, args }) => {
+export const handleFindSimilarMechanisms: ToolHandler = async ({
+	options,
+	args,
+}) => {
 	const title = typeof args?.title === "string" ? args.title.trim() : "";
 	if (!title) {
 		return {
@@ -16,7 +19,7 @@ export const handleFindSimilarMechanisms: ToolHandler = ({ options, args }) => {
 	}
 	const definition =
 		typeof args?.definition === "string" ? args.definition : undefined;
-	const command = runWorkspaceCommand(options.workspaceRoot, [
+	const command = await runWorkspaceCommand(options.workspaceRoot, [
 		"run",
 		"scripts/bookkit.ts",
 		"similar",

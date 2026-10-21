@@ -10,8 +10,8 @@ export const toCheckSeparationFailure = (exitCode: number) => {
 	};
 };
 
-export const handleCheckSeparation: ToolHandler = ({ options }) => {
-	const command = runWorkspaceCommand(options.workspaceRoot, [
+export const handleCheckSeparation: ToolHandler = async ({ options }) => {
+	const command = await runWorkspaceCommand(options.workspaceRoot, [
 		"run",
 		"check:separation",
 	]);

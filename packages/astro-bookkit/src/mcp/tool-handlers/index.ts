@@ -1,5 +1,5 @@
 import type { ToolName } from "../tool-definitions";
-import type { McpEndpointOptions } from "../types";
+import type { McpEndpointOptions, ToolResponse } from "../types";
 import { handleCheckContent } from "./check_content";
 import { handleCheckCorpus } from "./check_corpus";
 import { handleCheckSeparation } from "./check_separation";
@@ -15,6 +15,7 @@ import { handleListSkills } from "./list_skills";
 import { handleReadBook } from "./read_book";
 import type { ToolHandlerMap } from "./types";
 import { handleValidateBook } from "./validate_book";
+import { handleWriteContent } from "./write_content";
 
 const TOOL_HANDLERS: ToolHandlerMap = {
 	"bookkit.compile_book": handleCompileBook,
@@ -31,12 +32,11 @@ const TOOL_HANDLERS: ToolHandlerMap = {
 	"bookkit.find_similar_mechanisms": handleFindSimilarMechanisms,
 	"bookkit.get_content_contract": handleGetContentContract,
 	"bookkit.check_content": handleCheckContent,
+	"bookkit.write_content": handleWriteContent,
 };
 
-export const runTool = (
+export const runTool = async (
 	options: McpEndpointOptions,
 	name: ToolName,
 	args?: Record<string, unknown>,
-) => {
-	return TOOL_HANDLERS[name]({ options, args });
-};
+): Promise<ToolResponse> => TOOL_HANDLERS[name]({ options, args });

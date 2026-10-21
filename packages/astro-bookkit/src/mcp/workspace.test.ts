@@ -64,6 +64,19 @@ describe("findWorkspaceRoot", () => {
 
 		expect(findWorkspaceRoot(startDir)).toBe(packageRoot);
 	});
+
+	it("finds a standalone project's root, above the app's own package.json", () => {
+		const projectRoot = createTempDir();
+		const startDir = resolve(projectRoot, "apps/demo/src/pages/api");
+		mkdirSync(startDir, { recursive: true });
+		mkdirSync(resolve(projectRoot, "packages/astro-bookkit"), {
+			recursive: true,
+		});
+		writeFileSync(resolve(projectRoot, "package.json"), '{"name":"project"}');
+		writeFileSync(resolve(projectRoot, "apps/demo/package.json"), "{}");
+
+		expect(findWorkspaceRoot(startDir)).toBe(projectRoot);
+	});
 });
 
 describe("createBookMcpEndpointFromWorkspace", () => {

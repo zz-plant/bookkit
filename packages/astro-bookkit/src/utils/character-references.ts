@@ -41,8 +41,10 @@ export const decodeEntities = (value: string): string =>
 	);
 
 /**
- * Text written into HTML as text, in an element or a quoted attribute: the
+ * Text written into markup as text, in an element or a quoted attribute: the
  * five characters that could end either, or start a tag, become references.
+ * The engine's one escaper, for HTML and for XML alike (EPUB's XHTML, the
+ * RSS feed, the sitemap, the SVG icon): `&#39;` is a reference in both.
  */
 export const escapeHtml = (value: string): string =>
 	value

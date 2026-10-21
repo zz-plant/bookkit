@@ -176,6 +176,7 @@ export {
 	createExportAnalyticsEndpoint,
 	createExportResponse,
 	createPdfExport,
+	escapeHtml,
 	estimateExportBytes,
 	formatBytes,
 	formatExportUpdatedDate,
@@ -314,7 +315,6 @@ export type {
 export {
 	createLatestSectionChangeMap,
 	createReleaseNotes,
-	escapeXml,
 	formatReleaseDate,
 	RELEASE_SECTION_SLUGS,
 } from "./releases/notes";

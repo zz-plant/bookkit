@@ -1,4 +1,4 @@
-import { escapeXml } from "../releases/notes";
+import { escapeHtml } from "../utils/character-references";
 
 export type SitemapEntry = {
 	url: string;
@@ -16,8 +16,10 @@ export type SitemapEntry = {
 
 const formatEntry = (entry: SitemapEntry): string => {
 	const fields = [
-		`    <loc>${escapeXml(entry.url)}</loc>`,
-		entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>` : null,
+		`    <loc>${escapeHtml(entry.url)}</loc>`,
+		entry.lastmod
+			? `    <lastmod>${escapeHtml(entry.lastmod)}</lastmod>`
+			: null,
 		entry.changefreq
 			? `    <changefreq>${entry.changefreq}</changefreq>`
 			: null,

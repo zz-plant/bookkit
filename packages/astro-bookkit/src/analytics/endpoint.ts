@@ -1,3 +1,4 @@
+import { isPageSlug, SLUG_RULE } from "../schemas/slug";
 import { authorOnly } from "../utils/author-token";
 import { readBookRecords } from "../utils/book-data";
 import {
@@ -24,7 +25,6 @@ const MAX_PATH_LENGTH = 240;
 const MAX_TITLE_LENGTH = 160;
 const MAX_SESSION_LENGTH = 80;
 const MAX_VERSION_LENGTH = 40;
-const MAX_CHAPTER_LENGTH = 120;
 /** One event is well under 1 KB; anything larger is not from the reader script. */
 const MAX_BODY_BYTES = 4 * 1024;
 /** A reader sends a page view and an engagement event per page. */
@@ -105,6 +105,32 @@ const pageTitle = (
 	return { title: title ? title.slice(0, MAX_TITLE_LENGTH) : null };
 };
 
+/**
+ * The chapter's slug, null on any other page, or why it is refused. The
+ * reader script sends the slug a chapter page's path names
+ * (`chapterSlugOfPath`); the author's dashboard groups pages by it, so it
+ * must be a page's slug, by the rule feedback's slugs follow.
+ */
+const chapterSlug = (
+	value: unknown,
+): { slug: string | null } | { refused: string } => {
+	if (value === undefined || value === null) return { slug: null };
+	if (typeof value !== "string") {
+		return {
+			refused:
+				"chapterSlug must be a string: the slug in a chapter page's path, or null on other pages",
+		};
+	}
+	const slug = value.trim();
+	if (!slug) return { slug: null };
+	if (!isPageSlug(slug)) {
+		return {
+			refused: `chapterSlug ${quoted(slug)} is not a page's slug, which has ${SLUG_RULE}`,
+		};
+	}
+	return { slug };
+};
+
 /** The event as it is stored, or why it is refused. */
 const normalizeEvent = (
 	payload: Record<string, unknown>,
@@ -117,6 +143,8 @@ const normalizeEvent = (
 	if ("refused" in path) return path.refused;
 	const title = pageTitle(payload.title);
 	if ("refused" in title) return title.refused;
+	const chapter = chapterSlug(payload.chapterSlug);
+	if ("refused" in chapter) return chapter.refused;
 
 	const timestamp = normalizeTimestamp(payload.timestamp);
 	const durationSeconds =
@@ -133,7 +161,7 @@ const normalizeEvent = (
 		timestamp,
 		sessionId: cleanText(payload.sessionId, MAX_SESSION_LENGTH),
 		path: path.path,
-		chapterSlug: cleanText(payload.chapterSlug, MAX_CHAPTER_LENGTH),
+		chapterSlug: chapter.slug,
 		version: cleanText(payload.version, MAX_VERSION_LENGTH),
 		title: title.title,
 		durationSeconds,

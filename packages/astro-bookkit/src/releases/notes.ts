@@ -181,12 +181,3 @@ export const createLatestSectionChangeMap = (
  */
 export const formatReleaseDate = (value: string | Date): string =>
 	formatCalendarDate(value) ?? String(value);
-
-export const escapeXml = (value: string): string => {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&apos;");
-};

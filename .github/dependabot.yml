@@ -1,5 +1,4 @@
-# Weekly update PRs, grouped so each ecosystem opens one PR a week instead of
-# one per package. CI's five jobs gate every one like any other PR.
+# Weekly update PRs. CI's five jobs gate every one like any other PR.
 # Security updates (Settings → Code security) open separately and at once.
 version: 2
 updates:
@@ -11,12 +10,51 @@ updates:
       actions:
         patterns: ["*"]
 
-  # One bun.lock at the root covers every workspace.
+  # One bun.lock at the root covers every workspace. A major update opens a
+  # PR of its own. Minor and patch updates are grouped by what they can
+  # change, so one that fails CI holds back only its own group:
+  # - astro: the framework and its integrations, which release together;
+  # - tooling: checks, tests, and deploys, which no built book ships;
+  # - runtime: the rest, which the engine and the books ship.
+  # A 0.x package's minor update may change its API, so satori and
+  # web-haptics open a PR each, as a major update does.
   - package-ecosystem: bun
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      minor-and-patch:
+      astro:
+        patterns: ["astro", "@astrojs/*"]
         update-types: [minor, patch]
+      tooling:
+        patterns:
+          - "@biomejs/*"
+          - "@types/*"
+          - axe-core
+          - husky
+          - lint-staged
+          - playwright
+          - typescript
+          - typescript-native
+          - wrangler
+        update-types: [minor, patch]
+      runtime:
+        patterns: ["*"]
+        exclude-patterns: [satori, web-haptics]
+        update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 broke `astro check` ("does not currently support
+      # TypeScript 7.0") and scripts/lib/site-config.ts, which reads
+      # book.config.ts through the TypeScript 5 compiler API that 7 replaced
+      # (#320, reverted in 5644564). typescript-native, the alias check:types
+      # runs TypeScript 7 through, is meant to be on 7 and is not ignored.
+      - dependency-name: typescript
+        versions: [">=7.0.0"]
+      # package.json's overrides pin mermaid to 11.12.2: from 11.12.3 its
+      # langium 4 parser is a 662 kB chunk, which trips the Vite chunk-size
+      # warning that static-build.test.ts and the standalone-project job fail
+      # on. While the pin holds, a bump of the engine's range installs nothing
+      # (#317, reverted). Lift the pin and this rule together, with a fix for
+      # that chunk; scripts/dependency-pins.test.ts holds the two together.
+      - dependency-name: mermaid

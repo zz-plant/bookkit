@@ -214,6 +214,6 @@ The canonical documents and their roles are listed once, in `AGENTS.md` → "Can
 
 `.github/workflows/deploy.yml` publishes after CI passes on `main`, only for the books the `DEPLOY_BOOKS` repository variable names ([Deploy from CI](./docs/guide/publishing.md#deploy-from-ci)).
 
-A ruleset on `main` takes changes only by pull request, needs all five jobs above to pass, and refuses force-pushes and deletion. A job renamed in `ci.yml` must be renamed in the ruleset too (Settings → Rules), or every PR waits on a check that never reports. PRs merge with a merge commit. Dependabot (`.github/dependabot.yml`) opens one grouped PR a week for GitHub Actions and one for `bun.lock`.
+A ruleset on `main` takes changes only by pull request, needs all five jobs above to pass, and refuses force-pushes and deletion. A job renamed in `ci.yml` must be renamed in the ruleset too (Settings → Rules), or every PR waits on a check that never reports. PRs merge with a merge commit. Dependabot (`.github/dependabot.yml`) opens one grouped PR a week for GitHub Actions. For `bun.lock` it opens one PR per major update, and groups minor and patch updates into `astro`, `tooling`, and `runtime`; it skips TypeScript 7 and mermaid, and the file says why.
 
 PRs that break CI need a fix before merge. Do not chain multiple fix-attempt commits.

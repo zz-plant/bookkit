@@ -1,4 +1,5 @@
-import { escapeXml, type ReleaseNote } from "./notes";
+import { escapeHtml } from "../utils/character-references";
+import type { ReleaseNote } from "./notes";
 
 type ReleaseNotesRssOptions = {
 	siteUrl: string;
@@ -21,19 +22,19 @@ export const createReleaseNotesRss = ({
 	const items = releases
 		.map((release) => {
 			const link = `${trimmedSiteUrl}${releaseNotesPath}#release-${release.version}`;
-			return `\n    <item>\n      <title>${escapeXml(release.title)} (v${escapeXml(
+			return `\n    <item>\n      <title>${escapeHtml(release.title)} (v${escapeHtml(
 				release.version,
-			)})</title>\n      <link>${escapeXml(link)}</link>\n      <guid>${escapeXml(link)}</guid>\n      <pubDate>${new Date(release.date).toUTCString()}</pubDate>\n      <description>${escapeXml(release.summary)}</description>\n    </item>`;
+			)})</title>\n      <link>${escapeHtml(link)}</link>\n      <guid>${escapeHtml(link)}</guid>\n      <pubDate>${new Date(release.date).toUTCString()}</pubDate>\n      <description>${escapeHtml(release.summary)}</description>\n    </item>`;
 		})
 		.join("");
 
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>${escapeXml(bookTitle)} Release Notes</title>
-    <link>${escapeXml(`${trimmedSiteUrl}${releaseNotesPath}`)}</link>
-    <description>${escapeXml(description)}</description>
-    <language>${escapeXml(language)}</language>${items}
+    <title>${escapeHtml(bookTitle)} Release Notes</title>
+    <link>${escapeHtml(`${trimmedSiteUrl}${releaseNotesPath}`)}</link>
+    <description>${escapeHtml(description)}</description>
+    <language>${escapeHtml(language)}</language>${items}
   </channel>
 </rss>`;
 };

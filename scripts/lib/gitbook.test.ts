@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ExportEntry } from "../../packages/astro-bookkit/src/exports/types";
+import { UNSAFE_HTML } from "../../packages/astro-bookkit/src/utils/fixtures/unsafe-html";
 import { gitbookPage, gitbookSummary, mdxToGitbookMarkdown } from "./gitbook";
 
 const chapter = (body: string): ExportEntry => ({
@@ -52,7 +53,7 @@ describe("mdxToGitbookMarkdown", () => {
 		);
 	});
 
-	it("keeps only the words of a link the site would not keep, and drops an element's unsafe address", () => {
+	it("keeps only what the site keeps of links and elements", () => {
 		const copied: string[] = [];
 		expect(
 			convert(
@@ -71,10 +72,10 @@ describe("mdxToGitbookMarkdown", () => {
 		).toBe(
 			[
 				"js ref ![Logo](../.gitbook/assets/logo.png) [web](https://example.com)",
-				'<a>html</a> <a>spread</a> <a href="overview.md">page</a>',
-				'<iframe></iframe> <iframe src="https://www.youtube.com/embed/abc"></iframe>',
-				"<form><button>Go</button></form>",
-				"<svg><a><text>svg</text></a></svg>",
+				'html <a>spread</a> <a href="overview.md">page</a>',
+				' <iframe src="https://www.youtube.com/embed/abc"></iframe>',
+				"Go",
+				"<a>svg</a>",
 				"`[code](javascript:x)`",
 			].join("\n"),
 		);
@@ -90,6 +91,14 @@ describe("mdxToGitbookMarkdown", () => {
 				{ copyImage: () => null },
 			),
 		).toBe("Defined in the note.\n\nBody.");
+	});
+
+	it("leaves out every way into a page that runs script, styles it, or poses as its UI, keeping the words", () => {
+		for (const { attack, mdx, keeps } of UNSAFE_HTML) {
+			const page = convert(mdx);
+			expect(page, attack).not.toContain("alert");
+			if (keeps) expect(page, attack).toContain(keeps);
+		}
 	});
 
 	it("copies local images and keeps remote ones, but leaves code as written", () => {

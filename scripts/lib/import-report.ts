@@ -1,7 +1,7 @@
 import { type FileAction, type ImportPlan, WRITES } from "./import-markdown";
 import {
 	describeConversions,
-	describeUnsafeLinks,
+	describeUnsafeMarkup,
 	sumConversions,
 } from "./import-rules";
 
@@ -133,13 +133,16 @@ export const describeImport = (
 		);
 	}
 
-	const unsafeLinks = describeUnsafeLinks(
-		"Links kept as text",
+	const unsafe = describeUnsafeMarkup(
+		{ links: "Links kept as text", html: "HTML left out" },
 		plan.chapters.flatMap((chapter) =>
-			chapter.unsafeLinks.map((link) => ({ source: chapter.source, ...link })),
+			chapter.unsafeMarkup.map((entry) => ({
+				source: chapter.source,
+				...entry,
+			})),
 		),
 	);
-	if (unsafeLinks.length > 0) lines.push("", ...unsafeLinks);
+	if (unsafe.length > 0) lines.push("", ...unsafe);
 
 	if (plan.orphans.length > 0) {
 		lines.push(

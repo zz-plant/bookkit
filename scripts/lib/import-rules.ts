@@ -1,15 +1,17 @@
 import { posix } from "node:path";
+import type { AttributeRefusal } from "../../packages/astro-bookkit/src/utils/html-allowlist";
 import { SAFE_SCHEME_LIST } from "../../packages/astro-bookkit/src/utils/links";
 import type {
 	MdxConversion,
-	UnsafeLink,
+	UnsafeMarkupEntry,
 } from "../../packages/astro-bookkit/src/utils/markdown";
 
 /**
  * What `bookkit import` does to a folder of notes, shared with `bookkit try`
  * so its summary counts what import would do: which notes it skips, the
- * changes `toMdxBody` makes for a note to compile as MDX, and the links it
- * keeps as text, in the same words.
+ * changes `toMdxBody` makes for a note to compile as MDX, and what it leaves
+ * out (links it keeps as text, HTML the allowlist does not keep), in the
+ * same words.
  */
 
 /** A folder's own page: skipped unless `--include-readme`. */
@@ -76,40 +78,96 @@ export const describeConversions = (changes: MdxConversion): string =>
 		)
 		.join(", ");
 
-/** A link import keeps as its text, at a line of its note. */
-export type NoteUnsafeLink = Pick<
-	UnsafeLink,
-	"line" | "href" | "element" | "attribute"
->;
+/** Something import leaves out of a note, at a line of it. */
+export type NoteMarkup = UnsafeMarkupEntry & { source: string };
 
-const LISTED_UNSAFE_LINKS = 10;
+const LISTED = 10;
+
+const short = (value: string) =>
+	value.length > 60 ? `${value.slice(0, 59)}…` : value;
+
+/** Why an attribute goes, in a word or two. */
+const REFUSALS: Record<AttributeRefusal, string> = {
+	handler: "an event handler",
+	style: "inline style",
+	document: "a document in the page",
+	"raw-html": "raw HTML",
+	address: "an unsafe address",
+	permission: "more than an embed needs",
+	expression: "an expression",
+	spread: "a spread",
+	unlisted: "not one the element keeps",
+};
+
+/** Whether the link rule left it out (an address), rather than the HTML allowlist. */
+const isAddress = (entry: UnsafeMarkupEntry): boolean =>
+	entry.kind === "link" ||
+	(entry.kind === "attribute" && entry.refusal === "address");
+
+/** What a list says of one entry, after its note and line. */
+const describeEntry = (entry: UnsafeMarkupEntry): string => {
+	switch (entry.kind) {
+		case "link":
+			return JSON.stringify(short(entry.href));
+		case "attribute": {
+			if (entry.refusal === "address") {
+				const where =
+					entry.element === "a" && entry.attribute === "href"
+						? ""
+						: `<${entry.element} ${entry.attribute}> `;
+				return `${where}${JSON.stringify(short(entry.value))}`;
+			}
+			const tag =
+				entry.attribute === "{...}"
+					? `<${entry.element} ${short(entry.value)}>`
+					: `<${entry.element} ${entry.attribute}${entry.value ? `=${JSON.stringify(short(entry.value))}` : ""}>`;
+			return `${tag}: ${REFUSALS[entry.refusal]}`;
+		}
+		case "element":
+			return entry.element === "iframe"
+				? "<iframe> with no src"
+				: `<${entry.element}>, ${entry.keeps === "nothing" ? "with what it holds" : "keeping what it holds"}`;
+		case "expression":
+			return `${short(entry.source)}: an expression`;
+		case "code":
+			return `${short(entry.source.split("\n")[0])}: code`;
+	}
+};
+
+/** A list under `lead`, each entry with its note and line; nothing when there are none. */
+const listed = (lead: string, entries: readonly NoteMarkup[]): string[] => {
+	if (entries.length === 0) return [];
+	return [
+		`${lead} (${entries.length}):`,
+		...entries
+			.slice(0, LISTED)
+			.map(
+				(entry) => `  ${entry.source}:${entry.line}  ${describeEntry(entry)}`,
+			),
+		...(entries.length > LISTED
+			? [`  … and ${entries.length - LISTED} more`]
+			: []),
+	];
+};
 
 /**
- * The links import keeps as their text, each with its note and line, under
- * `lead` ("Links kept as text"); nothing when there are none. An element's
- * address names the element and attribute: `<iframe src> "javascript:…"`.
+ * What import leaves out, each with its note and line, in two lists: the
+ * links it keeps as their text (`leads.links`, "Links kept as text"), with
+ * an element's address naming the element and attribute (`<iframe src>
+ * "javascript:…"`); and the HTML it leaves out (`leads.html`, "HTML left
+ * out"). Nothing when there is nothing.
  */
-export const describeUnsafeLinks = (
-	lead: string,
-	links: ReadonlyArray<NoteUnsafeLink & { source: string }>,
+export const describeUnsafeMarkup = (
+	leads: { links: string; html: string },
+	entries: readonly NoteMarkup[],
 ): string[] => {
-	if (links.length === 0) return [];
-	const lines = [
-		`${lead}, since a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages (${links.length}):`,
-	];
-	for (const link of links.slice(0, LISTED_UNSAFE_LINKS)) {
-		const href =
-			link.href.length > 60 ? `${link.href.slice(0, 59)}…` : link.href;
-		const where =
-			link.element && link.attribute && link.attribute !== "href"
-				? `<${link.element} ${link.attribute}> `
-				: "";
-		lines.push(
-			`  ${link.source}:${link.line}  ${where}${JSON.stringify(href)}`,
-		);
-	}
-	if (links.length > LISTED_UNSAFE_LINKS) {
-		lines.push(`  … and ${links.length - LISTED_UNSAFE_LINKS} more`);
-	}
-	return lines;
+	const links = listed(
+		`${leads.links}, since a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+		entries.filter(isAddress),
+	);
+	const html = listed(
+		`${leads.html}, since a book's content may lay out text, link, show images, and embed pages, but not run script or set its own style`,
+		entries.filter((entry) => !isAddress(entry)),
+	);
+	return [...links, ...(links.length && html.length ? [""] : []), ...html];
 };

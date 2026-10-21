@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { UNSAFE_HTML } from "../utils/fixtures/unsafe-html";
 
 import {
 	CONTENT_SECTIONS,
@@ -344,122 +345,219 @@ describe("unsafe links", () => {
 		).toBe(true);
 	});
 
-	const SAFE = "https://example.com/embed";
-	const EMBEDS = [
-		["iframe", "src", "<iframe src=%s></iframe>"],
-		["embed", "src", "<embed src=%s />"],
-		["object", "data", "<object data=%s>Fallback</object>"],
-		["form", "action", "<form action=%s>Fields</form>"],
-		["button", "formaction", "<button formAction=%s>Send</button>"],
-	] as const;
-
-	for (const [element, attribute, template] of EMBEDS) {
-		it(`names <${element} ${attribute}> with an unsafe or computed address, and what the site does with it`, () => {
-			const findings = checkContentItem(
-				"chapter",
-				chapter(
-					"published",
-					[
-						template.replace("%s", '"javascript:alert(1)"'),
-						"",
-						template.replace("%s", "{target}"),
-						"",
-						template.replace("%s", `"${SAFE}"`),
-					].join("\n"),
-				),
-			).findings.filter((finding) => finding.code === "UNSAFE_LINK");
-			expect(findings).toEqual([
-				{
-					level: "error",
-					code: "UNSAFE_LINK",
-					message: `Chapter has <${element} ${attribute}="javascript:alert(1)"> on line 6, which the site leaves out, keeping only what the <${element}> contains: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages`,
-					fix: `Point ${attribute} at a web address or a page of the book, or remove the <${element}>.`,
-				},
-				{
-					level: "error",
-					code: "UNSAFE_LINK",
-					message: `Chapter has <${element} ${attribute}={target}> on line 8, an address the build cannot check, so the site leaves out the <${element}> and keeps only what it contains`,
-					fix: `Write the address as a plain string, as in ${attribute}="https://example.com".`,
-				},
-			]);
-		});
-	}
-});
-
-describe("attributes the build cannot check", () => {
-	const findings = (status: string, body: string) =>
-		checkContentItem(
+	it("names an embed with an unsafe or computed source, which the site leaves out", () => {
+		const findings = checkContentItem(
 			"chapter",
-			`---\nslug: drills\ntitle: "Drills"\nstatus: ${status}\n---\n${body}`,
-		).findings.filter((finding) => finding.code === "UNSAFE_LINK");
-	const BODY = [
-		'<iframe srcdoc="<script>alert(1)</script>"></iframe>',
-		"",
-		'<iframe {...{ src: "javascript:alert(2)" }}></iframe> <a {...props}>words</a>',
-		"",
-		'<svg><a xlink:href="javascript:alert(3)"><text>svg</text></a></svg>',
-		"",
-		'<svg><a href="https://example.com/"><animate attributeName="href" values="javascript:alert(4)" /><set attributeName={name} /></a></svg>',
-		"",
-		`<iframe srcdoc="${"<p>long</p>".repeat(8)}"></iframe> <Figure {...props} />`,
-	].join("\n");
-
-	it("names a srcdoc, a spread, an SVG link, and an animation of an address, with the line and the fix", () => {
-		expect(
-			findings("published", BODY).map(({ level, message, fix }) => ({
-				level,
-				message,
-				fix,
-			})),
-		).toEqual([
+			chapter(
+				"published",
+				[
+					'<iframe src="javascript:alert(1)"></iframe>',
+					"",
+					"<iframe src={target}></iframe>",
+					"",
+					'<iframe src="https://example.com/embed"></iframe> <q cite="vbscript:x">q</q>',
+				].join("\n"),
+			),
+		).findings;
+		expect(findings).toEqual([
 			{
 				level: "error",
+				code: "UNSAFE_LINK",
 				message:
-					'Chapter has <iframe srcdoc="<script>alert(1)</script>"> on line 6, a document written into the page that would run with the page\'s own rights, so the site leaves out the <iframe> and keeps only what it contains',
-				fix: "Point src at a web address or a page of the book in place of srcdoc, or remove the <iframe>.",
+					'Chapter has <iframe src="javascript:alert(1)"> on line 6, which the site leaves out: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
+				fix: "Point src at a web address or a page of the book, or remove the <iframe>.",
 			},
 			{
 				level: "error",
+				code: "UNSAFE_LINK",
 				message:
-					'Chapter has <iframe {...{ src: "javascript:alert(2)" }}> on line 8, a spread whose attributes the build cannot check, so the site leaves out the <iframe> and keeps only what it contains',
-				fix: 'Write each attribute out with a plain string value, as in href="https://example.com".',
+					"Chapter has <iframe src={target}> on line 8, an address the build cannot check, so the site leaves out the <iframe>",
+				fix: 'Write the address as a plain string, as in src="https://example.com".',
 			},
 			{
 				level: "error",
+				code: "UNSAFE_LINK",
 				message:
-					"Chapter has <a {...props}> on line 8, a spread whose attributes the build cannot check, so the site leaves out the <a> and keeps only what it contains",
-				fix: 'Write each attribute out with a plain string value, as in href="https://example.com".',
-			},
-			{
-				level: "error",
-				message:
-					'Chapter has <a xlink:href="javascript:alert(3)"> on line 10, which the site leaves out, keeping only what the <a> contains: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
-				fix: "Point xlink:href at a web address or a page of the book, or remove the <a>.",
-			},
-			{
-				level: "error",
-				message:
-					'Chapter has <animate attributeName="href"> on line 12, which changes an address after the page loads, past the check of the link itself, so the site leaves out the <animate> and keeps only what it contains',
-				fix: "Animate an attribute other than href, or remove the <animate>.",
-			},
-			{
-				level: "error",
-				message:
-					"Chapter has <set attributeName={name}> on line 12, which may change an address the build cannot check, so the site leaves out the <set> and keeps only what it contains",
-				fix: 'Write the attribute name as a plain string, as in attributeName="opacity".',
-			},
-			{
-				level: "error",
-				message: `Chapter has <iframe srcdoc="${"<p>long</p>".repeat(8).slice(0, 59)}…"> on line 14, a document written into the page that would run with the page's own rights, so the site leaves out the <iframe> and keeps only what it contains`,
-				fix: "Point src at a web address or a page of the book in place of srcdoc, or remove the <iframe>.",
+					'Chapter has <q cite="vbscript:x"> on line 10, an address the site removes: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
+				fix: "Point cite at a web address or a page of the book, or remove it.",
 			},
 		]);
 	});
+});
 
-	it("is a warning in a draft, as an unsafe link is", () => {
+describe("raw HTML the site leaves out", () => {
+	const findings = (status: string, body: string, format?: "md") =>
+		checkContentItem(
+			"chapter",
+			`---\nslug: drills\ntitle: "Drills"\nstatus: ${status}\n---\n${body}`,
+			{ format },
+		).findings.filter(
+			(finding) =>
+				finding.code === "UNSAFE_HTML" || finding.code === "UNSAFE_LINK",
+		);
+	const BODY = [
+		'<img src="/images/a.png" onerror="alert(1)" alt="A" /> <p style="color:red">p</p>',
+		"",
+		'<iframe srcdoc="<script>alert(2)</script>"></iframe> <iframe src="https://example.com/v" allow="camera"></iframe>',
+		"",
+		'<a {...props}>words</a> <div set:html="<b>x</b>" /> <span data-resume-reading>s</span> <td width="5" hidden>c</td>',
+		"",
+		"<script>alert(3)</script> <svg><text>svg</text></svg> <form><button>Go</button></form>",
+		"",
+		"<iframe></iframe> {name} <video>v</video> <style>{''}</style> <meta charset='x' />",
+		"",
+		"export const x = 1;",
+		"",
+		"<Figure title={x} />",
+		"",
+		`<iframe srcdoc="${"<p>long</p>".repeat(8)}"></iframe>`,
+	].join("\n");
+
+	it("names each element, attribute, expression, and block, with its line, why it goes, and the fix", () => {
+		expect(
+			findings("published", BODY).map(({ code, message, fix }) => [
+				code,
+				message,
+				fix,
+			]),
+		).toEqual([
+			[
+				"UNSAFE_HTML",
+				'Chapter has <img onerror="alert(1)"> on line 6, and the site removes onerror: an event handler runs script, and a book\'s content runs none',
+				"Remove onerror.",
+			],
+			[
+				"UNSAFE_HTML",
+				'Chapter has <p style="color:red"> on line 6, and the site removes style: inline style can restyle or cover the page, which takes its styling from the book\'s stylesheet',
+				"Remove style.",
+			],
+			[
+				"UNSAFE_HTML",
+				'Chapter has <iframe srcdoc="<script>alert(2)</script>"> on line 8, and the site removes srcdoc: it holds a document whose script would run with the page\'s own rights',
+				"Point src at a web address or a page of the book in place of srcdoc, or remove the <iframe>.",
+			],
+			[
+				"UNSAFE_HTML",
+				'Chapter has <iframe allow="camera"> on line 8, and the site removes allow: it lets the embedded page ask for camera, which an embed in a book does not need',
+				"Remove camera from allow.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <a {...props}> on line 10, and the site removes the spread: a spread's attributes cannot be checked when the book is built",
+				'Write each attribute out with a plain string value, as in href="https://example.com".',
+			],
+			[
+				"UNSAFE_HTML",
+				'Chapter has <div set:html="<b>x</b>"> on line 10, and the site removes set:html: it writes its value into the page as HTML the build cannot check',
+				"Write the HTML out in the page, or remove set:html.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <span data-resume-reading> on line 10, and the site removes data-resume-reading: the reader UI finds its own parts by data-* attributes, so content carries none",
+				"Remove data-resume-reading.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <td hidden> on line 10, and the site removes hidden: <td> keeps only colspan, rowspan, headers, width, align, id, class, title, lang, dir, role, aria-*",
+				"Remove hidden.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <script> on line 12, which the site leaves out with everything inside it: a book's content runs no script",
+				"Remove the <script>.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <svg> on line 12, which the site leaves out, keeping what it holds: an inline <svg> can run script and load addresses",
+				"Save the drawing as an .svg file and show it as an image: ![What it shows](/images/drawing.svg).",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <form> on line 12, which the site leaves out, keeping what it holds: a book's content collects nothing a reader types",
+				"Link to the form where it is hosted.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has an <iframe> with no src on line 14, which the site leaves out: it would show nothing",
+				'Give it the address of the page it embeds, as in <iframe src="https://www.youtube.com/embed/…">, or remove it.',
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has an expression on line 14 ({name}), which the site leaves out: the build would run it, and what it writes is not checked",
+				"Write it out as text or Markdown. To show braces, escape them: \\{ and \\}.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <video> on line 14, which the site leaves out, keeping what it holds: <video> is not an element a book's content keeps",
+				'Link to the recording, or embed the page that plays it with an <iframe src="https://…">.',
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <style> on line 14, which the site leaves out with everything inside it: a book's pages take their styling from its stylesheet",
+				"Remove the <style>.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <meta> on line 14, which the site leaves out with everything inside it: it describes a whole document, which the page already does",
+				"Remove the <meta>.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has an export block on line 16, code the build would run, which the site leaves out",
+				"Remove it: content holds no code. Behavior comes from the engine or book.config.ts.",
+			],
+			[
+				"UNSAFE_HTML",
+				"Chapter has <Figure title={x}> on line 18, and the site removes title: its value is an expression, which the build cannot check",
+				'Write title as a plain string, as in title="…".',
+			],
+			[
+				"UNSAFE_HTML",
+				`Chapter has <iframe srcdoc="${"<p>long</p>".repeat(8).slice(0, 59)}…"> on line 20, and the site removes srcdoc: it holds a document whose script would run with the page's own rights`,
+				"Point src at a web address or a page of the book in place of srcdoc, or remove the <iframe>.",
+			],
+		]);
+	});
+
+	it("is an error in a published record or a book in release, and a warning in a draft", () => {
+		expect(
+			new Set(findings("published", BODY).map((finding) => finding.level)),
+		).toEqual(new Set(["error"]));
 		expect(
 			new Set(findings("draft", BODY).map((finding) => finding.level)),
 		).toEqual(new Set(["warning"]));
+		expect(
+			checkContentItem(
+				"chapter",
+				`---\nslug: drills\ntitle: "Drills"\nstatus: draft\n---\n<script>alert(1)</script>`,
+				{ releaseMode: true },
+			).findings.find((finding) => finding.code === "UNSAFE_HTML")?.level,
+		).toBe("error");
+	});
+
+	it("names every way into a page that runs script, styles it, or poses as its UI", () => {
+		for (const { attack, mdx } of UNSAFE_HTML) {
+			expect(findings("published", mdx).length, attack).toBeGreaterThan(0);
+		}
+	});
+
+	it("reads a Markdown note as import does: tags it shows as text lose only an unsafe address", () => {
+		expect(
+			findings(
+				"draft",
+				'<script>alert(1)</script> <video onerror="x" src="y"></video> <embed src="javascript:alert(2)"> {x}',
+				"md",
+			).map(({ code, message }) => [code, message]),
+		).toEqual([
+			[
+				"UNSAFE_HTML",
+				"Chapter has <script> on line 6, which the site leaves out with everything inside it: a book's content runs no script",
+			],
+			[
+				"UNSAFE_LINK",
+				'Chapter has <embed src="javascript:alert(2)"> on line 6, an address the site removes: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
+			],
+		]);
 	});
 });
 

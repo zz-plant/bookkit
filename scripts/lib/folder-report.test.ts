@@ -14,7 +14,7 @@ import { previewFolder } from "../../packages/astro-bookkit/src/proposals";
 import {
 	mdxConversionSummary,
 	readFolder,
-	unsafeLinksSummary,
+	unsafeMarkupSummary,
 } from "./folder-report";
 import { planImport } from "./import-markdown";
 import { describeImport } from "./import-report";
@@ -118,8 +118,8 @@ describe("bookkit try's MDX summary", () => {
 	});
 });
 
-describe("bookkit try's unsafe links", () => {
-	it("lists the links import would keep as text, with the lines import names, leaving out what import skips", async () => {
+describe("what bookkit try says import would leave out", () => {
+	it("lists the links import would keep as text and the HTML it would leave out, with the lines import names, leaving out what import skips", async () => {
 		const workspace = mkdtempSync(join(tmpdir(), "bookkit-try-links-"));
 		try {
 			const notes = join(workspace, "notes");
@@ -135,6 +135,7 @@ describe("bookkit try's unsafe links", () => {
 					"Run [the script](javascript:alert(1)) or [read it](https://example.com).",
 					'<iframe src="data:text/html,x"></iframe>',
 					'<form action="javascript:alert(2)">Fields</form>',
+					'<p onclick="alert(4)" style="color:red">Click</p> <script>alert(5)</script>',
 					"",
 				].join("\n"),
 			);
@@ -150,12 +151,17 @@ describe("bookkit try's unsafe links", () => {
 
 			const folder = readFolder(notes);
 			if ("error" in folder) throw new Error(folder.error);
-			const summary = unsafeLinksSummary(previewFolder(folder.files));
+			const summary = unsafeMarkupSummary(previewFolder(folder.files));
 			expect(summary).toEqual([
 				"Links import would keep as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (3):",
 				'  01-links.md:6  "javascript:alert(1)"',
 				'  01-links.md:7  <iframe src> "data:text/html,x"',
 				'  01-links.md:8  <form action> "javascript:alert(2)"',
+				"",
+				"HTML import would leave out, since a book's content may lay out text, link, show images, and embed pages, but not run script or set its own style (3):",
+				'  01-links.md:9  <p onclick="alert(4)">: an event handler',
+				'  01-links.md:9  <p style="color:red">: inline style',
+				"  01-links.md:9  <script>, with what it holds",
 			]);
 
 			const report = describeImport(
@@ -166,13 +172,14 @@ describe("bookkit try's unsafe links", () => {
 				}),
 				{ dryRun: true, bookDir: "apps/notes-book" },
 			);
-			const listed = report.indexOf(
-				summary[0].replace("Links import would keep", "Links kept"),
+			const asImport = summary.map((line) =>
+				line
+					.replace("Links import would keep", "Links kept")
+					.replace("HTML import would leave out", "HTML left out"),
 			);
+			const listed = report.indexOf(asImport[0]);
 			expect(listed).toBeGreaterThan(-1);
-			expect(report.slice(listed + 1, listed + summary.length)).toEqual(
-				summary.slice(1),
-			);
+			expect(report.slice(listed, listed + summary.length)).toEqual(asImport);
 		} finally {
 			rmSync(workspace, { recursive: true, force: true });
 		}
@@ -181,6 +188,6 @@ describe("bookkit try's unsafe links", () => {
 	it("says nothing when no note has one", () => {
 		const folder = readFolder(tree({ "a.md": "# A\n\n[web](https://x.y)" }));
 		if ("error" in folder) throw new Error(folder.error);
-		expect(unsafeLinksSummary(previewFolder(folder.files))).toEqual([]);
+		expect(unsafeMarkupSummary(previewFolder(folder.files))).toEqual([]);
 	});
 });

@@ -1,14 +1,34 @@
 import { describe, expect, it } from "bun:test";
 import { compile } from "@mdx-js/mdx";
 
+import { UNSAFE_HTML } from "./fixtures/unsafe-html";
 import {
 	createHeadingSlugger,
-	findUnsafeLinks,
+	findUnsafeMarkup,
 	smartDashes,
 	splitFencedCode,
 	stripMarkdown,
 	toMdxBody,
+	type UnsafeMarkup,
+	withoutUnsafeMarkup,
 } from "./markdown";
+
+/** A finding in brief: its line, what it is, and why or what it keeps. */
+const brief = (found: UnsafeMarkup): string => {
+	switch (found.kind) {
+		case "link":
+			return `${found.line} link ${JSON.stringify(found.href)}`;
+		case "attribute":
+			return `${found.line} <${found.element} ${found.attribute}> ${found.refusal} ${JSON.stringify(found.value)}`;
+		case "element":
+			return `${found.line} <${found.element}> keeps ${found.keeps}`;
+		default:
+			return `${found.line} ${found.kind} ${JSON.stringify(found.source)}`;
+	}
+};
+
+const listed = (markdown: string, tags?: "jsx" | "html") =>
+	findUnsafeMarkup(markdown, { tags }).map(brief);
 
 // Markdown as real exports write it: placeholders, raw HTML, comments, autolinks.
 const HAZARDS = [
@@ -67,7 +87,7 @@ describe("toMdxBody", () => {
 				html: 0,
 				esm: 0,
 			},
-			unsafeLinks: [],
+			unsafeMarkup: [],
 		});
 	});
 
@@ -110,17 +130,19 @@ describe("toMdxBody with html: jsx", () => {
 		expect(body).toContain("grep {id} <log>");
 		expect(body).toContain("<kbd>Ctrl</kbd>");
 		expect(body).toContain('<img src="board.png" width="300" />');
-		expect(changes.html).toBe(7);
+		// The link's tags too, once its handler is gone.
+		expect(changes.html).toBe(9);
 	});
 
-	it("escapes event handlers and tags it cannot pair", () => {
-		const { body } = toMdxBody(DETAILS, { html: "jsx" });
-		expect(body).toContain("\\<a href='x' onclick='y()'>this\\</a>");
+	it("removes event handlers, listing them, and escapes tags it cannot pair", () => {
+		const { body, unsafeMarkup } = toMdxBody(DETAILS, { html: "jsx" });
+		expect(body).toContain("and <a href='x'>this</a>.");
+		expect(unsafeMarkup.map(brief)).toEqual(['11 <a onclick> handler "y()"']);
 		expect(body).toContain("A stray \\</div> and an unclosed \\<p> stay text.");
 	});
 
-	it("keeps an embedded page with a source, and shows one without a source, or with an unsafe one, as text", async () => {
-		const { body, changes, unsafeLinks } = toMdxBody(
+	it("keeps an embedded page with a source, and leaves out one without a source, or with an unsafe one", async () => {
+		const { body, changes, unsafeMarkup } = toMdxBody(
 			[
 				'<iframe src="https://www.youtube.com/embed/abc" title="Video" frameborder="0" allowfullscreen></iframe>',
 				"",
@@ -134,14 +156,35 @@ describe("toMdxBody with html: jsx", () => {
 		expect(body.split("\n")).toEqual([
 			'<iframe src="https://www.youtube.com/embed/abc" title="Video" frameborder="0" allowfullscreen></iframe>',
 			"",
-			'\\<iframe>\\</iframe> \\<iframe src="">\\</iframe>',
+			" ",
 			"",
 			'<iframe src="https://example.com/embed"></iframe>',
 		]);
 		expect(changes.html).toBe(4);
-		expect(unsafeLinks.map(({ attribute }) => attribute)).toEqual([
-			"src",
-			"srcdoc",
+		expect(unsafeMarkup.map(brief)).toEqual([
+			'3 <iframe src> address "javascript:alert(1)"',
+			"3 <iframe> keeps nothing",
+			'5 <iframe srcdoc> document "<b>x</b>"',
+		]);
+	});
+
+	it("leaves out a script or a style with what it holds, and a kept element's style, listing each", async () => {
+		const note = [
+			"<script>alert(1)</script>",
+			"",
+			'<p align="center" style="position:fixed">Centered</p>',
+			"",
+			"<STYLE>p { color: red }</STYLE> <scr<script></script>ipt>alert(2)</script>",
+		].join("\n");
+		const { body, unsafeMarkup } = toMdxBody(note, { html: "jsx" });
+		await expect(compile(body)).resolves.toBeDefined();
+		expect(body).not.toMatch(/alert|script|style|color/i);
+		expect(body).toContain('<p align="center">Centered</p>');
+		expect(unsafeMarkup.map(brief)).toEqual([
+			"1 <script> keeps nothing",
+			'3 <p style> style "position:fixed"',
+			"5 <style> keeps nothing",
+			"5 <script> keeps nothing",
 		]);
 	});
 
@@ -166,7 +209,7 @@ describe("toMdxBody with html: jsx", () => {
 	});
 });
 
-describe("findUnsafeLinks", () => {
+describe("findUnsafeMarkup", () => {
 	it("finds links, references, definitions, and href attributes the site would not keep, outside code", () => {
 		const markdown = [
 			'[a](javascript:alert(1)) [b](javascript\\:x) [c [d] e](vbscript:x "T")',
@@ -178,126 +221,114 @@ describe("findUnsafeLinks", () => {
 			"[bad]: file:///etc/passwd",
 		].join("\n");
 
-		expect(
-			findUnsafeLinks(markdown).map(({ line, href, text }) => ({
-				line,
-				href,
-				text,
-			})),
-		).toEqual([
-			{ line: 1, href: "javascript:alert(1)", text: "a" },
-			{ line: 1, href: "javascript:x", text: "b" },
-			{ line: 1, href: "vbscript:x", text: "c [d] e" },
-			{ line: 2, href: "data:text/html,x", text: "" },
-			{ line: 2, href: "{url}", text: "" },
-			{ line: 3, href: "file:///etc/passwd", text: "h" },
-			{ line: 7, href: "file:///etc/passwd", text: "" },
+		expect(listed(markdown)).toEqual([
+			'1 link "javascript:alert(1)"',
+			'1 link "javascript:x"',
+			'1 link "vbscript:x"',
+			'2 <a href> address "data:text/html,x"',
+			'2 <a href> address "{url}"',
+			'3 link "file:///etc/passwd"',
+			'7 link "file:///etc/passwd"',
+		]);
+		expect(withoutUnsafeMarkup(markdown).split("\n").slice(0, 3)).toEqual([
+			"a b c [d] e",
+			"![image](data:image/png;base64,AAAA) f g",
+			"`[code](javascript:x)` {/* [comment](javascript:x) */} h [ok](https://x.y)",
 		]);
 	});
 
-	// One case per attribute: an unsafe address, a character reference, and
-	// an expression; a web address, and an image's data: source, are kept.
-	const EMBEDS = [
-		["iframe", "src"],
-		["embed", "src"],
-		["object", "data"],
-		["form", "action"],
-		["button", "formaction"],
-		["input", "formAction"],
-	] as const;
-
-	for (const [element, attribute] of EMBEDS) {
-		it(`finds the address of <${element} ${attribute}> the site would not keep`, () => {
-			const markdown = [
-				`<${element} ${attribute}="javascript:alert(1)">`,
-				`<${element} id="x" ${attribute}='&#106;avascript:alert(2)' />`,
-				`<${element} ${attribute}={target}>`,
-				`<${element} ${attribute}="https://example.com/embed">`,
-				`\\<${element} ${attribute}="javascript:alert(3)">`,
-				`\`<${element} ${attribute}="javascript:alert(4)">\``,
-			].join("\n");
-			expect(
-				findUnsafeLinks(markdown).map(({ line, href, ...where }) => ({
-					line,
-					href,
-					element: where.element,
-					attribute: where.attribute,
-				})),
-			).toEqual([
-				{
-					line: 1,
-					href: "javascript:alert(1)",
-					element,
-					attribute: attribute.toLowerCase(),
-				},
-				{
-					line: 2,
-					href: "javascript:alert(2)",
-					element,
-					attribute: attribute.toLowerCase(),
-				},
-				{
-					line: 3,
-					href: "{target}",
-					element,
-					attribute: attribute.toLowerCase(),
-				},
-			]);
-		});
-	}
-
-	it("reads only the attributes that hold an address", () => {
-		expect(
-			findUnsafeLinks(
-				'<img src="data:image/png;base64,AAAA"> <video src="javascript:x"></video> <object src="javascript:x" data="https://example.com/doc.pdf"></object> <div action="javascript:x" data-href="javascript:x"></div>',
-			),
-		).toEqual([]);
+	it("finds every way into a page that runs script, styles it, or poses as its UI, and leaves out each, keeping the words", () => {
+		for (const { attack, mdx, keeps } of UNSAFE_HTML) {
+			expect(findUnsafeMarkup(mdx).length, attack).toBeGreaterThan(0);
+			const kept = withoutUnsafeMarkup(mdx);
+			expect(kept, attack).not.toContain("alert");
+			if (keeps) expect(kept, attack).toContain(keeps);
+		}
 	});
 
-	it("finds a document in srcdoc, a spread, an SVG link, and an animation of an address", () => {
+	it("says what each is: an element, an attribute and why, an expression, or code", () => {
 		const markdown = [
-			'<iframe srcdoc="<script>alert(1)</script>"></iframe>',
-			'<iframe src="https://example.com/embed" srcDoc={"x"}></iframe>',
-			'<iframe {...{ src: "javascript:alert(2)" }}></iframe> <a {...props}>a</a>',
-			'<a href="https://example.com/" {...{ href: "javascript:alert(3)" }}>b</a>',
-			'<svg><a xlink:href="javascript:alert(4)"><text>c</text></a></svg>',
-			'<svg><animate attributeName="href" values="javascript:alert(5)" /><set attributeName={name} /></svg>',
-			'<svg><animate attributeName="r" values="1;2" /></svg> <Figure {...props} /> `<a {...props}>`',
+			'<img src="/a.png" onError="alert(1)" alt="a" /> <p style="color:red" data-x="1">p</p>',
+			'<iframe src="https://example.com/v" allow="camera; autoplay" srcdoc="x"></iframe>',
+			"<script>{`<img onerror=alert(2)>`}</script> <form><input /><button>Go</button></form>",
+			'<svg><circle r="1" /><a href="https://example.com/">svg</a></svg> <div set:html="<b>x</b>" />',
+			'Text {name} and {"literal"} and {2} and {/* note */}.',
+			"",
+			'export const x = "<b>y</b>";',
+			"",
+			'<Callout kind="note" title={x} {...props} set:html="<b>z</b>">c</Callout>',
 		].join("\n");
-		const found = (tags?: "html") =>
-			findUnsafeLinks(markdown, { tags }).map(
-				({ line, element, attribute, href }) => [
-					line,
-					`<${element} ${attribute}>`,
-					href,
-				],
-			);
-		expect(found()).toEqual([
-			[1, "<iframe srcdoc>", "<script>alert(1)</script>"],
-			[2, "<iframe srcdoc>", "x"],
-			[3, "<iframe {...}>", '{...{ src: "javascript:alert(2)" }}'],
-			[3, "<a {...}>", "{...props}"],
-			[4, "<a {...}>", '{...{ href: "javascript:alert(3)" }}'],
-			[5, "<a xlink:href>", "javascript:alert(4)"],
-			[6, "<animate attributename>", "href"],
-			[6, "<set attributename>", "{name}"],
+		expect(listed(markdown)).toEqual([
+			'1 <img onerror> handler "alert(1)"',
+			'1 <p style> style "color:red"',
+			'1 <p data-x> unlisted "1"',
+			'2 <iframe allow> permission "camera; autoplay"',
+			'2 <iframe srcdoc> document "x"',
+			"3 <script> keeps nothing",
+			"3 <form> keeps contents",
+			"4 <svg> keeps contents",
+			'4 <div set:html> raw-html "<b>x</b>"',
+			'5 expression "{name}"',
+			'7 code "export const x = \\"<b>y</b>\\";"',
+			'9 <Callout title> expression "{x}"',
+			'9 <Callout {...}> spread "{...props}"',
+			'9 <Callout set:html> raw-html "<b>z</b>"',
 		]);
-		// In a Markdown note braces are text, and spread nothing.
-		expect(found("html")).toEqual(
-			found().filter(([, tag]) => !String(tag).includes("{...}")),
-		);
 	});
 
-	it("reads a capitalized tag as a component in MDX, and as HTML in a Markdown note", () => {
-		const markdown = '<IFRAME SRC="javascript:alert(1)"></IFRAME>';
-		expect(findUnsafeLinks(markdown)).toEqual([]);
+	it("reads a tag's case as HTML does, and a capitalized one as a component in MDX", () => {
 		expect(
-			findUnsafeLinks(markdown, { tags: "html" }).map(
-				({ href, element, attribute }) => ({ href, element, attribute }),
+			listed("<sCRIPT>alert(1)</sCRIPT> <svg:script>x</svg:script>"),
+		).toEqual(["1 <script> keeps nothing", "1 <svg:script> keeps nothing"]);
+		const markdown = '<IFRAME SRC="javascript:alert(1)"></IFRAME>';
+		expect(listed(markdown)).toEqual([]);
+		expect(listed(markdown, "html")).toEqual([
+			'1 <iframe src> address "javascript:alert(1)"',
+		]);
+	});
+
+	it("in a note, keeps tags it shows as text as written but for an unsafe address, and placeholders as they are", () => {
+		const note = [
+			'<embed src="javascript:alert(1)"> <object data="&#106;avascript:alert(2)">Fallback</object>',
+			'<form action="javascript:alert(3)"><button formaction="vbscript:x">Go</button></form>',
+			'<video src="https://example.com/v.mp4" onerror="x"></video> GET /users/<id> and List<String>',
+			'<img src="data:image/png;base64,AAAA" alt="kept"> <div action="javascript:x" data-href="y">d</div>',
+			"Braces {...x} are text in a note.",
+		].join("\n");
+		expect(listed(note, "html")).toEqual([
+			'1 <embed src> address "javascript:alert(1)"',
+			'1 <object data> address "javascript:alert(2)"',
+			'2 <form action> address "javascript:alert(3)"',
+			'2 <button formaction> address "vbscript:x"',
+			'4 <div action> unlisted "javascript:x"',
+			'4 <div data-href> unlisted "y"',
+		]);
+		expect(withoutUnsafeMarkup(note, { tags: "html" }).split("\n")).toEqual([
+			"<embed> <object>Fallback</object>",
+			"<form><button>Go</button></form>",
+			'<video src="https://example.com/v.mp4" onerror="x"></video> GET /users/<id> and List<String>',
+			'<img src="data:image/png;base64,AAAA" alt="kept"> <div>d</div>',
+			"Braces {...x} are text in a note.",
+		]);
+	});
+
+	it("lists an element once: not what is inside one left out whole, nor the parts of one left out keeping them", () => {
+		expect(
+			listed(
+				'<template><img onerror="alert(1)" /><script>x</script></template>\n<svg><g><path d="M0" /></g><script>y</script></svg>',
 			),
 		).toEqual([
-			{ href: "javascript:alert(1)", element: "iframe", attribute: "src" },
+			"1 <template> keeps nothing",
+			"2 <svg> keeps contents",
+			"2 <script> keeps nothing",
 		]);
+		// What leaving one out joins up is found too.
+		expect(
+			withoutUnsafeMarkup(
+				"<scr<script></script>ipt>alert(1)</script> [[x](javascript:a)](javascript:b)",
+				{ tags: "html" },
+			),
+		).toBe(" x");
 	});
 });
 

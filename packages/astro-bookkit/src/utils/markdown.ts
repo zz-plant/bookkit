@@ -1,6 +1,19 @@
 import GithubSlugger from "github-slugger";
 import { decodeEntities } from "./character-references";
-import { isSafeLink, isUnsafeAttribute, stringLiteralValue } from "./links";
+import {
+	type AttributeRefusal,
+	attributeRefusal,
+	BLOCK_ELEMENTS,
+	componentPropRefusal,
+	EMBEDDED_ELEMENTS,
+	elementVerdict,
+	isAddressAttribute,
+	isCommentExpression,
+	KEPT_ELEMENTS,
+	literalValue,
+	VOID_ELEMENTS,
+} from "./html-allowlist";
+import { isSafeLink } from "./links";
 
 export const createSlugger = () => {
 	const used = new Map<string, number>();
@@ -133,13 +146,14 @@ export type MdxConversion = {
 export type MdxBodyOptions = {
 	/**
 	 * Raw HTML: `escape` (the default) shows it as text. `jsx` keeps common
-	 * elements (`<details>`, `<kbd>`, `<img>`, tables, …) and embedded pages
-	 * (`EMBEDDED_ELEMENTS`) as HTML: void tags are closed, attribute values
-	 * quoted, and a block tag that opens on one line and closes on another
-	 * gets a line of its own. Tags it cannot pair, other elements, and
-	 * event-handler attributes are escaped. MDX is stricter than HTML about
-	 * where a block may open and close, so compile the result and fall back
-	 * to `escape` if it fails.
+	 * elements (`KEPT_ELEMENTS`: `<details>`, `<kbd>`, `<img>`, tables, …)
+	 * and embedded pages (`EMBEDDED_ELEMENTS`) as HTML: void tags are closed,
+	 * attribute values quoted, and a block tag that opens on one line and
+	 * closes on another gets a line of its own. Tags it cannot pair, and
+	 * other elements, are escaped. MDX is stricter than HTML about where a
+	 * block may open and close, so compile the result and fall back to
+	 * `escape` if it fails. Either way, what the allowlist does not keep is
+	 * gone first (`findUnsafeMarkup`).
 	 */
 	html?: "escape" | "jsx";
 };
@@ -161,94 +175,6 @@ const HTML_TAG =
 	/<(\/?)([A-Za-z][A-Za-z0-9-]*)((?:\s+[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*(\/?)>/g;
 const HTML_ATTRIBUTE =
 	/([^\s"'<>/=]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
-
-/** Void elements: they never have content or a closing tag. */
-export const VOID_ELEMENTS: ReadonlySet<string> = new Set([
-	"br",
-	"col",
-	"hr",
-	"img",
-	"source",
-	"wbr",
-]);
-/** Elements that start a block of their own. */
-export const BLOCK_ELEMENTS: ReadonlySet<string> = new Set([
-	"article",
-	"aside",
-	"blockquote",
-	"caption",
-	"center",
-	"colgroup",
-	"dd",
-	"details",
-	"div",
-	"dl",
-	"dt",
-	"figcaption",
-	"figure",
-	"footer",
-	"h1",
-	"h2",
-	"h3",
-	"h4",
-	"h5",
-	"h6",
-	"header",
-	"li",
-	"ol",
-	"p",
-	"section",
-	"summary",
-	"table",
-	"tbody",
-	"td",
-	"tfoot",
-	"th",
-	"thead",
-	"tr",
-	"ul",
-]);
-/**
- * Elements `html: "jsx"` keeps: presentational HTML that Markdown notes use.
- * The site renders them, and the PDF and EPUB exports render the same set.
- */
-export const KEPT_ELEMENTS: ReadonlySet<string> = new Set([
-	...VOID_ELEMENTS,
-	...BLOCK_ELEMENTS,
-	"a",
-	"abbr",
-	"b",
-	"cite",
-	"code",
-	"del",
-	"dfn",
-	"em",
-	"i",
-	"ins",
-	"kbd",
-	"mark",
-	"picture",
-	"q",
-	"s",
-	"samp",
-	"small",
-	"span",
-	"strong",
-	"sub",
-	"sup",
-	"time",
-	"u",
-	"var",
-]);
-
-/**
- * Embedded pages `html: "jsx"` keeps as HTML too, when they have a `src`:
- * a video or a map (`<iframe src="https://www.youtube.com/embed/…">`). The
- * site shows them; the PDF and EPUB, which cannot, leave them out. An
- * unsafe source is gone before then (`findUnsafeLinks`), and one without a
- * source shows as text.
- */
-const EMBEDDED_ELEMENTS: ReadonlySet<string> = new Set(["iframe"]);
 
 /**
  * Splits Markdown into runs of prose and fenced code, in order. Code runs
@@ -285,30 +211,80 @@ export const splitFencedCode = (markdown: string): MarkdownSegment[] => {
 	return segments;
 };
 
-/** A link in Markdown or MDX source whose address `isSafeLink` refuses. */
-export type UnsafeLink = {
-	/** Where it is in the source: the whole link, the definition's line, or the attribute. */
+/** A change to source text: `start..end` becomes `text`. */
+type Edit = { start: number; end: number; text: string };
+
+/** What `findUnsafeMarkup` finds, by kind. */
+type MarkupKind =
+	| {
+			/** A Markdown link, reference, or definition to an address `isSafeLink` refuses. */
+			kind: "link";
+			/** The address, decoded. */
+			href: string;
+	  }
+	| {
+			/** An attribute of a kept element, or a component's prop. */
+			kind: "attribute";
+			/** Lower case for an HTML element; a component's name as written. */
+			element: string;
+			/** Lower case for an HTML element; `{...}` for a spread. */
+			attribute: string;
+			/** Its value, decoded; an expression or a spread as written, braces included. */
+			value: string;
+			/** Whether the value is an expression or a spread, which the build cannot read. */
+			expression: boolean;
+			refusal: AttributeRefusal;
+	  }
+	| {
+			/** An element the site leaves out (`elementVerdict`), or an `<iframe>` with no `src`. */
+			kind: "element";
+			/** Lower case. */
+			element: string;
+			/** What the site keeps of it: what it holds, or nothing. */
+			keeps: "contents" | "nothing";
+	  }
+	| {
+			/** An MDX expression (`{…}`) that is not a comment or a plain literal, or an `import`/`export` block. */
+			kind: "expression" | "code";
+			/** As written. */
+			source: string;
+	  };
+
+type Found = {
+	/** Where it is in the source: the link, definition, attribute, tag, expression, or block. */
 	start: number;
 	end: number;
-	/** What keeps its words in place of it: a link's text, or nothing. */
-	text: string;
-	/** The address, decoded; a `src={…}` expression or a spread as written, braces included. */
-	href: string;
-	/**
-	 * For an HTML element's attribute, the element and attribute, lower case:
-	 * `iframe` and `src`, or `iframe` and `srcdoc`. A spread is `{...}`.
-	 */
-	element?: string;
-	attribute?: string;
+	/** What changes in the source to leave it out. */
+	edits: Edit[];
+} & MarkupKind;
+
+/**
+ * Something in Markdown or MDX source the site does not keep (see
+ * `html-allowlist.ts` and `isSafeLink`), where it is, and what takes its
+ * place: a link's words, an element's content, or nothing.
+ */
+export type UnsafeMarkup = Found & {
 	/** 1-based line in the source. */
 	line: number;
 };
 
-export type FindUnsafeLinksOptions = {
+/** What a report lists of something left out: what it is, and its line. */
+export type UnsafeMarkupEntry = MarkupKind & { line: number };
+
+/** The entry a report lists for `found`, its line moved down by `linesBefore` (the lines above the text it was found in). */
+export const markupEntry = (
+	{ start: _start, end: _end, edits: _edits, ...entry }: UnsafeMarkup,
+	linesBefore = 0,
+): UnsafeMarkupEntry => ({ ...entry, line: linesBefore + entry.line });
+
+export type FindUnsafeMarkupOptions = {
 	/**
-	 * How tag names read: `jsx` (the default, for MDX), where a capitalized
-	 * name is a component whose props are not addresses; or `html`, for
-	 * Markdown notes, where `<IFRAME SRC>` is an element, as HTML reads it.
+	 * How tags read: `jsx` (the default, for MDX), where a capitalized name
+	 * is a component, braces hold expressions, and every tag is a JSX
+	 * element; or `html`, for Markdown notes, where `<IFRAME SRC>` is an
+	 * element, as HTML reads it, braces are text, and a tag that is not a
+	 * kept or hidden element stays as written (import shows it as text),
+	 * losing only an unsafe address.
 	 */
 	tags?: "jsx" | "html";
 };
@@ -374,34 +350,18 @@ const REFERENCE =
 	/(?<![!\]\\])\[((?:[^\]\\\n]|\\.)+)\](?:\[((?:[^\]\\\n]|\\.)*)\])?(?![(:[])/g;
 /** A spread attribute in MDX (`{...props}`, `{...{ src: "…" }}`), braces nested up to three deep, as a pattern. */
 export const SPREAD = String.raw`\{\s*\.\.\.(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}`;
-// An HTML element's opening tag and its name; `\<` is text, not a tag.
-const ELEMENT_TAG = new RegExp(
-	String.raw`(?<!\\)<([A-Za-z][\w-]*)(?:\s+(?:${SPREAD}|[^\s"'<>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*\}|[^\s"'=<>\`]+))?))*\s*\/?>`,
-	"g",
-);
-const TAG_ATTRIBUTE = new RegExp(
-	String.raw`\s+(?:(${SPREAD})|([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^{}]*)\}|([^\s"'=<>\`]+)))`,
-	"g",
-);
 
-/**
- * The links in Markdown or MDX source that the site and the exports keep
- * only as text (see `isSafeLink`), in source order: inline links, reference
- * links and their definitions, and the attributes of HTML elements
- * `isUnsafeAttribute` refuses (`href`, `<iframe src>`, `<form action>`,
- * `<iframe srcdoc>`, …), including an address written as an expression that
- * is not a plain string. In MDX (`tags: "jsx"`), a spread attribute on an
- * element (`<a {...props}>`) is one too. Code, comments, and escaped tags
- * (`\<a`) are not read. A pattern match, not a parse: the build drops these
- * from the parsed page whatever this finds.
- */
-export const findUnsafeLinks = (
-	markdown: string,
-	options: FindUnsafeLinksOptions = {},
-): UnsafeLink[] => {
-	const masked = maskNonProse(markdown);
-	const lineAt = (index: number) => markdown.slice(0, index).split("\n").length;
-	const found: Omit<UnsafeLink, "line">[] = [];
+/** Markdown links, references, and definitions to addresses `isSafeLink` refuses. */
+const unsafeMarkdownLinks = (markdown: string, masked: string): Found[] => {
+	const found: Found[] = [];
+	const link = (start: number, end: number, text: string, href: string) =>
+		found.push({
+			kind: "link",
+			start,
+			end,
+			href,
+			edits: [{ start, end, text }],
+		});
 
 	// The address each unsafe definition's label stands for.
 	const unsafeLabels = new Map<string, string>();
@@ -410,7 +370,7 @@ export const findUnsafeLinks = (
 		if (isSafeLink(href)) continue;
 		unsafeLabels.set(normalizeLabel(match[1]), href);
 		const start = match.index ?? 0;
-		found.push({ start, end: start + match[0].length, text: "", href });
+		link(start, start + match[0].length, "", href);
 	}
 
 	for (const match of masked.matchAll(/\]\(/g)) {
@@ -421,12 +381,7 @@ export const findUnsafeLinks = (
 		if (!destination) continue;
 		const href = readDestination(destination.raw);
 		if (isSafeLink(href)) continue;
-		found.push({
-			start: open,
-			end: destination.end,
-			text: markdown.slice(open + 1, close),
-			href,
-		});
+		link(open, destination.end, markdown.slice(open + 1, close), href);
 	}
 
 	if (unsafeLabels.size > 0) {
@@ -434,72 +389,486 @@ export const findUnsafeLinks = (
 			const href = unsafeLabels.get(normalizeLabel(match[2] || match[1]));
 			if (href === undefined) continue;
 			const start = match.index ?? 0;
-			found.push({
+			link(
 				start,
-				end: start + match[0].length,
-				text: markdown.slice(start + 1, start + 1 + match[1].length),
+				start + match[0].length,
+				markdown.slice(start + 1, start + 1 + match[1].length),
 				href,
-			});
+			);
 		}
 	}
-
-	for (const tag of masked.matchAll(ELEMENT_TAG)) {
-		const element = tag[1];
-		const jsx = options.tags !== "html";
-		if (jsx && !/^[a-z]/.test(element)) continue;
-		const tagStart = tag.index ?? 0;
-		for (const attribute of tag[0].matchAll(TAG_ATTRIBUTE)) {
-			const [, spread, name, double, single, expression, bare] = attribute;
-			const start = tagStart + (attribute.index ?? 0);
-			const at = {
-				start,
-				end: start + attribute[0].length,
-				text: "",
-				element: element.toLowerCase(),
-			};
-			if (spread !== undefined) {
-				// In a Markdown note braces are text: `{...x}` spreads nothing in HTML.
-				if (jsx) found.push({ ...at, href: spread, attribute: "{...}" });
-				continue;
-			}
-			const value =
-				expression === undefined
-					? decodeEntities(double ?? single ?? bare ?? "")
-					: stringLiteralValue(expression);
-			if (!isUnsafeAttribute(element, name, value)) continue;
-			found.push({
-				...at,
-				href: value ?? `{${expression}}`,
-				attribute: name.toLowerCase(),
-			});
-		}
-	}
-
-	// A link inside another unsafe one (`[[x](javascript:)](javascript:)`) goes with it.
-	return found
-		.sort((a, b) => a.start - b.start || b.end - a.end)
-		.filter(
-			(link, index, sorted) =>
-				!sorted
-					.slice(0, index)
-					.some((outer) => outer.start <= link.start && link.end <= outer.end),
-		)
-		.map((link) => ({ ...link, line: lineAt(link.start) }));
+	return found;
 };
 
 /**
- * `markdown` with each unsafe link replaced by its text, and each unsafe
- * attribute of an element removed, given `findUnsafeLinks(markdown)`.
+ * The index of the `}` that closes the `{` at `open`, past strings,
+ * template literals, comments, and nested braces, as an MDX expression
+ * reads them; -1 when it never closes.
  */
-export const withoutUnsafeLinks = (
+const closingBrace = (text: string, open: number): number => {
+	const stack = ["}"];
+	for (let index = open + 1; index < text.length; index += 1) {
+		const char = text[index];
+		const inTemplate = stack[stack.length - 1] === "`";
+		if (inTemplate) {
+			if (char === "\\") index += 1;
+			else if (char === "`") stack.pop();
+			else if (char === "$" && text[index + 1] === "{") {
+				stack.push("}");
+				index += 1;
+			}
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			let at = index + 1;
+			while (at < text.length && text[at] !== char) {
+				if (text[at] === "\\") at += 1;
+				at += 1;
+			}
+			if (at >= text.length) return -1;
+			index = at;
+		} else if (char === "`") {
+			stack.push("`");
+		} else if (char === "/" && text[index + 1] === "*") {
+			const end = text.indexOf("*/", index + 2);
+			if (end < 0) return -1;
+			index = end + 1;
+		} else if (char === "/" && text[index + 1] === "/") {
+			const end = text.indexOf("\n", index);
+			if (end < 0) return -1;
+			index = end;
+		} else if (char === "{") {
+			stack.push("}");
+		} else if (char === "}") {
+			stack.pop();
+			if (stack.length === 0) return index;
+		}
+	}
+	return -1;
+};
+
+/** An attribute in a tag: its name (null for a spread), and its value. */
+type TagAttribute = {
+	/** From the space before it to its end, so removing it leaves the tag tidy. */
+	start: number;
+	end: number;
+	name: string | null;
+	/** Decoded text; "" for a bare name; null for an expression that is not a plain literal, or a spread. */
+	value: string | null;
+	/** An expression's or a spread's source, braces included. */
+	source?: string;
+};
+
+type Tag = {
+	start: number;
+	end: number;
+	/** As written; "" for a JSX fragment (`<>`). */
+	name: string;
+	closing: boolean;
+	selfClosing: boolean;
+	attributes: TagAttribute[];
+};
+
+const JSX_NAME = /[A-Za-z_$][\w$-]*(?:[.:][A-Za-z_$][\w$-]*)*/y;
+const HTML_NAME = /[A-Za-z][A-Za-z0-9-]*/y;
+const SPACE = /\s*/y;
+const JSX_ATTRIBUTE_NAME = /[^\s"'<>/={}]+/y;
+const HTML_ATTRIBUTE_NAME = /[^\s"'<>/=]+/y;
+const UNQUOTED_VALUE = /[^\s"'=<>`]+/y;
+
+/** Matches `pattern` (sticky) at `at`, or null. */
+const stickyMatch = (pattern: RegExp, text: string, at: number) => {
+	pattern.lastIndex = at;
+	return pattern.exec(text)?.[0] ?? null;
+};
+
+/**
+ * The tag that starts at the `<` at `at`, as MDX reads one (`jsx`: names
+ * with `.` and `:`, quoted or braced values, spreads, fragments) or as HTML
+ * does (unquoted values, no braces); null when it is not a tag.
+ */
+const readTag = (text: string, at: number, jsx: boolean): Tag | null => {
+	let index = at + 1;
+	const closing = text[index] === "/";
+	if (closing) index += 1;
+	const name = stickyMatch(jsx ? JSX_NAME : HTML_NAME, text, index) ?? "";
+	if (!name && !(jsx && text[index] === ">")) return null;
+	index += name.length;
+	const attributes: TagAttribute[] = [];
+	for (;;) {
+		const start = index;
+		index += stickyMatch(SPACE, text, index)?.length ?? 0;
+		if (text[index] === ">" || text.startsWith("/>", index)) {
+			const selfClosing = text[index] === "/";
+			if (closing && (attributes.length > 0 || selfClosing)) return null;
+			return {
+				start: at,
+				end: index + (selfClosing ? 2 : 1),
+				name,
+				closing,
+				selfClosing,
+				attributes,
+			};
+		}
+		if (index === start || closing) return null;
+		if (jsx && text[index] === "{") {
+			const end = closingBrace(text, index);
+			const source = end < 0 ? "" : text.slice(index, end + 1);
+			if (!/^\{\s*\.\.\./.test(source)) return null;
+			attributes.push({ start, end: end + 1, name: null, value: null, source });
+			index = end + 1;
+			continue;
+		}
+		const attribute = stickyMatch(
+			jsx ? JSX_ATTRIBUTE_NAME : HTML_ATTRIBUTE_NAME,
+			text,
+			index,
+		);
+		if (!attribute) return null;
+		index += attribute.length;
+		const beforeEquals = index;
+		index += stickyMatch(SPACE, text, index)?.length ?? 0;
+		if (text[index] !== "=") {
+			index = beforeEquals;
+			attributes.push({ start, end: index, name: attribute, value: "" });
+			continue;
+		}
+		index += 1;
+		index += stickyMatch(SPACE, text, index)?.length ?? 0;
+		const quote = text[index];
+		if (quote === '"' || quote === "'") {
+			const end = text.indexOf(quote, index + 1);
+			if (end < 0) return null;
+			attributes.push({
+				start,
+				end: end + 1,
+				name: attribute,
+				value: decodeEntities(text.slice(index + 1, end)),
+			});
+			index = end + 1;
+		} else if (jsx && quote === "{") {
+			const end = closingBrace(text, index);
+			if (end < 0) return null;
+			const source = text.slice(index, end + 1);
+			attributes.push({
+				start,
+				end: end + 1,
+				name: attribute,
+				value: literalValue(source.slice(1, -1)),
+				source,
+			});
+			index = end + 1;
+		} else {
+			const bare = jsx ? null : stickyMatch(UNQUOTED_VALUE, text, index);
+			if (!bare) return null;
+			attributes.push({
+				start,
+				end: index + bare.length,
+				name: attribute,
+				value: decodeEntities(bare),
+			});
+			index += bare.length;
+		}
+	}
+};
+
+/** An `import` or `export` line opening a block of MDX, which the build would run as code. */
+const ESM_BLOCK =
+	/(?<=^|\n[ \t]*\n)(?:import|export)(?=[\s{*])[\s\S]*?(?=\n[ \t]*\n|$)/g;
+
+/**
+ * Raw HTML, MDX expressions, and code the allowlist does not keep
+ * (`html-allowlist.ts`): elements left out, attributes removed (an unsafe
+ * address among them), and, in MDX, expressions and `import`/`export`
+ * blocks. `holds` gets, for each finding that leaves out a whole region
+ * (an element and what it holds, an expression, a block), that region;
+ * `wraps`, for each element left out keeping what it holds, its extent.
+ */
+const unsafeHtml = (
+	masked: string,
+	jsx: boolean,
+	holds: Map<Found, Edit>,
+	wraps: Map<Found, Edit>,
+): Found[] => {
+	const found: Found[] = [];
+	const remove = (start: number, end: number): Edit => ({
+		start,
+		end,
+		text: "",
+	});
+	const leaveOut = (each: Found, region: Edit) => {
+		found.push(each);
+		holds.set(each, region);
+	};
+
+	const tags: Tag[] = [];
+	for (let index = 0; index < masked.length; index += 1) {
+		const char = masked[index];
+		if (char === "\\") {
+			index += 1;
+		} else if (char === "<") {
+			const tag = readTag(masked, index, jsx);
+			if (!tag) continue;
+			tags.push(tag);
+			index = tag.end - 1;
+		} else if (jsx && char === "{") {
+			const end = closingBrace(masked, index);
+			if (end < 0) continue;
+			const source = masked.slice(index, end + 1);
+			const inner = source.slice(1, -1);
+			if (!isCommentExpression(inner) && literalValue(inner) === null) {
+				const region = remove(index, end + 1);
+				leaveOut(
+					{
+						kind: "expression",
+						start: index,
+						end: end + 1,
+						source,
+						edits: [region],
+					},
+					region,
+				);
+			}
+			index = end;
+		}
+	}
+	if (jsx) {
+		for (const match of masked.matchAll(ESM_BLOCK)) {
+			const start = match.index ?? 0;
+			const end = start + match[0].length;
+			const region = remove(start, end);
+			leaveOut(
+				{ kind: "code", start, end, source: match[0], edits: [region] },
+				region,
+			);
+		}
+	}
+
+	// Each opening tag's closing tag, as the source nests them.
+	const closes = new Map<Tag, Tag>();
+	const open: Tag[] = [];
+	const key = (tag: Tag) => (jsx ? tag.name : tag.name.toLowerCase());
+	for (const tag of tags) {
+		if (tag.selfClosing) continue;
+		if (!tag.closing) {
+			if (jsx || !VOID_ELEMENTS.has(tag.name.toLowerCase())) open.push(tag);
+			continue;
+		}
+		const at = open.map(key).lastIndexOf(key(tag));
+		if (at < 0) continue;
+		closes.set(open[at], tag);
+		open.length = at;
+	}
+
+	for (const tag of tags) {
+		if (tag.closing || !tag.name) continue;
+		const close = closes.get(tag);
+		const whole = remove(tag.start, close?.end ?? tag.end);
+		const unwrap = [
+			remove(tag.start, tag.end),
+			...(close ? [remove(close.start, close.end)] : []),
+		];
+		const component = jsx && !/^[a-z]/.test(tag.name);
+		const element = component ? tag.name : tag.name.toLowerCase();
+		/** An attribute that goes: by itself, or with `edits` (its link's tags). */
+		const refuse = (
+			{ start, end, name, value, source }: TagAttribute,
+			refusal: AttributeRefusal,
+			edits: Edit[] = [remove(start, end)],
+		) =>
+			found.push({
+				kind: "attribute",
+				start,
+				end,
+				element,
+				attribute:
+					name === null ? "{...}" : component ? name : name.toLowerCase(),
+				value: value ?? source ?? "",
+				expression: value === null,
+				refusal,
+				edits,
+			});
+
+		if (component) {
+			// Its props are its own, but for these.
+			for (const each of tag.attributes) {
+				const refusal =
+					each.name === null
+						? "spread"
+						: componentPropRefusal(each.name, each.value);
+				if (refusal) refuse(each, refusal);
+			}
+			continue;
+		}
+
+		const verdict = elementVerdict(element);
+		if (verdict === "drop") {
+			leaveOut(
+				{
+					kind: "element",
+					start: tag.start,
+					end: tag.end,
+					element,
+					keeps: "nothing",
+					edits: [whole],
+				},
+				whole,
+			);
+			continue;
+		}
+		if (verdict === "unwrap" && jsx) {
+			const each: Found = {
+				kind: "element",
+				start: tag.start,
+				end: tag.end,
+				element,
+				keeps: "contents",
+				edits: unwrap,
+			};
+			found.push(each);
+			wraps.set(each, whole);
+			continue;
+		}
+		if (verdict === "unwrap") {
+			// A note's tag that import shows as text: only an unsafe address goes.
+			for (const each of tag.attributes) {
+				if (
+					each.name !== null &&
+					isAddressAttribute(element, each.name) &&
+					!isSafeLink(each.value ?? "")
+				) {
+					refuse(each, "address");
+				}
+			}
+			continue;
+		}
+
+		// A kept element loses the attributes it may not carry. A link whose
+		// address goes becomes its words. An embed whose source goes, or that
+		// has none, goes too, named by its source, or else by the first
+		// attribute it may not carry.
+		let source = false;
+		const first = found.length;
+		for (const each of tag.attributes) {
+			const name = each.name?.toLowerCase();
+			const refusal =
+				each.name === null
+					? "spread"
+					: attributeRefusal(element, each.name, each.value);
+			if (!refusal) {
+				source ||= name === "src" && Boolean(each.value?.trim());
+			} else if (element === "a" && name === "href") {
+				refuse(each, refusal, unwrap);
+			} else {
+				refuse(each, refusal);
+			}
+		}
+		if (element === "iframe" && !source) {
+			const refused = found.slice(first);
+			const named =
+				refused.find(
+					(each) => each.kind === "attribute" && each.attribute === "src",
+				) ?? refused[0];
+			if (named) {
+				named.edits = [whole];
+				holds.set(named, whole);
+			} else {
+				leaveOut(
+					{
+						kind: "element",
+						start: tag.start,
+						end: tag.end,
+						element,
+						keeps: "nothing",
+						edits: [whole],
+					},
+					whole,
+				);
+			}
+		}
+	}
+	return found;
+};
+
+/**
+ * What the site leaves out of Markdown or MDX source, in source order: links
+ * to addresses `isSafeLink` refuses (inline, references, and their
+ * definitions), and raw HTML the allowlist does not keep (`html-allowlist.ts`):
+ * elements, attributes, and, in MDX, expressions and `import`/`export`
+ * blocks. Code and comments are not read. Something inside what is left
+ * out whole (an element and what it holds, an expression) is not listed,
+ * nor is an element left out keeping what it holds inside another (the
+ * parts of an `<svg>`). A scan, not a parse: the build applies the same
+ * allowlist to the parsed page whatever this finds.
+ */
+export const findUnsafeMarkup = (
 	markdown: string,
-	links: readonly UnsafeLink[],
-): string =>
-	links.reduceRight(
-		(text, link) =>
-			text.slice(0, link.start) + link.text + text.slice(link.end),
-		markdown,
+	options: FindUnsafeMarkupOptions = {},
+): UnsafeMarkup[] => {
+	const masked = maskNonProse(markdown);
+	const lineAt = (index: number) => markdown.slice(0, index).split("\n").length;
+	const holds = new Map<Found, Edit>();
+	const wraps = new Map<Found, Edit>();
+	const found = [
+		...unsafeMarkdownLinks(markdown, masked),
+		...unsafeHtml(masked, options.tags !== "html", holds, wraps),
+	];
+	const within = (each: Found, regions: Map<Found, Edit>) =>
+		[...regions].some(
+			([owner, region]) =>
+				owner !== each && region.start <= each.start && each.end <= region.end,
+		);
+	const inside = (each: Found) =>
+		within(each, holds) ||
+		(each.kind === "element" &&
+			each.keeps === "contents" &&
+			within(each, wraps));
+	return found
+		.filter((each) => !inside(each))
+		.sort((a, b) => a.start - b.start || b.end - a.end)
+		.map((each) => ({ ...each, line: lineAt(each.start) }));
+};
+
+/** `text` with `edits` made; an edit inside another, or overlapping one made before it, is skipped. */
+const applyEdits = (text: string, edits: readonly Edit[]): string => {
+	const chosen: Edit[] = [];
+	for (const edit of [...edits].sort(
+		(a, b) => a.start - b.start || b.end - a.end,
+	)) {
+		const last = chosen[chosen.length - 1];
+		if (last && edit.start < last.end) continue;
+		chosen.push(edit);
+	}
+	return chosen.reduceRight(
+		(out, edit) => out.slice(0, edit.start) + edit.text + out.slice(edit.end),
+		text,
 	);
+};
+
+/**
+ * `markdown` with everything `findUnsafeMarkup` finds left out: a link
+ * becomes its words, an element what it holds or nothing, and an attribute,
+ * expression, or code block goes. Repeated until nothing is left to find,
+ * so what leaving one thing out joins up (`<scr<script></script>ipt>`) is
+ * found too.
+ */
+export const withoutUnsafeMarkup = (
+	markdown: string,
+	options: FindUnsafeMarkupOptions = {},
+): string => {
+	let text = markdown;
+	for (let pass = 0; pass < 10; pass += 1) {
+		const found = findUnsafeMarkup(text, options);
+		if (found.length === 0) break;
+		const next = applyEdits(
+			text,
+			found.flatMap((each) => each.edits),
+		);
+		if (next === text) break;
+		text = next;
+	}
+	return text;
+};
 
 /** One `<tag>` in prose, and how `toMdxBody` writes it. */
 type TagToken = {
@@ -527,12 +896,18 @@ const tagAsJsx = (
 	const attributes: string[] = [];
 	let source = false;
 	for (const [, key, value] of rawAttributes.matchAll(HTML_ATTRIBUTE)) {
-		if (!/^[A-Za-z_:][-A-Za-z0-9_:.]*$/.test(key) || /^on/i.test(key)) {
+		const text = decodeEntities(
+			value?.replace(/^(["'])([\s\S]*)\1$/, "$2") ?? "",
+		);
+		// `findUnsafeMarkup` has removed what the allowlist refuses; a tag it
+		// read differently is shown as text.
+		if (
+			!/^[A-Za-z_:][-A-Za-z0-9_:.]*$/.test(key) ||
+			attributeRefusal(name, key, text)
+		) {
 			return null;
 		}
-		source ||=
-			key.toLowerCase() === "src" &&
-			Boolean(value?.replace(/^(["'])([\s\S]*)\1$/, "$2").trim());
+		source ||= key.toLowerCase() === "src" && Boolean(text.trim());
 		if (value === undefined) attributes.push(key);
 		else if (/^["']/.test(value)) attributes.push(`${key}=${value}`);
 		else attributes.push(`${key}="${value}"`);
@@ -715,20 +1090,22 @@ const writeProse = (pieces: ProsePiece[], counts: MdxConversion): string => {
  * Makes Markdown safe to compile as MDX, which book apps load: HTML comments
  * become MDX comments, autolinks become links, and braces, tag-like `<`, and
  * lines MDX would read as `import`/`export` are escaped so they render as
- * written. Raw HTML is escaped too, or kept with `html: "jsx"`. A link the
- * site would not keep (`findUnsafeLinks`) becomes its text, and is listed in
- * `unsafeLinks` with its line in `source`. Code (fenced or inline) is left
- * exactly as it was. MDX has no indented code blocks, so indented text is
- * treated as prose, as MDX itself would.
+ * written. Raw HTML is escaped too, or kept with `html: "jsx"`. What the
+ * site would not keep (`findUnsafeMarkup`) goes first: a link to an unsafe
+ * address becomes its text, a script or style goes with what it holds, and
+ * a kept element loses the attributes the allowlist refuses. Each is listed
+ * in `unsafeMarkup` with its line in `source`. Code (fenced or inline) is
+ * left exactly as it was. MDX has no indented code blocks, so indented text
+ * is treated as prose, as MDX itself would.
  */
 export const toMdxBody = (
 	source: string,
 	options: MdxBodyOptions = {},
-): { body: string; changes: MdxConversion; unsafeLinks: UnsafeLink[] } => {
+): { body: string; changes: MdxConversion; unsafeMarkup: UnsafeMarkup[] } => {
 	// Notes are Markdown, whose tag names HTML reads in any case; the tags
 	// import keeps are written in lower case.
-	const unsafeLinks = findUnsafeLinks(source, { tags: "html" });
-	const markdown = withoutUnsafeLinks(source, unsafeLinks);
+	const unsafeMarkup = findUnsafeMarkup(source, { tags: "html" });
+	const markdown = withoutUnsafeMarkup(source, { tags: "html" });
 	const changes: MdxConversion = {
 		htmlComments: 0,
 		braces: 0,
@@ -752,5 +1129,5 @@ export const toMdxBody = (
 			pieces ? writeProse(pieces, changes) : segment.text,
 		)
 		.join("\n");
-	return { body, changes, unsafeLinks };
+	return { body, changes, unsafeMarkup };
 };

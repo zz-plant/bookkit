@@ -240,6 +240,29 @@ export const parseScriptArgs = <
 	return result.values;
 };
 
+/**
+ * For a script that reads its own arguments: the first `--flag` (or
+ * `--flag=value`) that is not one of `flags`, as `readScriptArgs` words it
+ * ("Unknown option --aply. Did you mean --apply?"); undefined when every
+ * flag is known. The word after one of `valueFlags` is its value, never a
+ * flag.
+ */
+export const unknownFlagError = (
+	argv: readonly string[],
+	flags: readonly string[],
+	valueFlags: readonly string[] = [],
+): string | undefined => {
+	for (let index = 0; index < argv.length; index += 1) {
+		const flag = argv[index].split("=")[0];
+		if (!flag.startsWith("-") || flag === "-" || flag === "--") continue;
+		if (!flags.includes(flag)) {
+			return `Unknown option ${flag}.${didYouMean(flag, flags)}`;
+		}
+		if (valueFlags.includes(flag) && !argv[index].includes("=")) index += 1;
+	}
+	return undefined;
+};
+
 /** `parseScriptArgs` without the printing and exiting, for tests. */
 export const readScriptArgs = <
 	S extends Record<string, ArgKind>,

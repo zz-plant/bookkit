@@ -14,7 +14,7 @@ import {
 	withMechanisms,
 	withPrerequisites,
 } from "./lib/chapter-prerequisites";
-import { exitOnHelp } from "./lib/cli";
+import { exitOnHelp, unknownFlagError } from "./lib/cli";
 import { loadBookContent } from "./lib/load-book";
 
 const USAGE =
@@ -53,17 +53,30 @@ exitOnHelp({
 	],
 });
 
+const VALUE_FLAGS = [
+	"--title",
+	"--causal-stance",
+	"--max-proposals",
+	"--id",
+	"--apply",
+	"--book",
+];
+const unknown = unknownFlagError(process.argv.slice(2), [
+	...VALUE_FLAGS,
+	"--write",
+	"--detect-frame",
+	"--force",
+]);
+if (unknown) {
+	console.error(`${unknown}\nUsage: ${USAGE}`);
+	process.exit(1);
+}
+
 const {
 	books: [book],
 } = booksFromArgv(listBookDirs(), {
 	usage: USAGE,
-	valueFlags: [
-		"--title",
-		"--causal-stance",
-		"--max-proposals",
-		"--id",
-		"--apply",
-	],
+	valueFlags: VALUE_FLAGS.filter((flag) => flag !== "--book"),
 	requireOne: true,
 });
 const title = optionalArg("--title") ?? undefined;

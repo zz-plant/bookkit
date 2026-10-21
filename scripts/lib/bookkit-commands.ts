@@ -335,13 +335,18 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		help: {
 			summary:
 				"Checks structure only: each content file's contract, the frame, slugs\nused twice, and the rules the book's status sets. bookkit check adds\nthe mechanism checks.",
-			usage: ["bun run bookkit validate [book] [--json]"],
+			usage: ["bun run bookkit validate [book] [--all] [--json]"],
 			options: [
-				["[book]", "One book (default: every book)"],
-				["--json", "One book's findings as JSON (needs [book])"],
+				[
+					"[book]",
+					"The book (default: the current one; with none, every book)",
+				],
+				["--all", "Every book, even when a current book is set"],
+				["--json", "One book's findings as JSON"],
 			],
 			examples: [
 				"bun run bookkit validate",
+				"bun run bookkit validate --all",
 				"bun run bookkit validate on-call --json",
 			],
 		},

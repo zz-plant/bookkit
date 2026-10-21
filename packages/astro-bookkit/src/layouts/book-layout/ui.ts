@@ -143,6 +143,7 @@ if (hasServerRuntime && qaPanelRoot && qaToggle) {
 				storage,
 				disabledKey: `${analyticsKeyPrefix}.qa.disabled`,
 				displayModeKey: `${analyticsKeyPrefix}.qa.display.mode`,
+				modelChoiceKey: `${analyticsKeyPrefix}.qa.models`,
 				apiEndpoint: qaEndpoint,
 				memoryKey: `${analyticsKeyPrefix}.qa.memory`,
 				signalsKey: `${analyticsKeyPrefix}.qa.signals`,

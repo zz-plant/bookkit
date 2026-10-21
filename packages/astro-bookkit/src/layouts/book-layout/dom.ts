@@ -1,3 +1,5 @@
+import { isSitePath } from "../../utils/links";
+
 export type ElementCtor<T extends Element> = abstract new (...args: any[]) => T;
 
 const isElementOfType = <T extends Element>(
@@ -30,18 +32,15 @@ export const isEditableTarget = (
 	(target.isContentEditable ||
 		["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
-export const toSafeUrl = (value: string | null | undefined): string => {
-	if (typeof value !== "string") return "#";
-	try {
-		const parsed = new URL(value, window.location.origin);
-		if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-			return parsed.href;
-		}
-	} catch {
-		// Ignore invalid URLs.
-	}
-	return "#";
-};
+/**
+ * `value` as a link to a page of this book, or null when it is not a path
+ * from the site's root (see `isSitePath`). Search results and the passages
+ * an answer cites are always the book's own pages, so any other address (an
+ * absolute URL, even to this site, `javascript:`, a relative path) is
+ * refused: the caller shows the text with no link.
+ */
+export const sitePath = (value: unknown): string | null =>
+	typeof value === "string" && isSitePath(value) ? value : null;
 
 export const appendHighlightedText = (
 	element: HTMLElement,

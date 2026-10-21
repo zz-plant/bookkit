@@ -1,9 +1,18 @@
 ---
+import { QA_MODEL_DOWNLOAD } from "./qa-model-consent";
+
 type Props = {
 	aiQaSamples?: string[];
 };
 
 const { aiQaSamples = [] } = Astro.props;
+const {
+	models: [embeddingModel, rerankModel],
+	modelMegabytes,
+	modelHost,
+	runtimeMegabytes,
+	runtimeHost,
+} = QA_MODEL_DOWNLOAD;
 ---
 <div class="qa-panel" id="qa-panel" data-qa-panel hidden>
   <div
@@ -19,7 +28,7 @@ const { aiQaSamples = [] } = Astro.props;
         <button type="button" class="qa-panel__toggle" data-qa-disable>
           Turn off
         </button>
-        <button type="button" class="kbd-close" data-qa-close aria-label="Close Ask the book">
+        <button type="button" class="kbd-close" data-qa-close aria-label="Esc: close Ask the book">
           Esc
         </button>
       </div>
@@ -42,6 +51,41 @@ const { aiQaSamples = [] } = Astro.props;
         </label>
         <button type="submit" class="qa-panel__submit">Ask</button>
       </form>
+      <div
+        class="qa-panel__consent"
+        role="group"
+        aria-labelledby="qa-consent-title"
+        aria-describedby="qa-consent-detail qa-consent-decline"
+        tabindex="-1"
+        data-qa-consent
+        hidden
+      >
+        <h3 id="qa-consent-title" class="qa-panel__consent-title">Download two models to rank passages?</h3>
+        <p id="qa-consent-detail" class="qa-panel__consent-text">
+          Ask finds the passages that answer a question with two models that run in your browser,
+          <code class="qa-panel__model">{embeddingModel}</code> and
+          <code class="qa-panel__model">{rerankModel}</code>.
+          They are about {modelMegabytes} MB from Hugging Face ({modelHost}), with a {runtimeMegabytes} MB
+          runtime from jsDelivr ({runtimeHost}). Your browser keeps them, so they download once.
+        </p>
+        <p id="qa-consent-decline" class="qa-panel__consent-text meta">
+          Not now: Ask still answers, matching passages by the words in your question.
+        </p>
+        <div class="qa-panel__consent-actions">
+          <button type="button" class="qa-panel__submit" data-qa-consent-download>
+            Download
+          </button>
+          <button type="button" class="qa-panel__toggle" data-qa-consent-decline>
+            Not now
+          </button>
+        </div>
+      </div>
+      <p class="qa-panel__meta" data-qa-models-off hidden>
+        Passages are matched by their words.
+        <button type="button" class="qa-panel__link-button" data-qa-models-ask>
+          Rank them with models instead
+        </button>
+      </p>
       <div class="qa-panel__display" role="group" aria-label="Answer display mode">
         <span class="meta">Show</span>
         <button type="button" class="qa-panel__display-toggle" data-qa-display-toggle>

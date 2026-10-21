@@ -11,7 +11,8 @@ export type RerankEngine = {
 	isReady: () => boolean;
 };
 
-const DEFAULT_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2";
+/** The model the reader's browser downloads to rerank the closest passages. */
+export const RERANK_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2";
 const BATCH_SIZE = 8;
 
 const chunk = <T>(arr: T[], size: number): T[][] => {
@@ -40,13 +41,13 @@ export const createRerankEngine = async (
 
 		let classifier: (...args: unknown[]) => Promise<unknown>;
 		try {
-			classifier = await pipeline("text-classification", DEFAULT_MODEL, {
+			classifier = await pipeline("text-classification", RERANK_MODEL, {
 				device: "webgpu",
 				dtype: "fp16",
 			});
 			onProgress?.("Reranker loaded (WebGPU).");
 		} catch {
-			classifier = await pipeline("text-classification", DEFAULT_MODEL, {
+			classifier = await pipeline("text-classification", RERANK_MODEL, {
 				device: "cpu",
 			});
 			onProgress?.("Reranker loaded (CPU).");

@@ -1,3 +1,4 @@
+import { isSitePath } from "../../utils/links";
 import { queryAllElements, queryElement } from "./dom";
 import {
 	readStoredJson,
@@ -34,22 +35,6 @@ export const chapterToResume = (
 	return typeof slug === "string"
 		? (chapters.find((chapter) => chapter.slug === slug) ?? null)
 		: null;
-};
-
-const SITE = "https://site.invalid";
-
-/**
- * An address on this site: a path from its root, read as a browser reads
- * it. `//host/…`, `/\host/…`, and `/<tab>/host/…` start with a slash too,
- * but lead to another site.
- */
-const isSitePath = (href: string): boolean => {
-	if (!href.startsWith("/")) return false;
-	try {
-		return new URL(href, SITE).origin === SITE;
-	} catch {
-		return false;
-	}
 };
 
 /**

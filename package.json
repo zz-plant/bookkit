@@ -56,7 +56,7 @@
 		"check:shims": "bun run scripts/check-shims.ts",
 		"sync:shims": "bun run scripts/check-shims.ts --write",
 		"test": "bun test --parallel",
-		"test:browser": "bun test ./scripts/search-panel.browser.ts ./scripts/reader-wayfinding.browser.ts ./scripts/untrusted-text.browser.ts",
+		"test:browser": "bun test ./scripts/search-panel.browser.ts ./scripts/reader-wayfinding.browser.ts ./scripts/untrusted-text.browser.ts ./scripts/ask-panel.browser.ts",
 		"setup": "mise trust && bun install",
 		"check": "bun run bookkit check"
 	},

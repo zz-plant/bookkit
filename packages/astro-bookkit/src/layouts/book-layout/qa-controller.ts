@@ -9,7 +9,7 @@ import {
 	appendHighlightedText,
 	queryAllElements,
 	queryElement,
-	toSafeUrl,
+	sitePath,
 } from "./dom";
 import {
 	getQaDisplayToggleLabel,
@@ -17,6 +17,11 @@ import {
 	persistQaDisplayMode,
 	toggleQaDisplayMode,
 } from "./qa-display-mode";
+import {
+	loadQaModelChoice,
+	persistQaModelChoice,
+	type QaModelChoice,
+} from "./qa-model-consent";
 import { createQueryEngine } from "./query-engine";
 import type { SearchIndexStore } from "./search-index-store";
 import type { RankedSearchResult } from "./search-ranking";
@@ -47,6 +52,8 @@ type QaControllerOptions = {
 	storage: StorageLike;
 	disabledKey: string;
 	displayModeKey: string;
+	/** Where this browser keeps whether it may download the models (see `qa-model-consent.ts`). */
+	modelChoiceKey: string;
 	apiEndpoint?: string;
 	memoryKey?: string;
 	signalsKey?: string;
@@ -63,6 +70,7 @@ export const initializeQaController = ({
 	storage,
 	disabledKey,
 	displayModeKey,
+	modelChoiceKey,
 	apiEndpoint,
 	memoryKey = "bookkit.qa.memory",
 	signalsKey = "bookkit.qa.signals",
@@ -98,10 +106,34 @@ export const initializeQaController = ({
 		"[data-qa-suggestion]",
 		HTMLButtonElement,
 	);
+	const consent = queryElement(root, "[data-qa-consent]", HTMLElement);
+	const consentDownload = queryElement(
+		root,
+		"[data-qa-consent-download]",
+		HTMLButtonElement,
+	);
+	const consentDecline = queryElement(
+		root,
+		"[data-qa-consent-decline]",
+		HTMLButtonElement,
+	);
+	const modelsOff = queryElement(root, "[data-qa-models-off]", HTMLElement);
+	const modelsAsk = queryElement(
+		root,
+		"[data-qa-models-ask]",
+		HTMLButtonElement,
+	);
 
 	let query = "";
 	let lastFocused: HTMLElement | null = null;
 	let displayMode = loadQaDisplayMode(storage, displayModeKey);
+	// Read once and kept here too, so a browser that blocks storage is asked
+	// once per page rather than on every question.
+	let modelChoice = loadQaModelChoice(storage, modelChoiceKey);
+	// The question asked while the reader decides; it runs once they choose.
+	let waitingQuestion: string | null = null;
+	const usesModels =
+		enableSemanticSearch || enableRerank || (enableLocalLlm && !apiEndpoint);
 
 	const isDisabled = () => readStoredValue(storage, disabledKey) === "true";
 	const setDisabled = (value: boolean) =>
@@ -123,6 +155,43 @@ export const initializeQaController = ({
 		body?.toggleAttribute("hidden", disabled);
 		disabledPanel?.toggleAttribute("hidden", !disabled);
 		disableButton?.toggleAttribute("disabled", disabled);
+	};
+
+	const updateModelsState = () => {
+		const asking = consent ? !consent.hidden : false;
+		modelsOff?.toggleAttribute(
+			"hidden",
+			asking || !usesModels || modelChoice !== "declined",
+		);
+	};
+
+	/** Shows the download question; `question` runs once the reader answers it. */
+	const askAboutModels = (question: string | null) => {
+		waitingQuestion = question;
+		consent?.removeAttribute("hidden");
+		updateModelsState();
+		updateStatus(
+			question === null
+				? "Choose whether to download the models."
+				: "Choose whether to download the models; your question runs once you do.",
+		);
+		consent?.focus();
+	};
+
+	const chooseModels = (choice: QaModelChoice) => {
+		modelChoice = persistQaModelChoice(storage, modelChoiceKey, choice);
+		consent?.setAttribute("hidden", "");
+		updateModelsState();
+		const question = waitingQuestion;
+		waitingQuestion = null;
+		input?.focus({ preventScroll: true });
+		if (question !== null) void runQa(question);
+		else
+			updateStatus(
+				choice === "download"
+					? "The models download with your next question."
+					: "Ask a question to see answers.",
+			);
 	};
 
 	const queryEngine = createQueryEngine({ indexStore });
@@ -203,6 +272,19 @@ export const initializeQaController = ({
 		persistQaDisplayMode(storage, displayModeKey, displayMode);
 	};
 
+	/**
+	 * A link to the cited passage's page. The server's answer comes from a
+	 * model, so a citation that names any address other than one of this
+	 * book's pages keeps its title as text, with no link.
+	 */
+	const citationLink = (url: unknown): HTMLElement => {
+		const href = sitePath(url);
+		if (!href) return document.createElement("span");
+		const link = document.createElement("a");
+		link.href = href;
+		return link;
+	};
+
 	const renderAnswer = (entries: RankedSearchResult[], tokens: string[]) => {
 		if (!answer || !citations) return;
 		answer.replaceChildren();
@@ -230,8 +312,7 @@ export const initializeQaController = ({
 
 		entries.forEach((entry) => {
 			const item = document.createElement("li");
-			const link = document.createElement("a");
-			link.href = toSafeUrl(entry.url);
+			const link = citationLink(entry.url);
 			link.dataset.qaCitationId = entry.id;
 			link.textContent = `${entry.context} — ${entry.title}`;
 
@@ -269,8 +350,7 @@ export const initializeQaController = ({
 
 		data.citations.forEach((citation) => {
 			const item = document.createElement("li");
-			const link = document.createElement("a");
-			link.href = toSafeUrl(citation.url);
+			const link = citationLink(citation.url);
 			link.dataset.qaCitationId = citation.id;
 			link.textContent = citation.title;
 
@@ -376,11 +456,15 @@ export const initializeQaController = ({
 		}
 
 		query = value;
+		if (usesModels && modelChoice === null && value.trim()) {
+			askAboutModels(value);
+			return;
+		}
 		const lastSignals = loadSignals();
 
-		// Load index and initialize AI engines on first use
+		// Load the index, and the models once the reader has agreed to them.
 		const index = await queryEngine.loadIndex();
-		await initializeEngines(index);
+		if (modelChoice === "download") await initializeEngines(index);
 
 		// Compute semantic scores if embeddings are ready
 		let semanticScores: Record<string, number> | undefined;
@@ -562,10 +646,17 @@ export const initializeQaController = ({
 		button.addEventListener("click", () => {
 			if (!input) return;
 			input.value = button.textContent?.trim() ?? "";
-			void runQa(input.value);
+			// Focus first: when the question waits on the download question,
+			// runQa moves focus there.
 			input.focus({ preventScroll: true });
+			void runQa(input.value);
 		});
 	});
+	consentDownload?.addEventListener("click", () => chooseModels("download"));
+	consentDecline?.addEventListener("click", () => chooseModels("declined"));
+	modelsAsk?.addEventListener("click", () =>
+		askAboutModels(query.trim() ? query : null),
+	);
 	displayToggle?.addEventListener("click", () => {
 		displayMode = toggleQaDisplayMode(displayMode);
 		updateDisplayMode();
@@ -581,6 +672,7 @@ export const initializeQaController = ({
 	});
 
 	updateState();
+	updateModelsState();
 	updateDisplayMode();
 
 	return {

@@ -44,6 +44,9 @@ describe("bookkit import, then build", () => {
 		const build = buildBook(appDir);
 		if (build.exitCode !== 0) console.error(build.output);
 		expect(build.exitCode).toBe(0);
+		// createBookWorkspace turns link-preview images off.
+		expect(build.output).not.toContain("link-preview images");
+		expect(existsSync(join(appDir, "dist", "og"))).toBe(false);
 
 		const page = (slug: string) =>
 			readFileSync(

@@ -1682,7 +1682,7 @@ function printDraft(draft: ChapterDraft) {
 			: `  draft: ${draft.words} words of prose.`,
 	);
 	console.log(
-		`  binds: ${draft.binds.length > 0 ? draft.binds.join(", ") : "no mechanism yet"}.`,
+		`  binds: ${draft.binds.length > 0 ? draft.binds.join(", ") : "no mechanism yet"}${draft.unknown.length > 0 ? ` (${draft.unknown.join(", ")}: not a mechanism of this book; see the error above)` : ""}.`,
 	);
 	if (draft.unbound.length > 0) {
 		console.log(

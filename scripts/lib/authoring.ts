@@ -108,8 +108,10 @@ export type ChapterDraft = {
 	minimum: number;
 	/** Below `minimum`: kept out of search, and not yet drafted for a bet's test. */
 	stub: boolean;
-	/** Slugs in the chapter's `mechanisms:`. */
+	/** Slugs in the chapter's `mechanisms:` that the book defines. */
 	binds: string[];
+	/** Slugs in `mechanisms:` the book does not define (validation reports each as an error). */
+	unknown: string[];
 	/** The book's other mechanisms, which the chapter could bind instead of coining one. */
 	unbound: string[];
 };
@@ -121,7 +123,7 @@ export type ChapterDraft = {
  */
 export const chapterDraft = (
 	source: string,
-	binds: string[],
+	listed: string[],
 	bookMechanisms: string[],
 	site?: BookConfigSummary["site"],
 ): ChapterDraft => {
@@ -130,8 +132,9 @@ export const chapterDraft = (
 		words,
 		minimum: site?.minIndexableWords ?? DEFAULT_MIN_INDEXABLE_WORDS,
 		stub: isThinPage(words, site),
-		binds,
-		unbound: bookMechanisms.filter((slug) => !binds.includes(slug)).sort(),
+		binds: listed.filter((slug) => bookMechanisms.includes(slug)),
+		unknown: listed.filter((slug) => !bookMechanisms.includes(slug)),
+		unbound: bookMechanisms.filter((slug) => !listed.includes(slug)).sort(),
 	};
 };
 

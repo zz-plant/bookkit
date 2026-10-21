@@ -78,6 +78,8 @@ describe("createBookMcpEndpointFromWorkspace", () => {
 			"# CONTRIBUTING\n",
 		);
 		writeFileSync(resolve(workspaceRoot, "AGENTS.md"), "# AGENTS\n");
+		mkdirSync(resolve(workspaceRoot, "docs/guide"), { recursive: true });
+		writeFileSync(resolve(workspaceRoot, "docs/guide/checks.md"), "# Checks\n");
 		writeFileSync(
 			resolve(workspaceRoot, "package.json"),
 			'{"name":"fixture","scripts":{}}',
@@ -109,6 +111,7 @@ describe("createBookMcpEndpointFromWorkspace", () => {
 		expect(uris).toContain("bookkit://governance/README.md");
 		expect(uris).toContain("bookkit://governance/CONTRIBUTING.md");
 		expect(uris).toContain("bookkit://governance/AGENTS.md");
+		expect(uris).toContain("bookkit://governance/docs/guide/checks.md");
 	});
 
 	it("gracefully omits missing governance files", async () => {

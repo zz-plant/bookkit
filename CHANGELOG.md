@@ -3,6 +3,19 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — From notes to a published book, with fewer stops
+
+- **`bookkit publish [book] [--dry-run] [--records]`** moves a book from draft to published: it checks the book with release rules (`validate-book --release`, new) and sets `status: "published"` in `book.config.ts` only when nothing fails. `--records` first marks the book's draft records published, and puts them back if the book still fails. Before, an author edited the status by hand and learned the rules from the next check.
+- **`bookkit deploy --dry-run`** leaves out the engine's tests and type check (most of its two minutes), keeping every content gate, the build, `check:build`, and wrangler's dry run. `--dry-run --full` runs everything a real deploy runs and stamps `dist/` for `--no-build`; a quick dry run stamps nothing.
+- **Import converts wiki links**: `[[Note]]`, `[[Note#Heading|text]]` (by file name in any folder, or title), and `![[image.png]]`. An unmatched one keeps its text and is listed. `bookkit try` counts them, says the README is the folder's index, and suggests its heading as the book's title.
+- **`propose --apply mechanisms`** adds each mechanism it writes to the `mechanisms:` of the chapters its evidence comes from.
+- **`bookkit check <folder>` inside a book** checks the folder with the book's rules (frame, status, references, MDX compiler), reporting only its files, instead of as a folder outside any book.
+- **The book's frame check** reads headings and `Label:` lines the way `bookkit try` does (a word that starts like the step), and checks a book with no `00-overview.mdx` across its chapters together; before, such a book had no frame check at all.
+- **`bookkit build`** ends with the export warnings Astro's log scrolled past (an image the PDF or EPUB shows as alt text).
+- **One book needs no name**: with one book in the workspace, `new`, `import`, `propose`, `dev`, and the rest take it. `preview`, `serve`, and `start` run `dev`; `init` and `create` run `new book`.
+- **`bookkit dev stop`** leaves the server it stops exiting 0, with "Stopped by bun run bookkit dev stop", not 143.
+- **Migration:** a script that relied on `deploy --dry-run` stamping `dist/` for `--no-build` adds `--full`. A book without `00-overview.mdx` may now show a `FRAME_STEP_MISSING` warning naming the steps no chapter covers; warnings never fail.
+
 ## 2026-10-21 — The README is an entry point; the reference moves to `docs/guide/`
 
 - **The README keeps orientation and daily commands only**: what Bookkit is and who it is for, how a book compiles, the record types in brief, prerequisites, starting a book, the everyday commands, the example books, and a map of the documentation.

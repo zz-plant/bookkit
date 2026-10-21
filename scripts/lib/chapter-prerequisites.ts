@@ -93,39 +93,54 @@ export const planEdges = (
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 
 /**
- * A chapter file with `slugs` added to its `prerequisites:`, in the list's own
- * layout; a chapter without the list gets one, before `mechanisms:` when it
- * has that, as the books write it.
+ * A chapter file with `slugs` added to the frontmatter list `key`, in the
+ * list's own layout; a chapter without the list gets one, before the key
+ * `before` when it has that, else at the end.
  */
-export const withPrerequisites = (
+const withListItems = (
 	text: string,
+	key: string,
 	slugs: readonly string[],
+	before?: string,
 ): string => {
 	const match = text.match(FRONTMATTER);
 	if (!match) throw new Error("A chapter file without frontmatter.");
-	const current = arrayValue(parseFrontmatter(text).data.prerequisites ?? null);
+	const current = arrayValue(parseFrontmatter(text).data[key] ?? null);
 	const adding = slugs.filter((slug) => !current.includes(slug));
 	if (adding.length === 0) return text;
 	const lines = match[1].split("\n");
-	const at = lines.findIndex((line) => /^prerequisites:/.test(line));
+	const opens = new RegExp(`^${key}:`);
+	const at = lines.findIndex((line) => opens.test(line));
 	if (at >= 0 && /\[.*\]/.test(lines[at])) {
-		lines[at] = `prerequisites: [${[...current, ...adding].join(", ")}]`;
+		lines[at] = `${key}: [${[...current, ...adding].join(", ")}]`;
 	} else if (at >= 0) {
 		let end = at + 1;
 		while (end < lines.length && /^\s+-\s/.test(lines[end])) end += 1;
 		const indent = lines[at + 1]?.match(/^(\s+)-\s/)?.[1] ?? "  ";
 		lines.splice(end, 0, ...adding.map((slug) => `${indent}- ${slug}`));
 	} else {
-		const before = lines.findIndex((line) => /^mechanisms:/.test(line));
-		const block = ["prerequisites:", ...adding.map((slug) => `  - ${slug}`)];
-		lines.splice(before >= 0 ? before : lines.length, 0, ...block);
+		const next = before
+			? lines.findIndex((line) => new RegExp(`^${before}:`).test(line))
+			: -1;
+		const block = [`${key}:`, ...adding.map((slug) => `  - ${slug}`)];
+		lines.splice(next >= 0 ? next : lines.length, 0, ...block);
 	}
 	const updated = `${match[0].replace(match[1], () => lines.join("\n"))}${text.slice(match[0].length)}`;
-	const written = arrayValue(
-		parseFrontmatter(updated).data.prerequisites ?? null,
-	);
+	const written = arrayValue(parseFrontmatter(updated).data[key] ?? null);
 	if (!adding.every((slug) => written.includes(slug))) {
-		throw new Error("Could not add the prerequisites to the chapter.");
+		throw new Error(`Could not add to the chapter's ${key}.`);
 	}
 	return updated;
 };
+
+/** A chapter with `slugs` added to its `prerequisites:` (a new list goes before `mechanisms:`, as the books write it). */
+export const withPrerequisites = (
+	text: string,
+	slugs: readonly string[],
+): string => withListItems(text, "prerequisites", slugs, "mechanisms");
+
+/** A chapter with `slugs` added to its `mechanisms:`: the mechanisms it uses. */
+export const withMechanisms = (
+	text: string,
+	slugs: readonly string[],
+): string => withListItems(text, "mechanisms", slugs);

@@ -14,7 +14,9 @@ import { previewFolder } from "../../packages/astro-bookkit/src/proposals";
 import {
 	mdxConversionSummary,
 	readFolder,
+	titleForFolder,
 	unsafeMarkupSummary,
+	wikiLinkSummary,
 } from "./folder-report";
 import { planImport } from "./import-markdown";
 import { describeImport } from "./import-report";
@@ -115,6 +117,36 @@ describe("bookkit try's MDX summary", () => {
 		const folder = readFolder(tree({ "a.md": "# A\n\nPlain prose." }));
 		if ("error" in folder) throw new Error(folder.error);
 		expect(mdxConversionSummary(previewFolder(folder.files))).toBeNull();
+	});
+});
+
+describe("bookkit try on a wiki", () => {
+	const folder = readFolder(
+		tree({
+			"README.md": "# Field Notes on Pager Duty\n\n- [[Alpha]]\n",
+			"Alpha.md":
+				"# Alpha\n\nSee [[Beta|the next one]] and [[Gamma]]. `[[code]]`\n",
+			"Beta.md": "# Beta\n\n![[board.png]]\n",
+		}),
+	);
+	if ("error" in folder) throw new Error(folder.error);
+	const preview = previewFolder(folder.files);
+
+	it("titles the book from the folder's README heading", () => {
+		expect(titleForFolder(preview, "trynotes")).toBe(
+			"Field Notes on Pager Duty",
+		);
+		const plain = readFolder(tree({ "a.md": "# A\n" }));
+		if ("error" in plain) throw new Error(plain.error);
+		expect(titleForFolder(previewFolder(plain.files), "my-notes")).toBe(
+			"My Notes",
+		);
+	});
+
+	it("counts the wiki links import converts, leaving out the README import skips", () => {
+		expect(wikiLinkSummary(preview, folder.files)).toBe(
+			"Wiki links: import turns 2 [[…]] links into links between chapters and images; 1 names no note and would stay as text.",
+		);
 	});
 });
 

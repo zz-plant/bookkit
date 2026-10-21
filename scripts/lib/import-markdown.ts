@@ -215,6 +215,10 @@ const INLINE_DESTINATION =
 // `[label]: destination` at the start of a line; `[^1]:` is a footnote.
 const REFERENCE_DESTINATION =
 	/^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(<[^<>\n]*>|\S+)/gm;
+// `[[Note]]`, `[[Note#Heading|text]]`, and `![[image.png]]`: links as
+// Obsidian and other wikis write them.
+const WIKI_LINK =
+	/(!?)\[\[([^[\]\n|#]*)(?:#([^[\]\n|]*))?(?:\|([^[\]\n]*))?\]\]/g;
 // `href=` or `src=` inside a raw HTML tag.
 const HTML_DESTINATION =
 	/<[A-Za-z][^<>]*?\s(?:href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+)/g;
@@ -523,11 +527,122 @@ export const planImport = async (
 		);
 	};
 
+	// Wiki links name a note by its file name (any folder) or its title.
+	const noteByName = new Map<string, Note>();
+	for (const note of notes) {
+		for (const key of [
+			note.source.replace(/\.mdx?$/i, ""),
+			posix.basename(note.source).replace(/\.mdx?$/i, ""),
+			note.title,
+		]) {
+			const name = key.trim().toLowerCase();
+			if (name && !noteByName.has(name)) noteByName.set(name, note);
+		}
+	}
+	// Wiki embeds name an image by its file name alone.
+	let filesByName: Map<string, string> | undefined;
+	const fileNamed = (name: string): string | undefined => {
+		if (!filesByName) {
+			filesByName = new Map();
+			const walk = (dir: string) => {
+				for (const entry of readdirSync(join(sourceDir, dir), {
+					withFileTypes: true,
+				})) {
+					if (entry.name.startsWith(".") || entry.name === "node_modules")
+						continue;
+					const path = dir ? `${dir}/${entry.name}` : entry.name;
+					if (entry.isDirectory()) walk(path);
+					else if (!filesByName?.has(entry.name.toLowerCase())) {
+						filesByName?.set(entry.name.toLowerCase(), path);
+					}
+				}
+			};
+			walk("");
+		}
+		return (
+			filesByName.get(name.trim().toLowerCase()) ??
+			filesByName.get(posix.basename(name.trim()).toLowerCase())
+		);
+	};
+	const anchor = (heading: string) =>
+		heading
+			.trim()
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}\s-]/gu, "")
+			.replace(/\s+/g, "-");
+
+	/** `[[…]]` links and `![[…]]` embeds as Markdown, or their text when nothing matches. */
+	const rewriteWikiLinks = (
+		note: Note,
+		prose: string,
+		lineOf: (offset: number) => number,
+	): string => {
+		const masked = maskInlineCode(prose);
+		if (!masked.includes("[[")) return prose;
+		let out = "";
+		let last = 0;
+		for (const match of masked.matchAll(WIKI_LINK)) {
+			const start = match.index ?? 0;
+			const whole = prose.slice(start, start + match[0].length);
+			const [, bang, rawTarget = "", rawHeading, rawText] =
+				whole.match(new RegExp(WIKI_LINK.source)) ?? [];
+			const target = rawTarget.trim();
+			const heading = rawHeading?.trim();
+			const line = lineOf(start);
+			const isImage = Boolean(bang) && IMAGE_EXTENSION.test(target);
+			const imageFile = isImage ? fileNamed(target) : undefined;
+			const linked = isImage ? undefined : noteByName.get(target.toLowerCase());
+			const text =
+				rawText?.trim() ||
+				(heading && target ? `${target} › ${heading}` : target);
+			let next: string;
+			if (imageFile) {
+				const alt = posix
+					.basename(imageFile, posix.extname(imageFile))
+					.replace(/[-_]+/g, " ");
+				next = `![${alt}](/images/${imageFor(imageFile)})`;
+			} else if (!target && heading) {
+				next = `[${rawText?.trim() || heading}](#${anchor(heading)})`;
+			} else if (linked) {
+				const to = `/read/chapters/${linked.slug}${heading ? `#${anchor(heading)}` : ""}`;
+				links.push({ source: note.source, line, from: whole, to });
+				if (bang) {
+					problems.push({
+						source: note.source,
+						line,
+						message: `embeds ${whole}; a chapter cannot hold another, so it links to it instead`,
+					});
+				}
+				next = `[${text}](${to})`;
+			} else {
+				problems.push({
+					source: note.source,
+					line,
+					message: bang
+						? `embeds ${whole}, which is not in the folder; left out`
+						: `links to ${whole}, which no imported note is named; kept as its text`,
+				});
+				next = bang ? "" : text;
+			}
+			out += prose.slice(last, start) + next;
+			last = start + match[0].length;
+		}
+		return out + prose.slice(last);
+	};
+
 	const rewriteLinks = (note: Note, body: string): string =>
 		splitFencedCode(body)
 			.map((segment) => {
 				if (segment.code) return segment.text;
-				let prose = segment.text;
+				let prose = rewriteWikiLinks(
+					note,
+					segment.text,
+					(offset) =>
+						note.bodyLine +
+						segment.line +
+						lineCount(segment.text.slice(0, offset)) +
+						1,
+				);
 				for (const pattern of [
 					INLINE_DESTINATION,
 					REFERENCE_DESTINATION,

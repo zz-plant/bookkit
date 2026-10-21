@@ -18,14 +18,14 @@ The records a book is made of, the frames and statuses that decide which rules a
 
 The frames and the steps each one requires:
 
-| `frame.slug` | Required steps in `chapters/00-overview.mdx` |
+| `frame.slug` | Required steps in `chapters/00-overview.mdx` (without one, in the chapters together) |
 | --- | --- |
 | `intervention` (default) | recognition, exoneration, mechanism, agency |
 | `explainer` | definition, example, implication |
 | `field-guide` | steps, failure-modes, checklist |
 | `runbook` | ownership, trigger, steps, escalation, verification |
 
-A step counts when a heading (levels 1 to 4) begins with its name, hyphens included: `## Recognition`, `## Failure-modes`. A missing step is a warning. In a runbook book every action also needs `escalation` and `runbookSteps` (a warning in a draft, an error once published), and `bun run check:runbooks` derives the book's control coverage matrix.
+A step counts when a heading, or a `Label:` line, has a word that starts like its name, as `bookkit try` reads them: `## Recognition`, `## Recognizing it`, `**Owner:**` for ownership. A book with no `00-overview.mdx` (an imported one) is checked across its chapters together. A missing step is a warning. In a runbook book every action also needs `escalation` and `runbookSteps` (a warning in a draft, an error once published), and `bun run check:runbooks` derives the book's control coverage matrix.
 
 ## Status
 

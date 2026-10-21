@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { readItemPath } from "../packages/astro-bookkit/src/book/read-routes";
+import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
 import {
 	checkBookContent,
 	readBookSources,
@@ -70,10 +71,12 @@ const args = parseScriptArgs(
 	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
 
 Usage:
-  bun run validate:book -- --book <book> [--json]
+  bun run validate:book -- --book <book> [--release] [--json]
 
 Options:
   --book <book>   The book app to validate
+  --release       Release rules whatever the book's status: what publishing it
+                  would hold it to (bookkit publish runs this)
   --json          One JSON object: { book, status, releaseRules, ok, findings, info }
   -h, --help      Show this help
 
@@ -84,7 +87,13 @@ checked as a draft. Errors exit 1; warnings never do. INFO lists each
 chapter's first use of a glossary term that is not linked to its entry; it
 is advice and never fails. (--mode and --no-drafts are accepted for older
 callers and ignored.)`,
-	{ book: "string", json: "boolean", mode: "string", "no-drafts": "boolean" },
+	{
+		book: "string",
+		json: "boolean",
+		release: "boolean",
+		mode: "string",
+		"no-drafts": "boolean",
+	},
 	["book"],
 );
 
@@ -98,7 +107,11 @@ const error = (message: string, code: string, fix: string) =>
 
 // Content and frame findings come from the engine (validators/book-validator.ts),
 // the same function MCP and generated projects call.
-const content = checkBookContent({ workspaceRoot, bookSlug: book });
+const content = checkBookContent({
+	workspaceRoot,
+	bookSlug: book,
+	releaseMode: args.release === true,
+});
 for (const finding of content.findings) {
 	findings.push({
 		...finding,
@@ -256,7 +269,7 @@ if (args.json) {
 } else {
 	const status = content.status ?? "draft";
 	console.log(
-		`\nVALIDATE ${book} (${status}${content.releaseMode ? ", so release rules apply: no drafts, and broken links are errors" : ""})`,
+		`\nVALIDATE ${book} (${status}${content.releaseMode ? `${args.release && !isReleasedStatus(status) ? ", checked as if published" : ""}, so release rules apply: no drafts, and broken links are errors` : ""})`,
 	);
 	if (info.length > 0) {
 		console.log(

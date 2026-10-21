@@ -12,7 +12,7 @@
 
 **`check:build` refuses preview access.** `previewAccess.enabled` is `true` on a static build, where a token gate cannot protect prerendered files. Set it to `false`, or serve the book with the server runtime.
 
-**Deploy refuses with "uncommitted changes".** Commit them, or rehearse with `--dry-run`. `--no-build` refuses a `dist/` that a deploy run did not stamp at the current commit; run `deploy <book> --dry-run` first.
+**Deploy refuses with "uncommitted changes".** Commit them, or rehearse with `--dry-run`. `--no-build` refuses a `dist/` that a deploy run did not stamp at the current commit; run `deploy <book> --dry-run --full` first.
 
 **The build stops because the PDF cannot draw some characters.** The book uses a script the bundled fonts lack, or one that needs shaping. Set `exports.pdfFont` to a TTF or OTF font that covers it, or `exports: { pdf: false }`; the EPUB is not affected.
 

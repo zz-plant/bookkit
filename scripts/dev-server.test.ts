@@ -148,7 +148,7 @@ describe("bookkit dev", () => {
 		expect(body.error.message).toContain("not valid JSON");
 	});
 
-	it("dev status and dev stop, from another command, find it and stop it with SIGTERM", async () => {
+	it("dev status and dev stop, from another command, find it and stop it, and the stopped server exits 0", async () => {
 		const control = (action: string) =>
 			runChild(
 				[
@@ -172,10 +172,13 @@ describe("bookkit dev", () => {
 			Bun.sleep(15_000).then(() => "still running"),
 		]);
 
-		// 128 + 15: how a shell reports a process ended by SIGTERM.
-		expect(code).toBe(143);
+		// Stopped on purpose, so not the 143 a shell reports for SIGTERM.
+		expect(code).toBe(0);
 		expect(await isPortInUse(port)).toBe(false);
 		expect(await output).toContain(`localhost:${port}`);
+		expect(await output).toContain(
+			`Stopped by bun run bookkit dev stop ${BOOK}.`,
+		);
 	});
 });
 

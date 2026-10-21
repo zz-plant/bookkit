@@ -87,9 +87,11 @@ export type BookConfig = BookLayoutConfig &
 			readerEnd: string;
 			transformation: string;
 		};
-		/** The frame the overview chapter follows; `steps` are its required sections. */
+		/** The frame the overview chapter follows (`validate` checks it). */
 		frame: {
+			/** One of the frames: intervention, explainer, field-guide, runbook. */
 			slug: string;
+			/** The steps the overview must carry, by id: every one the frame requires, and any of its optional ones. */
 			steps: readonly string[];
 			intent: string;
 		};

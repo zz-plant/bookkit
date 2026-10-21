@@ -1,9 +1,5 @@
 import type { FrameDefinition } from "../frames/types";
-import {
-	createHeadingSlugger,
-	markdownHeadings,
-	stripMarkdown,
-} from "../utils/markdown";
+import { createHeadingSlugger, markdownHeadings } from "../utils/markdown";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type FrameValidationResult = {
@@ -78,13 +74,15 @@ export const validateFrameDefinition = (
 };
 
 /**
- * The steps of `frame` a page's headings carry: the frame check of a book's
- * overview chapter. A heading (levels 1 to 4) counts for a step when its
- * whole text slugs to the step's id, the way the site slugs the heading's
- * id: `## Failure Modes`, `## Failure modes`, and `## failure-modes` all
- * count for `failure-modes` (and a link to `#failure-modes` lands on the
- * heading), while `## Failure modes we have seen` does not. `body` is the
- * page without its frontmatter.
+ * The steps of `frame` a page's headings carry: the one rule for a book's
+ * overview chapter (`validate`) and for each document of a folder
+ * (`bookkit check <dir> --frame`, `bookkit try`). A heading (levels 1 to 4)
+ * counts for a step when its whole text slugs to the step's id, the way the
+ * site slugs the heading's id: `## Failure Modes`, `## Failure modes`, and
+ * `## failure-modes` all count for `failure-modes` (and a link to
+ * `#failure-modes` lands on the heading), while `## Failure modes we have
+ * seen`, `## Owner`, and a line such as `Owner: Payments` do not. `body` is
+ * the page without its frontmatter.
  */
 export const frameStepsInPage = (
 	frame: FrameDefinition,
@@ -99,67 +97,4 @@ export const frameStepsInPage = (
 	return frame.steps
 		.filter((step) => slugs.has(step.id))
 		.map((step) => step.id);
-};
-
-/** The prefix a heading word must start with to count as a step: the id's first word, cut to five letters. */
-const stepStem = (stepId: string): string => {
-	const word = stepId.split("-")[0] ?? stepId;
-	return word.length > 5 ? word.slice(0, 5) : word.replace(/s$/, "");
-};
-
-/**
- * The frame steps a document's headings cover. A heading covers a step when
- * one of its words starts with the step's stem, so "Owner" covers ownership,
- * "Verify" covers verification, and "Step 3" covers steps. Used where a frame
- * applies to each document of a folder (`bookkit try`, `bookkit check <dir>`),
- * which was not written for a frame; a book's chapters are held to
- * `frameStepsInPage`.
- */
-export const frameStepsInHeadings = (
-	frame: FrameDefinition,
-	headings: string[],
-): string[] => {
-	const words = new Set(
-		headings.flatMap((heading) =>
-			heading
-				.toLowerCase()
-				.split(/[^a-z0-9]+/)
-				.filter(Boolean),
-		),
-	);
-	return frame.steps
-		.filter((step) => {
-			const stem = stepStem(step.id);
-			return [...words].some((word) => word.startsWith(stem));
-		})
-		.map((step) => step.id);
-};
-
-/**
- * The labels a document gives its sections, outside fenced code: headings of
- * any level, and field lines such as "**Owner:** Payments" or "Owner: Platform
- * team", which runbooks often use instead of a heading.
- */
-export const sectionLabelsOf = (body: string): string[] => {
-	const headings: string[] = [];
-	let fence: string | null = null;
-	for (const line of body.split("\n")) {
-		const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1];
-		if (marker) {
-			if (!fence) fence = marker[0];
-			else if (marker[0] === fence) fence = null;
-			continue;
-		}
-		if (fence) continue;
-		const heading = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/)?.[1];
-		if (heading) {
-			headings.push(stripMarkdown(heading));
-			continue;
-		}
-		const field = line.match(
-			/^\s{0,3}(?:\*\*|__)?([A-Za-z][A-Za-z /-]{0,30}?)(?::(?:\*\*|__)|(?:\*\*|__)?:)\s+\S/,
-		)?.[1];
-		if (field) headings.push(field);
-	}
-	return headings;
 };

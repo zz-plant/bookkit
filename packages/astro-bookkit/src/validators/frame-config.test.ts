@@ -28,6 +28,11 @@ describe("extractFrameConfigFromSource", () => {
 		});
 	});
 
+	test("keeps the slug of a frame that lists no steps", () => {
+		const source = `export const bookConfig = { frame: { slug: "runbook", intent: "x" } } as const;`;
+		expect(extractFrameConfigFromSource(source)).toEqual({ slug: "runbook" });
+	});
+
 	test("returns null when no frame property exists", () => {
 		const source = `export const bookConfig = { slug: "bad-people" } as const;`;
 		expect(extractFrameConfigFromSource(source)).toBeNull();

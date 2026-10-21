@@ -4,6 +4,7 @@ import {
 	CONTENT_ELEMENTS,
 	componentPropRefusal,
 	elementVerdict,
+	embedTitle,
 	KEPT_ELEMENTS,
 	literalValue,
 	opensNewWindow,
@@ -142,5 +143,24 @@ describe("the attributes a kept element may carry", () => {
 		expect(withNoopener("")).toBe("noopener");
 		expect(withNoopener("opener external")).toBe("external noopener");
 		expect(withNoopener("noopener")).toBe("noopener");
+	});
+});
+
+describe("an embed's title, when it has none", () => {
+	it("names the page it shows, by its provider or its host", () => {
+		expect(embedTitle("https://www.youtube.com/embed/abc")).toBe(
+			"YouTube video",
+		);
+		expect(embedTitle("https://www.youtube-nocookie.com/embed/abc")).toBe(
+			"YouTube video",
+		);
+		expect(embedTitle("https://player.vimeo.com/video/1")).toBe("Vimeo video");
+		expect(embedTitle("https://www.google.com/maps/embed?pb=x")).toBe(
+			"Google Maps map",
+		);
+		expect(embedTitle("https://codepen.io/a/embed/b")).toBe(
+			"Embedded page from codepen.io",
+		);
+		expect(embedTitle("/read/chapters/x")).toBe("Embedded page");
 	});
 });

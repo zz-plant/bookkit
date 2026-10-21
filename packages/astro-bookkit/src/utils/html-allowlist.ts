@@ -116,7 +116,7 @@ export const KEPT_ELEMENTS: ReadonlySet<string> = new Set([
 /**
  * Embedded pages import keeps too, when they have a `src`: a video or a map
  * (`<iframe src="https://www.youtube.com/embed/…">`). The site shows them;
- * the PDF and EPUB, which cannot, leave them out.
+ * the PDF and EPUB, which cannot, show a link to the page instead.
  */
 export const EMBEDDED_ELEMENTS: ReadonlySet<string> = new Set(["iframe"]);
 
@@ -434,6 +434,30 @@ export const isCommentExpression = (expression: string): boolean =>
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/\/\/[^\n]*/g, "")
 		.trim();
+
+/**
+ * A title for an embed that has none, from the page it shows: "YouTube
+ * video", "Vimeo video", "Google Maps map", or "Embedded page from
+ * example.com". A frame needs a title to be named to a screen reader.
+ */
+export const embedTitle = (src: string): string => {
+	let host = "";
+	try {
+		host = new URL(src, "https://book.invalid").hostname.replace(/^www\./, "");
+	} catch {
+		// Not an address this can read; named for what it is.
+	}
+	if (/(^|\.)(youtube(-nocookie)?\.com|youtu\.be)$/.test(host)) {
+		return "YouTube video";
+	}
+	if (/(^|\.)vimeo\.com$/.test(host)) return "Vimeo video";
+	if (/^google\.[a-z.]+$/.test(host) && /\/maps\b/.test(src)) {
+		return "Google Maps map";
+	}
+	return host && host !== "book.invalid"
+		? `Embedded page from ${host}`
+		: "Embedded page";
+};
 
 /** Why an element goes, for a message: "content runs no script". */
 export const elementReason = (element: string): string => {

@@ -151,13 +151,13 @@ export const mdxConversionSummary = (preview: FolderPreview): string | null => {
 
 /**
  * What import would leave out of the notes it imports, listed with their
- * file and line as `bookkit import` lists them: the links it would keep as
- * text, and the HTML it would leave out.
+ * file and line as `bookkit import` lists them: the addresses it would
+ * remove (a link keeps its words), and the HTML it would leave out.
  */
 export const unsafeMarkupSummary = (preview: FolderPreview): string[] =>
 	describeUnsafeMarkup(
 		{
-			links: "Links import would keep as text",
+			links: "Addresses import would remove",
 			html: "HTML import would leave out",
 		},
 		preview.documents.flatMap((doc) =>

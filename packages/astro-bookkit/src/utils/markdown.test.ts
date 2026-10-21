@@ -86,6 +86,7 @@ describe("toMdxBody", () => {
 				tags: 0,
 				html: 0,
 				esm: 0,
+				titles: 0,
 			},
 			unsafeMarkup: [],
 		});
@@ -158,9 +159,11 @@ describe("toMdxBody with html: jsx", () => {
 			"",
 			" ",
 			"",
-			'<iframe src="https://example.com/embed"></iframe>',
+			// One with no title is named for the page it shows.
+			'<iframe src="https://example.com/embed" title="Embedded page from example.com"></iframe>',
 		]);
 		expect(changes.html).toBe(4);
+		expect(changes.titles).toBe(1);
 		expect(unsafeMarkup.map(brief)).toEqual([
 			'3 <iframe src> address "javascript:alert(1)"',
 			"3 <iframe> keeps nothing",

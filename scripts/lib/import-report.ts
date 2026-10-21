@@ -126,6 +126,16 @@ export const describeImport = (
 			`Converted so every chapter compiles as MDX: ${conversions}.`,
 		);
 	}
+	const titled = plan.chapters.filter((chapter) => chapter.changes.titles > 0);
+	if (titled.length > 0) {
+		const count = titled.reduce(
+			(sum, chapter) => sum + chapter.changes.titles,
+			0,
+		);
+		lines.push(
+			`${count === 1 ? "An embed with no title was given one" : `${count} embeds with no title were each given one`} from the page it shows, so a screen reader can name it: ${titled.map((c) => c.source).join(", ")}.`,
+		);
+	}
 	const asText = plan.chapters.filter((chapter) => chapter.htmlAsText);
 	if (asText.length > 0) {
 		lines.push(
@@ -134,7 +144,7 @@ export const describeImport = (
 	}
 
 	const unsafe = describeUnsafeMarkup(
-		{ links: "Links kept as text", html: "HTML left out" },
+		{ links: "Addresses removed", html: "HTML left out" },
 		plan.chapters.flatMap((chapter) =>
 			chapter.unsafeMarkup.map((entry) => ({
 				source: chapter.source,

@@ -8,7 +8,7 @@ import {
 	epubChapter,
 	pdfPages,
 } from "./fixtures/pdf-text";
-import { inspectEpub, inspectPdf } from "./inspect";
+import { extractPdfLinks, inspectEpub, inspectPdf } from "./inspect";
 import { createPdfExport } from "./pdf-generator";
 
 /**
@@ -74,5 +74,47 @@ describe("raw HTML in the exports", () => {
 			`${path} has <script>; an export holds only the HTML a book's content may, and a book's content runs no script`,
 			`${path} has <img onerror="alert(3)">; an event handler runs script, and a book's content runs none`,
 		]);
+	});
+});
+
+// Embeds as import keeps them: neither format can show the page, so each is
+// a link to it, named by its title, or by the page when it has none.
+const EMBEDS = [
+	'<iframe width="560" height="315" src="https://www.youtube.com/embed/abc" title="Incident review, March" allowfullscreen></iframe>',
+	"",
+	'<iframe src="https://www.google.com/maps/embed?pb=x" loading="lazy"></iframe>',
+	"",
+	'See <iframe src="https://player.vimeo.com/video/1"></iframe> for the drill.',
+].join("\n");
+
+describe("embeds in the exports", () => {
+	it("are links in the EPUB, named by their title or the page they show", async () => {
+		const epub = await createEpubExport(chaptersBundle([["a", EMBEDS]]));
+		expect(await inspectEpub(epub)).toEqual([]);
+		expect(articleBody(await epubChapter(epub, "a"))).toBe(
+			[
+				'<p><a href="https://www.youtube.com/embed/abc">Incident review, March</a></p>',
+				'<p><a href="https://www.google.com/maps/embed?pb=x">Google Maps map</a></p>',
+				'<p>See <a href="https://player.vimeo.com/video/1">Vimeo video</a> for the drill.</p>',
+			].join("\n"),
+		);
+	});
+
+	it("are links in the PDF", async () => {
+		const pdf = await createPdfExport(chaptersBundle([["a", EMBEDS]]));
+		expect(await inspectPdf(pdf)).toEqual([]);
+		expect((await extractPdfLinks(pdf)).map((link) => link.uri)).toEqual([
+			"https://www.youtube.com/embed/abc",
+			"https://www.google.com/maps/embed?pb=x",
+			"https://player.vimeo.com/video/1",
+		]);
+		const text = (await pdfPages(pdf)).join("\n");
+		for (const title of [
+			"Incident review, March",
+			"Google Maps map",
+			"Vimeo video",
+		]) {
+			expect(text).toContain(title);
+		}
 	});
 });

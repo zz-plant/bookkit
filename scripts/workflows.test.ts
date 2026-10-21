@@ -331,3 +331,16 @@ describe("ci.yml", () => {
 		expect(run).toContain('grep -q "semantic pass: "');
 	});
 });
+
+describe("every workflow", () => {
+	it("limits how long each job may run, so a stuck one fails in minutes, not at GitHub's 6 hours", () => {
+		const unlimited = readdirSync(dir)
+			.filter((file) => file.endsWith(".yml"))
+			.flatMap((file) =>
+				Object.entries(load(file).jobs)
+					.filter(([, job]) => typeof job["timeout-minutes"] !== "number")
+					.map(([id]) => `${file}: ${id}`),
+			);
+		expect(unlimited).toEqual([]);
+	});
+});

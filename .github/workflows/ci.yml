@@ -11,6 +11,8 @@ jobs:
   # moderate and low ones. Reads the lockfile, so it needs no install.
   audit:
     runs-on: ubuntu-latest
+    # Recent runs: under 10 seconds.
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +26,8 @@ jobs:
 
   governance-and-tests:
     runs-on: ubuntu-latest
+    # Recent runs: 3 to 5 minutes.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -152,6 +156,8 @@ jobs:
   # other words. The embedding model (about 550 MB) is cached between runs.
   semantic-corpus:
     runs-on: ubuntu-latest
+    # Recent runs: under a minute; longer when the model is not cached.
+    timeout-minutes: 20
     env:
       BOOKKIT_MODEL_CACHE: ${{ github.workspace }}/../bookkit-models
       BOOKKIT_DOWNLOAD_MODEL: "1"
@@ -192,6 +198,8 @@ jobs:
   # and reach the publish step of its deploy.
   standalone-project:
     runs-on: ubuntu-latest
+    # Recent runs: 1 to 3 minutes.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 

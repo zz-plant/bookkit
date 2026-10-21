@@ -2,6 +2,7 @@ import {
 	CHARACTER_REFERENCE,
 	decodeCharacterReference,
 } from "../utils/character-references";
+import { embedTitle } from "../utils/html-allowlist";
 import { normalizeLabel, smartDashes } from "../utils/markdown";
 import {
 	type InlineImage,
@@ -22,7 +23,9 @@ import {
  * text in its fonts) show the same words: code spans, emphasis, links
  * (inline and reference-style), images, footnote references, backslash
  * escapes, character references, and the inline HTML elements import keeps
- * (`<kbd>`, `<sup>`, `<br>`…). Other tags are left out and their text kept.
+ * (`<kbd>`, `<sup>`, `<br>`…). An embed (`<iframe src>`), which neither
+ * format can show, is a link to the page it shows, named by its title.
+ * Other tags are left out and their text kept.
  */
 export type InlineNode =
 	| { type: "text"; text: string }
@@ -321,6 +324,18 @@ export const parseInline = (
 			}
 			const tag = readTag(source);
 			if (tag?.name === "br") return hold({ type: "break" }, source);
+			const embedded = tag?.name === "iframe" ? tag.attributes.src : "";
+			if (embedded?.trim() && !tag?.closing) {
+				const title = tag?.attributes.title?.trim() || embedTitle(embedded);
+				return hold(
+					{
+						type: "link",
+						href: embedded,
+						children: [{ type: "text", text: title }],
+					},
+					source,
+				);
+			}
 			if (tag && INLINE_TAGS.has(tag.name) && !tag.empty) {
 				return hold({ type: "tag", tag }, source);
 			}

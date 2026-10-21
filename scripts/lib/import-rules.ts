@@ -34,6 +34,10 @@ export const importSkipReason = (
 	return null;
 };
 
+/**
+ * What makes a note compile as MDX, as reports name it. An embed given a
+ * title (`titles`) is not one: import reports it on its own line.
+ */
 const LABELS: ReadonlyArray<
 	readonly [key: keyof MdxConversion, one: string, many: string]
 > = [
@@ -59,9 +63,11 @@ export const sumConversions = (
 		tags: 0,
 		html: 0,
 		esm: 0,
+		titles: 0,
 	};
+	const keys = Object.keys(total) as Array<keyof MdxConversion>;
 	for (const change of changes) {
-		for (const [key] of LABELS) total[key] += change[key];
+		for (const key of keys) total[key] += change[key];
 	}
 	return total;
 };
@@ -111,11 +117,11 @@ const describeEntry = (entry: UnsafeMarkupEntry): string => {
 			return JSON.stringify(short(entry.href));
 		case "attribute": {
 			if (entry.refusal === "address") {
-				const where =
-					entry.element === "a" && entry.attribute === "href"
-						? ""
-						: `<${entry.element} ${entry.attribute}> `;
-				return `${where}${JSON.stringify(short(entry.value))}`;
+				const address = JSON.stringify(short(entry.value));
+				if (entry.element === "a" && entry.attribute === "href") return address;
+				const tag = `<${entry.element} ${entry.attribute}> ${address}`;
+				// An embed with no address shows nothing, so it goes too.
+				return entry.element === "iframe" ? `${tag}, with the <iframe>` : tag;
 			}
 			const tag =
 				entry.attribute === "{...}"
@@ -152,17 +158,17 @@ const listed = (lead: string, entries: readonly NoteMarkup[]): string[] => {
 
 /**
  * What import leaves out, each with its note and line, in two lists: the
- * links it keeps as their text (`leads.links`, "Links kept as text"), with
- * an element's address naming the element and attribute (`<iframe src>
- * "javascript:…"`); and the HTML it leaves out (`leads.html`, "HTML left
- * out"). Nothing when there is nothing.
+ * addresses it removes (`leads.links`, "Addresses removed"), where a link
+ * keeps its words and an element's address names the element and attribute
+ * (`<iframe src> "javascript:…"`); and the HTML it leaves out (`leads.html`,
+ * "HTML left out"). Nothing when there is nothing.
  */
 export const describeUnsafeMarkup = (
 	leads: { links: string; html: string },
 	entries: readonly NoteMarkup[],
 ): string[] => {
 	const links = listed(
-		`${leads.links}, since a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
+		`${leads.links} (a link keeps its words), since a book links only to ${SAFE_SCHEME_LIST} addresses and to its own pages`,
 		entries.filter(isAddress),
 	);
 	const html = listed(

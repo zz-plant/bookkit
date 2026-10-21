@@ -7,6 +7,7 @@ import {
 	componentPropRefusal,
 	EMBEDDED_ELEMENTS,
 	elementVerdict,
+	embedTitle,
 	isAddressAttribute,
 	isCommentExpression,
 	KEPT_ELEMENTS,
@@ -141,6 +142,8 @@ export type MdxConversion = {
 	html: number;
 	/** Lines starting with `import` or `export`, which MDX would run as code. */
 	esm: number;
+	/** Embeds (`<iframe>`) given a title, from the page they show, so a screen reader can name them (`html: "jsx"` only). */
+	titles: number;
 };
 
 export type MdxBodyOptions = {
@@ -876,25 +879,34 @@ type TagToken = {
 	closing: boolean;
 	/** The tag as MDX accepts it; null when it is escaped instead. */
 	jsx: string | null;
+	/** An embed import gave a title. */
+	titled?: boolean;
 	/** Paired with its closing (or opening) tag, or self-contained. */
 	paired: boolean;
 	line: number;
 	partnerLine?: number;
 };
 
-/** The tag rewritten as JSX MDX accepts, or null when it must be escaped. */
+/**
+ * The tag rewritten as JSX MDX accepts, or null when it must be escaped. An
+ * embed with no title gets one from the page it shows (`embedTitle`), so a
+ * screen reader can name it; `titled` says so.
+ */
 const tagAsJsx = (
 	closing: string,
 	rawName: string,
 	rawAttributes: string,
 	selfClosing: string,
-): string | null => {
+): { jsx: string; titled: boolean } | null => {
 	const name = rawName.toLowerCase();
 	const embedded = EMBEDDED_ELEMENTS.has(name);
 	if (!KEPT_ELEMENTS.has(name) && !embedded) return null;
-	if (closing) return rawAttributes.trim() ? null : `</${name}>`;
+	if (closing) {
+		return rawAttributes.trim() ? null : { jsx: `</${name}>`, titled: false };
+	}
 	const attributes: string[] = [];
-	let source = false;
+	let source = "";
+	let titled = false;
 	for (const [, key, value] of rawAttributes.matchAll(HTML_ATTRIBUTE)) {
 		const text = decodeEntities(
 			value?.replace(/^(["'])([\s\S]*)\1$/, "$2") ?? "",
@@ -907,14 +919,21 @@ const tagAsJsx = (
 		) {
 			return null;
 		}
-		source ||= key.toLowerCase() === "src" && Boolean(text.trim());
+		if (key.toLowerCase() === "src") source = text.trim();
+		titled ||= key.toLowerCase() === "title" && Boolean(text.trim());
 		if (value === undefined) attributes.push(key);
 		else if (/^["']/.test(value)) attributes.push(`${key}=${value}`);
 		else attributes.push(`${key}="${value}"`);
 	}
 	if (embedded && !source) return null;
+	const named = embedded && !titled;
+	if (named)
+		attributes.push(`title="${embedTitle(source).replace(/"/g, "&quot;")}"`);
 	const open = [name, ...attributes].join(" ");
-	return VOID_ELEMENTS.has(name) || selfClosing ? `<${open} />` : `<${open}>`;
+	return {
+		jsx: VOID_ELEMENTS.has(name) || selfClosing ? `<${open} />` : `<${open}>`,
+		titled: named,
+	};
 };
 
 /** Pairs opening and closing tags across the document, as HTML nests them. */
@@ -992,12 +1011,14 @@ const tokenizeProse = (
 		for (const match of text.matchAll(HTML_TAG)) {
 			const index = match.index ?? 0;
 			const [raw, closing, name, attributes, selfClosing] = match;
-			const jsx = tagAsJsx(closing, name, attributes, selfClosing);
+			const kept = tagAsJsx(closing, name, attributes, selfClosing);
+			const jsx = kept?.jsx ?? null;
 			const token: TagToken = {
 				name: name.toLowerCase(),
 				closing: Boolean(closing),
 				// Escaping keeps only line breaks, which never break a block.
 				jsx: html === "jsx" || jsx === "<br />" ? jsx : null,
+				titled: kept?.titled,
 				paired: false,
 				line: lineAt(offset + index),
 			};
@@ -1059,6 +1080,7 @@ const writeProse = (pieces: ProsePiece[], counts: MdxConversion): string => {
 		} else {
 			const { token } = piece;
 			if (token.jsx !== "<br />") counts.html += 1;
+			if (token.titled) counts.titles += 1;
 			// MDX closes a block only where it opened: in the same paragraph, or
 			// on a line of its own. A block tag whose partner is on another line
 			// gets a line of its own.
@@ -1113,6 +1135,7 @@ export const toMdxBody = (
 		tags: 0,
 		html: 0,
 		esm: 0,
+		titles: 0,
 	};
 	const tokens: TagToken[] = [];
 	const segments = splitFencedCode(markdown).map((segment) =>

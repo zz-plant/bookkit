@@ -286,7 +286,7 @@ describe("planImport", () => {
 			bookDir: `apps/${BOOK}`,
 		}).join("\n");
 		expect(report).toContain(
-			'Links kept as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (4):\n  09-links.md:6  "javascript:alert(1)"\n  09-links.md:7  "javascript:alert(2)"',
+			'Addresses removed (a link keeps its words), since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (4):\n  09-links.md:6  "javascript:alert(1)"\n  09-links.md:7  "javascript:alert(2)"',
 		);
 	});
 
@@ -326,7 +326,7 @@ describe("planImport", () => {
 			bookDir: `apps/${BOOK}`,
 		}).join("\n");
 		expect(report).toContain(
-			'  10-embeds.md:3  <iframe src> "javascript:alert(1)"\n  10-embeds.md:4  <embed src> "data:text/html,x"\n  10-embeds.md:5  <object data> "javascript:alert(2)"\n  10-embeds.md:6  <form action> "javascript:alert(3)"\n  10-embeds.md:6  <button formaction> "javascript:alert(4)"\n  10-embeds.md:7  <iframe src> "vbscript:x"',
+			'  10-embeds.md:3  <iframe src> "javascript:alert(1)", with the <iframe>\n  10-embeds.md:4  <embed src> "data:text/html,x"\n  10-embeds.md:5  <object data> "javascript:alert(2)"\n  10-embeds.md:6  <form action> "javascript:alert(3)"\n  10-embeds.md:6  <button formaction> "javascript:alert(4)"\n  10-embeds.md:7  <iframe src> "vbscript:x", with the <iframe>',
 		);
 	});
 
@@ -387,11 +387,18 @@ describe("planImport", () => {
 			'<iframe src="https://player.vimeo.com/video/76979871?h=8272103f6e" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
 		const maps =
 			'<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.9!2d-73.98!3d40.75" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
-		// Without its style, which a book's content does not set.
-		const mapsKept = maps.replace(' style="border:0;"', "");
+		// Without its style, which a book's content does not set, and with a
+		// title, which Google Maps leaves out and a screen reader needs.
+		const mapsKept = maps
+			.replace(' style="border:0;"', "")
+			.replace("></iframe>", ' title="Google Maps map"></iframe>');
 		// The address last in the tag: as text, GFM read it on through the `\\`
 		// of `\\</iframe>`, and the chapter did not compile.
 		const short = '<iframe src="https://www.youtube.com/embed/abc"></iframe>';
+		const shortKept = short.replace(
+			"></iframe>",
+			' title="YouTube video"></iframe>',
+		);
 		writeFileSync(
 			join(notes, "11-videos.md"),
 			[
@@ -412,14 +419,19 @@ describe("planImport", () => {
 				"",
 			].join("\n"),
 		);
-		const videos = chapter(await plan(), "11-videos.md");
+		const result = await plan();
+		const videos = chapter(result, "11-videos.md");
 		expect(videos.compile).toEqual({ ok: true });
 		expect(videos.htmlAsText).toBe(false);
-		for (const embed of [youtube, vimeo, mapsKept, short]) {
+		for (const embed of [youtube, mapsKept, shortKept]) {
 			expect(videos.content).toContain(embed);
 		}
 		expect(videos.content).toContain(
-			'<iframe src="https://example.com/embed"></iframe>',
+			'<iframe src="https://example.com/embed" title="Embedded page from example.com"></iframe>',
+		);
+		// Vimeo's snippet has no title either.
+		expect(videos.content).toContain(
+			vimeo.replace("></iframe>", ' title="Vimeo video"></iframe>'),
 		);
 		// The unsafe one is left out.
 		expect(videos.content).not.toContain("\\<iframe");
@@ -430,6 +442,12 @@ describe("planImport", () => {
 			"12 <iframe srcdoc> document",
 			"14 <iframe src> address",
 		]);
+		expect(videos.changes.titles).toBe(4);
+		expect(
+			describeImport(result, { dryRun: true, bookDir: `apps/${BOOK}` }),
+		).toContain(
+			"4 embeds with no title were each given one from the page it shows, so a screen reader can name it: 11-videos.md.",
+		);
 	});
 
 	it("compiles an address followed by a placeholder or an escaped tag", async () => {

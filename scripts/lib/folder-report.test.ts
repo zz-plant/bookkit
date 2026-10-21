@@ -119,7 +119,7 @@ describe("bookkit try's MDX summary", () => {
 });
 
 describe("what bookkit try says import would leave out", () => {
-	it("lists the links import would keep as text and the HTML it would leave out, with the lines import names, leaving out what import skips", async () => {
+	it("lists the addresses import would remove and the HTML it would leave out, with the lines import names, leaving out what import skips", async () => {
 		const workspace = mkdtempSync(join(tmpdir(), "bookkit-try-links-"));
 		try {
 			const notes = join(workspace, "notes");
@@ -153,9 +153,9 @@ describe("what bookkit try says import would leave out", () => {
 			if ("error" in folder) throw new Error(folder.error);
 			const summary = unsafeMarkupSummary(previewFolder(folder.files));
 			expect(summary).toEqual([
-				"Links import would keep as text, since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (3):",
+				"Addresses import would remove (a link keeps its words), since a book links only to http, https, mailto, tel, and ftp addresses and to its own pages (3):",
 				'  01-links.md:6  "javascript:alert(1)"',
-				'  01-links.md:7  <iframe src> "data:text/html,x"',
+				'  01-links.md:7  <iframe src> "data:text/html,x", with the <iframe>',
 				'  01-links.md:8  <form action> "javascript:alert(2)"',
 				"",
 				"HTML import would leave out, since a book's content may lay out text, link, show images, and embed pages, but not run script or set its own style (3):",
@@ -174,7 +174,7 @@ describe("what bookkit try says import would leave out", () => {
 			);
 			const asImport = summary.map((line) =>
 				line
-					.replace("Links import would keep", "Links kept")
+					.replace("Addresses import would remove", "Addresses removed")
 					.replace("HTML import would leave out", "HTML left out"),
 			);
 			const listed = report.indexOf(asImport[0]);

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
+import { defaultFrames } from "../frames/defaults";
 import {
 	frameStepsInHeadings,
+	frameStepsInPage,
 	validateFrameDefinition,
 	validateFrameSteps,
 } from "./frame";
@@ -106,5 +108,67 @@ describe("frameStepsInHeadings", () => {
 		expect(
 			frameStepsInHeadings(runbook, ["Overview", "Procedure", "Notes"]),
 		).toEqual([]);
+	});
+});
+
+describe("frameStepsInPage", () => {
+	const frame = (slug: string) => {
+		const found = defaultFrames.find((candidate) => candidate.slug === slug);
+		if (!found) throw new Error(`no frame ${slug}`);
+		return found;
+	};
+	const fieldGuide = frame("field-guide");
+
+	it("counts a heading whose whole text is the step's name, however it is written", () => {
+		for (const heading of [
+			"## Failure Modes",
+			"## Failure modes",
+			"## failure-modes",
+			"### **Failure** _modes_",
+			"#### Failure Modes ##",
+			"## [Failure Modes](#failure-modes)",
+			"## `failure-modes`",
+			"Failure Modes\n-------------",
+		]) {
+			expect(frameStepsInPage(fieldGuide, heading)).toEqual(["failure-modes"]);
+		}
+	});
+
+	it("does not count a heading that says more, says it in other words, or is not a heading", () => {
+		for (const page of [
+			"## Failure modes we have seen",
+			"## Failure — modes",
+			"## Failures",
+			"##### Failure Modes",
+			"Failure Modes",
+			"```md\n## Failure Modes\n```",
+			"<h2>Failure Modes</h2>",
+		]) {
+			expect(frameStepsInPage(fieldGuide, page)).toEqual([]);
+		}
+	});
+
+	it("reads every step of a page, a repeated heading included", () => {
+		expect(
+			frameStepsInPage(
+				frame("runbook"),
+				[
+					"# Overview",
+					"## Ownership",
+					"Who owns it.",
+					"## Trigger",
+					"## Steps",
+					"### Steps",
+					"## Escalation:",
+					"## Verification?",
+				].join("\n\n"),
+			),
+		).toEqual(["ownership", "trigger", "steps", "escalation", "verification"]);
+		expect(
+			frameStepsInPage(
+				frame("intervention"),
+				"## Recognition and blame\n\n## Exoneration\n",
+			),
+		).toEqual(["exoneration"]);
 	});
 });

@@ -39,6 +39,7 @@ import {
 	withCorpusScope,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
+import { commandHelp, commandNames, findCommand } from "./lib/bookkit-commands";
 import { planChapterRename, planInsertAfter } from "./lib/chapter-moves";
 import {
 	ask,
@@ -46,6 +47,7 @@ import {
 	didYouMean,
 	isInteractive,
 	readFocusBook,
+	wantsHelp,
 	writeFocusBook,
 } from "./lib/cli";
 import { compileFinding, compileMdx } from "./lib/compile-mdx";
@@ -90,9 +92,16 @@ const args = process.argv.slice(2);
 const command = args[0] ?? "status";
 
 if (command === "help" || command === "--help" || command === "-h") {
+	// `help <command>` is that command's help; `help --help` is help's own.
+	if (command === "help" && args[1]) {
+		printHelpFor(args[1].startsWith("-") ? ["help"] : args.slice(1));
+	}
 	printHelp();
 	process.exit(0);
 }
+// `bookkit <command> --help` prints that command's help before it reads or
+// writes anything (lib/bookkit-commands.ts).
+if (findCommand(command) && wantsHelp(args.slice(1))) printHelpFor(args);
 
 const books = listBookDirs();
 
@@ -149,10 +158,7 @@ const takeBook = (
  * A child process's exit code, or 1 when it has none: a command that never
  * started (not on PATH) or was killed by a signal must not read as success.
  */
-const exitCodeOf = (
-	result: SpawnSyncReturns<unknown>,
-	what: string,
-): number => {
+function exitCodeOf(result: SpawnSyncReturns<unknown>, what: string): number {
 	if (result.error) {
 		console.error(`Could not run ${what}: ${result.error.message}`);
 		return 1;
@@ -162,11 +168,11 @@ const exitCodeOf = (
 		return 1;
 	}
 	return result.status ?? 1;
-};
+}
 
 /** Runs one of scripts/ with this process's own bun, so PATH does not matter. */
-const runScript = (script: string, scriptArgs: string[]): number =>
-	exitCodeOf(
+function runScript(script: string, scriptArgs: string[]): number {
+	return exitCodeOf(
 		spawnSync(
 			process.execPath,
 			["run", join(repoRoot(), "scripts", script), ...scriptArgs],
@@ -174,8 +180,9 @@ const runScript = (script: string, scriptArgs: string[]): number =>
 		),
 		`scripts/${script}`,
 	);
+}
 
-switch (command) {
+switch (findCommand(command)?.name ?? command) {
 	case "status": {
 		if (args.includes("--json")) {
 			console.log(
@@ -416,7 +423,7 @@ switch (command) {
 			);
 		if (!target) {
 			console.error(
-				"Usage: bun run bookkit try <folder> [--frame <slug>] [--json]\nShows what Bookkit would make of any folder of Markdown. Reads only; writes nothing.",
+				`Name the folder of Markdown to read.\n\n${usageOf("try")}`,
 			);
 			process.exit(1);
 		}
@@ -592,8 +599,7 @@ switch (command) {
 		break;
 	}
 
-	case "list":
-	case "list:books": {
+	case "list": {
 		console.log("Available books in workspace:");
 		for (const b of books) {
 			console.log(`- ${b}`);
@@ -602,32 +608,24 @@ switch (command) {
 		break;
 	}
 
-	case "new-book":
-	case "book:new":
-	case "book:add":
-	case "add-book": {
+	case "new-book": {
 		process.exit(runScript("scaffold-book.ts", args.slice(1)));
 		break;
 	}
 
-	case "remove-book":
-	case "book:remove": {
+	case "remove-book": {
 		process.exit(runScript("remove-book.ts", args.slice(1)));
 		break;
 	}
 
-	case "import":
-	case "import-book":
-	case "book:import": {
+	case "import": {
 		process.exit(
 			runScript("import-book-from-markdown.ts", withBookFlag(args.slice(1))),
 		);
 		break;
 	}
 
-	case "propose":
-	case "proposal":
-	case "propose-book": {
+	case "propose": {
 		process.exit(runScript("propose-book.ts", withBookFlag(args.slice(1))));
 		break;
 	}
@@ -664,30 +662,34 @@ switch (command) {
 	}
 
 	default: {
-		const commands = [
-			"status",
-			"use",
-			"new",
-			"try",
-			"check",
-			"contract",
-			"verify",
-			"similar",
-			"validate",
-			"dev",
-			"build",
-			"deploy",
-			"list",
-			"import",
-			"propose",
-			"bets",
-			"help",
-		];
 		console.error(
-			`Unknown command "${command}".${didYouMean(command, commands)} Run bun run bookkit help for every command.`,
+			`Unknown command "${command}".${didYouMean(command, commandNames())} Run bun run bookkit help for every command.`,
 		);
 		process.exit(1);
 	}
+}
+
+/** A command's help, for an error that ends with it. */
+function usageOf(name: string): string {
+	const help = commandHelp([name]);
+	return help && "text" in help ? help.text : "";
+}
+
+/**
+ * Prints the help of the command `words` name (and exits): its own, or, for
+ * a command that hands its arguments to a script, the script's.
+ */
+function printHelpFor(words: string[]): never {
+	const help = commandHelp(words);
+	if (!help) {
+		console.error(
+			`Unknown command "${words[0]}".${didYouMean(words[0], commandNames())} Run bun run bookkit help for every command.`,
+		);
+		process.exit(1);
+	}
+	if ("script" in help) process.exit(runScript(help.script, ["--help"]));
+	console.log(help.text);
+	process.exit(0);
 }
 
 /** Your books, and the commands for one: `book`, else the current one. */
@@ -1179,16 +1181,7 @@ function createNew(kind: string | undefined, rest: string[]) {
 					`Cannot start "${resolvedKind}".${didYouMean(resolvedKind, ["chapter", "mechanism", "tool", "example", "release", "book"])}`,
 				);
 			}
-			console.error(`Usage: bun run bookkit new <chapter|mechanism|tool|example|release|book> ...
-
-  new chapter [book] "<title>" [--after <chapter>]     next numbered chapter, draft; --after puts it there
-  new mechanism [book] "<title>" [--definition "…"]     checks every book for one that already fits
-  new tool [book] <mechanism-slug> "<name>"             a ≤10-minute action for a mechanism
-  new example [book] <mechanism-slug> <domain> "<title>"
-  new release [book] "<title>" [--version <x.y.z>]
-  new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder of notes>]
-
-[book] defaults to the current one (bun run bookkit use <book>). At a terminal, anything left out is asked for.`);
+			console.error(usageOf("new"));
 			process.exit(1);
 		}
 	}
@@ -1992,7 +1985,9 @@ Other
   remove-book --book <slug>                 delete a book app
   bets [--json]                             the maintainers' active bet (docs/bets.md), measured from git
 
-Mistype a command, book, or mechanism and bookkit suggests the closest one.
+bun run bookkit <command> --help (or bun run bookkit help <command>) prints a
+command's arguments and examples. Mistype a command, book, or mechanism and
+bookkit suggests the closest one.
 
 Examples
   bun run bookkit

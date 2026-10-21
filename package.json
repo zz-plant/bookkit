@@ -25,7 +25,7 @@
 		"check:upgrade": "bun run scripts/upgrade-check.ts",
 		"format": "biome format --write .",
 		"check:format": "biome ci .",
-		"prepare": "husky",
+		"prepare": "bun run scripts/install-hooks.ts",
 		"list:books": "bun run scripts/list-books.ts",
 		"bookkit": "bun run scripts/bookkit.ts",
 		"compile:book": "bun run scripts/compile-book.ts",
@@ -57,7 +57,7 @@
 		"sync:shims": "bun run scripts/check-shims.ts --write",
 		"test": "bun test --parallel",
 		"test:browser": "bun test ./scripts/ask-panel.browser.ts ./scripts/search-panel.browser.ts ./scripts/reader-wayfinding.browser.ts ./scripts/untrusted-text.browser.ts",
-		"setup": "mise trust && bun install",
+		"setup": "bun run scripts/setup.ts",
 		"check": "bun run bookkit check"
 	},
 	"devDependencies": {

@@ -1,11 +1,20 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { listBookDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
 
 /**
  * Validates every book under apps/ with validate-book.ts, each under the rules
  * its status sets. Exits 1 when any book has an error.
  */
+
+exitOnHelp({
+	summary:
+		"Validates every book in apps/, each under the rules its status sets.\nExits 1 when any book has an error.",
+	usage: ["bun run validate"],
+	notes: "One book, with JSON: bun run validate:book -- --book <book> --json.",
+	examples: ["bun run validate"],
+});
 
 const books = listBookDirs();
 if (books.length === 0) {

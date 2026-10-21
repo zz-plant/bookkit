@@ -16,6 +16,7 @@ import {
 	createProject,
 	isBookkitProject,
 	isBookkitRepository,
+	nextSteps,
 	readSource,
 	summarizeUpgrade,
 	upgradeProject,
@@ -107,6 +108,29 @@ describe("createProject", () => {
 				"package.json",
 				"scripts/bookkit.ts",
 			]),
+		);
+	});
+});
+
+describe("next steps", () => {
+	it("check before git init, and deploy after the first commit", () => {
+		createProject(source, dir, { book: "garden", title: "Garden" });
+		for (const [steps, check] of [
+			[
+				nextSteps(dir, { installed: false, book: "garden" }),
+				"bun run bookkit check",
+			],
+			[read("README.md"), "bun run verify -- --all"],
+		] as const) {
+			const at = (text: string) => steps.indexOf(text);
+			expect(at(check)).toBeGreaterThan(-1);
+			expect(at("git init")).toBeGreaterThan(at(check));
+			expect(at("bun run deploy -- --dry-run")).toBeGreaterThan(
+				at("git commit"),
+			);
+		}
+		expect(nextSteps(dir, { installed: true, book: "garden" })).not.toContain(
+			"bun install",
 		);
 	});
 });

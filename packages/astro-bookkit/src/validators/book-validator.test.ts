@@ -352,3 +352,54 @@ describe("mechanismsIndex.urgency", () => {
 		);
 	});
 });
+
+describe("the frame check of the overview chapter", () => {
+	const overview = (headings: string[]) =>
+		chapter("overview", "draft").replace(
+			"Body.\n",
+			`${headings.join("\n\nText.\n\n")}\n`,
+		);
+	const frameFinding = (frameSlug: string) =>
+		checkBookContent({
+			workspaceRoot: root,
+			bookSlug: "test-book",
+			frameSlug,
+		}).findings.find((finding) => finding.code === "FRAME_STEP_MISSING");
+
+	it("reads the whole heading, so a step named in two words counts", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				overview(["## Steps", "## Failure Modes", "## Checklist"]),
+			],
+		]);
+		expect(frameFinding("field-guide")).toBeUndefined();
+	});
+
+	it("names each missing step, and the heading that would add it", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				overview(["## Steps to take", "## Failure modes we have seen"]),
+			],
+		]);
+		expect(frameFinding("field-guide")).toMatchObject({
+			level: "warning",
+			message:
+				'Framing chapter (00-overview.mdx) for frame "field-guide" is missing required step(s): steps, failure-modes, checklist',
+			fix: 'Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step\'s name (e.g. "## Steps"); the field-guide frame requires them in that chapter.',
+		});
+	});
+
+	it("does not read the frontmatter or fenced code as headings", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				`---\nslug: overview\ntitle: "Overview"\nstatus: draft\n# recognition\n---\n\n\`\`\`md\n## Exoneration\n\`\`\`\n\n## Mechanism\n\n## Agency\n`,
+			],
+		]);
+		expect(frameFinding("intervention")?.message).toEndWith(
+			"missing required step(s): recognition, exoneration",
+		);
+	});
+});

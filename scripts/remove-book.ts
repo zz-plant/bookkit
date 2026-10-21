@@ -5,17 +5,23 @@ import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { isInteractive, parseScriptArgs, requireExistingBook } from "./lib/cli";
 
 const args = parseScriptArgs(
-	`Delete a book app (apps/<book>) and everything in it.
-
-Usage:
-  bun run remove:book -- --book <book> [--dry-run] [--yes] [--force]
-
-Options:
-  --book <book>   The book's exact folder name under apps/
-  --dry-run       Show what would be deleted; delete nothing
-  --yes           Delete without asking (for scripts and agents)
-  --force         Delete even with uncommitted changes in the book
-  -h, --help      Show this help`,
+	{
+		summary:
+			"Deletes a book app (apps/<book>) and everything in it, after showing\nwhat it would delete and asking you to type the book's name.",
+		usage: [
+			"bun run remove:book -- --book <book> [--dry-run] [--yes] [--force]",
+		],
+		options: [
+			["--book <book>", "The book's exact folder name under apps/"],
+			["--dry-run", "Show what would be deleted; delete nothing"],
+			["--yes", "Delete without asking (for scripts and agents)"],
+			["--force", "Delete even with uncommitted changes in the book"],
+		],
+		examples: [
+			"bun run remove:book -- --book field-notes --dry-run",
+			"bun run remove:book -- --book field-notes",
+		],
+	},
 	{ book: "string", "dry-run": "boolean", yes: "boolean", force: "boolean" },
 	["book"],
 );

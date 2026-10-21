@@ -5,15 +5,22 @@ SKILL_SET_NAME="bookkit"
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/codex-setup.sh [options]
+Prepares a Codex-friendly local environment for the Bookkit workspace:
+checks the tool versions, installs dependencies, links the repository's
+skills into CODEX_HOME, and runs two quick checks.
 
-Prepare a Codex-friendly local environment for the Bookkit workspace.
+Usage:
+  bun run setup:codex [--skip-install] [--skip-checks] [--copy-skills]
 
 Options:
-  --skip-install   Skip `bun install`.
-  --skip-checks    Skip `bun run validate` and `bun run check:separation`.
-  --copy-skills    Copy skills into CODEX_HOME instead of symlinking.
-  -h, --help       Show this help message.
+  --skip-install  Skip `bun install`
+  --skip-checks   Skip `bun run validate` and `bun run check:separation`
+  --copy-skills   Copy skills into CODEX_HOME instead of symlinking them
+  -h, --help      Show this help
+
+Examples:
+  bun run setup:codex
+  bun run setup:codex -- --skip-install --copy-skills
 USAGE
 }
 
@@ -40,6 +47,16 @@ CODEX_SKILLS_DIR="${CODEX_HOME}/skills/${SKILL_SET_NAME}"
 SKIP_INSTALL=0
 SKIP_CHECKS=0
 COPY_SKILLS=0
+
+# Help first, before any other argument is read or anything is changed.
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+  esac
+done
 
 while (($# > 0)); do
   case "$1" in

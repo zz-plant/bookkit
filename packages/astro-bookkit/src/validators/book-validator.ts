@@ -14,7 +14,7 @@ import {
 	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
 } from "./content-check";
-import { validateFrameSteps } from "./frame";
+import { frameStepsInPage, validateFrameSteps } from "./frame";
 import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
@@ -169,24 +169,28 @@ const frameFinding = (
 		"00-overview.mdx",
 	);
 	if (!existsSync(overview)) return null;
-	const headings = Array.from(
-		readFileSync(overview, "utf8").matchAll(
-			/(?:^|\n)#{1,4}\s+([A-Za-z0-9_-]+)/g,
-		),
-	).map((match) => match[1].toLowerCase());
 	// Author decisions live in book.config.ts; validate against the configured
 	// frame and fall back to the intervention frame when none is declared.
 	const frame =
 		defaultFrames.find((candidate) => candidate.slug === configured) ??
 		defaultFrames.find((candidate) => candidate.slug === "intervention");
 	if (!frame) return null;
-	const { missingRequiredSteps } = validateFrameSteps(frame, headings);
+	const { missingRequiredSteps } = validateFrameSteps(
+		frame,
+		frameStepsInPage(
+			frame,
+			parseFrontmatter(readFileSync(overview, "utf8")).body,
+		),
+	);
 	if (missingRequiredSteps.length === 0) return null;
+	const example =
+		frame.steps.find((step) => step.id === missingRequiredSteps[0])?.label ??
+		missingRequiredSteps[0];
 	return {
 		level: "warning",
 		code: "FRAME_STEP_MISSING",
 		message: `Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${missingRequiredSteps.join(", ")}`,
-		fix: `Add a heading for each missing step to chapters/00-overview.mdx (e.g. "## ${missingRequiredSteps[0]}"); the ${frame.slug} frame requires them in that chapter.`,
+		fix: `Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step's name (e.g. "## ${example}"); the ${frame.slug} frame requires them in that chapter.`,
 	};
 };
 

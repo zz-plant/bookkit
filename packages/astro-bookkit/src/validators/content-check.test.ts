@@ -355,7 +355,7 @@ describe("unsafe links", () => {
 					"",
 					"<iframe src={target}></iframe>",
 					"",
-					'<iframe src="https://example.com/embed"></iframe> <q cite="vbscript:x">q</q>',
+					'<iframe src="https://example.com/embed" title="Example"></iframe> <q cite="vbscript:x">q</q>',
 				].join("\n"),
 			),
 		).findings;
@@ -557,6 +557,71 @@ describe("raw HTML the site leaves out", () => {
 				"UNSAFE_LINK",
 				'Chapter has <embed src="javascript:alert(2)"> on line 6, an address the site removes: a book links only to http, https, mailto, tel, and ftp addresses and to its own pages',
 			],
+		]);
+	});
+});
+
+describe("embeds", () => {
+	const findings = (status: string, body: string, format?: "md") =>
+		checkContentItem(
+			"chapter",
+			`---\nslug: drills\ntitle: "Drills"\nstatus: ${status}\n---\n${body}`,
+			{ format },
+		).findings.filter((finding) => finding.code === "IFRAME_NO_TITLE");
+
+	it("warns on an <iframe> with no title, with its line in the file and a title to give it", () => {
+		const body = [
+			'<iframe src="https://www.youtube.com/embed/x" allowfullscreen></iframe>',
+			"",
+			'<iframe src="https://player.vimeo.com/video/1" title=""></iframe>',
+			"",
+			'<iframe src="https://example.com/map" title="Map of the site"></iframe>',
+		].join("\n");
+		const expected = [
+			{
+				level: "warning",
+				code: "IFRAME_NO_TITLE",
+				message:
+					"Chapter has an <iframe> with no title on line 6, so a screen reader cannot say what it shows, and check:a11y fails its page",
+				fix: 'Add a title that says what it shows, as in <iframe title="YouTube video" src="…">.',
+			},
+			{
+				level: "warning",
+				code: "IFRAME_NO_TITLE",
+				message:
+					"Chapter has an <iframe> with no title on line 8, so a screen reader cannot say what it shows, and check:a11y fails its page",
+				fix: 'Add a title that says what it shows, as in <iframe title="Vimeo video" src="…">.',
+			},
+		];
+		// A warning even in a published record: the page still builds.
+		expect(findings("published", body)).toEqual(expected);
+		expect(findings("draft", body)).toEqual(expected);
+	});
+
+	it("leaves an embed the site leaves out, or one in code, to the other checks", () => {
+		expect(
+			findings(
+				"draft",
+				[
+					'<iframe src="javascript:alert(1)"></iframe> <iframe></iframe> <iframe src={target}></iframe>',
+					'<iframe src="https://example.com/a" title={label}></iframe>',
+					'`<iframe src="https://example.com/b"></iframe>`',
+					"{\"<iframe src='https://example.com/c'></iframe>\"}",
+					'<Iframe src="https://example.com/d" />',
+				].join("\n\n"),
+			),
+		).toEqual([]);
+	});
+
+	it("reads a Markdown note's tags as HTML does", () => {
+		expect(
+			findings(
+				"draft",
+				"<IFRAME SRC=https://example.com/e></IFRAME>",
+				"md",
+			).map((finding) => finding.message),
+		).toEqual([
+			"Chapter has an <iframe> with no title on line 6, so a screen reader cannot say what it shows, and check:a11y fails its page",
 		]);
 	});
 });

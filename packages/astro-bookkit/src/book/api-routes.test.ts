@@ -258,7 +258,13 @@ describe("reader routes keep accepting what the reader scripts send", () => {
 		try {
 			const storagePath = join(directory, "events.jsonl");
 			const endpoint = createFeedbackEndpoint({ storagePath });
-			const event = { eventType: "feedback", slug: "intro", emoji: "👍" };
+			// As the widget sends a reaction.
+			const event = {
+				eventType: "feedback",
+				slug: "intro",
+				responseType: "emoji",
+				emoji: "🔥",
+			};
 
 			const one = await endpoint.POST(request(event));
 			expect(await one.json()).toEqual({ ok: true, stored: 1 });

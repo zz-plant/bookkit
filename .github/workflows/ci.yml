@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to a PR cancels that PR's run in progress. Runs on main each
+# finish, since Deploy waits on them.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
   # Fails on a high or critical advisory in bun.lock; `bun audit` lists the
   # moderate and low ones. Reads the lockfile, so it needs no install.

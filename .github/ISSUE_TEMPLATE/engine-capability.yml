@@ -1,0 +1,24 @@
+name: Engine capability
+description: A book needs behavior the engine doesn't have yet (a frame, check, or config option).
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Book-specific behavior belongs in the engine or a config option, never in content files (AGENTS.md → Core invariant).
+  - type: textarea
+    id: need
+    attributes:
+      label: What the book needs
+      description: The book, and what an author can't express today.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed shape
+      description: A frame, a schema field, a validator, or a book.config.ts option, and how it would be checked.
+  - type: input
+    id: bet
+    attributes:
+      label: Bet
+      description: The docs/bets.md bet this serves, if any.

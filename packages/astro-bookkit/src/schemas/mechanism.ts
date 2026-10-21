@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { SLUG_PATTERN } from "./slug";
 import { statusSchema } from "./status";
 
 export const mechanismSchema = z.object({
 	slug: z
 		.string()
 		.min(1)
-		.regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+		.regex(SLUG_PATTERN, "Slug must be lowercase alphanumeric with hyphens"),
 	status: statusSchema,
 	title: z.string().min(1, "Mechanism must have a non-empty title"),
 	definition: z.string().min(1, "Mechanism must have a definition"),

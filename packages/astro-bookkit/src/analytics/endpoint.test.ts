@@ -86,6 +86,54 @@ describe("what a reader may send to the analytics endpoint", () => {
 		expect(recorded).toEqual([]);
 	});
 
+	it("refuses a chapterSlug that is not a page's slug, saying which and why, as feedback does", async () => {
+		const { endpoint, recorded } = endpointRecording();
+		const refusals: Array<[unknown, string]> = [
+			[
+				XSS,
+				`chapterSlug ${JSON.stringify(XSS)} is not a page's slug, which has only lowercase letters, digits, and hyphens, and at most 200 of them`,
+			],
+			["Rollback-First", 'chapterSlug "Rollback-First" is not a page\'s slug'],
+			["../admin", "is not a page's slug"],
+			["rollback first", "is not a page's slug"],
+			["caf%C3%A9", "is not a page's slug"],
+			["a".repeat(201), "at most 200 of them"],
+			[7, "chapterSlug must be a string"],
+			[["rollback-first"], "chapterSlug must be a string"],
+		];
+		for (const [chapterSlug, reason] of refusals) {
+			const response = await endpoint.POST(post({ ...pageview, chapterSlug }));
+			expect(response.status, JSON.stringify(chapterSlug)).toBe(400);
+			const { error } = (await response.json()) as { error: string };
+			expect(error).toStartWith("Invalid analytics event: chapterSlug ");
+			expect(error).toContain(reason);
+		}
+		expect(recorded).toEqual([]);
+	});
+
+	it("stores a chapter's slug as sent, and null for a page that is not a chapter", async () => {
+		const { endpoint, recorded } = endpointRecording();
+		for (const chapterSlug of [
+			"rollback-first",
+			" rollback-first ",
+			"a".repeat(200),
+			null,
+			undefined,
+			"",
+		]) {
+			const response = await endpoint.POST(post({ ...pageview, chapterSlug }));
+			expect(response.status, JSON.stringify(chapterSlug)).toBe(200);
+		}
+		expect(recorded.map((event) => event.chapterSlug)).toEqual([
+			"rollback-first",
+			"rollback-first",
+			"a".repeat(200),
+			null,
+			null,
+			null,
+		]);
+	});
+
 	it("refuses an event of another type", async () => {
 		const { endpoint } = endpointRecording();
 		const response = await endpoint.POST(post({ ...pageview, type: "click" }));

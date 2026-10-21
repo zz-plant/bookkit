@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { chapterSchema } from "../schemas/chapter";
+import { isPageSlug, MAX_SLUG_LENGTH, SLUG_RULE } from "../schemas/slug";
 import { authorOnly } from "../utils/author-token";
 import {
 	appendRecords,
@@ -51,7 +51,6 @@ export const FEEDBACK_EMOJI = ["😀", "🤔", "😕", "🔥"] as const;
 
 const MAX_COMMENT_LENGTH = 240;
 const MAX_TITLE_LENGTH = 160;
-const MAX_SLUG_LENGTH = 200;
 const MAX_EVENT_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 /**
  * The widget sends one event at a time. Without a cap, one request could push
@@ -119,11 +118,8 @@ const normalizeEvent = (
 	if (!eventType) return 'eventType must be "feedback" or "impression"';
 	const slug = trimmedText(payload.slug);
 	if (!slug) return "slug is missing: send the slug of the page being read";
-	if (
-		slug.length > MAX_SLUG_LENGTH ||
-		!chapterSchema.shape.slug.safeParse(slug).success
-	) {
-		return `slug ${quoted(slug)} is not a page's slug, which has only lowercase letters, digits, and hyphens, and at most ${MAX_SLUG_LENGTH} of them`;
+	if (!isPageSlug(slug)) {
+		return `slug ${quoted(slug)} is not a page's slug, which has ${SLUG_RULE}`;
 	}
 	const responseType = trimmedText(payload.responseType);
 	if (responseType && !isOneOf(FEEDBACK_RESPONSES, responseType)) {

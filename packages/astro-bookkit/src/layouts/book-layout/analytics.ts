@@ -1,3 +1,5 @@
+import { chapterSlugOfPath } from "../../analytics/chapter-slug";
+
 type AnalyticsEvent = Record<string, unknown>;
 const previewAnalyticsEndpoint =
 	document.body?.dataset?.previewAnalyticsEndpoint;
@@ -43,7 +45,7 @@ const loadAnalyticsEvents = () => {
 			localStorage.setItem(analyticsStorageKey, JSON.stringify(filtered));
 		}
 		return filtered;
-	} catch (error) {
+	} catch {
 		return [];
 	}
 };
@@ -115,12 +117,7 @@ const recordPreviewEvent = () => {
 
 const analyticsVersion = document.body?.dataset?.bookVersion || "draft";
 const path = window.location.pathname;
-const pathSegments = path.split("/").filter(Boolean);
-const isChapter =
-	pathSegments[0] === "read" &&
-	pathSegments[1] === "chapters" &&
-	pathSegments[2];
-const chapterSlug = isChapter ? pathSegments[2] : null;
+const chapterSlug = chapterSlugOfPath(path);
 
 const sessionId = getSessionId();
 const pageViewTimestamp = Date.now();
@@ -181,5 +178,3 @@ document.addEventListener("visibilitychange", () => {
 		reportEngagement();
 	}
 });
-
-export {};

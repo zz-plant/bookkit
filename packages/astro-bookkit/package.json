@@ -32,7 +32,7 @@
 		"github-slugger": "^2.0.0",
 		"js-yaml": "^4.1.1",
 		"jszip": "^3.10.1",
-		"mermaid": "^12.2.0",
+		"mermaid": "^11.12.2",
 		"pdf-lib": "^1.17.1",
 		"satori": "^0.36.0",
 		"web-haptics": "^0.0.6",

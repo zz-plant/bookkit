@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { escapeHtml } from "../utils/character-references";
 import { engineRequire } from "../utils/engine-require";
 import { metaContent } from "./og-image";
 import { shortBookTitle } from "./page-meta";
@@ -124,16 +125,6 @@ const placedGlyph = (glyph: Glyph, box: number, cx: number, cy: number) => {
 	return `<path transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${scale.toFixed(5)})" fill="${RUBRIC}" d="${glyph.d}"/>`;
 };
 
-const XML_ENTITIES: Record<string, string> = {
-	"<": "&lt;",
-	">": "&gt;",
-	"&": "&amp;",
-	'"': "&quot;",
-};
-
-const escapeXml = (text: string) =>
-	text.replace(/[<>&"]/g, (char) => XML_ENTITIES[char] ?? char);
-
 /** Packs PNGs into an ICO container (PNG-compressed entries, Vista and later). */
 const icoFromPngs = (pngs: { size: number; png: Uint8Array }[]): Uint8Array => {
 	const header = Buffer.alloc(6 + 16 * pngs.length);
@@ -162,7 +153,7 @@ export const renderBookIcons = async (title: string): Promise<BookIcons> => {
 		new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng();
 
 	// The tab icon: a rounded tile, the initial at 62% of it.
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>${escapeXml(name)}</title><rect width="64" height="64" rx="12" fill="${PAPER}"/>${placedGlyph(glyph, 39.68, 32, 32)}</svg>\n`;
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>${escapeHtml(name)}</title><rect width="64" height="64" rx="12" fill="${PAPER}"/>${placedGlyph(glyph, 39.68, 32, 32)}</svg>\n`;
 
 	// The home-screen icon: full bleed (iOS rounds it), the initial over a rule.
 	const half = TOUCH_SIZE / 2;

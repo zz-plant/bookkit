@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SLUG_PATTERN } from "./slug";
 import { statusSchema } from "./status";
 
 const runbookStepSchema = z.object({
@@ -17,10 +18,7 @@ export const toolkitSchema = z
 		slug: z
 			.string()
 			.min(1)
-			.regex(
-				/^[a-z0-9-]+$/,
-				"Slug must be lowercase alphanumeric with hyphens",
-			),
+			.regex(SLUG_PATTERN, "Slug must be lowercase alphanumeric with hyphens"),
 		status: statusSchema,
 		mechanism: z
 			.string()

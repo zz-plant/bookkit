@@ -15,6 +15,7 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 - **One book needs no name**: with one book in the workspace, `new`, `import`, `propose`, `dev`, and the rest take it. `preview`, `serve`, and `start` run `dev`; `init` and `create` run `new book`.
 - **`bookkit dev stop`** leaves the server it stops exiting 0, with "Stopped by bun run bookkit dev stop", not 143.
 - **Migration:** a script that relied on `deploy --dry-run` stamping `dist/` for `--no-build` adds `--full`. A book without `00-overview.mdx` may now show a `FRAME_STEP_MISSING` warning naming the steps no chapter covers; warnings never fail.
+
 ## 2026-10-21 — MCP tools an agent can write a book with
 
 - **`bookkit.write_content`** checks a file as `check_content` does and, when it passes, writes it into the book: a chapter numbered after the last, an example under its mechanism, anything else as `<slug>.mdx`. It replaces an existing file only with `overwrite: true`, and never writes outside the section folder. An MCP client without file access can now author, not only check.

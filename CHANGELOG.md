@@ -7,7 +7,7 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 
 - **The README keeps orientation and daily commands only**: what Bookkit is and who it is for, how a book compiles, the record types in brief, prerequisites, starting a book, the everyday commands, the example books, and a map of the documentation.
 - **Reference material moves, unchanged in substance, to `docs/guide/`**: `concepts.md` (terms, frames, status, `book.config.ts`, where data lives), `checks.md`, `import-export.md`, `reader-site.md`, `publishing.md` (deploy, CI, static and server builds, server runtime), `ai.md` (proposals, model downloads, MCP), `corpus.md`, and `troubleshooting.md`.
-- **The MCP governance resources** add `docs/guide/concepts.md`, `checks.md`, and `ai.md`, so an agent reading them still sees the contracts and check rules the README used to carry.
+- **The MCP governance resources** add `docs/guide/concepts.md`, `checks.md`, and `ai.md` (`GUIDE_GOVERNANCE_FILE_RESOURCES`), over stdio (`bun run mcp`) and over HTTP (`POST /api/mcp.json`), so an agent still sees the contracts and check rules the README used to carry. Workspace-root discovery still keys on README, CONTRIBUTING, and AGENTS only.
 
 **Migration:** links to README anchors such as `README.md#deploy` or `README.md#what-the-checks-enforce` now land on the README without the section; point them at the matching `docs/guide/` page.
 

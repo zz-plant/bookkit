@@ -270,8 +270,8 @@ export const printTry = (
 	if (prose.length > 0) {
 		console.log(
 			frame.stepsPer === "document"
-				? '  Every document needs a section for each step: a heading or a "Label:" line whose words start like the step.'
-				: '  The book as a whole needs each step: a heading or a "Label:" line anywhere counts.',
+				? "  Every document needs a heading for each step, its whole text the step's name (## Ownership)."
+				: "  The book as a whole needs a heading for each step, its whole text the step's name, in any chapter.",
 		);
 		const width = Math.max(...frame.steps.map((step) => step.label.length));
 		for (const step of frame.steps) {

@@ -69,8 +69,8 @@ It prints every file it changes. It never writes book content, `book.config.ts` 
 ## Runbook frame
 
 Bookkit ships a `runbook` frame with required steps, tool-to-mechanism coverage, drill ownership and escalation wiring. `bun run runbooks` audits it. To use it:
-- set `frame.slug: "runbook"` in `book.config.ts`
-- keep the required step headings in `00-overview.mdx` (`ownership`, `trigger`, `steps`, `escalation`, `verification`)
+- set `frame.slug: "runbook"` and `frame.steps: ["ownership", "trigger", "steps", "escalation", "verification"]` in `book.config.ts` (or start the book with `bun run bookkit new book <slug> --frame runbook`, which writes both)
+- give `00-overview.mdx` a heading for each step, its whole text the step's name (`## Ownership`, `## Trigger`, `## Steps`, `## Escalation`, `## Verification`)
 - give each tool an `owner`, `drills` and `escalation` in its frontmatter
 
 ## License

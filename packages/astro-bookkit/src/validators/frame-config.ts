@@ -5,7 +5,8 @@
 
 export type FrameConfigFromSource = {
 	slug: string;
-	steps: string[];
+	/** `frame.steps`; undefined when the config lists none. */
+	steps?: string[];
 };
 
 const STRING_START = /["'`]/;
@@ -26,7 +27,8 @@ function readStringAt(source: string, index: number): number {
 /**
  * Extracts `{ slug, steps }` from a `frame: { ... }` property inside a
  * book.config.ts source string. Dependency-free (the engine must not require
- * `typescript`). Returns null when the frame property is absent or malformed.
+ * `typescript`). Returns null when the frame property or its slug is absent
+ * or malformed; `steps` is undefined when the frame lists none.
  */
 export function extractFrameConfigFromSource(
 	source: string,
@@ -70,14 +72,15 @@ export function extractFrameConfigFromSource(
 	);
 	if (!slugMatch) return null;
 
+	const slug = slugMatch[1] ?? slugMatch[2] ?? slugMatch[3];
 	const stepsMatch = frameObject.match(/\bsteps\s*:\s*\[/);
-	if (!stepsMatch) return null;
+	if (!stepsMatch) return { slug };
 
 	const stepsContent = frameObject.slice(
 		(stepsMatch.index ?? 0) + stepsMatch[0].length,
 	);
 	const closingBracket = stepsContent.indexOf("]");
-	if (closingBracket === -1) return null;
+	if (closingBracket === -1) return { slug };
 
 	const steps = Array.from(
 		stepsContent
@@ -87,7 +90,7 @@ export function extractFrameConfigFromSource(
 		.map((m) => m[1] ?? m[2] ?? m[3])
 		.filter((value) => value.length > 0);
 
-	return { slug: slugMatch[1] ?? slugMatch[2] ?? slugMatch[3], steps };
+	return { slug, steps };
 }
 
 const BOOK_STATUS_KEY = /status\s*:\s*(["'`])([^"'`\n]*)\1/y;

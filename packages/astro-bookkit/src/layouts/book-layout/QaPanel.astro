@@ -11,7 +11,6 @@ const {
 	modelMegabytes,
 	modelHost,
 	runtimeMegabytes,
-	runtimeHost,
 } = QA_MODEL_DOWNLOAD;
 ---
 <div class="qa-panel" id="qa-panel" data-qa-panel hidden>
@@ -66,7 +65,7 @@ const {
           <code class="qa-panel__model">{embeddingModel}</code> and
           <code class="qa-panel__model">{rerankModel}</code>.
           They are about {modelMegabytes} MB from Hugging Face ({modelHost}), with a {runtimeMegabytes} MB
-          runtime from jsDelivr ({runtimeHost}). Your browser keeps them, so they download once.
+          runtime from this site. Your browser keeps them, so they download once.
         </p>
         <p id="qa-consent-decline" class="qa-panel__consent-text meta">
           Not now: Ask still answers, matching passages by the words in your question.

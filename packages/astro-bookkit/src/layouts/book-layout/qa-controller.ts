@@ -1,8 +1,5 @@
 import type { EmbeddingStore } from "../../embeddings/store";
 import { createEmbeddingStore } from "../../embeddings/store";
-import type { LocalLlmMessage } from "../../llm-local";
-import { createLocalLlmEngine } from "../../llm-local";
-import type { RerankEngine } from "../../rerank";
 import { createRerankEngine } from "../../rerank";
 import type { SearchEntry } from "../../search";
 import {
@@ -57,7 +54,6 @@ type QaControllerOptions = {
 	apiEndpoint?: string;
 	memoryKey?: string;
 	signalsKey?: string;
-	enableLocalLlm?: boolean;
 	enableSemanticSearch?: boolean;
 	enableRerank?: boolean;
 };
@@ -74,7 +70,6 @@ export const initializeQaController = ({
 	apiEndpoint,
 	memoryKey = "bookkit.qa.memory",
 	signalsKey = "bookkit.qa.signals",
-	enableLocalLlm = true,
 	enableSemanticSearch = true,
 	enableRerank = true,
 }: QaControllerOptions): QaController => {
@@ -132,8 +127,7 @@ export const initializeQaController = ({
 	let modelChoice = loadQaModelChoice(storage, modelChoiceKey);
 	// The question asked while the reader decides; it runs once they choose.
 	let waitingQuestion: string | null = null;
-	const usesModels =
-		enableSemanticSearch || enableRerank || (enableLocalLlm && !apiEndpoint);
+	const usesModels = enableSemanticSearch || enableRerank;
 
 	const isDisabled = () => readStoredValue(storage, disabledKey) === "true";
 	const setDisabled = (value: boolean) =>
@@ -198,7 +192,6 @@ export const initializeQaController = ({
 
 	// Lazy-loaded AI engines
 	let embeddingStore: EmbeddingStore | null = null;
-	let localLlmEngine: Awaited<ReturnType<typeof createLocalLlmEngine>> = null;
 	let rerankEngine: Awaited<ReturnType<typeof createRerankEngine>> = null;
 	let enginesInitialized = false;
 
@@ -253,10 +246,6 @@ export const initializeQaController = ({
 		if (enableSemanticSearch) {
 			embeddingStore = createEmbeddingStore();
 			await embeddingStore.load(entries, (msg) => updateStatus(msg));
-		}
-
-		if (enableLocalLlm && !apiEndpoint) {
-			localLlmEngine = await createLocalLlmEngine((msg) => updateStatus(msg));
 		}
 
 		if (enableRerank) {
@@ -363,60 +352,6 @@ export const initializeQaController = ({
 		citations.append(heading, list);
 	};
 
-	const synthesizeWithLocalLlm = async (
-		normalizedQuery: string,
-		results: RankedSearchResult[],
-		history: QaTurn[],
-	): Promise<{
-		answer: string;
-		citations: Array<{ id: string; title: string; url: string }>;
-	} | null> => {
-		if (!localLlmEngine?.isReady()) return null;
-
-		const context = results
-			.slice(0, 8)
-			.map(
-				(entry, i) =>
-					`[${i + 1}] ${entry.title} (${entry.context})\n${entry.snippet}`,
-			)
-			.join("\n\n");
-
-		let userPrompt = `Question: ${normalizedQuery}\n\nBook passages:\n${context}`;
-		if (history.length > 0) {
-			const historyText = history
-				.map(
-					(turn, i) => `Q${i + 1}: ${turn.question}\nA${i + 1}: ${turn.answer}`,
-				)
-				.join("\n\n");
-			userPrompt = `Conversation so far:\n${historyText}\n\n${userPrompt}`;
-		}
-
-		const messages: LocalLlmMessage[] = [
-			{
-				role: "system",
-				content:
-					"You are a precise research assistant. Answer the user's question using ONLY the provided book passages. Be concise. If the passages don't contain enough information, say so clearly.",
-			},
-			{ role: "user", content: userPrompt },
-		];
-
-		try {
-			const response = await localLlmEngine.complete(messages);
-			if (!response.answer) return null;
-
-			return {
-				answer: response.answer,
-				citations: results.slice(0, 8).map((entry) => ({
-					id: entry.id,
-					title: entry.title,
-					url: entry.url,
-				})),
-			};
-		} catch {
-			return null;
-		}
-	};
-
 	const synthesizeWithApi = async (
 		normalizedQuery: string,
 		results: RankedSearchResult[],
@@ -517,7 +452,7 @@ export const initializeQaController = ({
 			}
 		}
 
-		// Try synthesis: API first, then local LLM, then local snippets
+		// The server writes the answer when it can; otherwise the passages are shown.
 		const history = loadMemory();
 		let synthesized: {
 			answer: string;
@@ -534,17 +469,7 @@ export const initializeQaController = ({
 			);
 		}
 
-		// 2. Try local LLM if API unavailable or not configured
-		if (!synthesized && candidateResults.length > 0) {
-			updateStatus("Using local model…");
-			synthesized = await synthesizeWithLocalLlm(
-				normalizedQuery,
-				candidateResults,
-				history,
-			);
-		}
-
-		// 3. Render synthesis if successful
+		// 2. Render synthesis if successful
 		if (synthesized) {
 			renderSynthesizedAnswer(synthesized, tokens);
 			updateStatus(
@@ -564,7 +489,7 @@ export const initializeQaController = ({
 			return;
 		}
 
-		// 4. Fallback to local search snippets
+		// 3. Fallback to local search snippets
 		updateStatus(
 			apiEndpoint
 				? "AI synthesis unavailable. Showing local results."

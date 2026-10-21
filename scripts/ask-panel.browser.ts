@@ -16,9 +16,10 @@ import { builtBookTests, type CaseBrowser } from "./lib/browser.fixture";
 /**
  * The Ask panel, on a book with a server runtime (on-call, built as
  * `site.runtime: "server"` would build it). It asks before the reader's
- * browser downloads the models that rank passages, remembers the answer, and
- * links a cited passage only to a page of this book. Nothing outside the
- * local server is fetched: every such request is recorded and refused.
+ * browser downloads the models that rank passages, remembers the answer,
+ * loads the models' runtime from the book's own site, and links a cited
+ * passage only to a page of this book. Nothing outside the local server is
+ * fetched: every such request is recorded and refused.
  * Run with `bun run test:browser`.
  */
 
@@ -82,12 +83,8 @@ const consent = (page: Page) => page.locator("[data-qa-consent]");
 const answered = (page: Page) =>
 	page.waitForSelector("[data-qa-citations] li", { state: "attached" });
 
-const MODEL_HOSTS: readonly string[] = [
-	QA_MODEL_DOWNLOAD.modelHost,
-	QA_MODEL_DOWNLOAD.runtimeHost,
-];
 const modelRequests = (elsewhere: string[]) =>
-	elsewhere.filter((url) => MODEL_HOSTS.includes(new URL(url).host));
+	elsewhere.filter((url) => new URL(url).host === QA_MODEL_DOWNLOAD.modelHost);
 
 describe("the Ask panel's models", () => {
 	it("asks before it downloads anything, saying what, how much, and from where", async (browser) => {
@@ -101,7 +98,7 @@ describe("the Ask panel's models", () => {
 		for (const words of [
 			...QA_MODEL_DOWNLOAD.models,
 			`about ${QA_MODEL_DOWNLOAD.modelMegabytes} MB from Hugging Face (huggingface.co)`,
-			`${QA_MODEL_DOWNLOAD.runtimeMegabytes} MB runtime from jsDelivr (cdn.jsdelivr.net)`,
+			`${QA_MODEL_DOWNLOAD.runtimeMegabytes} MB runtime from this site`,
 			"Your browser keeps them",
 			"Not now: Ask still answers",
 		]) {
@@ -186,6 +183,48 @@ describe("the Ask panel's models", () => {
 		await page.click("[data-qa-consent-decline]");
 		expect(await consent(page).isHidden()).toBe(true);
 		expect(elsewhere).toEqual([]);
+		await context.close();
+	});
+
+	it("loads the models' runtime from this site after Download, not from jsDelivr", async (browser) => {
+		const { context, page, elsewhere } = await open(browser);
+		await context.addInitScript((key) => {
+			localStorage.setItem(key, "download");
+		}, MODELS_KEY);
+		// Stand-ins for the Hub: a model's config, and bytes that are not a
+		// model. ONNX Runtime fetches its WebAssembly before it reads them;
+		// every other request to the Hub is refused, as before.
+		await context.route(
+			(url) => url.host === QA_MODEL_DOWNLOAD.modelHost,
+			(route) => {
+				const { pathname } = new URL(route.request().url());
+				const headers = { "access-control-allow-origin": "*" };
+				if (pathname.endsWith("/config.json")) {
+					return route.fulfill({ json: { model_type: "bert" }, headers });
+				}
+				if (pathname.endsWith(".onnx")) {
+					return route.fulfill({ body: "not a model", headers });
+				}
+				return route.fallback();
+			},
+		);
+		const runtime = page.waitForRequest((request) =>
+			new URL(request.url()).pathname.endsWith(".wasm"),
+		);
+		await openAsk(page);
+		await ask(page);
+		const fetched = new URL((await runtime).url());
+		expect(fetched.origin).toBe(book.origin());
+		expect(fetched.pathname).toMatch(
+			/^\/_astro\/ort-wasm(-simd)?\.[\w-]+\.wasm$/,
+		);
+		// The models cannot load here, so the passages are matched by their words.
+		await answered(page);
+		expect(
+			elsewhere.filter(
+				(url) => new URL(url).host !== QA_MODEL_DOWNLOAD.modelHost,
+			),
+		).toEqual([]);
 		await context.close();
 	});
 

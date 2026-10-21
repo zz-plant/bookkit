@@ -140,15 +140,13 @@ describe(`static build of ${BOOK}`, () => {
 		expect(names).toEqual(["subscribeAnalyticsUrl", "bookKey"]);
 	});
 
-	it("does not bundle the in-browser models the Ask panel loads", () => {
-		const bundles = filesUnder(join(outDir, "_astro")).filter((file) =>
-			file.endsWith(".js"),
-		);
-		for (const bundle of bundles) {
+	it("does not bundle the in-browser models the Ask panel loads, or their runtime", () => {
+		const assets = filesUnder(join(outDir, "_astro"));
+		for (const bundle of assets.filter((file) => file.endsWith(".js"))) {
 			const source = readFileSync(bundle, "utf8");
 			expect(source.includes("onnxruntime"), bundle).toBe(false);
-			expect(source.includes("@mlc-ai/web-llm"), bundle).toBe(false);
 		}
+		expect(assets.filter((file) => file.endsWith(".wasm"))).toEqual([]);
 	});
 
 	it("shows each procedure's owner, situations, escalation and drills, in the export's order", () => {

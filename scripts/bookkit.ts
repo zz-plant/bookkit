@@ -689,18 +689,17 @@ switch (findCommand(command)?.name ?? command) {
 	}
 
 	case "validate": {
-		const targetBook =
-			args[1] && !args[1].startsWith("--")
-				? requireBook(args[1], "bun run bookkit validate [book]")
-				: undefined;
+		// As check and build: the named book, else the current one, unless --all.
+		const target = targetBooks(args, "bun run bookkit validate [book] [--all]");
+		const flags = args
+			.slice(args[1] && !args[1].startsWith("--") ? 2 : 1)
+			.filter((arg) => arg !== "--all");
+		const [one] = target.books;
+		if (target.note) console.log(target.note);
 		process.exit(
-			targetBook
-				? runScript("validate-book.ts", [
-						"--book",
-						targetBook,
-						...args.slice(2),
-					])
-				: runScript("validate-all.ts", args.slice(1)),
+			target.books.length === 1
+				? runScript("validate-book.ts", ["--book", one, ...flags])
+				: runScript("validate-all.ts", flags),
 		);
 		break;
 	}
@@ -726,14 +725,7 @@ switch (findCommand(command)?.name ?? command) {
 
 	case "remove": {
 		if (args[1] === "book") {
-			const rest = args.slice(2);
-			const named = rest[0] && !rest[0].startsWith("--") ? rest[0] : undefined;
-			process.exit(
-				runScript(
-					"remove-book.ts",
-					named ? ["--book", named, ...rest.slice(1)] : rest,
-				),
-			);
+			process.exit(runScript("remove-book.ts", args.slice(2)));
 		}
 		process.exit(removeRecord(args.slice(1)));
 		break;
@@ -2811,7 +2803,7 @@ Preview and publish
 
 Other
   list                                      list the books
-  remove book <slug>                        delete a book app (also: remove-book --book <slug>)
+  remove book <slug>                        delete a book app (also: remove-book <slug>)
   bets [--json]                             the maintainers' active bet (docs/bets.md), measured from git
 
 bun run bookkit <command> --help (or bun run bookkit help <command>) prints a

@@ -1,6 +1,14 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { listBookDirs, repoRoot } from "./_lib";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary:
+		"Checks that book content stays data: only Markdown, MDX, and data\nfiles under each book's src/content/book/, and no import, <script>, or\n<style> in the MDX.",
+	usage: ["bun run check:separation"],
+	examples: ["bun run check:separation"],
+});
 
 const allowedExtensions = new Set([
 	".md",

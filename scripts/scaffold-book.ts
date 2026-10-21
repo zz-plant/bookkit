@@ -1,30 +1,40 @@
 import { spawnSync } from "node:child_process";
 import { repoRoot, slugify } from "./_lib";
-import { parseScriptArgs } from "./lib/cli";
+import { parseScriptArgs, type Usage } from "./lib/cli";
 import {
 	formatWithBiome,
 	scaffoldBook,
 	titleFromSlug,
 } from "./lib/scaffold-book";
 
-const USAGE = `Create a book app in apps/<slug> from the engine's starter template.
-
-Usage:
-  bun run new:book -- --book <slug> [--title "<title>"] [--frame <slug>] [--skip-starter-content] [--no-install]
-
-Options:
-  --book <slug>             The book's slug: lowercase words joined by hyphens
-  --title "<title>"         The book's title (default: from the slug)
-  --frame <slug>            The book's frame: intervention (default), explainer,
-                            field-guide, or runbook (bookkit try names the one
-                            a folder of notes reads as)
-  --skip-starter-content    Leave the content folders empty
-  --no-install              Skip the bun install that links the app and adds it to bun.lock
-  --no-next                 Leave out the next steps (bookkit new book --from imports right after)
-  -h, --help                Show this help
-
-The app gets the starter pages (packages/astro-bookkit/templates/starter/), the
-wrappers every book shares (templates/book-app/), and placeholder content.`;
+const USAGE: Usage = {
+	summary:
+		"Creates a book app in apps/<slug> from the engine's starter template:\nthe starter pages, the wrappers every book shares, and placeholder\ncontent. Then runs bun install.",
+	usage: [
+		'bun run new:book -- --book <slug> [--title "<title>"] [--frame <slug>] [--skip-starter-content] [--no-install]',
+	],
+	options: [
+		["--book <slug>", "The book's slug: lowercase words joined by hyphens"],
+		['--title "<title>"', "The book's title (default: from the slug)"],
+		[
+			"--frame <slug>",
+			"The book's frame: intervention (default), explainer,\nfield-guide, or runbook (bookkit try names the one a\nfolder of notes reads as)",
+		],
+		["--skip-starter-content", "Leave the content folders empty"],
+		[
+			"--no-install",
+			"Skip the bun install that links the app and adds it\nto bun.lock",
+		],
+		[
+			"--no-next",
+			"Leave out the next steps (bookkit new book --from\nimports right after)",
+		],
+	],
+	examples: [
+		'bun run new:book -- --book field-notes --title "Field Notes"',
+		"bun run new:book -- --book pager-notes --frame runbook",
+	],
+};
 
 const args = parseScriptArgs(
 	USAGE,

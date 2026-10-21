@@ -3,22 +3,28 @@ import { listBookDirs } from "./_lib";
 import { parseScriptArgs } from "./lib/cli";
 
 const args = parseScriptArgs(
-	`Compile a book: validate it, build it, and optionally export it.
-
-Usage:
-  bun run compile:book -- --book <slug> [options]
-
-Options:
-  --book <slug>         The book to compile
-  --skip-validate       Skip validation
-  --export <target>     Also export it (gitbook)
-  --create-if-missing   Scaffold the book first if it does not exist
-  --title <value>       Title for --create-if-missing (default: from the slug)
-  -h, --help            Show this help
-
-Validation applies the rules the book's status sets: release rules for a
-published or stable book. Errors stop the compile. (--mode and --no-drafts
-are accepted for older callers and ignored.)`,
+	{
+		summary:
+			"Compiles a book: validates it, builds it, and optionally exports it.\nValidation applies the rules the book's status sets; errors stop the\ncompile.",
+		usage: [
+			'bun run compile:book -- --book <book> [--skip-validate] [--export gitbook] [--create-if-missing [--title "<title>"]]',
+		],
+		options: [
+			["--book <book>", "The book to compile"],
+			["--skip-validate", "Skip validation"],
+			["--export <target>", "Also export it (gitbook)"],
+			["--create-if-missing", "Scaffold the book first if it does not exist"],
+			[
+				"--title <value>",
+				"Title for --create-if-missing (default: from the slug)",
+			],
+		],
+		notes: "--mode and --no-drafts are accepted for older callers and ignored.",
+		examples: [
+			"bun run compile:book -- --book on-call",
+			"bun run compile:book -- --book on-call --export gitbook",
+		],
+	},
 	{
 		book: "string",
 		"skip-validate": "boolean",

@@ -3,6 +3,14 @@ import {
 	createPdfExport,
 	type ExportBundle,
 } from "@bookkit/astro-bookkit/exports";
+import { exitOnHelp } from "./lib/cli";
+
+exitOnHelp({
+	summary:
+		"Makes an EPUB and a PDF from a small built-in sample, to check the\nexporters run. Writes nothing.",
+	usage: ["bun run export:smoke"],
+	examples: ["bun run export:smoke"],
+});
 
 const sampleBundle: ExportBundle = {
 	title: "Bookkit Export Smoke Test",

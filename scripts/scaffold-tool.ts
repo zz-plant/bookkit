@@ -9,16 +9,21 @@ import {
 import { loadBookContent } from "./lib/load-book";
 
 const args = parseScriptArgs(
-	`Create a draft toolkit action in apps/<book>/src/content/book/toolkit/.
-
-Usage:
-  bun run new:tool -- --book <book> --mechanism <mechanism-slug> [--name "<name>"]
-
-Options:
-  --book <book>             The book app to add it to
-  --mechanism <slug>        The mechanism the action responds to
-  --name "<name>"           The action's name (default: "New tool")
-  -h, --help                Show this help`,
+	{
+		summary:
+			"Creates a draft toolkit action in apps/<book>/src/content/book/toolkit/.",
+		usage: [
+			'bun run new:tool -- --book <book> --mechanism <mechanism-slug> [--name "<name>"]',
+		],
+		options: [
+			["--book <book>", "The book app to add it to"],
+			["--mechanism <slug>", "The mechanism the action responds to"],
+			['--name "<name>"', 'The action\'s name (default: "New tool")'],
+		],
+		examples: [
+			'bun run new:tool -- --book on-call --mechanism incident-triage --name "Name the incident owner"',
+		],
+	},
 	{ book: "string", mechanism: "string", name: "string" },
 	["book", "mechanism"],
 );

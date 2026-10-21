@@ -26,17 +26,22 @@ import { loadRawModules } from "./lib/raw-modules";
 const EXPORT_MARKER = ".bookkit-export";
 
 const args = parseScriptArgs(
-	`Export a book as a GitBook folder: README.md, SUMMARY.md, and one Markdown page per
-chapter, mechanism, toolkit action, glossary term, and example, in reading order.
-
-Usage:
-  bun run export:gitbook -- --book <book> [--out <dir>]
-
-Options:
-  --book <book>   The book app to export
-  --out <dir>     Where to write it (default: apps/<book>/exports/gitbook). It must be
-                  missing, empty, or an earlier export, which is replaced.
-  -h, --help      Show this help`,
+	{
+		summary:
+			"Exports a book as a GitBook folder: README.md, SUMMARY.md, and one\nMarkdown page per chapter, mechanism, toolkit action, glossary term, and\nexample, in reading order.",
+		usage: ["bun run export:gitbook -- --book <book> [--out <dir>]"],
+		options: [
+			["--book <book>", "The book app to export"],
+			[
+				"--out <dir>",
+				"Where to write it (default: apps/<book>/exports/gitbook).\nIt must be missing, empty, or an earlier export, which is\nreplaced.",
+			],
+		],
+		examples: [
+			"bun run export:gitbook -- --book on-call",
+			"bun run export:gitbook -- --book on-call --out ../on-call-gitbook",
+		],
+	},
 	{ book: "string", out: "string" },
 	["book"],
 );

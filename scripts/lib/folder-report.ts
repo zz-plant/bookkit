@@ -11,6 +11,7 @@ import {
 	countConversions,
 	describeConversions,
 	describeUnsafeMarkup,
+	INDEX_NAMES,
 	importSkipReason,
 	sumConversions,
 } from "./import-rules";
@@ -70,7 +71,7 @@ export const readFolder = (
 
 /** True for a path inside a book app's content tree, which `check <file>` already handles with the book's context. */
 export const isBookContentPath = (target: string): boolean =>
-	/^apps\/[^/]+\/src\/content\/book\//.test(
+	/^apps\/[^/]+\/src\/content\/book(?:\/|$)/.test(
 		relative(repoRoot(), resolveFromCaller(target)),
 	);
 
@@ -170,12 +171,85 @@ export const unsafeMarkupSummary = (preview: FolderPreview): string[] =>
 		),
 	);
 
-export const printTry = (target: string, preview: FolderPreview) => {
+/** The folder's own index (README.md, index.md) at its top, if it has one. */
+const folderIndex = (preview: FolderPreview) =>
+	preview.documents.find(
+		(doc) =>
+			!doc.path.includes("/") &&
+			INDEX_NAMES.has(doc.path.replace(/\.mdx?$/i, "").toLowerCase()),
+	);
+
+/** The book's title: the index's heading when it has one, else from the folder name. */
+export const titleForFolder = (
+	preview: FolderPreview,
+	slug: string,
+): string => {
+	const heading = folderIndex(preview)?.title.trim();
+	return heading && !INDEX_NAMES.has(heading.toLowerCase())
+		? heading
+		: slug
+				.split("-")
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(" ");
+};
+
+const WIKI_LINK = /!?\[\[([^[\]\n|#]*)[^[\]\n]*\]\]/g;
+
+/**
+ * Wiki links (`[[Note]]`) in the notes import would bring in: how many name
+ * a note, which import turns into links between chapters, and how many name
+ * none and would stay as text.
+ */
+export const wikiLinkSummary = (
+	preview: FolderPreview,
+	files: FolderSourceFile[],
+): string | null => {
+	const names = new Set(
+		preview.documents.flatMap((doc) => [
+			doc.path.replace(/\.mdx?$/i, "").toLowerCase(),
+			basename(doc.path)
+				.replace(/\.mdx?$/i, "")
+				.toLowerCase(),
+			doc.title.trim().toLowerCase(),
+		]),
+	);
+	let resolved = 0;
+	let unresolved = 0;
+	for (const file of files) {
+		if (importSkipReason(file.path)) continue;
+		// Code shows wiki syntax; it does not link.
+		const prose = file.source
+			.replace(/^(```|~~~)[\s\S]*?^\1/gm, "")
+			.replace(/`[^`\n]*`/g, "");
+		for (const match of prose.matchAll(WIKI_LINK)) {
+			const target = match[1].trim().toLowerCase();
+			if (!target || names.has(target) || /\.[a-z]{2,4}$/.test(target)) {
+				resolved += 1;
+			} else {
+				unresolved += 1;
+			}
+		}
+	}
+	if (resolved + unresolved === 0) return null;
+	return `Wiki links: import turns ${plural(resolved, "[[…]] link")} into links between chapters and images${unresolved > 0 ? `; ${plural(unresolved, "names", "name")} no note and would stay as text` : ""}.`;
+};
+
+export const printTry = (
+	target: string,
+	preview: FolderPreview,
+	files: FolderSourceFile[] = [],
+) => {
 	const label = target.replace(/\/$/, "");
 	console.log(`\nBOOKKIT TRY · ${label}  (read-only: nothing was written)\n`);
 	console.log(
 		`  ${plural(preview.files, "file")}, ${plural(preview.words, "word")}: ${describeSections(preview)}`,
 	);
+	const index = folderIndex(preview);
+	if (index) {
+		console.log(
+			`  ${index.path} is the folder's index: import leaves it out (--include-readme makes it a chapter), and its heading is the book's title.`,
+		);
+	}
 
 	// The shape: which frame, and how much of it the documents already carry.
 	const { frame } = preview;
@@ -252,14 +326,13 @@ export const printTry = (target: string, preview: FolderPreview) => {
 
 	const conversions = mdxConversionSummary(preview);
 	if (conversions) console.log(`\n${conversions}`);
+	const wiki = wikiLinkSummary(preview, files);
+	if (wiki) console.log(`\n${wiki}`);
 	const leftOut = unsafeMarkupSummary(preview);
 	if (leftOut.length > 0) console.log(`\n${leftOut.join("\n")}`);
 
 	const slug = slugify(basename(resolveFromCaller(target))) || "my-book";
-	const title = slug
-		.split("-")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
+	const title = titleForFolder(preview, slug);
 	const sample = sampleBook(frame.slug);
 	console.log("\nWhat it would become");
 	console.log(

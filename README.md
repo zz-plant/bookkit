@@ -114,7 +114,7 @@ bun run bookkit import my-book --dir ~/notes
 
 ### Then replace the starter text
 
-The checks name every placeholder still in `book.config.ts`: the three `objectives`, `frame.intent`, and `causalStance`. Each is a warning in a draft and an error once the book is published. Set `site.url` to the address the book will have, write the chapters, and set `status: "published"` when the book should be found.
+The checks name every placeholder still in `book.config.ts`: the three `objectives`, `frame.intent`, and `causalStance`. Each is a warning in a draft and an error once the book is published. Set `site.url` to the address the book will have, write the chapters, and run `bun run bookkit publish` when the book should be found: it checks the book with release rules, then sets `status: "published"`.
 
 ## Daily commands
 
@@ -144,6 +144,7 @@ bun run bookkit check                    # the current book: errors, overlap wit
 bun run bookkit check --all              # every book
 bun run bookkit check <file.mdx>         # one file, each finding with its field and a fix
 bun run bookkit check ./runbooks --frame runbook   # any Markdown folder, without making it a book
+bun run bookkit check apps/my-book/src/content/book/chapters   # a folder of a book, with the book's rules
 bun run verify                           # the checks your change needs, chosen from the files it touches
 ```
 
@@ -156,11 +157,12 @@ bun run bookkit dev                        # the current book at http://localhos
 bun run bookkit dev status                 # find (or `stop`, or tail the `logs` of) a dev server in another terminal
 bun run bookkit build                      # apps/<book>/dist: the site, exports/book.pdf, exports/book.epub
 bun run bookkit export                     # a GitBook folder in apps/<book>/exports/gitbook
-bun run bookkit deploy my-book --dry-run   # every check deploy runs; publishes nothing
-bun run bookkit deploy my-book             # check, build, and publish to Cloudflare
+bun run bookkit publish my-book            # draft to published, once release rules pass
+bun run bookkit deploy my-book --dry-run   # content checks, build, and wrangler's dry run; publishes nothing
+bun run bookkit deploy my-book             # every check, build, and publish to Cloudflare
 ```
 
-`bookkit build` builds a book with content errors too; `bookkit deploy` is the command that refuses them. [Publishing](./docs/guide/publishing.md) covers deploy, CI, and the server runtime.
+`bookkit build` builds a book with content errors too, and ends with any export warnings (an image the PDF shows as alt text); `bookkit deploy` is the command that refuses errors. `preview`, `serve`, and `start` are other names for `dev`, and `init` for `new book`. With one book in the workspace, commands take it without its name. [Publishing](./docs/guide/publishing.md) covers deploy, CI, and the server runtime.
 
 ## Example books in this repository
 

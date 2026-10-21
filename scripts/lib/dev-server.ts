@@ -97,6 +97,16 @@ export const foregroundServer = (
 	}
 };
 
+/** Left by `bookkit dev stop`, so the server it stops exits 0: stopped on purpose, not failed. */
+const stopMarker = (book: string): string =>
+	join(repoRoot(), ".bookkit", "dev", `${book}.stop`);
+
+/** Stops the server `bookkit dev` runs for `book` in another terminal. */
+export const stopForegroundServer = (server: { pid: number }, book: string) => {
+	writeFileSync(stopMarker(book), "");
+	process.kill(server.pid, "SIGTERM");
+};
+
 /** Runs the dev server for `book` until it stops; resolves to the exit status. */
 export const runDevServer = async (
 	book: string,
@@ -125,6 +135,7 @@ export const runDevServer = async (
 	}
 	const lockFile = foregroundLock(book);
 	mkdirSync(join(lockFile, ".."), { recursive: true });
+	rmSync(stopMarker(book), { force: true });
 	writeFileSync(lockFile, JSON.stringify({ pid: process.pid, port }));
 	child.once("exit", () => rmSync(lockFile, { force: true }));
 	return new Promise((resolve) => {
@@ -134,8 +145,14 @@ export const runDevServer = async (
 			);
 			resolve(1);
 		});
-		child.once("exit", (code, signal) =>
-			resolve(code ?? 128 + (signal ? constants.signals[signal] : 0)),
-		);
+		child.once("exit", (code, signal) => {
+			if (existsSync(stopMarker(book))) {
+				rmSync(stopMarker(book), { force: true });
+				console.log(`\nStopped by bun run bookkit dev stop ${book}.`);
+				resolve(0);
+				return;
+			}
+			resolve(code ?? 128 + (signal ? constants.signals[signal] : 0));
+		});
 	});
 };

@@ -1,5 +1,9 @@
 import type { FrameDefinition } from "../frames/types";
-import { createHeadingSlugger, markdownHeadings } from "../utils/markdown";
+import {
+	createHeadingSlugger,
+	markdownHeadings,
+	stripMarkdown,
+} from "../utils/markdown";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type FrameValidationResult = {
@@ -108,7 +112,7 @@ const stepStem = (stepId: string): string => {
  * one of its words starts with the step's stem, so "Owner" covers ownership,
  * "Verify" covers verification, and "Step 3" covers steps. Used where a frame
  * applies to each document of a folder (`bookkit try`, `bookkit check <dir>`),
- * which was not written for a frame; a book's overview chapter is held to
+ * which was not written for a frame; a book's chapters are held to
  * `frameStepsInPage`.
  */
 export const frameStepsInHeadings = (
@@ -129,4 +133,33 @@ export const frameStepsInHeadings = (
 			return [...words].some((word) => word.startsWith(stem));
 		})
 		.map((step) => step.id);
+};
+
+/**
+ * The labels a document gives its sections, outside fenced code: headings of
+ * any level, and field lines such as "**Owner:** Payments" or "Owner: Platform
+ * team", which runbooks often use instead of a heading.
+ */
+export const sectionLabelsOf = (body: string): string[] => {
+	const headings: string[] = [];
+	let fence: string | null = null;
+	for (const line of body.split("\n")) {
+		const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/)?.[1];
+		if (marker) {
+			if (!fence) fence = marker[0];
+			else if (marker[0] === fence) fence = null;
+			continue;
+		}
+		if (fence) continue;
+		const heading = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/)?.[1];
+		if (heading) {
+			headings.push(stripMarkdown(heading));
+			continue;
+		}
+		const field = line.match(
+			/^\s{0,3}(?:\*\*|__)?([A-Za-z][A-Za-z /-]{0,30}?)(?::(?:\*\*|__)|(?:\*\*|__)?:)\s+\S/,
+		)?.[1];
+		if (field) headings.push(field);
+	}
+	return headings;
 };

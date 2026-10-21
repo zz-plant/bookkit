@@ -26,6 +26,32 @@ const BOOK = [
 	"The book (default: the current one, set with use)",
 ] as const;
 
+const NEW_BOOK_HELP: Usage = {
+	summary:
+		"Creates a book app in apps/<slug> from the engine's starter, runs bun\ninstall, and makes it the current book. --from imports a folder of\nnotes into it as chapters, without the starter's placeholder content.",
+	usage: [
+		'bun run bookkit new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder>]',
+	],
+	options: [
+		["<slug>", "The book's slug: lowercase words joined by hyphens"],
+		[
+			'--title "<title>"',
+			"Its title (default: from the slug; asked at a terminal)",
+		],
+		[
+			"--frame <slug>",
+			"intervention (default), explainer, field-guide, or runbook",
+		],
+		["--from <folder>", "A folder of Markdown notes to import"],
+		["--skip-starter-content", "Leave the content folders empty"],
+		["--no-install", "Skip bun install"],
+	],
+	examples: [
+		'bun run bookkit new book field-notes --title "Field Notes"',
+		"bun run bookkit new book pager-notes --frame runbook --from ~/notes/runbooks",
+	],
+};
+
 const NEW_KINDS: readonly BookkitCommand[] = [
 	{
 		name: "chapter",
@@ -137,31 +163,7 @@ const NEW_KINDS: readonly BookkitCommand[] = [
 	},
 	{
 		name: "book",
-		help: {
-			summary:
-				"Creates a book app in apps/<slug> from the engine's starter, runs bun\ninstall, and makes it the current book. --from imports a folder of\nnotes into it as chapters, without the starter's placeholder content.",
-			usage: [
-				'bun run bookkit new book <slug> [--title "<title>"] [--frame <slug>] [--from <folder>]',
-			],
-			options: [
-				["<slug>", "The book's slug: lowercase words joined by hyphens"],
-				[
-					'--title "<title>"',
-					"Its title (default: from the slug; asked at a terminal)",
-				],
-				[
-					"--frame <slug>",
-					"intervention (default), explainer, field-guide, or runbook",
-				],
-				["--from <folder>", "A folder of Markdown notes to import"],
-				["--skip-starter-content", "Leave the content folders empty"],
-				["--no-install", "Skip bun install"],
-			],
-			examples: [
-				'bun run bookkit new book field-notes --title "Field Notes"',
-				"bun run bookkit new book pager-notes --frame runbook --from ~/notes/runbooks",
-			],
-		},
+		help: NEW_BOOK_HELP,
 	},
 ];
 
@@ -460,6 +462,7 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 	},
 	{
 		name: "dev",
+		aliases: ["preview", "serve", "start"],
 		help: {
 			summary: `Previews a book at http://localhost:${DEFAULT_DEV_PORT}/ with live reload, until stopped.\nstop, status, and logs find a dev server that bookkit dev or astro dev\nleft running.`,
 			usage: [
@@ -517,6 +520,28 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 			],
 		},
 	},
+	{
+		name: "publish",
+		help: {
+			summary:
+				'Moves a book from draft to published: checks it with the rules a\npublished book is held to, then sets status: "published" in\nbook.config.ts. Nothing changes while an error stands.',
+			usage: ["bun run bookkit publish [book] [--dry-run] [--records]"],
+			options: [
+				BOOK,
+				["--dry-run", "Check only; change nothing"],
+				[
+					"--records",
+					"Mark the book's draft records published first (put\nback if the book still fails)",
+				],
+			],
+			notes:
+				"It puts nothing online; bun run bookkit deploy does, once it is published.",
+			examples: [
+				"bun run bookkit publish on-call --dry-run",
+				"bun run bookkit publish on-call --records",
+			],
+		},
+	},
 	{ name: "deploy", help: { script: "deploy.ts" } },
 	{
 		name: "import",
@@ -536,6 +561,11 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 			usage: ["bun run bookkit list"],
 			examples: ["bun run bookkit list"],
 		},
+	},
+	{
+		name: "init",
+		aliases: ["create"],
+		help: NEW_BOOK_HELP,
 	},
 	{
 		name: "new-book",

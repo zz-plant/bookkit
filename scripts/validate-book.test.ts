@@ -104,7 +104,11 @@ describe("validate-book", () => {
 			.split("\n")
 			.filter((line) => line.startsWith("- apps/broken-book/"));
 		expect(errorLines).toHaveLength(5);
-		expect(result.output.match(/^ {2}fix: /gm)).toHaveLength(5);
+		// Each error has its fix (warnings, listed after, have theirs).
+		const errors = result.output
+			.split("ERRORS (5)")[1]
+			?.split(/WARNINGS \(/)[0];
+		expect(errors?.match(/^ {2}fix: /gm)).toHaveLength(5);
 		expect(result.output).toContain("✗ broken-book: 5 errors");
 	});
 

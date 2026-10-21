@@ -9,7 +9,11 @@ import {
 } from "../packages/astro-bookkit/src";
 import { ensureDir, listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { booksFromArgv } from "./lib/book-args";
-import { planEdges, withPrerequisites } from "./lib/chapter-prerequisites";
+import {
+	planEdges,
+	withMechanisms,
+	withPrerequisites,
+} from "./lib/chapter-prerequisites";
 import { exitOnHelp } from "./lib/cli";
 import { loadBookContent } from "./lib/load-book";
 
@@ -272,9 +276,35 @@ function applyMechanisms(
 				);
 				written.add(m.slug);
 			}
+			bindToEvidence(mechanismsToWrite.filter((m) => written.has(m.slug)));
 		}
 	}
 	return written;
+}
+
+/**
+ * Each mechanism written, bound to the chapters its evidence comes from (their
+ * `mechanisms:`), so the book links them and the suggestions stop calling
+ * the idea named but unbound.
+ */
+function bindToEvidence(mechanisms: ProposalBundle["mechanisms"]): void {
+	const adding = new Map<string, string[]>();
+	for (const m of mechanisms) {
+		for (const file of m.evidence.files) {
+			adding.set(file, [...(adding.get(file) ?? []), m.slug]);
+		}
+	}
+	for (const chapter of content.chapters) {
+		const slugs = chapter.file ? adding.get(chapter.file) : undefined;
+		if (!slugs || !chapter.file) continue;
+		const before = readFileSync(chapter.file, "utf8");
+		const after = withMechanisms(before, slugs);
+		if (after === before) continue;
+		writeFileSync(chapter.file, after, "utf8");
+		console.log(
+			`  ~ ${relative(workspaceRoot, chapter.file)}: mechanisms + ${slugs.join(", ")}`,
+		);
+	}
 }
 
 function applyTools(

@@ -12,12 +12,17 @@ import {
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { extractPageFacts } from "../packages/astro-bookkit/src/markdown/pageFacts";
+import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
 import { shortBookTitle } from "../packages/astro-bookkit/src/seo/page-meta";
 import {
 	type CorpusMechanism,
 	corpusEmbeddingText,
 	type PairCall,
 } from "../packages/astro-bookkit/src/suggestions";
+import {
+	checkBookContent,
+	readBookStatus,
+} from "../packages/astro-bookkit/src/validators/book-validator";
 import {
 	CONTENT_SECTIONS,
 	type ContentSection,
@@ -58,6 +63,7 @@ import {
 	DEFAULT_DEV_PORT,
 	foregroundServer,
 	runDevServer,
+	stopForegroundServer,
 } from "./lib/dev-server";
 import {
 	DEFAULT_EMBEDDING_MODEL_KEY,
@@ -79,6 +85,11 @@ import {
 } from "./lib/judge-runner";
 import { loadBookContent } from "./lib/load-book";
 import { type FileChange, planMerge, planSync } from "./lib/merge-mechanisms";
+import {
+	draftRecords,
+	publishedRecord,
+	withBookStatus,
+} from "./lib/publish-book";
 import {
 	isVersion,
 	nextMinorVersion,
@@ -116,8 +127,9 @@ const bookChoices = () =>
 
 /**
  * The book a command acts on: the one named, else the current book (`bookkit
- * use`), else one picked at a prompt. Exits with a suggestion for a misspelled
- * name, or with the usage when nothing can be resolved.
+ * use`), else the only book, else one picked at a prompt. Exits with a
+ * suggestion for a misspelled name, or with the usage when nothing can be
+ * resolved.
  */
 const requireBook = (book: string | undefined, usage: string): string => {
 	if (book && books.includes(book)) return book;
@@ -127,7 +139,9 @@ const requireBook = (book: string | undefined, usage: string): string => {
 		);
 		process.exit(1);
 	}
-	const picked = focusBook ?? choose("Which book?", bookChoices());
+	const picked =
+		focusBook ??
+		(books.length === 1 ? books[0] : choose("Which book?", bookChoices()));
 	if (picked) return picked;
 	console.error(
 		`Usage: ${usage}\nAvailable books: ${books.join(", ")}. Or set one with bun run bookkit use <book>, and leave it out.`,
@@ -300,6 +314,10 @@ switch (findCommand(command)?.name ?? command) {
 			!books.includes(target) &&
 			(existsSync(resolveFromCaller(target)) || /[\\/]|\.mdx?$/.test(target))
 		) {
+			// A folder of a book's content is checked as part of the book.
+			if (isBookContentPath(target) && !args.includes("--frame")) {
+				process.exit(await checkBookFolder(target, args.includes("--json")));
+			}
 			checkFolder(target, args.slice(2));
 			break;
 		}
@@ -437,7 +455,7 @@ switch (findCommand(command)?.name ?? command) {
 			name: slugify(target.split(/[\\/]/).filter(Boolean).pop() ?? "folder"),
 		});
 		if (args.includes("--json")) console.log(JSON.stringify(preview, null, 2));
-		else printTry(target, preview);
+		else printTry(target, preview, folder.files);
 		process.exit(0);
 		break;
 	}
@@ -491,12 +509,16 @@ switch (findCommand(command)?.name ?? command) {
 		const targetBook =
 			named && !named.startsWith("--")
 				? requireBook(named, usage)
-				: (focusBook ?? choose("Which book?", bookChoices()) ?? books[0]);
+				: (focusBook ??
+					(books.length === 1
+						? books[0]
+						: choose("Which book?", bookChoices())) ??
+					books[0]);
 		if (control) {
 			// First the server `bookkit dev` runs in another terminal.
 			const running = foregroundServer(targetBook);
 			if (running && control === "stop") {
-				process.kill(running.pid, "SIGTERM");
+				stopForegroundServer(running, targetBook);
 				console.log(
 					`Stopped the dev server for ${targetBook} on port ${running.port}.`,
 				);
@@ -552,12 +574,7 @@ switch (findCommand(command)?.name ?? command) {
 		if (targetBook) {
 			if (target.note) console.log(target.note);
 			console.log(`\n📦 Building @books/${targetBook}...\n`);
-			const result = spawnSync(
-				process.execPath,
-				["run", "--filter", `@books/${targetBook}`, "build"],
-				{ cwd: repoRoot(), stdio: "inherit" },
-			);
-			const status = exitCodeOf(result, `the ${targetBook} build`);
+			const { status, warnings } = await buildWithWarnings(targetBook);
 			// After Astro's log, where the book went and what to do with it.
 			const dist = join("apps", targetBook, "dist");
 			const exportsDir = join(repoRoot(), dist, "exports");
@@ -566,7 +583,22 @@ switch (findCommand(command)?.name ?? command) {
 					existsSync(join(exportsDir, file)),
 				);
 				console.log(
-					`\n✓ Built ${targetBook} in ${dist}${files.length > 0 ? `; ${files.map((file) => join(dist, "exports", file)).join(" and ")}` : ""}.\nNext: bun run bookkit deploy ${targetBook} --dry-run rehearses publishing it.`,
+					`\n✓ Built ${targetBook} in ${dist}${files.length > 0 ? `; ${files.map((file) => join(dist, "exports", file)).join(" and ")}` : ""}.`,
+				);
+				// Export warnings scroll past in Astro's log; repeat them here.
+				if (warnings.length > 0) {
+					console.log(
+						`\n⚠ ${warnings.length} export warning(s): the PDF or EPUB differs from the site here.`,
+					);
+					for (const warning of warnings.slice(0, 5)) {
+						console.log(`  ${warning}`);
+					}
+					if (warnings.length > 5) {
+						console.log(`  … and ${warnings.length - 5} more above`);
+					}
+				}
+				console.log(
+					`Next: bun run bookkit deploy ${targetBook} --dry-run rehearses publishing it.`,
 				);
 			}
 			process.exit(status);
@@ -627,6 +659,16 @@ switch (findCommand(command)?.name ?? command) {
 
 	case "propose": {
 		process.exit(runScript("propose-book.ts", withBookFlag(args.slice(1))));
+		break;
+	}
+
+	case "publish": {
+		process.exit(publish(args.slice(1)));
+		break;
+	}
+
+	case "init": {
+		createNew("book", args.slice(1));
 		break;
 	}
 
@@ -1209,14 +1251,17 @@ function targetBooks(
 
 /**
  * Scripts that take `--book <slug>` also accept the book first (`propose
- * running-hot`), or default to the current book (`bookkit use`).
+ * running-hot`), or default to the current book (`bookkit use`), else the only
+ * book.
  */
 function withBookFlag(rest: string[]): string[] {
 	if (rest.includes("--book")) return rest;
 	if (rest[0] && !rest[0].startsWith("--")) {
 		return ["--book", rest[0], ...rest.slice(1)];
 	}
-	return focusBook ? ["--book", focusBook, ...rest] : rest;
+	// The current book, else the only one: a project's one book need not be named.
+	const book = focusBook ?? (books.length === 1 ? books[0] : undefined);
+	return book ? ["--book", book, ...rest] : rest;
 }
 
 /** The value after a flag (`--frame runbook`), if given. */
@@ -1224,6 +1269,95 @@ function flagValue(list: string[], name: string): string | undefined {
 	const index = list.indexOf(name);
 	const value = index >= 0 ? list[index + 1] : undefined;
 	return value && !value.startsWith("--") ? value : undefined;
+}
+
+/**
+ * `check <folder>` for a folder of a book's content: the book's own checks
+ * (its frame, status, references, and the MDX compiler), reporting only the
+ * files in the folder. A folder outside a book goes to `checkFolder`.
+ */
+async function checkBookFolder(
+	target: string,
+	asJson: boolean,
+): Promise<number> {
+	const absolute = resolveFromCaller(target);
+	const book = relative(repoRoot(), absolute).match(/^apps\/([^/]+)\//)?.[1];
+	if (!book || !books.includes(book)) {
+		console.error(`${target} is not in a book under apps/.`);
+		return 1;
+	}
+	const inFolder = (file: string | undefined) =>
+		Boolean(file) &&
+		(file === absolute || (file as string).startsWith(`${absolute}/`));
+	const content = checkBookContent({
+		workspaceRoot: repoRoot(),
+		bookSlug: book,
+	});
+	const findings = content.findings.filter((finding) => inFolder(finding.file));
+	const files = statSync(absolute).isDirectory()
+		? readdirSync(absolute, { recursive: true })
+				.map(String)
+				.filter((file) => /\.mdx?$/.test(file))
+				.map((file) => join(absolute, file))
+		: [absolute];
+	// The compiler the build uses, unless an HTML comment already explains why it fails.
+	for (const file of files.filter((path) => path.endsWith(".mdx"))) {
+		if (
+			findings.some(
+				(finding) =>
+					finding.file === file && finding.code === "MDX_HTML_COMMENT",
+			)
+		) {
+			continue;
+		}
+		const compiled = compileFinding(
+			await compileMdx(
+				readFileSync(file, "utf8"),
+				join(repoRoot(), "apps", book),
+			),
+		);
+		if (compiled)
+			findings.push({ ...compiled, file } as (typeof findings)[number]);
+	}
+	const errors = findings.filter((finding) => finding.level === "error").length;
+	if (asJson) {
+		console.log(
+			JSON.stringify(
+				{
+					book,
+					folder: relative(repoRoot(), absolute),
+					files: files.length,
+					ok: errors === 0,
+					findings: findings.map((finding) => ({
+						...finding,
+						file: finding.file ? relative(repoRoot(), finding.file) : undefined,
+					})),
+				},
+				null,
+				2,
+			),
+		);
+		return errors === 0 ? 0 : 1;
+	}
+	console.log(
+		`\n${errors === 0 ? "✓" : "✗"} ${relative(repoRoot(), absolute)}: ${files.length} file(s), checked as part of ${book}${content.releaseMode ? " (release rules)" : ""}`,
+	);
+	for (const file of files.sort()) {
+		const own = findings.filter((finding) => finding.file === file);
+		if (own.length === 0) continue;
+		const failed = own.some((finding) => finding.level === "error");
+		console.log(
+			`  ${failed ? "✗" : "!"} ${relative(absolute, file) || relative(repoRoot(), file)}`,
+		);
+		for (const finding of own) {
+			console.log(`      ${finding.level}: ${finding.message}`);
+			if (finding.fix) console.log(`        fix: ${finding.fix}`);
+		}
+	}
+	console.log(
+		`\n  ${errors} error(s), ${findings.length - errors} warning(s). The whole book: bun run bookkit check ${book}`,
+	);
+	return errors === 0 ? 0 : 1;
 }
 
 /** `check <folder|file>` outside a book app: the folder preview as a gate. */
@@ -1861,6 +1995,166 @@ function sync(rest: string[]): number {
  * the chapter's slug, its file name, other chapters' prerequisites, and links
  * to it, changed together (lib/chapter-moves.ts).
  */
+/**
+ * Builds one book in its folder, passing its output through, and collects
+ * the export warnings (an image the PDF or EPUB shows as alt text, text a
+ * font cannot draw) for the summary.
+ */
+async function buildWithWarnings(
+	book: string,
+): Promise<{ status: number; warnings: string[] }> {
+	const child = Bun.spawn([process.execPath, "run", "build"], {
+		cwd: join(repoRoot(), "apps", book),
+		stdin: "inherit",
+		stdout: "inherit",
+		stderr: "pipe",
+	});
+	const warnings: string[] = [];
+	const decoder = new TextDecoder();
+	let pending = "";
+	const collect = (line: string) => {
+		const match = line.match(/\[bookkit\] ((?:PDF|EPUB) export: .*)$/);
+		if (match) warnings.push(match[1]);
+	};
+	const reader = child.stderr.getReader();
+	for (;;) {
+		const { done, value: chunk } = await reader.read();
+		if (done) break;
+		process.stderr.write(chunk);
+		pending += decoder.decode(chunk, { stream: true });
+		const lines = pending.split("\n");
+		pending = lines.pop() ?? "";
+		for (const line of lines) collect(line);
+	}
+	collect(pending);
+	const code = await child.exited;
+	if (child.signalCode) {
+		console.error(`The ${book} build was stopped by ${child.signalCode}.`);
+		return { status: 1, warnings };
+	}
+	return { status: code, warnings };
+}
+
+/**
+ * `publish [book] [--dry-run] [--records]`: the book checked with the release
+ * rules it would be held to, then `status: "published"` in book.config.ts.
+ * Nothing changes while an error stands. --records first marks the book's
+ * draft records published, for an author who left them draft by default.
+ */
+function publish(rest: string[]): number {
+	const usage = "bun run bookkit publish [book] [--dry-run] [--records]";
+	const unknown = rest.filter(
+		(arg) => arg.startsWith("--") && !["--dry-run", "--records"].includes(arg),
+	);
+	if (unknown.length > 0) {
+		console.error(`Unknown option ${unknown.join(", ")}.
+Usage: ${usage}`);
+		return 1;
+	}
+	const dryRun = rest.includes("--dry-run");
+	const book = requireBook(
+		rest.find((arg) => !arg.startsWith("--")),
+		usage,
+	);
+	const configPath = join(repoRoot(), "apps", book, "src", "book.config.ts");
+	const shownConfig = relative(repoRoot(), configPath);
+	const status = readBookStatus(repoRoot(), book) ?? "draft";
+	if (isReleasedStatus(status)) {
+		console.log(
+			`${book} is already ${status}. To put it online: bun run bookkit deploy ${book} --dry-run, then without --dry-run.`,
+		);
+		return 0;
+	}
+	if (!existsSync(configPath)) {
+		console.error(`${shownConfig} is missing.`);
+		return 1;
+	}
+	const nextConfig = withBookStatus(
+		readFileSync(configPath, "utf8"),
+		"published",
+	);
+	if (!nextConfig) {
+		console.error(
+			`${shownConfig} has no status: line to change. Add status: "published" to bookConfig yourself, then run bun run bookkit check ${book}.`,
+		);
+		return 1;
+	}
+
+	const drafts = draftRecords(book);
+	const records = rest.includes("--records");
+	// The records as they were, to put back if the book still fails.
+	const originals = new Map<string, string>();
+	if (records && drafts.length > 0) {
+		for (const path of drafts) {
+			const text = readFileSync(path, "utf8");
+			originals.set(path, text);
+			writeFileSync(path, publishedRecord(text));
+		}
+		console.log(
+			`${dryRun ? "Checking" : "Marking"} ${drafts.length} draft record(s) as published (--records):`,
+		);
+		for (const path of drafts.slice(0, 10)) {
+			console.log(`  ${relative(repoRoot(), path)}`);
+		}
+		if (drafts.length > 10) console.log(`  … and ${drafts.length - 10} more`);
+	}
+
+	console.log(
+		`\n🔎 ${book} checked with the rules a published book is held to\n`,
+	);
+	const checked = runScript("validate-book.ts", ["--book", book, "--release"]);
+	// A dry run, or a book that still fails, keeps its records as they were.
+	if (checked !== 0 || dryRun) {
+		for (const [path, text] of originals) writeFileSync(path, text);
+	}
+	if (checked !== 0) {
+		console.log(
+			[
+				"",
+				`Not published: fix the errors above; ${shownConfig} still says status: "${status}"${originals.size > 0 ? ", and the draft records are drafts again" : ""}.`,
+				...(drafts.length > 0 && !records
+					? [
+							`${drafts.length} record(s) are drafts. If they are finished, bun run bookkit publish ${book} --records marks them published too.`,
+						]
+					: []),
+			].join("\n"),
+		);
+		return 1;
+	}
+	if (dryRun) {
+		console.log(
+			`\nReady: nothing above blocks publishing. bun run bookkit publish ${book}${records ? " --records" : ""} sets status: "published" in ${shownConfig}.`,
+		);
+		return 0;
+	}
+	writeFileSync(configPath, nextConfig);
+	const notes = releaseVersions(
+		join(repoRoot(), "apps", book, "src", "content", "book", "releases"),
+	);
+	const next: Array<[string, string]> = [
+		...(notes.length === 0
+			? [
+					[
+						`bun run bookkit new release ${book} "First edition"`,
+						"a release note readers see",
+					] as [string, string],
+				]
+			: []),
+		[`bun run bookkit deploy ${book} --dry-run`, "rehearse putting it online"],
+		[`bun run bookkit deploy ${book}`, "put it online"],
+	];
+	const width = Math.max(...next.map(([command]) => command.length));
+	console.log(
+		[
+			"",
+			`Set status: "published" in ${shownConfig}. The site is now indexable (robots.txt and the sitemap open), and every check holds the book to release rules.`,
+			"Next:",
+			...next.map(([command, what]) => `  ${command.padEnd(width)}   ${what}`),
+		].join("\n"),
+	);
+	return 0;
+}
+
 function renameChapter(rest: string[]): number {
 	const usage =
 		'bun run bookkit rename chapter [book] <slug> <new-slug> [--title "<title>"] [--dry-run]';
@@ -1921,6 +2215,7 @@ Start
   try <folder> [--frame <slug>] [--json]    what Bookkit would make of any folder of Markdown (writes nothing)
   use [book]                                pick the book you're working on; [book] below defaults to it
   new                                       asks what to start, then anything it needs
+  init [slug] [--from <folder>]             a new book (same as new book)
 
 Write
   new chapter [book] "<title>" [--after <chapter>]
@@ -1972,11 +2267,16 @@ Check
 
 Preview and publish
   dev [book] [--port <n>]                   local preview with live reload; runs until stopped
+                                            (also: preview, serve, start)
   dev stop|status|logs [book]               stop or find a dev server bookkit dev (or astro dev) left running
   build [book] [--all]                      build one book (no book: the current one, or all)
   export [book] [--out <dir>]               a GitBook folder of the book; says where the PDF and EPUB are
-  deploy [book...] [--all] [--dry-run] [--no-build]
-                                            verify, build, and check each book, then publish all or none;
+  publish [book] [--dry-run] [--records]  move a book from draft to published: checks it with release
+                                            rules first, then sets status: "published" in book.config.ts;
+                                            --records also marks its draft records published
+  deploy [book...] [--all] [--dry-run [--full]] [--no-build]
+                                            verify, build, and check each book, then put it online, all or
+                                            none; --dry-run skips the engine's tests (--full runs them);
                                             no book: the current one, or all; --all for every book
                                             (bun run bookkit deploy --help for every option)
 

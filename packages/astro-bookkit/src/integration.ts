@@ -13,11 +13,14 @@ export type BookkitIntegrationOptions = {
 	runtime?: BookSeoConfig["runtime"];
 };
 
-/** Packages the engine imports lazily and can run without (local model, embeddings). */
-export const OPTIONAL_DEPENDENCIES = [
-	"@mlc-ai/web-llm",
-	"@xenova/transformers",
-];
+/** Packages the engine imports lazily and can run without (the Ask panel's models). */
+export const OPTIONAL_DEPENDENCIES = ["@xenova/transformers"];
+
+/** The optional dependency `source` imports (the package or a file in it), if any. */
+const optionalDependencyOf = (source: string): string | undefined =>
+	OPTIONAL_DEPENDENCIES.find(
+		(name) => source === name || source.startsWith(`${name}/`),
+	);
 
 const MISSING_PREFIX = "\0bookkit-missing:";
 
@@ -44,16 +47,45 @@ export const optionalDependencies = () => ({
 		source: string,
 		importer: string | undefined,
 	) {
-		if (!OPTIONAL_DEPENDENCIES.includes(source)) return null;
+		if (!optionalDependencyOf(source)) return null;
 		const resolved = await this.resolve(source, importer, { skipSelf: true });
 		return resolved ?? `${MISSING_PREFIX}${source}`;
 	},
 	load(id: string) {
 		if (!id.startsWith(MISSING_PREFIX)) return null;
-		const name = id.slice(MISSING_PREFIX.length);
+		const source = id.slice(MISSING_PREFIX.length);
+		const name = optionalDependencyOf(source) ?? source;
 		return `throw new Error(${JSON.stringify(
 			`${name} is not installed, so the feature that needs it is off. It is an optional dependency of @bookkit/astro-bookkit; run bun install without --omit=optional to add it.`,
 		)});`;
+	},
+});
+
+/** ONNX Runtime's build with only the WebAssembly backend, threads and proxy worker left out. */
+export const ONNX_RUNTIME_WASM_BUILD =
+	"onnxruntime-web/dist/ort.wasm-core.min.js";
+
+/**
+ * Bundles ONNX Runtime's WebAssembly-only build where @xenova/transformers
+ * imports `onnxruntime-web`. The package's browser entry also carries the
+ * WebGL backend: 548 kB, with a direct `eval` (protobufjs's `inquire`) that
+ * Rolldown warns about. Transformers.js runs its models only on WebAssembly
+ * (`executionProviders: ["wasm"]`), and the Ask panel runs it on one thread
+ * (`embeddings/transformers.ts`), which this 54 kB build covers. Resolved
+ * from the importer, so it finds the onnxruntime-web that transformers.js
+ * pins. Only the reader's browser loads it: on a server, transformers.js
+ * uses onnxruntime-node.
+ */
+export const onnxRuntimeWasmOnly = () => ({
+	name: "bookkit:onnx-runtime-wasm-only",
+	enforce: "pre" as const,
+	resolveId(
+		this: ResolveContext,
+		source: string,
+		importer: string | undefined,
+	) {
+		if (source !== "onnxruntime-web") return null;
+		return this.resolve(ONNX_RUNTIME_WASM_BUILD, importer, { skipSelf: true });
 	},
 });
 
@@ -101,7 +133,7 @@ export function bookkit(
 				).replaceAll("\\", "/")}/`;
 				updateConfig({
 					vite: {
-						plugins: [optionalDependencies()],
+						plugins: [optionalDependencies(), onnxRuntimeWasmOnly()],
 						// Read by the reader UI: without request handlers the Ask
 						// island and the in-browser models it loads are compiled out.
 						define: {

@@ -40,7 +40,7 @@ With `site.runtime` unset or `"static"`, the build serves the reader site, searc
 
 ## Server runtime
 
-`site.runtime: "server"` runs the `/api/*` routes on demand while pages stay prerendered. It needs an Astro adapter in `astro.config.mjs` (for example `@astrojs/node`); a build without one stops and says so. The bundled `wrangler.jsonc` serves static assets only, so `bookkit deploy` does not run these routes.
+`site.runtime: "server"` runs the `/api/*` routes on demand while pages stay prerendered. It needs an Astro adapter in `astro.config.mjs` (for example `@astrojs/node`); a build without one stops and says so. The bundled `wrangler.jsonc` serves static assets only, so `bookkit deploy` does not run these routes. The build's static assets include the Ask panel's runtime, two WebAssembly files of about 10 MB each under `_astro/`; a reader's browser fetches one of them, and only after agreeing to download the models.
 
 The server reads its environment:
 

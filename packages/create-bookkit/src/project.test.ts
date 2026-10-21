@@ -49,10 +49,10 @@ describe("createProject", () => {
 
 		expect(isBookkitProject(dir)).toBe(true);
 		const engine = JSON.parse(read("packages/astro-bookkit/package.json"));
-		// Kept, so the engine's lazy imports of them resolve.
-		expect(Object.keys(engine.optionalDependencies)).toEqual(
-			expect.arrayContaining(["@xenova/transformers", "@mlc-ai/web-llm"]),
-		);
+		// Kept, so the engine's lazy imports of it resolve.
+		expect(Object.keys(engine.optionalDependencies)).toEqual([
+			"@xenova/transformers",
+		]);
 		expect(
 			listFilesRecursive(join(dir, "packages/astro-bookkit")).some((file) =>
 				file.endsWith(".test.ts"),

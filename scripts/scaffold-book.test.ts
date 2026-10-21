@@ -261,7 +261,9 @@ describe("new:book", () => {
 		expect(errors).toEqual([]);
 		const unknown = newBook("--book", "other-notes", "--frame", "runbok");
 		expect(unknown.status).toBe(1);
-		expect(unknown.output).toContain('No frame "runbok". Frames: intervention');
+		expect(unknown.output).toContain(
+			'No frame "runbok". Did you mean runbook? Frames: intervention',
+		);
 		expect(existsSync(join(workspace, "apps", "other-notes"))).toBe(false);
 	});
 

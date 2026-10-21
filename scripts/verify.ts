@@ -77,8 +77,15 @@ const changed = [
 ].sort();
 
 if (!all && !base) {
+	const inRepository =
+		git(["rev-parse", "--is-inside-work-tree"])[0] === "true";
+	const requested = optionalArg("--base");
 	console.error(
-		"No base to compare against (tried origin/main and main). Pass --base <ref>, or --all.",
+		!inRepository
+			? `${root} is not in a git repository, so verify cannot tell which files changed. Run every gate instead: bun run verify -- --all`
+			: requested
+				? `No ref "${requested}" to compare against. Pass --base <ref> with a branch or commit that exists, or --all for every gate.`
+				: "No base to compare against (tried origin/main and main). Pass --base <ref>, or --all for every gate.",
 	);
 	process.exit(1);
 }

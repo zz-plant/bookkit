@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import type { BookContentRawModules } from "../book/entrypoints";
+import { scratchWorkspaceRoot } from "../utils/scratch-workspace";
 
 import { createBookMcpEndpoint } from "./endpoint";
 import {
@@ -39,7 +40,14 @@ const isBookkitLayout = (dirPath: string): boolean =>
 	existsSync(resolve(dirPath, "apps")) &&
 	existsSync(resolve(dirPath, "packages", "astro-bookkit"));
 
+/**
+ * The workspace `startDir` belongs to, found by walking up from it. In a
+ * test's scratch workspace it is that workspace: the walk would reach the
+ * repository the scratch workspace sits in (utils/scratch-workspace.ts).
+ */
 export const findWorkspaceRoot = (startDir: string): string => {
+	const scratch = scratchWorkspaceRoot(startDir);
+	if (scratch) return scratch;
 	let cursor = startDir;
 	let nearestPackageJsonDir: string | undefined;
 

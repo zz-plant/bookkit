@@ -4,26 +4,36 @@ import { join } from "node:path";
 import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { isInteractive, parseScriptArgs, requireExistingBook } from "./lib/cli";
 
+// The book may come first, as other commands take it (`remove-book field-notes`).
+// It is never the current book by default: deleting one is always named.
+const argv = process.argv.slice(2);
+const named = argv[0] && !argv[0].startsWith("-") ? ["--book", ...argv] : argv;
+
 const args = parseScriptArgs(
 	{
 		summary:
 			"Deletes a book app (apps/<book>) and everything in it, after showing\nwhat it would delete and asking you to type the book's name.",
 		usage: [
-			"bun run remove:book -- --book <book> [--dry-run] [--yes] [--force]",
+			"bun run bookkit remove-book <book> [--dry-run] [--yes] [--force]",
+			"bun run remove:book -- <book> [--dry-run] [--yes] [--force]",
 		],
 		options: [
-			["--book <book>", "The book's exact folder name under apps/"],
+			[
+				"<book>, --book <book>",
+				"The book's exact folder name under apps/ (never the current book\nby default)",
+			],
 			["--dry-run", "Show what would be deleted; delete nothing"],
 			["--yes", "Delete without asking (for scripts and agents)"],
 			["--force", "Delete even with uncommitted changes in the book"],
 		],
 		examples: [
-			"bun run remove:book -- --book field-notes --dry-run",
+			"bun run bookkit remove-book field-notes --dry-run",
 			"bun run remove:book -- --book field-notes",
 		],
 	},
 	{ book: "string", "dry-run": "boolean", yes: "boolean", force: "boolean" },
 	["book"],
+	named,
 );
 
 const root = repoRoot();

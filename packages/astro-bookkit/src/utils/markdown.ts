@@ -1,5 +1,5 @@
 import GithubSlugger from "github-slugger";
-import { decodeEntities } from "./character-references";
+import { decodeEntities, escapeHtml } from "./character-references";
 import {
 	type AttributeRefusal,
 	attributeRefusal,
@@ -86,12 +86,13 @@ const tagText = (tag: string): string => {
 };
 
 /**
- * Markdown as plain text: `stripMarkdown`'s (`text`), or a heading's inline
- * Markdown as the text the site slugs into its id (`heading`). A heading
- * keeps a leading `1.` or `-`, leaves out an image's alt text, and, outside
- * code, decodes character references and turns `--` and `---` into dashes.
+ * Markdown as plain text, for search entries and page descriptions. Code
+ * spans keep their text without the backticks, escaped characters keep
+ * their character (`\<name\>` is `<name>`), an image keeps its alt text,
+ * underscores inside a word (`snake_case`) are not read as emphasis, and
+ * HTML tags are left out, a space kept where one separates words.
  */
-const plainText = (value: string, as: "text" | "heading") => {
+export const stripMarkdown = (value: string) => {
 	const literal: string[] = [];
 	// Code and escapes are set aside first, so no other rule reaches into them.
 	const held = value
@@ -111,11 +112,7 @@ const plainText = (value: string, as: "text" | "heading") => {
 			},
 		);
 	// A link's destination may hold balanced parentheses: `(/wiki/Foo_(bar))`.
-	const text = (
-		as === "heading"
-			? held.replace(/!\[.*?\]\((?:[^()]|\([^()]*\))*\)/g, "")
-			: held
-	)
+	return held
 		.replace(/!?\[(.*?)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
 		.replace(/\*\*(.*?)\*\*/g, "$1")
 		.replace(/\*(.*?)\*/g, "$1")
@@ -124,70 +121,11 @@ const plainText = (value: string, as: "text" | "heading") => {
 			"$1$2",
 		)
 		.replace(/~~(.*?)~~/g, "$1")
-		.replace(/<[^>]+>/g, tagText);
-	return (
-		as === "heading"
-			? decodeEntities(smartDashes(text))
-			: text.replace(/^\s*[-*+]\s+/g, "").replace(/^\s*\d+\.\s+/g, "")
-	)
+		.replace(/<[^>]+>/g, tagText)
+		.replace(/^\s*[-*+]\s+/g, "")
+		.replace(/^\s*\d+\.\s+/g, "")
 		.replace(HELD_TEXT, (_, index: string) => literal[Number(index)])
 		.trim();
-};
-
-/**
- * Markdown as plain text, for search entries and page descriptions. Code
- * spans keep their text without the backticks, escaped characters keep
- * their character (`\<name\>` is `<name>`), an image keeps its alt text,
- * underscores inside a word (`snake_case`) are not read as emphasis, and
- * HTML tags are left out, a space kept where one separates words.
- */
-export const stripMarkdown = (value: string) => plainText(value, "text");
-
-/** A heading of a Markdown page: its level, its text, and the id the site gives it. */
-export type MarkdownHeading = { depth: number; text: string; id: string };
-
-const ATX_HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
-const SETEXT_UNDERLINE = /^ {0,3}(=+|-+)[ \t]*$/;
-/** A line that starts a block other than a paragraph, so a setext underline after it is not one. */
-const NOT_PARAGRAPH =
-	/^\s{0,3}(?:[-*+][ \t]|\d+[.)][ \t]|>|\||<|(?:import|export)\s|(?:[-*_][ \t]*){3,}$)/;
-
-/**
- * The headings of a Markdown or MDX body (frontmatter removed), in page
- * order, outside fenced code: `#` headings, and setext headings (a paragraph
- * underlined with `===` or `---`). Each id is the one the site gives it
- * (`createHeadingSlugger` over the text the page shows), so a repeated
- * heading gets `-1`. A heading written as an HTML tag (`<h2>`) gets no id
- * and is not listed; neither are headings nested in a list or a `<details>`.
- */
-export const markdownHeadings = (body: string): MarkdownHeading[] => {
-	const slug = createHeadingSlugger();
-	const headings: MarkdownHeading[] = [];
-	const add = (depth: number, inline: string) => {
-		const text = plainText(inline, "heading");
-		headings.push({ depth, text, id: slug(text) });
-	};
-	for (const segment of splitFencedCode(body)) {
-		if (segment.code) continue;
-		let paragraph: string[] = [];
-		for (const line of segment.text.split("\n")) {
-			const atx = line.match(ATX_HEADING);
-			const underline = line.match(SETEXT_UNDERLINE)?.[1];
-			if (atx) {
-				// A closing run of #s, after a space, is not part of the text.
-				add(atx[1].length, (atx[2] ?? "").replace(/(^|[ \t])#+$/, "").trim());
-				paragraph = [];
-			} else if (underline && paragraph.length > 0) {
-				add(underline[0] === "=" ? 1 : 2, paragraph.join(" ").trim());
-				paragraph = [];
-			} else if (!line.trim() || NOT_PARAGRAPH.test(line)) {
-				paragraph = [];
-			} else {
-				paragraph.push(line);
-			}
-		}
-	}
-	return headings;
 };
 
 /** What `toMdxBody` changed, by kind, so an import can say what it did. */
@@ -1037,8 +975,7 @@ const tagAsJsx = (
 	}
 	if (embedded && !source) return null;
 	const named = embedded && !titled;
-	if (named)
-		attributes.push(`title="${embedTitle(source).replace(/"/g, "&quot;")}"`);
+	if (named) attributes.push(`title="${escapeHtml(embedTitle(source))}"`);
 	const open = [name, ...attributes].join(" ");
 	return {
 		jsx: VOID_ELEMENTS.has(name) || selfClosing ? `<${open} />` : `<${open}>`,

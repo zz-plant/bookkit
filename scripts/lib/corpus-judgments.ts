@@ -35,6 +35,10 @@ import {
 
 export const JUDGMENTS_FILE = "corpus-judgments.json";
 
+/** Where a request folder keeps the command that answered judge n (see judge-runner.ts). */
+export const commandFile = (folder: string, judge: number): string =>
+	join(folder, `judge-${judge}`, "command.txt");
+
 /** One judge's answer, with who gave it and when. */
 export type RecordedVote = JudgeVote & { judge: string; date: string };
 
@@ -69,7 +73,8 @@ const isVote = (value: unknown): value is RecordedVote => {
 		vote !== null &&
 		JUDGE_RELATIONS.includes(vote.relation as JudgeRelation) &&
 		isProbability(vote.sameLever) &&
-		isProbability(vote.sameEvidence)
+		isProbability(vote.sameEvidence) &&
+		(vote.command === undefined || typeof vote.command === "string")
 	);
 };
 
@@ -251,6 +256,10 @@ export const votesOn = (
 		.flatMap((record) => record.votes);
 };
 
+/** The author's merge rule, as judges are asked it and as a rubric states it. */
+export const MERGE_RULE =
+	"combine two mechanisms only if they are the same idea, meaning they share BOTH the lever (the thing someone does or arranges that produces the harm) AND the evidence (the test you would use to check whether the mechanism is operating). Related ideas in the same family are not the same idea.";
+
 /**
  * The question, as the 2026-10-14 blind judges got it (scratch/blind-judge/),
  * worded for any number of pairs. The relation options name the kinds of
@@ -264,7 +273,7 @@ You are a blind judge. Everything you need is in this message.
 
 Do not open, list, or search any file or directory, do not run commands, do not search the web, and do not look at any repository. Judge only from the pairs at the end of this message.
 
-They are ${pairCount} pair${pairCount === 1 ? "" : "s"} of "mechanisms" from one author's nonfiction. Each mechanism has a title, a definition, and what it covers. For each pair, the author applies this rule: combine two mechanisms only if they are the same idea, meaning they share BOTH the lever (the thing someone does or arranges that produces the harm) AND the evidence (the test you would use to check whether the mechanism is operating). Related ideas in the same family are not the same idea.
+They are ${pairCount} pair${pairCount === 1 ? "" : "s"} of "mechanisms" from one author's nonfiction. Each mechanism has a title, a definition, and what it covers. For each pair, the author applies this rule: ${MERGE_RULE}
 
 For every pair, give:
 - same_lever: your probability (0 to 1) that A and B name the same lever.
@@ -385,6 +394,7 @@ const votesIn = (
 	file: string,
 	judge: string,
 	date: string,
+	command?: string,
 ): Array<{ entry: KeyEntry; vote: RecordedVote }> | { error: string } => {
 	const byId = new Map(key.map((entry) => [entry.id, entry]));
 	const start = text.indexOf("[");
@@ -408,6 +418,7 @@ const votesIn = (
 			...(isProbability(answer.relation_p)
 				? { relationP: answer.relation_p }
 				: {}),
+			...(command ? { command } : {}),
 		};
 		if (!entry || !isVote(vote)) {
 			return {
@@ -440,6 +451,9 @@ export const checkAnswer = (
 
 /**
  * Reads every answer*.json in a request folder (one judge each) into records.
+ * When bookkit asked judge n itself, its votes carry the command that answered
+ * (judge-<n>/command.txt); a reply saved by hand carries none, unless that
+ * file is written beside it.
  */
 export const readAnswers = (
 	dir: string,
@@ -458,12 +472,19 @@ export const readAnswers = (
 	const records = new Map<string, JudgmentRecord>();
 	for (const file of files) {
 		const judge = `${dir.split(/[\\/]/).filter(Boolean).pop()}/${file}`;
+		const number = file.match(/^answer-(\d+)\.json$/i)?.[1];
+		const asked = number ? commandFile(dir, Number(number)) : null;
+		const command =
+			asked && existsSync(asked)
+				? readFileSync(asked, "utf8").trim() || undefined
+				: undefined;
 		const votes = votesIn(
 			readFileSync(join(dir, file), "utf8"),
 			key,
 			file,
 			judge,
 			date,
+			command,
 		);
 		if ("error" in votes) return votes;
 		for (const { entry, vote } of votes) {

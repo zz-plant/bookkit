@@ -20,6 +20,7 @@ import {
 	mergeRecords,
 	textHash,
 } from "./lib/corpus-judgments";
+import { commandLabel, splitCommands } from "./lib/judge-runner";
 
 /**
  * check:corpus with judges' verdicts, in a workspace of its own: a pair the
@@ -141,6 +142,134 @@ describe("check:corpus with judges' verdicts", () => {
 		);
 		expect(result.output).toContain("likely one mechanism");
 		expect(result.status).toBe(1);
+	});
+
+	it("--eval scores the judges per command, with how far a small answer key can be trusted", () => {
+		const corpusPath = join(workspace, "corpus.json");
+		const before = readFileSync(corpusPath, "utf8");
+		const side = (slug: string, definition: string) => ({
+			book: "one",
+			slug,
+			title: slug,
+			definition,
+			is: [],
+		});
+		const merged = [
+			side("old-wait", "Waiting someone out."),
+			side("old-stall", "Stalling someone out."),
+		] as const;
+		writeFileSync(
+			corpusPath,
+			JSON.stringify({
+				books: ["one", "two"],
+				distinct: [{ pair: ["waiting-game", "tidy-desk"], reason: "r" }],
+				merged: [
+					{ into: "old-wait", date: "2026-10-01", reason: "r", before: merged },
+				],
+			}),
+		);
+		const by = (relation: string, judge: string, command: string) => ({
+			...vote(relation, judge),
+			command,
+		});
+		writeRecords([
+			{
+				pair: ["old-wait", "old-stall"],
+				texts: [textHash(merged[0]), textHash(merged[1])],
+				votes: [by("same_idea", "a", "good"), by("same_family", "b", "weak")],
+			},
+			{
+				pair: ["waiting-game", "tidy-desk"],
+				texts: [textHash(text("waiting-game")), textHash(text("tidy-desk"))],
+				votes: [by("unrelated", "a", "good"), by("unrelated", "b", "weak")],
+			},
+		]);
+		try {
+			const result = runChild(
+				[
+					process.execPath,
+					join(repoRoot(), "scripts", "check-corpus.ts"),
+					"--eval",
+					"--model",
+					"minilm",
+				],
+				{
+					cwd: workspace,
+					env: {
+						...process.env,
+						BOOKKIT_MODEL_CACHE: join(workspace, "no-model"),
+					},
+				},
+			);
+			expect(result.output).toContain("2 of 2 rulings have verdicts");
+			expect(result.output).toContain("good: 2 of 2 votes right (22%+");
+			expect(result.output).toContain("weak: 1 of 2 votes right");
+			expect(result.output).toContain(
+				"every judge chose the same relation on 1 of 2 rulings",
+			);
+			expect(result.status).toBe(0);
+		} finally {
+			writeFileSync(corpusPath, before);
+			writeRecords([]);
+		}
+	});
+
+	it("--judge-rulings asks about every ruled pair, merges as they read before", () => {
+		const corpusPath = join(workspace, "corpus.json");
+		const before = readFileSync(corpusPath, "utf8");
+		const old = {
+			book: "one",
+			slug: "old-wait",
+			title: "Old wait",
+			definition: "Waiting someone out.",
+			is: [],
+		};
+		writeFileSync(
+			corpusPath,
+			JSON.stringify({
+				books: ["one", "two"],
+				distinct: [{ pair: ["waiting-game", "tidy-desk"], reason: "r" }],
+				merged: [
+					{
+						into: "waiting-game",
+						date: "2026-10-01",
+						reason: "r",
+						before: [old, { ...text("waiting-game"), book: "one" }],
+					},
+				],
+			}),
+		);
+		const dir = join(workspace, "rulings-request");
+		try {
+			const result = checkCorpus("--judge-prompt", dir, "--judge-rulings");
+			expect(result.output).toContain("Wrote the 2 ruled pair(s) to judge in");
+			expect(result.status).toBe(0);
+			const key = JSON.parse(
+				readFileSync(join(dir, "key.json"), "utf8"),
+			) as Array<{
+				texts: [string, string];
+			}>;
+			expect(key.flatMap((entry) => entry.texts).sort()).toEqual(
+				[
+					textHash(old),
+					textHash(text("waiting-game")),
+					textHash(text("waiting-game")),
+					textHash(text("tidy-desk")),
+				].sort(),
+			);
+			expect(
+				checkCorpus(
+					"--judge-prompt",
+					dir,
+					"--judge-rulings",
+					"--judge-for",
+					"slow-walk",
+				).status,
+			).toBe(1);
+		} finally {
+			writeFileSync(corpusPath, before);
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
 	it("drops a verdict once either text changes, and says which pair to ask about again", () => {
@@ -509,6 +638,29 @@ console.log(JSON.stringify(pairs.map((pair) => ({
 		expect(saved()[0].votes).toHaveLength(3);
 	});
 
+	it("asks a panel of commands in turn and records which command gave each vote", () => {
+		writeRecords([]);
+		rmSync(judging(), { recursive: true, force: true });
+		const first = judgeCommand();
+		const second = `${first} --second`;
+		const asked = bookkit(
+			{},
+			"judge",
+			"waiting-game",
+			"--judge-top",
+			"1",
+			"--run",
+			`JUDGE_KEY=secret ${first}`,
+			"--run",
+			second,
+		);
+		expect(asked.output).toContain("with 2 commands in turn");
+		expect(asked.status).toBe(0);
+		const votes = saved()[0].votes;
+		expect(votes.map((vote) => vote.command)).toEqual([first, second, first]);
+		expect(JSON.stringify(saved())).not.toContain("secret");
+	});
+
 	it("keeps a failed judge's output, records nothing, and asks again with judge run", () => {
 		writeRecords([]);
 		rmSync(judging(), { recursive: true, force: true });
@@ -602,5 +754,19 @@ describe("corpus-judgments helpers", () => {
 		).toBe(
 			'{\n\t"judgments": [\n\t\t{\n\t\t\t"pair": ["a", "b"],\n\t\t\t"votes": [\n\t\t\t\t{\n\t\t\t\t\t"relation": "same_idea"\n\t\t\t\t}\n\t\t\t]\n\t\t}\n\t]\n}\n',
 		);
+	});
+
+	it("records a judge command without its leading variable assignments", () => {
+		expect(commandLabel("  claude -p --model sonnet ")).toBe(
+			"claude -p --model sonnet",
+		);
+		expect(commandLabel(`KEY=abc OTHER='x y' llm -m gpt "q"`)).toBe(
+			`llm -m gpt "q"`,
+		);
+		expect(splitCommands("claude -p\n\n  llm -m other  \n")).toEqual([
+			"claude -p",
+			"llm -m other",
+		]);
+		expect(splitCommands(undefined)).toEqual([]);
 	});
 });

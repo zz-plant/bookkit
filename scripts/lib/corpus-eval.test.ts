@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { evaluateCorpusModel } from "./corpus-eval";
+import { evaluateCorpusModel, lowerBound95 } from "./corpus-eval";
 
 // Angles on a circle: cosine between two of them is cos(difference).
 const at = (degrees: number) => {
@@ -88,5 +88,19 @@ describe("evaluateCorpusModel", () => {
 				threshold: 0.5,
 			}),
 		).toThrow("No merge rulings");
+	});
+});
+
+describe("lowerBound95", () => {
+	it("bounds a perfect score by the size of the answer key", () => {
+		expect(lowerBound95(3, 3)).toBeCloseTo(0.368, 3);
+		expect(lowerBound95(17, 17)).toBeCloseTo(0.838, 3);
+	});
+
+	it("matches the exact one-sided bound for an imperfect score", () => {
+		// P(X >= 17 | n = 18, p) = 0.05 at p ≈ 0.7623
+		expect(lowerBound95(17, 18)).toBeCloseTo(0.7623, 3);
+		expect(lowerBound95(0, 5)).toBe(0);
+		expect(lowerBound95(0, 0)).toBe(0);
 	});
 });

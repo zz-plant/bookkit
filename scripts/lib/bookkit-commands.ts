@@ -381,6 +381,7 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				"Asks judges, blind, whether close mechanisms are the same idea. Writes a\nprompt per judge in .bookkit/judging/. With a judge command, asks each\none and records the answers in corpus-judgments.json.",
 			usage: [
 				'bun run bookkit judge [mechanism] [--judges <n>] [--judge-top <n>] [--run "<command>"]',
+				'bun run bookkit judge --rulings [--judges <n>] [--run "<command>"]',
 				'bun run bookkit judge run [folder] [--run "<command>"]',
 				"bun run bookkit judge record [folder]",
 			],
@@ -389,11 +390,15 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 					"[mechanism]",
 					"One mechanism's 3 nearest without a verdict (default:\nthe corpus's flagged and closest pairs)",
 				],
+				[
+					"--rulings",
+					"Ask about your ruled pairs instead, so check:corpus\n--eval can score a new panel against your rulings",
+				],
 				["--judges <n>", "Judges per pair (default: 3)"],
 				["--judge-top <n>", "How many pairs to ask about (default: 10)"],
 				[
 					'--run "<command>"',
-					"A command that reads a prompt on stdin and prints the\nreply; or set BOOKKIT_JUDGE_COMMAND",
+					"A command that reads a prompt on stdin and prints the\nreply; or set BOOKKIT_JUDGE_COMMAND (one per line).\nGiven more than once, the judges are asked in turn",
 				],
 				["--no-run", "Write the prompts only"],
 				["--quick", "Find the nearest by wording, without the model"],
@@ -411,6 +416,7 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				"bun run bookkit judge delay-as-force",
 				'bun run bookkit judge --run "<your LLM\'s command-line tool>"',
 				"bun run bookkit judge record",
+				'bun run bookkit judge --rulings --run "claude -p" --run "ollama run <model>"',
 			],
 		},
 	},
@@ -550,18 +556,23 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		name: "export",
 		help: {
 			summary:
-				"Writes a GitBook folder of a book, and says where the last build put\nits PDF and EPUB.",
-			usage: ["bun run bookkit export [book] [--out <dir>]"],
+				"Writes a GitBook folder of a book, and says where the last build put\nits PDF and EPUB. With --rubric, writes the book's corpus as an eval\nrubric instead: one criterion per mechanism, and your rulings as\nlabelled pairs.",
+			usage: [
+				"bun run bookkit export [book] [--out <dir>]",
+				"bun run bookkit export [book] --rubric [--out <file>]",
+			],
 			options: [
 				BOOK,
 				[
 					"--out <dir>",
-					"Where to write it (default: apps/<book>/exports/gitbook)",
+					"Where to write it (default: apps/<book>/exports/gitbook;\nwith --rubric, apps/<book>/exports/rubric.json)",
 				],
+				["--rubric", "The corpus as an eval rubric, as JSON"],
 			],
 			examples: [
 				"bun run bookkit export on-call",
 				"bun run bookkit export on-call --out ../on-call-gitbook",
+				"bun run bookkit export running-hot --rubric",
 			],
 		},
 	},

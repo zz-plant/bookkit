@@ -110,6 +110,35 @@ describe("evaluateJudgments", () => {
 			["m3", "m4"],
 		]);
 		expect(result.scoreCutoff.right).toBe(4);
+		// m1, m2, d1, d5 have one relation each; d3 ~ d4 does not.
+		expect(result.agreed).toBe(4);
+		expect(result.byCommand).toEqual([
+			{ command: null, votes: 10, right: 7, wrong: 3 },
+		]);
+	});
+
+	it("scores each vote alone, per command that answered, best first", () => {
+		const by = (command: string, relation: JudgeVote["relation"]) => ({
+			...vote(relation),
+			command,
+		});
+		const result = evaluateJudgments([
+			{
+				pair: ["m1", "m2"],
+				ruled: "merge",
+				votes: [by("weak", "same_family"), by("strong", "same_idea")],
+			},
+			{
+				pair: ["d1", "d2"],
+				ruled: "distinct",
+				votes: [by("weak", "same_family"), by("strong", "cause_effect")],
+			},
+		]);
+		expect(result.byCommand).toEqual([
+			{ command: "strong", votes: 2, right: 2, wrong: 0 },
+			{ command: "weak", votes: 2, right: 1, wrong: 1 },
+		]);
+		expect(result.agreed).toBe(0);
 	});
 });
 

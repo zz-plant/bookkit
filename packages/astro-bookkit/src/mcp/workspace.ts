@@ -28,12 +28,23 @@ const hasGovernanceFiles = (dirPath: string): boolean => {
 	);
 };
 
+/**
+ * A Bookkit workspace: a package with book apps beside a copy of the engine.
+ * A project made with create-bookkit has this layout but none of the
+ * repository's governance files, and its apps have package.json files of
+ * their own.
+ */
+const isBookkitLayout = (dirPath: string): boolean =>
+	existsSync(resolve(dirPath, "package.json")) &&
+	existsSync(resolve(dirPath, "apps")) &&
+	existsSync(resolve(dirPath, "packages", "astro-bookkit"));
+
 export const findWorkspaceRoot = (startDir: string): string => {
 	let cursor = startDir;
 	let nearestPackageJsonDir: string | undefined;
 
 	for (;;) {
-		if (hasGovernanceFiles(cursor)) {
+		if (hasGovernanceFiles(cursor) || isBookkitLayout(cursor)) {
 			return cursor;
 		}
 

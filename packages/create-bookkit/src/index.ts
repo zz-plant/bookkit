@@ -142,7 +142,9 @@ if (markdownSource) {
 console.log(`
 Next:
   cd ${target}${installed ? "" : "\n  bun install"}
-  bun run dev                    preview the book
-  bun run verify -- --all        every check, as CI runs them
-  git init, then commit          deploy publishes from a commit
-  bun run deploy -- --dry-run    check content, build, verify dist/, stop before publishing`);
+  git init && git add -A && git commit -m "Start ${book}"
+                                 deploy publishes from a commit
+  bun run dev                    preview the book (Ctrl-C to stop)
+  bun run bookkit check          what to fix or fill in
+  bun run deploy -- --dry-run    every check and the build, stopping before publishing
+Agents: bun run mcp serves the book's tools; .mcp.json registers it.`);

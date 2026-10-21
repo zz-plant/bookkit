@@ -34,11 +34,11 @@ describe("TOOL_DEFINITIONS", () => {
 	});
 });
 
-describe("tools/list describes the status rule", () => {
-	const response = handleRequest(
+describe("tools/list describes the status rule", async () => {
+	const response = (await handleRequest(
 		{ bookTitle: "Fixture", contentRawModules: emptyContent },
 		{ jsonrpc: "2.0", id: 1, method: "tools/list" },
-	) as { result: { tools: ToolDefinitionMetadata[] } };
+	)) as { result: { tools: ToolDefinitionMetadata[] } };
 	const tools = new Map(
 		response.result.tools.map((tool) => [tool.name, tool] as const),
 	);
@@ -106,16 +106,20 @@ describe("tools follow the book's status", () => {
 	});
 	const draftChapter =
 		"---\ntitle: Intro\nslug: intro\nsummary: What this book is for.\nstatus: draft\n---\n\n# Intro\n";
-	const codes = (result: ReturnType<typeof runTool>) =>
+	const codes = (result: Awaited<ReturnType<typeof runTool>>) =>
 		(
 			(result.payload as { findings: Array<{ code: string }> }).findings ?? []
 		).map((finding) => finding.code);
 
-	it("check_content holds a draft record in a published book to release rules, as validate does", () => {
-		const released = runTool(options("released"), "bookkit.check_content", {
-			section: "chapter",
-			source: draftChapter,
-		});
+	it("check_content holds a draft record in a published book to release rules, as validate does", async () => {
+		const released = await runTool(
+			options("released"),
+			"bookkit.check_content",
+			{
+				section: "chapter",
+				source: draftChapter,
+			},
+		);
 		expect(released.ok).toBe(false);
 		expect(codes(released)).toContain("DRAFT_IN_RELEASE");
 		expect(released.payload).toMatchObject({
@@ -123,7 +127,7 @@ describe("tools follow the book's status", () => {
 			releaseRules: true,
 		});
 
-		const writing = runTool(options("writing"), "bookkit.check_content", {
+		const writing = await runTool(options("writing"), "bookkit.check_content", {
 			section: "chapter",
 			source: draftChapter,
 		});
@@ -133,7 +137,7 @@ describe("tools follow the book's status", () => {
 			releaseRules: false,
 		});
 
-		const forced = runTool(options("writing"), "bookkit.check_content", {
+		const forced = await runTool(options("writing"), "bookkit.check_content", {
 			section: "chapter",
 			source: draftChapter,
 			releaseMode: true,
@@ -141,8 +145,12 @@ describe("tools follow the book's status", () => {
 		expect(codes(forced)).toContain("DRAFT_IN_RELEASE");
 	});
 
-	it("compile_book runs compile:book without the flags it ignores", () => {
-		const result = runTool(options("released"), "bookkit.compile_book", {});
+	it("compile_book runs compile:book without the flags it ignores", async () => {
+		const result = await runTool(
+			options("released"),
+			"bookkit.compile_book",
+			{},
+		);
 		expect(result.payload).toMatchObject({
 			command: "bun run compile:book -- --book released",
 		});

@@ -54,6 +54,8 @@ export type ToolHandlerContext = {
 	args?: Record<string, unknown>;
 };
 
-export type ToolHandler = (context: ToolHandlerContext) => ToolResponse;
+export type ToolHandler = (
+	context: ToolHandlerContext,
+) => ToolResponse | Promise<ToolResponse>;
 
 export type ToolHandlerMap = Record<ToolName, ToolHandler>;

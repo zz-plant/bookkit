@@ -1,8 +1,8 @@
 import { runWorkspaceCommand } from "../command-runner";
 import type { ToolHandler } from "./types";
 
-export const handleListBooks: ToolHandler = ({ options }) => {
-	const command = runWorkspaceCommand(options.workspaceRoot, [
+export const handleListBooks: ToolHandler = async ({ options }) => {
+	const command = await runWorkspaceCommand(options.workspaceRoot, [
 		"run",
 		"list:books",
 	]);

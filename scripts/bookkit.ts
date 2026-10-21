@@ -35,6 +35,7 @@ import {
 	nextChapterFileName,
 	similarForMechanismFile,
 	summarizeBook,
+	WORDING_MATCH_MIN,
 	withCorpusScope,
 } from "./lib/authoring";
 import { buildB1Report } from "./lib/b1-report";
@@ -237,9 +238,12 @@ switch (command) {
 				byMeaning && "error" in byMeaning
 					? `Ranked by wording; the model did not load: ${byMeaning.error}`
 					: undefined,
+			// By wording, a match on a word or two is noise; leave those out.
 			similar:
 				semantic?.matches ??
-				findSimilarMechanisms({ title, definition }, books, 5),
+				findSimilarMechanisms({ title, definition }, books, 5).filter(
+					(match) => match.score >= WORDING_MATCH_MIN,
+				),
 		};
 		if (args.includes("--json")) {
 			console.log(JSON.stringify(result, null, 2));
@@ -248,7 +252,9 @@ switch (command) {
 				`"${slug}" already exists in ${result.existingSlug.join(", ")}.`,
 			);
 		} else if (result.similar.length === 0) {
-			console.log(`No existing mechanism shares wording with "${title}".`);
+			console.log(
+				`No existing mechanism shares enough wording with "${title}" to be the same idea.`,
+			);
 		} else {
 			if (result.note) console.log(result.note);
 			console.log(`Closest by ${result.method}:`);

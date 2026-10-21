@@ -1,0 +1,22 @@
+# Weekly update PRs, grouped so each ecosystem opens one PR a week instead of
+# one per package. CI's five jobs gate every one like any other PR.
+# Security updates (Settings → Code security) open separately and at once.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # One bun.lock at the root covers every workspace.
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

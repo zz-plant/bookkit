@@ -11,7 +11,7 @@ Use for changes to:
 
 - `packages/astro-bookkit/src/styles/**`
 - `packages/astro-bookkit/src/components/**` and `src/layouts/**`
-- `apps/<book>/src/pages/**` markup
+- `packages/astro-bookkit/src/routes/**` page markup, and any page a book keeps in `apps/<book>/src/pages/**`
 
 Before starting, name the bet the change serves (`docs/bets.md`). Reader-facing polish is parked unless a bet's test needs readers to get through a book.
 

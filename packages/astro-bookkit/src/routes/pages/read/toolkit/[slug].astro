@@ -1,0 +1,256 @@
+---
+import BaseLayout from "../../../BaseLayout.astro";
+import {
+	buildLocalizedContentIndex,
+	resolveLocalizedContent,
+	resolveLocalizedModule,
+} from "../../../../localization";
+import { bookEntryPoints, bookConfig } from "../../../runtime";
+import Breadcrumbs from "../../../../components/Breadcrumbs.astro";
+import NextActionPanel from "../../../../components/NextActionPanel.astro";
+import { getReadPageBreadcrumbCopy } from "../../../read-copy";
+import { bookPageTitle, firstMetaDescription } from "../../../../seo/page-meta";
+import {
+	buildLocalizedReadRoutePath,
+	chapterLinksForMechanism,
+	exampleLinksForMechanisms,
+	readItemPath,
+	readRoutes,
+} from "../../../../book";
+import { createBreadcrumbListStructuredDataFromTrail } from "../../../../seo/structured-data";
+import { pageFactsForModule } from "../../../../markdown/pageFacts";
+import { runbookStepLabel, toolkitDisplayName } from "../../../../schemas";
+
+export async function getStaticPaths() {
+	const modules = bookEntryPoints.contentModules.toolkit;
+	const localizedIndex = buildLocalizedContentIndex(modules, {
+		defaultLocale: "en",
+	});
+
+	return localizedIndex.slugs.map((slug) => ({
+		params: { slug },
+	}));
+}
+
+const modules = bookEntryPoints.contentModules.toolkit;
+const localizedIndex = buildLocalizedContentIndex(modules, {
+	defaultLocale: "en",
+});
+const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
+	locale: Astro.locals?.locale,
+});
+const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
+	locale: Astro.locals?.locale,
+});
+
+if (!module) {
+	throw new Error(`Missing toolkit entry for slug: ${Astro.params.slug}`);
+}
+
+const { frontmatter, default: Content } = module;
+const toolName = toolkitDisplayName(frontmatter);
+const metaDescription = firstMetaDescription(
+	frontmatter.trigger,
+	pageFactsForModule(modules, bookEntryPoints.contentRawModules.toolkit, module)
+		?.excerpt,
+);
+// Readers see the mechanism's name; the slug is only its address.
+const mechanismTitle =
+	Object.values(bookEntryPoints.contentModules.mechanisms).find(
+		(entry) => entry.frontmatter?.slug === frontmatter.mechanism,
+	)?.frontmatter?.title ?? frontmatter.mechanism;
+const isFallback = missingSlugs.includes(frontmatter.slug);
+const steps = frontmatter.steps ?? [];
+const failureLooksLike = frontmatter.failureLooksLike ?? [];
+const legitimateDemand = frontmatter.legitimateDemand ?? [];
+// A procedure's runbook fields, in the runbook frame's order as the PDF and
+// EPUB print them: owner, trigger, steps, escalation, then the drills.
+const plural = (count: number, unit: string) =>
+	`${count} ${unit}${count === 1 ? "" : "s"}`;
+const factsOf = (...entries: Array<[label: string, value?: string]>) =>
+	entries.flatMap(([label, value]) => (value ? [{ label, value }] : []));
+const ownership = factsOf(
+	["Owner", frontmatter.owner],
+	[
+		"Review",
+		frontmatter.reviewEveryDays
+			? `Every ${plural(frontmatter.reviewEveryDays, "day")}`
+			: undefined,
+	],
+);
+const situations = (frontmatter.runbookSteps ?? []).filter((step) =>
+	Boolean(step.action),
+);
+const escalation = frontmatter.escalation;
+const escalationFacts = factsOf(
+	["To", escalation?.to],
+	["When", escalation?.when],
+	[
+		"Within",
+		escalation?.withinHours
+			? plural(escalation.withinHours, "hour")
+			: undefined,
+	],
+);
+const drills = frontmatter.drills ?? [];
+// The examples of this action's mechanism, and the chapters that use it.
+const { entries: exampleEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.examples, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const { entries: chapterEntries } = resolveLocalizedContent(
+	buildLocalizedContentIndex(bookEntryPoints.contentModules.chapters, {
+		defaultLocale: "en",
+	}),
+	{ locale: Astro.locals?.locale },
+);
+const mechanismExamples = exampleLinksForMechanisms(
+	[frontmatter.mechanism],
+	exampleEntries,
+).map((link) => ({
+	...link,
+	meta: link.meta ? `Example · ${link.meta}` : "Example",
+}));
+const mechanismChapters = chapterLinksForMechanism(
+	frontmatter.mechanism,
+	chapterEntries,
+).map((link) => ({ ...link, meta: "Chapter" }));
+const requestPath = Astro.url.pathname;
+const localizedReadRootPath = buildLocalizedReadRoutePath(
+	requestPath,
+	readRoutes.root,
+);
+const localizedSectionPath = buildLocalizedReadRoutePath(
+	requestPath,
+	readRoutes.toolkit,
+);
+const breadcrumbCopy = getReadPageBreadcrumbCopy(Astro.locals?.locale);
+const breadcrumbItems = [
+	{ name: breadcrumbCopy.readingHub, href: localizedReadRootPath },
+	{ name: breadcrumbCopy.toolkit, href: localizedSectionPath },
+	{ name: toolName },
+];
+const breadcrumbStructuredData = createBreadcrumbListStructuredDataFromTrail(
+	breadcrumbItems,
+	Astro.url,
+);
+---
+<BaseLayout
+  title={bookPageTitle(toolName, bookConfig.title)}
+  description={metaDescription}
+  structuredData={[breadcrumbStructuredData]}
+>
+  <Breadcrumbs items={breadcrumbItems} ariaLabel={breadcrumbCopy.ariaLabel} />
+  <div class="eyebrow">Toolkit action{isFallback ? " · not yet translated" : ""}</div>
+  <h1 id={frontmatter.slug}>{toolName}</h1>
+  <p class="lede">
+    {frontmatter.timeboxMinutes ?? 10} minutes · for{" "}
+    <a href={readItemPath("mechanisms", frontmatter.mechanism)}>{mechanismTitle}</a>
+  </p>
+  {ownership.length > 0 && (
+    <dl class="fact-list fact-list--lead">
+      {ownership.map((fact) => (
+        <div class="fact-list__row">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )}
+  {frontmatter.trigger && (
+    <section class="content-block">
+      <h2 id="when-to-use-this">When to use this</h2>
+      <p>{frontmatter.trigger}</p>
+    </section>
+  )}
+  {steps.length > 0 && (
+    <section class="content-block">
+      <h2 id="steps">Steps</h2>
+      <ol class="step-list">
+        {steps.map((step, index) => (
+          <li class="step-card">
+            <span class="step-card__number">{index + 1}</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+  {situations.length > 0 && (
+    <section class="content-block">
+      <h2 id="steps-by-situation">Steps by situation</h2>
+      <dl class="situation-list">
+        {situations.map((step) => (
+          <div class="situation-list__item">
+            <dt>{runbookStepLabel(step.when)}</dt>
+            <dd>{step.action}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )}
+  {escalationFacts.length > 0 && (
+    <section class="content-block">
+      <h2 id="escalation">Escalation</h2>
+      <dl class="fact-list">
+        {escalationFacts.map((fact) => (
+          <div class="fact-list__row">
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )}
+  {drills.length > 0 && (
+    <section class="content-block">
+      <h2 id="drills">Drills</h2>
+      <ul>
+        {drills.map((drill) => (
+          <li>{drill}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  {failureLooksLike.length > 0 && (
+    <section class="content-block">
+      <h2 id="failure-looks-like">Failure looks like</h2>
+      <ul>
+        {failureLooksLike.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  {legitimateDemand.length > 0 && (
+    <section class="content-block">
+      <h2 id="legitimate-demand">Legitimate demand</h2>
+      <ul>
+        {legitimateDemand.map((item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  <section class="content-block">
+    <Content />
+  </section>
+  <NextActionPanel
+    variant="compact"
+    title="Keep going"
+    links={[
+      {
+        href: readItemPath("mechanisms", frontmatter.mechanism),
+        label: "The mechanism behind this action",
+        meta: mechanismTitle,
+      },
+      ...(mechanismExamples.length > 0
+        ? mechanismExamples
+        : [{ href: readRoutes.examples, label: "Examples" }]),
+      ...mechanismChapters,
+      { href: readRoutes.toolkit, label: "Other actions" },
+    ]}
+  />
+</BaseLayout>

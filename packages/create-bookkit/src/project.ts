@@ -9,7 +9,10 @@ import {
 } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { listFilesRecursive } from "../../../scripts/_lib";
-import { listShimPaths } from "../../../scripts/_shim-templates";
+import {
+	listShimPaths,
+	shimTemplateRootIn,
+} from "../../../scripts/_shim-templates";
 import { PROJECT_STAMP } from "../../../scripts/lib/project";
 import {
 	scaffoldBook,
@@ -364,11 +367,12 @@ export const writeScripts = (
 };
 
 /**
- * What the project's engine shared before an upgrade replaces it: its shim
- * paths, and each book's starter files as that engine wrote them.
+ * What the project's engine shared before an upgrade replaces it: its shims,
+ * and each book's starter files as that engine wrote them, each by path in a
+ * book app.
  */
 export type PreviousEngine = {
-	shims: Set<string>;
+	shims: Record<string, string>;
 	starterFiles: Record<string, Record<string, string>>;
 };
 
@@ -379,7 +383,12 @@ export const readPreviousEngine = (
 ): PreviousEngine => {
 	const hasStarter = existsSync(starterTemplateRootIn(dir));
 	return {
-		shims: new Set(listShimPaths(dir)),
+		shims: Object.fromEntries(
+			listShimPaths(dir).map((shim) => [
+				shim,
+				readFileSync(join(shimTemplateRootIn(dir), shim), "utf8"),
+			]),
+		),
 		starterFiles: Object.fromEntries(
 			books.map((book) => [
 				book,
@@ -416,7 +425,7 @@ export const writeShims = (
 			const editedByAuthor =
 				current &&
 				previous &&
-				!previous.shims.has(shim) &&
+				!(shim in previous.shims) &&
 				!current.equals(content) &&
 				current.toString() !== starter[shim];
 			const savedAs = editedByAuthor
@@ -425,6 +434,63 @@ export const writeShims = (
 			if (current && savedAs) put(dir, savedAs, current, []);
 			put(dir, rel, content, changes);
 			if (savedAs) changes[changes.length - 1].savedAs = savedAs;
+		}
+	}
+	return changes;
+};
+
+/** Removes `path`'s folder and each parent up to `stop` while they are empty. */
+const removeEmptyFolders = (path: string, stop: string) => {
+	for (
+		let folder = dirname(path);
+		isInside(folder, stop) && folder !== stop;
+	) {
+		if (readdirSync(folder).length > 0) return;
+		rmSync(folder, { recursive: true });
+		folder = dirname(folder);
+	}
+};
+
+/**
+ * Removes from each book the files the previous engine shared (a shim, or a
+ * starter file) that this one no longer writes: the routes, layout, and
+ * runtime wiring the bookkit() integration now serves from the engine. A file
+ * the author edited is first saved beside it as `_<name>.before-upgrade`,
+ * which Astro does not read: left in place, it would replace the engine's
+ * route and import files that are gone.
+ */
+export const removeRetiredAppFiles = (
+	source: Source,
+	dir: string,
+	books: string[],
+	previous: PreviousEngine,
+): Change[] => {
+	const changes: Change[] = [];
+	const current = new Set([
+		...listShimPaths(source.repoRoot),
+		...listFilesRecursive(starterTemplateRootIn(source.repoRoot)),
+	]);
+	for (const book of books) {
+		const starter = previous.starterFiles[book] ?? {};
+		const retired = [
+			...new Set([...Object.keys(previous.shims), ...Object.keys(starter)]),
+		].filter((file) => !current.has(file));
+		for (const file of retired.sort()) {
+			const rel = `apps/${book}/${file}`;
+			const path = join(dir, rel);
+			if (!existsSync(path)) continue;
+			const content = readFileSync(path, "utf8");
+			const change: Change = { path: rel, action: "removed" };
+			if (content !== previous.shims[file] && content !== starter[file]) {
+				change.savedAs = rel.replace(
+					/[^/]+$/,
+					(name) => `_${name}.before-upgrade`,
+				);
+				put(dir, change.savedAs, content, []);
+			}
+			rmSync(path);
+			removeEmptyFolders(path, join(dir, "apps", book));
+			changes.push(change);
 		}
 	}
 	return changes;
@@ -653,6 +719,7 @@ bun run bookkit help             # every command
 
 - \`apps/${book}/src/book.config.ts\`: the author's decisions (frame, objectives, constraints).
 - \`apps/${book}/src/content/book/\`: chapters, mechanisms, toolkit, examples, glossary, releases.
+- \`apps/${book}/src/pages/\`: none to start; the engine serves every page, and a file here replaces its page at the same URL.
 - \`packages/astro-bookkit/\`, \`scripts/\`, and the files \`bun run check:shims\` checks in each app: the engine's. \`bookkit.json\` records which engine version they came from.
 
 ## Updating the engine
@@ -734,6 +801,7 @@ export const upgradeProject = (source: Source, dir: string): UpgradeResult => {
 		...writeEngine(source, dir),
 		...writeScripts(source, dir, previous?.scripts),
 		...writeShims(source, dir, books, previousEngine),
+		...removeRetiredAppFiles(source, dir, books, previousEngine),
 		...writeMissingStarterFiles(dir, books),
 		...writeAppPackages(source, dir, books),
 		...writeRootFiles(source, dir, `${books[0] ?? "bookkit"}-book`),
@@ -776,7 +844,9 @@ export const summarizeUpgrade = (result: UpgradeResult): string[] => {
 	if (changed.length === 0) lines.push("  Nothing changed.");
 	for (const change of changed.filter((change) => change.savedAs)) {
 		lines.push(
-			`${change.path} is shared by every book from this version on, so your edited copy was replaced and saved as ${change.savedAs}. Move its changes into book.config.ts (the home page's copy goes in \`home\`, the reading hub's lede and cards in \`readHub\`, the mechanisms index's lede and urgency in \`mechanismsIndex\`), then delete the saved file.`,
+			change.action === "removed"
+				? `${change.path} is served by the engine from this version on, so your edited copy was removed and saved as ${change.savedAs}. Move its copy into book.config.ts (the home page's goes in \`home\`, the reading hub's in \`readHub\`, the mechanisms index's in \`mechanismsIndex\`), or, for a page, put it back under src/pages/, where it replaces the engine's, reading the book from @bookkit/astro-bookkit/routes/runtime; then delete the saved file.`
+				: `${change.path} is shared by every book from this version on, so your edited copy was replaced and saved as ${change.savedAs}. Move its changes into book.config.ts, then delete the saved file.`,
 		);
 	}
 	if (changed.some((change) => change.path === "bun.lock")) {

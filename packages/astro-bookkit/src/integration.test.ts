@@ -1,36 +1,54 @@
 import { describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
+	BOOK_MODULE_ID,
 	type BookkitIntegrationOptions,
 	bookkit,
+	bookModule,
 	ONNX_RUNTIME_WASM_BUILD,
 	onnxRuntimeWasmOnly,
 	optionalDependencies,
+	routePatternOf,
 } from "./integration";
 import { safeHtmlMdastPlugins } from "./markdown/safe-html";
 
 type Command = "dev" | "build";
 
-/** Runs config setup, then route setup for each route; returns their prerender. */
+type InjectedRoute = { pattern: string; entrypoint: URL; prerender?: boolean };
+
+/**
+ * Runs config setup for a book at `root`, then route setup for each route;
+ * returns their prerender, the routes injected, and the middleware added.
+ */
 const setUp = (
 	options: BookkitIntegrationOptions,
 	command: Command,
 	components: string[],
 	adapter?: object,
+	root = new URL("file:///book/"),
 ) => {
 	const hooks = bookkit(options).hooks as Record<
 		string,
 		(params: Record<string, unknown>) => void
 	>;
 	const updates: Array<Record<string, unknown>> = [];
+	const injected: InjectedRoute[] = [];
+	const middleware: Array<{ entrypoint: URL; order: string }> = [];
 	hooks["astro:config:setup"]({
 		command,
 		config: {
-			root: new URL("file:///book/"),
-			srcDir: new URL("file:///book/src/"),
-			publicDir: new URL("file:///book/static/"),
+			root,
+			srcDir: new URL("src/", root),
+			publicDir: new URL("static/", root),
 			adapter,
 		},
+		injectRoute: (route: InjectedRoute) => injected.push(route),
+		addMiddleware: (entry: { entrypoint: URL; order: string }) =>
+			middleware.push(entry),
 		updateConfig: (update: Record<string, unknown>) => updates.push(update),
 	});
 	const prerender = components.map((component) => {
@@ -38,8 +56,11 @@ const setUp = (
 		hooks["astro:route:setup"]({ route });
 		return route.prerender;
 	});
-	return { prerender, updates };
+	return { prerender, updates, injected, middleware };
 };
+
+const injectedPattern = (routes: InjectedRoute[], pattern: string) =>
+	routes.find((route) => route.pattern === pattern);
 
 const ROUTES = ["src/pages/api/mcp.json.ts", "src/pages/read/index.astro"];
 
@@ -60,6 +81,74 @@ describe("bookkit() integration", () => {
 			name: "adapter",
 		});
 		expect(prerender).toEqual([false, undefined]);
+	});
+
+	it("serves the engine's pages, API routes, and middleware to every book", () => {
+		const { injected, middleware } = setUp({}, "build", []);
+		for (const pattern of [
+			"/",
+			"/404",
+			"/read/chapters",
+			"/read/chapters/[slug]",
+			"/read/examples/[...slug]",
+			"/exports/chapters/[slug].pdf",
+			"/sitemap.xml",
+			"/api/mcp.json",
+		]) {
+			// The entrypoint is the engine's page file.
+			expect(injectedPattern(injected, pattern)?.entrypoint.href).toContain(
+				"/src/routes/pages/",
+			);
+		}
+		expect(middleware).toHaveLength(1);
+		expect(middleware[0].order).toBe("pre");
+		expect(middleware[0].entrypoint.href).toEndWith(
+			"/src/routes/middleware.ts",
+		);
+	});
+
+	it("runs the engine's API routes on demand in dev and server builds only", () => {
+		const prerenderOf = (...args: Parameters<typeof setUp>) =>
+			injectedPattern(setUp(...args).injected, "/api/mcp.json")?.prerender;
+		expect(prerenderOf({}, "dev", [])).toBe(false);
+		expect(prerenderOf({}, "build", [])).toBeUndefined();
+		expect(
+			prerenderOf({ runtime: "server" }, "build", [], { name: "adapter" }),
+		).toBe(false);
+		expect(
+			injectedPattern(setUp({}, "dev", []).injected, "/read")?.prerender,
+		).toBeUndefined();
+	});
+
+	it("lets a page in the book's src/pages/ replace the engine's page at its URL", () => {
+		const book = mkdtempSync(join(tmpdir(), "bookkit-integration-"));
+		try {
+			for (const page of [
+				"read/examples/index.astro",
+				"sitemap.xml.ts",
+				"colophon.astro",
+				"_draft/read.astro",
+			]) {
+				mkdirSync(join(book, "src", "pages", page, ".."), { recursive: true });
+				writeFileSync(join(book, "src", "pages", page), "");
+			}
+			const { injected } = setUp(
+				{},
+				"build",
+				[],
+				undefined,
+				pathToFileURL(`${book}/`),
+			);
+			expect(injectedPattern(injected, "/read/examples")).toBeUndefined();
+			expect(injectedPattern(injected, "/sitemap.xml")).toBeUndefined();
+			// Astro skips `_` names, so they replace nothing.
+			expect(injectedPattern(injected, "/read")).toBeDefined();
+			expect(
+				injectedPattern(injected, "/read/examples/[...slug]"),
+			).toBeDefined();
+		} finally {
+			rmSync(book, { recursive: true, force: true });
+		}
 	});
 
 	it("refuses a server build without an adapter, naming the setting and the fix", () => {
@@ -109,6 +198,8 @@ describe("bookkit() integration", () => {
 					markdown: { processor },
 				},
 				logger: { warn: (message: string) => warnings.push(message) },
+				injectRoute: () => {},
+				addMiddleware: () => {},
 				updateConfig: () => {},
 			});
 			return warnings;
@@ -225,5 +316,44 @@ describe("onnxRuntimeWasmOnly", () => {
 		]) {
 			expect(await plugin.resolveId.call(context, source, "/a.ts")).toBeNull();
 		}
+	});
+});
+
+describe("routePatternOf", () => {
+	it("names a page's URL the way Astro names file routes", () => {
+		expect(routePatternOf("index.astro")).toBe("/");
+		expect(routePatternOf("404.astro")).toBe("/404");
+		expect(routePatternOf("read/chapters/index.astro")).toBe("/read/chapters");
+		expect(routePatternOf("read/chapters.astro")).toBe("/read/chapters");
+		expect(routePatternOf("read/examples/[...slug].astro")).toBe(
+			"/read/examples/[...slug]",
+		);
+		expect(routePatternOf("sitemap.xml.ts")).toBe("/sitemap.xml");
+	});
+});
+
+describe("bookModule", () => {
+	it("serves virtual:bookkit/book and nothing else", () => {
+		const plugin = bookModule("src");
+		const id = plugin.resolveId(BOOK_MODULE_ID);
+		expect(typeof id).toBe("string");
+		expect(plugin.resolveId("./book.config")).toBeNull();
+		expect(plugin.load("/src/book.config.ts")).toBeNull();
+		expect(plugin.load(id as string)).toContain(
+			'import bookConfig from "/src/book.config";',
+		);
+	});
+
+	it("globs the book's content from the root, keyed as book apps globbed it from src/lib/", () => {
+		const code = bookModule("site/src").load(
+			bookModule("site/src").resolveId(BOOK_MODULE_ID) as string,
+		) as string;
+		expect(code).toContain(
+			'import.meta.glob("/site/src/content/book/examples/**/*.mdx", { eager: true })',
+		);
+		expect(code).toContain(
+			'import.meta.glob("/site/src/content/book/chapters/*.mdx", { eager: true, query: "?raw", import: "default" })',
+		);
+		expect(code).toContain('key.replace("/site/src/", "../")');
 	});
 });

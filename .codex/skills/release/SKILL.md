@@ -16,7 +16,7 @@ Use for release operations and versioned publication changes, such as:
 ## Allowed file paths
 
 - ✅ `apps/<book>/src/content/book/releases/**`
-- ✅ release-related app/lib wiring (`src/lib/release-notes.ts`, `src/lib/versions.ts`)
+- ✅ release-related route wiring (`packages/astro-bookkit/src/routes/runtime.ts`, the release-notes and versions pages in `src/routes/pages/`)
 - ✅ release docs and ops notes
 - ⚠️ If engine release pipeline behavior changes, also run `engine-change` lane checks.
 

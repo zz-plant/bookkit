@@ -90,65 +90,17 @@ describe("new:book", () => {
 		).toContain("relatedBooks: [],");
 	});
 
-	it("gets the shared home page, with its copy in book.config.ts", () => {
+	it("holds no pages: the engine serves them, with their copy in book.config.ts", () => {
 		const appDir = join(workspace, "apps", "tide-pool");
-		expect(
-			readFileSync(join(appDir, "src", "pages", "index.astro"), "utf8"),
-		).toBe(
-			readFileSync(
-				join(
-					repo,
-					"packages",
-					"astro-bookkit",
-					"templates",
-					"book-app",
-					"src",
-					"pages",
-					"index.astro",
-				),
-				"utf8",
-			),
-		);
+		for (const folder of ["pages", "lib", "layouts"]) {
+			expect(existsSync(join(appDir, "src", folder))).toBe(false);
+		}
 		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
 		expect(config).toContain('kicker: "",');
 		expect(config).toContain('title: "Browse the mechanisms",');
-	});
-
-	it("gets the shared reading hub, with its copy in book.config.ts", () => {
-		const appDir = join(workspace, "apps", "tide-pool");
-		expect(
-			readFileSync(join(appDir, "src", "lib", "read-hub.ts"), "utf8"),
-		).toBe(
-			readFileSync(
-				join(
-					repo,
-					"packages",
-					"astro-bookkit",
-					"templates",
-					"book-app",
-					"src",
-					"lib",
-					"read-hub.ts",
-				),
-				"utf8",
-			),
-		);
-		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
 		expect(config).toContain("readHub: {");
 		// No cards of its own, so the hub's default cards end with chapter 1.
 		expect(config).not.toContain("quickStartCards: [");
-	});
-
-	it("gets the shared mechanisms index, with its copy in book.config.ts", () => {
-		const appDir = join(workspace, "apps", "tide-pool");
-		const page = join("src", "pages", "read", "mechanisms", "index.astro");
-		expect(readFileSync(join(appDir, page), "utf8")).toBe(
-			readFileSync(
-				join(repo, "packages", "astro-bookkit", "templates", "book-app", page),
-				"utf8",
-			),
-		);
-		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
 		expect(config).toContain("mechanismsIndex: {");
 		expect(config).toContain("urgency: {},");
 	});

@@ -40,8 +40,8 @@ bun run bookkit help           # every command
 | --- | --- |
 | `apps/<book>/src/content/book/**` | You: chapters, mechanisms, toolkit, examples, glossary, releases. |
 | `apps/<book>/src/book.config.ts` | You: the book's frame, objectives and constraints, and the copy of the home page (`home`), reading hub (`readHub`) and mechanisms index (`mechanismsIndex`), typed by `BookConfig`. |
-| `apps/<book>/src/lib/read-copy.ts`, the examples index, `README.md`, `TODOS.md` | You. These start from the engine's starter template. |
-| The other files in `apps/<book>/` | The engine: wrappers every book keeps identical. `bun run check:shims` fails if one drifts. |
+| `apps/<book>/src/pages/**`, `README.md`, `TODOS.md` | You. A page in `src/pages/` replaces the engine's page at the same URL; a new book has none, since the engine serves every page. |
+| `apps/<book>/astro.config.mjs`, `tsconfig.json`, `public/_headers` | The engine: wrappers every book keeps identical. `bun run check:shims` fails if one drifts. |
 | `packages/astro-bookkit/` | The engine, copied from the repository with its optional dependencies. |
 | `scripts/` | The `bookkit` CLI and the checks, with every module they import. |
 | `bookkit.json` | The engine version the project came from, and which scripts belong to it. |
@@ -64,7 +64,7 @@ bun run packages/create-bookkit/src/index.ts ../my-book --upgrade
 - `tsconfig.base.json` and `bun.lock`
 - the script and dependency entries it manages in `package.json`
 
-It prints every file it changes. It never writes book content, `book.config.ts` or a book's own pages. A file a book owned before and the engine now shares, such as the home page, `src/lib/read-hub.ts` or the mechanisms index, is replaced too; if you had edited it, your copy is saved beside it as `_<name>.before-upgrade` (move the home page's copy into `home` in `book.config.ts`, the reading hub's lede and cards into `readHub`, and the mechanisms index's lede and urgency into `mechanismsIndex`). When a starter file a newer engine expects is missing, such as `TODOS.md`, it adds that file without replacing any existing one. It refuses a folder that is not a Bookkit project. Afterwards, run `bun install` and `bun run verify -- --all`.
+It prints every file it changes. It never writes book content, `book.config.ts` or a page a book added itself. A file an earlier engine wrote into a book and this one serves itself (the pages, `src/layouts/`, `src/lib/`, `src/middleware.ts`) is removed; if you had edited it, your copy is saved beside it as `_<name>.before-upgrade`, where nothing reads it. Move its copy into `book.config.ts` (the home page's into `home`, the reading hub's into `readHub`, the mechanisms index's into `mechanismsIndex`), or put an edited page back under `src/pages/` reading the book from `@bookkit/astro-bookkit/routes/runtime`. When a starter file a newer engine expects is missing, such as `TODOS.md`, it adds that file without replacing any existing one. It refuses a folder that is not a Bookkit project. Afterwards, run `bun install` and `bun run verify -- --all`.
 
 ## Runbook frame
 

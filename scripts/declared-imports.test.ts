@@ -75,7 +75,8 @@ const importedPackages = (file: string, source: string): string[] => {
 	return specifiers
 		.filter(
 			(specifier) =>
-				!/^(\.|\/|node:|bun:|astro:)/.test(specifier) &&
+				// `virtual:` modules are served by a Vite plugin (integration.ts).
+				!/^(\.|\/|node:|bun:|astro:|virtual:)/.test(specifier) &&
 				specifier !== "bun" &&
 				!builtins.has(specifier.split("/")[0]),
 		)

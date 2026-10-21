@@ -1,4 +1,5 @@
 /// <reference types="astro/client" />
+/// <reference path="./virtual-book.d.ts" />
 
 // What the engine's middleware puts on `Astro.locals`. Book apps load this
 // through `"types": ["@bookkit/astro-bookkit/env"]` in their tsconfig.

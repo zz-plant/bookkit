@@ -1,14 +1,16 @@
 ---
-import BaseLayout from "../../../layouts/BaseLayout.astro";
+import BaseLayout from "@bookkit/astro-bookkit/routes/BaseLayout.astro";
 import ContentIndexList from "@bookkit/astro-bookkit/components/ContentIndexList.astro";
 import { createLocalizedContentList } from "@bookkit/astro-bookkit/localization";
-import { bookEntryPoints } from "../../../lib/book-entrypoints";
 import {
 	bookPageTitle,
 	buildTranslationLede,
 	readItemPath,
 } from "@bookkit/astro-bookkit";
-import bookConfig from "../../../book.config";
+import {
+	bookConfig,
+	bookEntryPoints,
+} from "@bookkit/astro-bookkit/routes/runtime";
 
 const modules = bookEntryPoints.contentModules.examples;
 const { items: exampleItems, completeness } = createLocalizedContentList(

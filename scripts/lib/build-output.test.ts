@@ -496,7 +496,7 @@ describe("a page's content", () => {
 				level: "warning",
 				file: "read/mechanisms/triage/index.html",
 				message:
-					"Shows the book's content, but holds no <section class=\"content-block\"> around it, so check:build could not check that content's HTML. The engine's page templates (packages/astro-bookkit/templates/book-app/src/pages/read) wrap <Content /> in one; restore it in this page's template.",
+					"Shows the book's content, but holds no <section class=\"content-block\"> around it, so check:build could not check that content's HTML. The engine's pages (packages/astro-bookkit/src/routes/pages/read) wrap <Content /> in one; restore it in this page, or in the page the book keeps at that path under src/pages/.",
 			},
 		]);
 	});

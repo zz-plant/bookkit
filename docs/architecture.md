@@ -45,15 +45,14 @@ The same content tree is read by two independent pipelines. They share record sh
 
 ### Render pipeline — Astro, at dev/build time
 
-Content reaches the engine through Vite's `import.meta.glob()`, which must be called from a file inside the app. That single constraint is why book apps have any local code at all.
+Content reaches the engine through `virtual:bookkit/book`, a Vite module the `bookkit()` integration (`integration.ts`) serves from the app being built: it imports the app's `book.config.ts` and globs its `src/content/book/**` from the project root. The integration also injects the engine's routes (`routes/pages/**`) and middleware into every book with Astro's `injectRoute` and `addMiddleware`, so a book app holds config and content, not code.
 
 ```mermaid
 flowchart LR
-    G["import.meta.glob()<br/>src/lib/book-runtime.ts"] --> R["createBookRuntime()"]
-    CFG["book.config.ts"] --> R
+    G["virtual:bookkit/book<br/>book.config.ts + import.meta.glob()"] --> R["routes/runtime.ts<br/>createBookRuntime()"]
     R --> EP["createBookEntryPoints()<br/>graph · ordering · read routes"]
     R --> S["createBookAppShims()"]
-    S --> RT["src/pages/**<br/>routes, API handlers, exports"]
+    S --> RT["routes/pages/**<br/>injected routes, API handlers, exports"]
     EP --> L["BookLayout + components"]
     L --> OUT["static site"]
     RT --> OUT
@@ -87,7 +86,7 @@ The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` 
 
 | Path | Contains |
 | --- | --- |
-| `apps/` | one directory per book — config, content bindings, routes, thin runtime wiring |
+| `apps/` | one directory per book — config, content bindings, and only the pages it serves differently |
 | `packages/astro-bookkit` | the engine: schemas, frames, validators, graph, analyzers, MCP, exports, UI |
 | `packages/create-bookkit` | standalone project generator; vendors the engine, and the scripts the CLI and checks import (found by following their relative imports), so output needs no registry |
 | `scripts/` | CLI entrypoints — governance gates, scaffolds, compile/export tasks; tests live beside their source as `*.test.ts`, here and in the packages |
@@ -100,13 +99,9 @@ The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` 
 
 ### What stays app-local, and why
 
-Book apps are deliberately thin. Three things cannot move into the engine:
+A book app holds `src/book.config.ts`, `src/content/book/**`, `astro.config.mjs`, `wrangler.jsonc`, and any page it serves differently from other books. Everything a reader or agent reaches (pages, API routes, exports, the MCP endpoint, the middleware) is the engine's, injected by `bookkit()`. A file under the app's `src/pages/` that serves the same URL as an engine page replaces it: the integration does not inject that route (see [A book's own pages](./guide/concepts.md#a-books-own-pages)). Such a page reads the book from `@bookkit/astro-bookkit/routes/runtime`.
 
-- `src/lib/book-runtime.ts` — Vite resolves `import.meta.glob()` relative to the calling file.
-- `src/pages/**` — Astro discovers routes by filename.
-- the MCP route's `import.meta.url` hand-off.
-
-Everything else is a re-export. Canonical wrapper contents live in `packages/astro-bookkit/templates/book-app/**`; every file there is a shim, held identical across books by `bun run check:shims` (`bun run sync:shims` to update them). The files a book may change (breadcrumb copy, the examples index, `book.config.ts`) start from `packages/astro-bookkit/templates/starter/**`, which `bun run new:book` and create-bookkit copy; `book.config.ts` is typed by the engine's `BookConfig`. The home page, the reading hub and the mechanisms index are shims: their copy is `home`, `readHub` and `mechanismsIndex` in `book.config.ts`.
+Three files every book still holds, `astro.config.mjs`, `tsconfig.json`, and `public/_headers`, live in `packages/astro-bookkit/templates/book-app/**`, held identical across books by `bun run check:shims` (`bun run sync:shims` to update them). The files a book starts with and then owns (`book.config.ts`, README, TODOs, `package.json`, `wrangler.jsonc`) come from `packages/astro-bookkit/templates/starter/**`, which `bun run new:book` and create-bookkit copy; `book.config.ts` is typed by the engine's `BookConfig`. The home page, the reading hub and the mechanisms index take their copy from `home`, `readHub` and `mechanismsIndex` in `book.config.ts`.
 
 ---
 
@@ -161,6 +156,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `book/` | 4 | runtime assembly, entrypoints, reading graph, ordering, read routes, layout state |
 | `components/` | 4 | shared Astro components and page-level compositions |
 | `layouts/` | 4 | `BookLayout` and the reader shell islands |
+| `routes/` | 5 | the pages, API routes, layout, and middleware `bookkit()` injects into every book, and the book runtime they build from `virtual:bookkit/book` |
 
 <!-- architecture:modules:end -->
 
@@ -188,7 +184,7 @@ Anything else is a violation. Fix it by moving shared code down a tier or invert
 | add a governance gate | new `scripts/check-*.ts` | `package.json`, CI workflow, `CONTRIBUTING.md` matrix |
 | add an analyzer | `suggestions/` | `check:suggestions` output; `proposals/` if it should produce drafts |
 | expose something to agents | `mcp/tool-handlers/` | `mcp/tool-definitions.ts` |
-| add a reader surface | `components/` or `layouts/` | package `exports` map; shim templates if apps must wire it |
+| add a reader surface | `components/` or `layouts/` | package `exports` map; a page in `routes/pages/` if it needs its own URL |
 | add a book | `bun run new:book` | nothing in the engine |
 
 A change that does not fit a row above is usually in the wrong layer. The intended alternatives are always: **a new engine capability, or explicit configuration at the book layer.**

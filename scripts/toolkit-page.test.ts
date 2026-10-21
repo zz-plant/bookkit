@@ -11,7 +11,7 @@ import {
 } from "./lib/toolkit-page.fixture";
 
 /**
- * The toolkit page (templates/book-app/src/pages/read/toolkit/[slug].astro)
+ * The toolkit page (packages/astro-bookkit/src/routes/pages/read/toolkit/[slug].astro)
  * in a new book: a plain action renders exactly as it did before runbook
  * fields were shown, and a procedure shows those fields in the order the PDF
  * and EPUB print them. on-call's procedures are checked in static-build.test.ts.

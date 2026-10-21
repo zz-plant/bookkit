@@ -16,9 +16,8 @@ import { hashInputs } from "./lib/input-hash";
  * book.config.ts with the 5.x compiler API, which 7.x replaced.
  *
  * Neither compiler reads `.astro` files, so `astro check` covers them: every
- * book app, plus each package that ships `.astro` components. Template pages
- * are checked through their copies in each book (check:shims keeps them
- * identical).
+ * book app, plus each package that ships `.astro` components, the engine's
+ * routes among them.
  *
  * A project that passed is not checked again while nothing it reads has
  * changed: its folder, the folders it imports from, the lockfile, and the

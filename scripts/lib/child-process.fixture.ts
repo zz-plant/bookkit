@@ -1,4 +1,10 @@
 import { setDefaultTimeout } from "bun:test";
+import { realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import {
+	insideScratchWorkspace,
+	SCRATCH_WORKSPACE_ENV,
+} from "../../packages/astro-bookkit/src/utils/scratch-workspace";
 
 /**
  * For tests that run a bookkit script, git, or a shell as a child process and
@@ -15,6 +21,10 @@ import { setDefaultTimeout } from "bun:test";
  * So the deadline belongs to the child: it is killed after CHILD_DEADLINE_MS
  * and the test fails naming the command. A file whose tests run children
  * calls `waitForChildren()`, which gives each test room for a few of them.
+ *
+ * A child started in a scratch workspace (book-workspace.fixture.ts) is told
+ * so, and is not started once the workspace has lost its marker; see
+ * `childEnv`.
  */
 
 /** No command a test runs takes this long, even on a loaded machine; a build has its own. */
@@ -29,9 +39,41 @@ export const CHILD_TEST_TIMEOUT_MS = 2 * CHILD_DEADLINE_MS;
 /** Call once at the top of a test file whose tests wait for child processes. */
 export const waitForChildren = () => setDefaultTimeout(CHILD_TEST_TIMEOUT_MS);
 
+/** Where book-workspace.fixture.ts makes scratch workspaces (gitignored). */
+export const SCRATCH_WORKSPACES = join(
+	realpathSync(join(import.meta.dir, "..", "..")),
+	".test-workspaces",
+);
+
+/** The scratch workspace `path` is in, or undefined if it is in none. */
+export const scratchWorkspaceOf = (path: string): string | undefined => {
+	const rel = relative(SCRATCH_WORKSPACES, resolve(path));
+	const [name] = rel.split(sep);
+	if (!rel || isAbsolute(rel) || name === "..") return undefined;
+	return join(SCRATCH_WORKSPACES, name);
+};
+
+type Env = Record<string, string | undefined>;
+
+/**
+ * The environment for a child run in `cwd`: `env` (else this process's),
+ * and in a scratch workspace its folder in SCRATCH_WORKSPACE_ENV, so the
+ * child's scripts resolve nothing outside it. Throws, starting nothing, if
+ * that workspace has lost its marker: it was deleted.
+ */
+export const childEnv = (
+	cwd: string | undefined,
+	env?: Env,
+): Env | undefined => {
+	const workspace = cwd ? scratchWorkspaceOf(cwd) : undefined;
+	if (!cwd || !workspace) return env;
+	insideScratchWorkspace(workspace, cwd);
+	return { ...(env ?? process.env), [SCRATCH_WORKSPACE_ENV]: workspace };
+};
+
 type ChildOptions = {
 	cwd?: string;
-	env?: Record<string, string | undefined>;
+	env?: Env;
 	stdin?: string;
 	/** CHILD_DEADLINE_MS, or BUILD_DEADLINE_MS for a build. */
 	deadlineMs?: number;
@@ -66,7 +108,7 @@ export const runChild = (
 	const deadlineMs = options.deadlineMs ?? CHILD_DEADLINE_MS;
 	const child = Bun.spawnSync(command, {
 		cwd: options.cwd,
-		env: options.env,
+		env: childEnv(options.cwd, options.env),
 		...(options.stdin === undefined
 			? {}
 			: { stdin: Buffer.from(options.stdin) }),
@@ -95,7 +137,7 @@ export const runChildAsync = async (
 	const deadlineMs = options.deadlineMs ?? CHILD_DEADLINE_MS;
 	const child = Bun.spawn(command, {
 		cwd: options.cwd,
-		env: options.env,
+		env: childEnv(options.cwd, options.env),
 		stdin: options.stdin === undefined ? "ignore" : Buffer.from(options.stdin),
 		stdout: "pipe",
 		stderr: "pipe",

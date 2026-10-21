@@ -6,6 +6,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
+import { scratchWorkspaceRoot } from "../packages/astro-bookkit/src/utils/scratch-workspace";
 
 /**
  * The Bookkit workspace these scripts act on: the nearest directory, from the
@@ -14,9 +15,20 @@ import { dirname, join, relative, sep } from "node:path";
  * caller's directory, so a check started from apps/<book>/, docs/, or
  * scripts/ still sees every book instead of none. Outside any workspace it is
  * the current directory, so a script never reaches into one it was not run in.
+ *
+ * It does not walk up from a folder that is gone: the walk would leave a
+ * deleted scratch workspace for the repository around it. A process a test
+ * started in a scratch workspace gets that workspace, or an error.
  */
 export function repoRoot(): string {
 	const cwd = process.cwd();
+	if (!existsSync(cwd)) {
+		throw new Error(
+			`The current folder no longer exists: ${cwd}\nRun the command again from a folder that does.`,
+		);
+	}
+	const scratch = scratchWorkspaceRoot(cwd);
+	if (scratch) return scratch;
 	for (let dir = cwd; ; dir = dirname(dir)) {
 		if (
 			existsSync(join(dir, "apps")) ||

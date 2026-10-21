@@ -140,4 +140,4 @@ if (markdownSource) {
 	if (run.status !== 0) fail(`Import exited with status ${run.status}.`);
 }
 
-console.log(nextSteps(target, { installed }));
+console.log(nextSteps(target, { installed, book }));

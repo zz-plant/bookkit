@@ -115,18 +115,23 @@ describe("createProject", () => {
 describe("next steps", () => {
 	it("check before git init, and deploy after the first commit", () => {
 		createProject(source, dir, { book: "garden", title: "Garden" });
-		for (const steps of [
-			nextSteps(dir, { installed: false }),
-			read("README.md"),
-		]) {
+		for (const [steps, check] of [
+			[
+				nextSteps(dir, { installed: false, book: "garden" }),
+				"bun run bookkit check",
+			],
+			[read("README.md"), "bun run verify -- --all"],
+		] as const) {
 			const at = (text: string) => steps.indexOf(text);
-			expect(at("bun run verify -- --all")).toBeGreaterThan(-1);
-			expect(at("git init")).toBeGreaterThan(at("bun run verify -- --all"));
+			expect(at(check)).toBeGreaterThan(-1);
+			expect(at("git init")).toBeGreaterThan(at(check));
 			expect(at("bun run deploy -- --dry-run")).toBeGreaterThan(
 				at("git commit"),
 			);
 		}
-		expect(nextSteps(dir, { installed: true })).not.toContain("bun install");
+		expect(nextSteps(dir, { installed: true, book: "garden" })).not.toContain(
+			"bun install",
+		);
 	});
 });
 

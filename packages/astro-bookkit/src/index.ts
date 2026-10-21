@@ -235,6 +235,7 @@ export {
 	createGovernanceResourcesFromFiles,
 	DEFAULT_GOVERNANCE_FILE_RESOURCES,
 	findWorkspaceRoot,
+	GUIDE_GOVERNANCE_FILE_RESOURCES,
 } from "./mcp";
 export type {
 	PreviewAccessConfig,

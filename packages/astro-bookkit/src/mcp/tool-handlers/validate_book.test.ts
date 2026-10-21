@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { handleValidateBook } from "./validate_book";
 
-describe("validate_book's failure", () => {
+describe("validate_book's failure", async () => {
 	const workspace = mkdtempSync(join(tmpdir(), "bookkit-mcp-validate-"));
 	afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
@@ -31,7 +31,7 @@ describe("validate_book's failure", () => {
 		"---\nstatus: draft\n---\nBody.\n",
 	);
 
-	const result = handleValidateBook({
+	const result = await handleValidateBook({
 		options: {
 			bookTitle: "Broken",
 			bookSlug: "broken",

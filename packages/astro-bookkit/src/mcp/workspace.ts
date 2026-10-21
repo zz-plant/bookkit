@@ -7,6 +7,7 @@ import { createBookMcpEndpoint } from "./endpoint";
 import {
 	CORE_GOVERNANCE_FILE_RESOURCES,
 	createGovernanceResourcesFromFiles,
+	GUIDE_GOVERNANCE_FILE_RESOURCES,
 } from "./governance";
 
 const GOVERNANCE_FILES = CORE_GOVERNANCE_FILE_RESOURCES.map(
@@ -68,7 +69,7 @@ export const createBookMcpEndpointFromWorkspace = (
 	const workspaceRoot = findWorkspaceRoot(options.startDir);
 	const governanceResources = createGovernanceResourcesFromFiles(
 		workspaceRoot,
-		CORE_GOVERNANCE_FILE_RESOURCES,
+		[...CORE_GOVERNANCE_FILE_RESOURCES, ...GUIDE_GOVERNANCE_FILE_RESOURCES],
 		{ allowMissingFiles: true },
 	);
 

@@ -10,11 +10,19 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 - **Import converts wiki links**: `[[Note]]`, `[[Note#Heading|text]]` (by file name in any folder, or title), and `![[image.png]]`. An unmatched one keeps its text and is listed. `bookkit try` counts them, says the README is the folder's index, and suggests its heading as the book's title.
 - **`propose --apply mechanisms`** adds each mechanism it writes to the `mechanisms:` of the chapters its evidence comes from.
 - **`bookkit check <folder>` inside a book** checks the folder with the book's rules (frame, status, references, MDX compiler), reporting only its files, instead of as a folder outside any book.
-- **The book's frame check** reads headings and `Label:` lines the way `bookkit try` does (a word that starts like the step), and checks a book with no `00-overview.mdx` across its chapters together; before, such a book had no frame check at all.
+- **The book's frame check** covers a book with no `00-overview.mdx` (an imported one) too, reading its chapters together; before, such a book had no frame check at all. A step counts as #325 made it: a heading whose whole text is the step's name.
 - **`bookkit build`** ends with the export warnings Astro's log scrolled past (an image the PDF or EPUB shows as alt text).
 - **One book needs no name**: with one book in the workspace, `new`, `import`, `propose`, `dev`, and the rest take it. `preview`, `serve`, and `start` run `dev`; `init` and `create` run `new book`.
 - **`bookkit dev stop`** leaves the server it stops exiting 0, with "Stopped by bun run bookkit dev stop", not 143.
 - **Migration:** a script that relied on `deploy --dry-run` stamping `dist/` for `--no-build` adds `--full`. A book without `00-overview.mdx` may now show a `FRAME_STEP_MISSING` warning naming the steps no chapter covers; warnings never fail.
+
+## 2026-10-21 — `--help` everywhere; the frame check reads whole headings; `verify` before `git init`
+
+- **Every `bookkit` command and package script answers `-h` and `--help`** with what it does, its arguments, and examples, and exits 0 without doing anything else. Before, `bookkit dev --help` started a dev server, `check:corpus`, `check:suggestions`, `check:runbooks`, `check:a11y`, and `mcp` ran, `export --help` and `try --help` exited 1, and `bun run prepare --help` had husky install hooks into a folder named `--help`. `bookkit help <command>` prints the same help. The commands and their help live in one table, `scripts/lib/bookkit-commands.ts`, which `bookkit` dispatches on; the shared helper is `exitOnHelp`/`formatUsage` in `scripts/lib/cli.ts`. `prepare` and `setup` now run `scripts/install-hooks.ts` and `scripts/setup.ts`, which do what `husky` and `mise trust && bun install` did.
+- **The frame check reads the whole heading.** A heading in `00-overview.mdx` counts for a step when its whole text, slugged as the site slugs heading ids, is the step's id, so `## Failure Modes` now counts for `failure-modes` (a new field-guide book warned about its own starter overview). Headings in fenced code or the frontmatter no longer count. `frameStepsInPage` and `markdownHeadings` are new engine exports.
+- **`verify -- --all` works in a project that is not a git repository yet.** `check:types` listed its files with `git ls-files`; outside a repository it now reads them from the disk, leaving out what the project's `.gitignore` files ignore, as git would. create-bookkit's next steps put `git init` and the first commit right before `deploy`, the one step that needs a commit (the entry below had moved them first to get past this).
+
+**Migration:** an overview heading that starts with a step's name but says more, such as `## Recognition and blame`, no longer counts for `recognition`; rename it to the step's name, or add a heading that is. The four books in this repository are unaffected.
 
 ## 2026-10-21 — MCP tools an agent can write a book with
 

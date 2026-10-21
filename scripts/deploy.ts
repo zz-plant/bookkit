@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { repoRoot } from "./_lib";
 import { loadBookConfigSummary } from "./lib/authoring";
-import { didYouMean, readFocusBook } from "./lib/cli";
+import {
+	didYouMean,
+	exitOnHelp,
+	formatUsage,
+	readFocusBook,
+	type Usage,
+} from "./lib/cli";
 import {
 	countSitemapUrls,
 	distDigest,
@@ -39,23 +45,45 @@ import { domainNotice, liveSitemapUrl } from "./lib/deploy-domain";
  * changed since.
  */
 
-const USAGE = `Usage: bun run bookkit deploy [book...] [--all] [--dry-run [--full]] [--no-build] [--allow-dirty] [--allow-page-drop]
-
-Publishes books to Cloudflare Workers, all or none: every book is verified,
-built, and checked before any is published. With no book named, the current
-book (bun run bookkit use), else every book under apps/ that has
-src/book.config.ts and wrangler.jsonc.
-
-  --all              every book, even when a current book is set
-  --dry-run          check the content, build, and run wrangler's dry run;
-                     publish nothing. Leaves out the engine's tests and type
-                     check, which a real deploy runs
-  --full             with --dry-run: every check a real deploy runs, and a
-                     stamp so --no-build can publish exactly these builds
-  --no-build         skip verify and the build: publish the dist/ an earlier
-                     deploy run built, checked, and stamped at this commit
-  --allow-dirty      publish with uncommitted changes (the version message says so)
-  --allow-page-drop  publish even if more than a quarter of the live pages would disappear`;
+const USAGE: Usage = {
+	summary:
+		"Publishes books to Cloudflare Workers, all or none: every book is\nverified, built, and checked before any is published. With no book\nnamed, the current book (bun run bookkit use), else every book under\napps/ that has src/book.config.ts and wrangler.jsonc.",
+	usage: [
+		"bun run bookkit deploy [book...] [--all] [--dry-run [--full]] [--no-build] [--allow-dirty] [--allow-page-drop]",
+	],
+	options: [
+		["[book...]", "The books to publish"],
+		["--all", "Every book, even when a current book is set"],
+		[
+			"--dry-run",
+			"Check the content, build, and run wrangler's dry run;\npublish nothing. Leaves out the engine's tests and type\ncheck, which a real deploy runs",
+		],
+		[
+			"--full",
+			"With --dry-run: every check a real deploy runs, and a\nstamp so --no-build can publish exactly these builds",
+		],
+		[
+			"--no-build",
+			"Skip verify and the build: publish the dist/ an earlier\ndeploy run built, checked, and stamped at this commit",
+		],
+		[
+			"--allow-dirty",
+			"Publish with uncommitted changes (the version message\nsays so)",
+		],
+		[
+			"--allow-page-drop",
+			"Publish even if more than a quarter of the live pages\nwould disappear",
+		],
+	],
+	notes:
+		"A real deploy publishes from a git commit: commit first, or rehearse\nwith --dry-run.",
+	examples: [
+		"bun run bookkit deploy on-call --dry-run",
+		"bun run bookkit deploy on-call --dry-run --full",
+		"bun run bookkit deploy on-call",
+		"bun run deploy -- --dry-run",
+	],
+};
 
 const parse = () =>
 	parseArgs({
@@ -68,22 +96,18 @@ const parse = () =>
 			"no-build": { type: "boolean", default: false },
 			"allow-dirty": { type: "boolean", default: false },
 			"allow-page-drop": { type: "boolean", default: false },
-			help: { type: "boolean", short: "h", default: false },
 		},
 	});
+exitOnHelp(USAGE);
 let options: ReturnType<typeof parse>;
 try {
 	options = parse();
 } catch (error) {
 	// An unknown flag (say, --dryrun) must not fall through to a real publish.
 	console.error(
-		`${error instanceof Error ? error.message : String(error)}\n\n${USAGE}`,
+		`${error instanceof Error ? error.message : String(error)}\n\n${formatUsage(USAGE)}`,
 	);
 	process.exit(1);
-}
-if (options.values.help) {
-	console.log(USAGE);
-	process.exit(0);
 }
 
 const dryRun = options.values["dry-run"];

@@ -4,19 +4,24 @@ import { ensureDir, listBookDirs, slugify, writeFileSafe } from "./_lib";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
 
 const args = parseScriptArgs(
-	`Create a draft mechanism in apps/<book>/src/content/book/mechanisms/.
-
-Usage:
-  bun run new:mechanism -- --book <book> --slug <slug> [--title "<title>"] [--definition "<one sentence>"]
-
-Options:
-  --book <book>                 The book app to add it to
-  --slug <slug>                 The mechanism's durable identifier
-  --title "<title>"             Its title as readers see it (default: the slug)
-  --definition "<one sentence>" What it is, in one sentence
-  -h, --help                    Show this help
-
-bun run bookkit new mechanism also checks every book for a mechanism that already fits.`,
+	{
+		summary:
+			"Creates a draft mechanism in apps/<book>/src/content/book/mechanisms/.",
+		usage: [
+			'bun run new:mechanism -- --book <book> --slug <slug> [--title "<title>"] [--definition "<one sentence>"]',
+		],
+		options: [
+			["--book <book>", "The book app to add it to"],
+			["--slug <slug>", "The mechanism's durable identifier"],
+			['--title "<title>"', "Its title as readers see it (default: the slug)"],
+			['--definition "<sentence>"', "What it is, in one sentence"],
+		],
+		notes:
+			"bun run bookkit new mechanism also checks every book for a mechanism\nthat already fits.",
+		examples: [
+			'bun run new:mechanism -- --book bad-people --slug waiting-as-leverage --title "Waiting as leverage"',
+		],
+	},
 	{ book: "string", slug: "string", title: "string", definition: "string" },
 	["book", "slug"],
 );

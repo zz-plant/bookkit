@@ -136,6 +136,75 @@ export const choose = (
 	return values.includes(answer) ? answer : closest(answer, values);
 };
 
+/**
+ * A command's help, printed for `-h` or `--help`: what it does, how to call
+ * it, its arguments and options, and examples. Every script and `bookkit`
+ * command prints one through `formatUsage`, so they all read alike.
+ */
+export type Usage = {
+	/** What it does, in a sentence or two. */
+	summary: string;
+	/** How to call it, one line per form. */
+	usage: readonly string[];
+	/** Each argument or option and what it does; `-h, --help` is added. */
+	options?: ReadonlyArray<readonly [string, string]>;
+	/** What else to know: what it reads or writes, what it needs. */
+	notes?: string;
+	examples: readonly string[];
+};
+
+const indent = (lines: readonly string[]) =>
+	lines.map((line) => `  ${line}`).join("\n");
+
+export const formatUsage = ({
+	summary,
+	usage,
+	options = [],
+	notes,
+	examples,
+}: Usage): string => {
+	const rows = [...options, ["-h, --help", "Show this help"] as const];
+	const width = Math.min(30, Math.max(...rows.map(([name]) => name.length)));
+	const pad = " ".repeat(width + 2);
+	const option = ([name, meaning]: readonly [string, string]) => {
+		const text = meaning.replace(/\n/g, `\n  ${pad}`);
+		return name.length > width
+			? `${name}\n  ${pad}${text}`
+			: `${name.padEnd(width)}  ${text}`;
+	};
+	return [
+		summary,
+		`Usage:\n${indent(usage)}`,
+		`Options:\n${indent(rows.map(option))}`,
+		...(notes ? [notes] : []),
+		`Examples:\n${indent(examples)}`,
+	].join("\n\n");
+};
+
+/** Whether the arguments ask for help: `-h` or `--help`, before any `--`. */
+export const wantsHelp = (
+	argv: readonly string[] = process.argv.slice(2),
+): boolean => {
+	const end = argv.indexOf("--");
+	return (end < 0 ? argv : argv.slice(0, end)).some(
+		(arg) => arg === "--help" || arg === "-h",
+	);
+};
+
+/**
+ * Prints the usage and exits 0 when the arguments ask for help. A script
+ * calls it before anything else, so `--help` never reads a book, writes a
+ * file, or starts a server.
+ */
+export const exitOnHelp = (
+	usage: Usage | string,
+	argv: readonly string[] = process.argv.slice(2),
+): void => {
+	if (!wantsHelp(argv)) return;
+	console.log(typeof usage === "string" ? usage : formatUsage(usage));
+	process.exit(0);
+};
+
 type ArgKind = "string" | "boolean";
 type ArgValue<K extends ArgKind> = K extends "string" ? string : boolean;
 
@@ -155,18 +224,17 @@ export const parseScriptArgs = <
 	S extends Record<string, ArgKind>,
 	R extends keyof S & string = never,
 >(
-	usage: string,
+	usage: Usage | string,
 	spec: S,
 	required: readonly R[] = [],
 	argv: string[] = process.argv.slice(2),
 ): ParsedScriptArgs<S, R> => {
+	// Help first, so `--help` beside a mistyped flag still prints it.
+	exitOnHelp(usage, argv);
 	const result = readScriptArgs(spec, required, argv);
-	if ("help" in result) {
-		console.log(usage);
-		process.exit(0);
-	}
-	if ("error" in result) {
-		console.error(`${result.error}\n\n${usage}`);
+	if (!("values" in result)) {
+		const text = typeof usage === "string" ? usage : formatUsage(usage);
+		console.error("error" in result ? `${result.error}\n\n${text}` : text);
 		process.exit(1);
 	}
 	return result.values;

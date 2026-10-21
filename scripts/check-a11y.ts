@@ -15,6 +15,7 @@ import {
 	type Variant,
 } from "./lib/a11y";
 import { booksFromArgv } from "./lib/book-args";
+import { exitOnHelp } from "./lib/cli";
 
 /**
  * Runs axe-core in Chromium over one page of each type in a built book (see
@@ -26,12 +27,23 @@ import { booksFromArgv } from "./lib/book-args";
  * pages are fixed, and nothing outside the local server loads, so every run
  * of the same build gives the same answer.
  *
- *   bun run check:a11y                      # build every book, then check it
- *   bun run check:a11y -- --book on-call    # one book
- *   bun run check:a11y -- --no-build        # check the dist/ already there
- *
  * Needs Playwright's Chromium: `bunx playwright install chromium`.
  */
+
+exitOnHelp({
+	summary:
+		"Runs axe-core in Chromium over one page of each type in a built book,\nand over the home page with each panel open, in light and dark, at\ndesktop and phone widths. Fails on serious or critical violations.",
+	usage: ["bun run check:a11y [--book <book>] [--no-build]"],
+	options: [
+		["--book <book>", "One book (default: every book)"],
+		["--no-build", "Check the dist/ already there instead of building first"],
+	],
+	notes: "Needs Playwright's Chromium: bunx playwright install chromium.",
+	examples: [
+		"bun run check:a11y",
+		"bun run check:a11y -- --book on-call --no-build",
+	],
+});
 
 const USAGE = "bun run check:a11y [--book <book>] [--no-build]";
 const root = repoRoot();

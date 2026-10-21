@@ -68,25 +68,28 @@ function starterPlaceholders(root: string) {
 }
 
 const args = parseScriptArgs(
-	`Validate one book: its content, its frame, and, once it is published or stable, release readiness.
-
-Usage:
-  bun run validate:book -- --book <book> [--release] [--json]
-
-Options:
-  --book <book>   The book app to validate
-  --release       Release rules whatever the book's status: what publishing it
-                  would hold it to (bookkit publish runs this)
-  --json          One JSON object: { book, status, releaseRules, ok, findings, info }
-  -h, --help      Show this help
-
-The book's status in book.config.ts decides the rules. A published or stable
-book gets release rules: no draft records, broken links and prerequisites are
-errors, and the site must be indexable at a public URL. Any other book is
-checked as a draft. Errors exit 1; warnings never do. INFO lists each
-chapter's first use of a glossary term that is not linked to its entry; it
-is advice and never fails. (--mode and --no-drafts are accepted for older
-callers and ignored.)`,
+	{
+		summary:
+			"Validates one book: its content, its frame, and, once it is published\nor stable, release readiness.",
+		usage: ["bun run validate:book -- --book <book> [--release] [--json]"],
+		options: [
+			["--book <book>", "The book app to validate"],
+			[
+				"--release",
+				"Release rules whatever the book's status: what publishing\nit would hold it to (bookkit publish runs this)",
+			],
+			[
+				"--json",
+				"One JSON object: { book, status, releaseRules, ok,\nfindings, info }",
+			],
+		],
+		notes:
+			"The book's status in book.config.ts decides the rules. A published or stable\nbook gets release rules: no draft records, broken links and prerequisites are\nerrors, and the site must be indexable at a public URL. Any other book is\nchecked as a draft. Errors exit 1; warnings never do. INFO lists each\nchapter's first use of a glossary term that is not linked to its entry; it\nis advice and never fails. (--mode and --no-drafts are accepted for older\ncallers and ignored.)",
+		examples: [
+			"bun run validate:book -- --book on-call",
+			"bun run validate:book -- --book on-call --json",
+		],
+	},
 	{
 		book: "string",
 		json: "boolean",

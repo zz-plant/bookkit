@@ -210,7 +210,7 @@ The canonical documents and their roles are listed once, in `AGENTS.md` → "Can
 | `governance-and-tests` | `bun run verify -- --all` (every gate in `scripts/lib/verify-plan.ts`, including the build of every book and `check:build`), then `bookkit deploy --all --dry-run`, which must reach wrangler for every book with the commit's message. |
 | `accessibility` | `bun run check:a11y` (axe-core over every page type and the open panels, light and dark, desktop and phone) and `bun run test:browser` (search and the reading keys, by keyboard; text from readers, the address, and storage shown as text). |
 | `semantic-corpus` | `check:corpus --mode error` with the embedding model downloaded, so mechanisms are compared by meaning; it fails if the meaning pass did not run. |
-| `standalone-project` | Scaffolds a project with `create-bookkit`, commits it, builds it failing on any `[WARN]` line, then runs its `verify -- --all` and `deploy -- --dry-run`. |
+| `standalone-project` | Scaffolds a project with `create-bookkit`, builds it failing on any `[WARN]` line, runs its `verify -- --all` before `git init`, then commits it and runs `deploy -- --dry-run`. |
 
 `.github/workflows/deploy.yml` publishes after CI passes on `main`, only for the books the `DEPLOY_BOOKS` repository variable names ([Deploy from CI](./docs/guide/publishing.md#deploy-from-ci)).
 

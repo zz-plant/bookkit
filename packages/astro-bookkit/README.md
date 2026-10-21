@@ -37,12 +37,14 @@ Entity types: `mechanism`, `toolkit`, `chapter`, `example`, `glossary`.
 
 ### Frame enforcement
 
-A **frame** is a declared sequence of structural steps (e.g. Recognition → Exoneration → Mechanism → Agency). The validator checks that required steps are structurally present in chapter headings — not implied in prose.
+A **frame** is a declared sequence of structural steps (e.g. Recognition → Exoneration → Mechanism → Agency). The validator checks that required steps are structurally present in chapter headings — not implied in prose. A heading counts for a step when its whole text slugs to the step's id, as the site slugs heading ids: `## Failure Modes` counts for `failure-modes`.
 
 ```ts
-import { validateFrameSteps, defaultFrames } from "@bookkit/astro-bookkit";
+import { defaultFrames, frameStepsInPage, validateFrameSteps } from "@bookkit/astro-bookkit";
 
-const result = validateFrameSteps(defaultFrames[0], headingSlugs);
+const [intervention] = defaultFrames;
+const present = frameStepsInPage(intervention, "## Recognition\n\n## Exoneration\n");
+const result = validateFrameSteps(intervention, present);
 // result.missingRequiredSteps → ["mechanism", "agency"]
 ```
 

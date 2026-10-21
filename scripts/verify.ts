@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
+import { exitOnHelp } from "./lib/cli";
 import { isStandaloneProject } from "./lib/project";
 import { type Gate, planGates } from "./lib/verify-plan";
 import { failedWorkspaces } from "./lib/workspace-output";
@@ -10,17 +11,31 @@ import { failedWorkspaces } from "./lib/workspace-output";
 /**
  * verify — runs the checks a change needs, judged by which files it touches.
  *
- *   bun run verify                    # changes since origin/main, committed or not
- *   bun run verify -- --base <ref>    # compare against another ref
- *   bun run verify -- --all           # every gate CI runs
- *   bun run verify -- --skip <gate>   # leave one out, by id (--list --json shows ids)
- *   bun run verify -- --list          # show the plan, run nothing
- *   bun run verify -- --json          # one JSON summary on stdout
- *
  * Content checks report only findings in the files you changed, so an
  * existing warning elsewhere in a book does not hide a new one. Exits 1 if
  * any check fails.
  */
+
+exitOnHelp({
+	summary:
+		"Runs the checks a change needs, judged by the files it touches: changes\nsince origin/main, committed or not. Content checks report only\nfindings in the files you changed.",
+	usage: [
+		"bun run verify [--all] [--base <ref>] [--skip <gate>] [--list] [--json]",
+	],
+	options: [
+		["--all", "Every gate CI runs; needs no git history"],
+		["--base <ref>", "Compare against another ref"],
+		["--skip <gate>", "Leave one gate out, by id (--list --json shows ids)"],
+		["--list", "Show the plan; run nothing"],
+		["--json", "One JSON summary on stdout"],
+	],
+	notes: "Exits 1 if any check fails.",
+	examples: [
+		"bun run verify",
+		"bun run verify -- --all",
+		"bun run verify -- --list",
+	],
+});
 
 const root = repoRoot();
 if (!existsSync(join(root, "node_modules"))) {

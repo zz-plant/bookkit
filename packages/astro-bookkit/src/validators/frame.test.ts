@@ -101,6 +101,15 @@ describe("frameStepsInPage", () => {
 		}
 	});
 
+	it("counts a heading nested in a list item, however deep, or in a <details> inside one", () => {
+		expect(
+			frameStepsInPage(
+				fieldGuide,
+				"1. First:\n\n    ## Steps\n\n- Outer\n  - Inner\n\n    ## Failure Modes\n\n- More\n\n  <details>\n  <summary>Notes</summary>\n\n      ### Checklist\n\n  </details>\n",
+			),
+		).toEqual(["steps", "failure-modes", "checklist"]);
+	});
+
 	it("does not count a heading that says more, says it in other words, or is not a heading", () => {
 		for (const page of [
 			"## Failure modes we have seen",

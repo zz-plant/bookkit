@@ -12,11 +12,11 @@ import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	createSlugger,
 	type MdxConversion,
-	markdownHeadings,
 	markupEntry,
 	toMdxBody,
 	type UnsafeMarkupEntry,
 } from "../utils/markdown";
+import { markdownHeadings } from "../utils/markdown-headings";
 import {
 	type ContentFinding,
 	type ContentSection,

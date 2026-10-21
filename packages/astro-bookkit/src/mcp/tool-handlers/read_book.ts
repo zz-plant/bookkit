@@ -3,25 +3,40 @@ import {
 	normalizeModuleSlug,
 	resolveResourceTitle,
 } from "../resource-utils";
+import { CONTENT_TYPES, DEFAULT_RESOURCE_PREFIX } from "../types";
 import {
-	CONTENT_TYPES,
-	type ContentTypeKey,
-	DEFAULT_RESOURCE_PREFIX,
-} from "../types";
+	bookArg,
+	contentOf,
+	SECTION_NAMES,
+	titleOf,
+	toContentType,
+} from "./book-arg";
 import type { ToolHandler } from "./types";
 
+/**
+ * Reads a book's content. Without a slug it returns an index (section, slug,
+ * title, length) so a whole book does not land in the caller's context; a
+ * slug, or `full: true`, returns the text.
+ */
 export const handleReadBook: ToolHandler = ({ options, args }) => {
+	const picked = bookArg(options, args);
+	if (!picked.ok) return picked.response;
+	const book = picked.book;
+	const bookTitle = titleOf(options, book);
+	const served = !book || book === options.bookSlug;
+
 	const rawSection = args?.section;
-	const section =
+	const named =
 		typeof rawSection === "string" && rawSection.trim().length
 			? rawSection.trim()
 			: null;
-	if (section && !CONTENT_TYPES.includes(section as ContentTypeKey)) {
+	const section = named ? toContentType(named) : null;
+	if (named && !section) {
 		return {
 			ok: false,
 			summary: "Unsupported read_book section.",
 			error: {
-				cause: `Received section=${JSON.stringify(section)} but supported sections are ${CONTENT_TYPES.join(", ")}.`,
+				cause: `Received section=${JSON.stringify(named)} but supported sections are ${SECTION_NAMES.join(", ")}.`,
 				nextAction: "Set arguments.section to a supported section or omit it.",
 			},
 		};
@@ -32,25 +47,29 @@ export const handleReadBook: ToolHandler = ({ options, args }) => {
 		typeof rawSlug === "string" && rawSlug.trim().length
 			? rawSlug.trim()
 			: null;
+	const withText = Boolean(slug) || args?.full === true;
 
+	const content = contentOf(options, book);
 	const records = CONTENT_TYPES.flatMap((type) => {
 		if (section && type !== section) return [];
-		return Object.entries(options.contentRawModules[type]).map(
-			([moduleKey, raw]) => {
-				const normalizedSlug = normalizeModuleSlug(moduleKey, type);
-				return {
-					section: type,
-					slug: normalizedSlug,
-					title: resolveResourceTitle(raw, normalizedSlug),
-					uri: buildResourceUri(
-						options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX,
-						type,
-						normalizedSlug,
-					),
-					text: raw,
-				};
-			},
-		);
+		return Object.entries(content[type]).map(([moduleKey, raw]) => {
+			const normalizedSlug = normalizeModuleSlug(moduleKey, type);
+			return {
+				section: type,
+				slug: normalizedSlug,
+				title: resolveResourceTitle(raw, normalizedSlug),
+				// Resources serve the served book only.
+				uri: served
+					? buildResourceUri(
+							options.resourcePrefix ?? DEFAULT_RESOURCE_PREFIX,
+							type,
+							normalizedSlug,
+						)
+					: undefined,
+				lines: raw.split("\n").length,
+				...(withText ? { text: raw } : {}),
+			};
+		});
 	}).filter((entry) => !slug || entry.slug === slug);
 
 	if (slug && records.length === 0) {
@@ -58,19 +77,22 @@ export const handleReadBook: ToolHandler = ({ options, args }) => {
 			ok: false,
 			summary: `No content found for slug ${slug}.`,
 			error: {
-				cause: `No ${section ?? "content"} entry matched slug "${slug}" for ${options.bookTitle}.`,
+				cause: `No ${section ?? "content"} entry matched slug "${slug}" for ${bookTitle}.`,
 				nextAction:
-					"Call bookkit.list_content (and resources/list) to find valid sections/slugs, then retry.",
+					"Call bookkit.read_book without slug for the index of sections and slugs, then retry.",
 			},
 		};
 	}
 
 	return {
 		ok: true,
-		summary: `Read ${records.length} content records from ${options.bookTitle}.`,
+		summary: withText
+			? `Read ${records.length} content records from ${bookTitle}.`
+			: `Indexed ${records.length} content records in ${bookTitle}. Pass slug for one record's text, or full: true for the text of every record listed.`,
 		payload: {
-			bookTitle: options.bookTitle,
-			filters: { section, slug },
+			book: book ?? null,
+			bookTitle,
+			filters: { section, slug, full: args?.full === true },
 			records,
 			count: records.length,
 		},

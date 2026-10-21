@@ -41,8 +41,8 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 /**
  * Tool calls run commands and write files in the workspace (create_book,
- * compile_book, export_book), so on a deployed server they need the author
- * token. Reading resources and listing tools stay open: they show the book's
+ * write_content, compile_book, export_book), so on a deployed server they
+ * need the author token. Reading resources and listing tools stay open: they show the book's
  * published content. `bookkit dev` serves this machine only and needs no token.
  */
 const callsTools = (payload: unknown): boolean =>
@@ -101,7 +101,7 @@ export const createBookMcpEndpoint = (
 				},
 				tools: [...TOOL_NAMES],
 				toolCategories: {
-					workspace: ["bookkit.create_book"],
+					workspace: ["bookkit.create_book", "bookkit.write_content"],
 					discovery: [
 						"bookkit.list_books",
 						"bookkit.list_content",
@@ -148,6 +148,17 @@ export const createBookMcpEndpoint = (
 						],
 					},
 					{
+						label: "write-content",
+						intent:
+							"Draft a file against its contract, check it, then write it into the book.",
+						sequence: [
+							"tools/call(bookkit.get_content_contract)",
+							"tools/call(bookkit.check_content)",
+							"tools/call(bookkit.write_content)",
+							"tools/call(bookkit.validate_book)",
+						],
+					},
+					{
 						label: "safe-mutation",
 						intent:
 							"Validate existing state before any mutating workspace operation.",
@@ -165,6 +176,7 @@ export const createBookMcpEndpoint = (
 						"bookkit.compile_book",
 						"bookkit.create_book",
 						"bookkit.export_book",
+						"bookkit.write_content",
 					],
 					safetyFlags: {
 						defaultToolMode: "read-only",
@@ -263,22 +275,20 @@ export const createBookMcpEndpoint = (
 			}
 
 			if (Array.isArray(payload)) {
-				const responses = payload
-					.filter((item): item is JsonRpcRequest => Boolean(item))
-					.map((item) => handleRequest(options, item))
-					.filter(
-						(
-							response,
-						): response is NonNullable<ReturnType<typeof handleRequest>> =>
-							response !== null,
-					);
+				const responses = (
+					await Promise.all(
+						payload
+							.filter((item): item is JsonRpcRequest => Boolean(item))
+							.map((item) => handleRequest(options, item)),
+					)
+				).filter((response) => response !== null);
 
 				if (responses.length === 0) return new Response(null, { status: 204 });
 
 				return jsonResponse(responses);
 			}
 
-			const response = handleRequest(options, payload as JsonRpcRequest);
+			const response = await handleRequest(options, payload as JsonRpcRequest);
 			if (response === null) return new Response(null, { status: 204 });
 
 			return jsonResponse(response);

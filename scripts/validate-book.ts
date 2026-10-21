@@ -12,7 +12,7 @@ import {
 import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
-import { compileFinding, compileMdx } from "./lib/compile-mdx";
+import { compileBookFindings } from "./lib/compile-mdx";
 import { parseFrontmatter } from "./lib/content-frontmatter";
 import { starterTemplateRootIn } from "./lib/scaffold-book";
 import { extractSiteConfig } from "./lib/site-config";
@@ -112,28 +112,15 @@ for (const finding of content.findings) {
 const contentDir = join("apps", book, "src", "content", "book");
 const reportedComment = new Set(
 	findings
-		.filter((finding) => finding.code === "MDX_HTML_COMMENT")
-		.map((finding) => finding.file),
+		.filter((finding) => finding.code === "MDX_HTML_COMMENT" && finding.file)
+		.map((finding) => join(workspaceRoot, finding.file as string)),
 );
-const mdxFiles = existsSync(join(workspaceRoot, contentDir))
-	? listFilesRecursive(join(workspaceRoot, contentDir))
-			.filter((file) => file.endsWith(".mdx"))
-			.map((file) => join(contentDir, file))
-			.filter((file) => !reportedComment.has(file))
-	: [];
-const compiled = await Promise.all(
-	mdxFiles.map(async (file) => ({
-		file,
-		finding: compileFinding(
-			await compileMdx(
-				readFileSync(join(workspaceRoot, file), "utf8"),
-				join(workspaceRoot, "apps", book),
-			),
-		),
-	})),
-);
-for (const { file, finding } of compiled) {
-	if (finding) findings.push({ ...finding, file });
+for (const finding of await compileBookFindings(
+	workspaceRoot,
+	book,
+	reportedComment,
+)) {
+	findings.push({ ...finding, file: relative(workspaceRoot, finding.file) });
 }
 
 // Release notes are not a content section, but the release page drops a

@@ -153,3 +153,60 @@ export const copyBooks = (
 	}
 	return { workspace, appDir };
 };
+
+/**
+ * An adapter that lets Astro build on-demand routes and serves nothing: the
+ * tests read a server build's prerendered pages and its assets.
+ */
+const STAND_IN_ADAPTER = `{
+	name: "bookkit-stand-in",
+	hooks: {
+		"astro:config:done": ({ setAdapter }) =>
+			setAdapter({
+				name: "bookkit-stand-in",
+				entrypointResolution: "auto",
+				serverEntrypoint: new URL("./server-entry.mjs", import.meta.url),
+				supportedAstroFeatures: {
+					serverOutput: "stable",
+					staticOutput: "stable",
+					hybridOutput: "stable",
+					sharpImageService: "stable",
+				},
+			}),
+	},
+}`;
+
+/**
+ * A copy of `book` (one of apps/) in a scratch workspace, built as
+ * `site.runtime: "server"` builds it, with the stand-in adapter and no
+ * link-preview images; apps/ is left alone. The caller removes `workspace`.
+ */
+export const serverRuntimeCopy = (
+	prefix: string,
+	book: string,
+): { workspace: string; appDir: string } => {
+	const { workspace, appDir } = copyBooks(prefix, [book]);
+	const dir = appDir(book);
+	const edit = (file: string, from: string, to: string) => {
+		const path = insideScratchWorkspace(workspace, "apps", book, file);
+		const text = readFileSync(path, "utf8");
+		if (!text.includes(from)) {
+			throw new Error(
+				`apps/${book}/${file} has no "${from}" to give the server runtime.`,
+			);
+		}
+		writeFileSync(path, text.replace(from, to));
+	};
+	edit("src/book.config.ts", "site: {", 'site: {\n\t\truntime: "server",');
+	edit(
+		"astro.config.mjs",
+		"integrations: [",
+		`adapter: ${STAND_IN_ADAPTER},\n\tintegrations: [`,
+	);
+	withoutLinkPreviews(join(dir, "astro.config.mjs"));
+	writeFileSync(
+		join(dir, "server-entry.mjs"),
+		'export default { fetch: () => new Response("Not served in tests.", { status: 501 }) };\n',
+	);
+	return { workspace, appDir: dir };
+};

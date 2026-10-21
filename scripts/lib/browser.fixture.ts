@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, it } from "bun:test";
 import childProcess from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { loadavg, tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Browser, chromium, errors, type LaunchOptions } from "playwright";
 import { repoRoot } from "../_lib";
 import { resolveDistFile } from "./a11y";
-import { copyBooks } from "./book-workspace.fixture";
+import { serverRuntimeCopy } from "./book-workspace.fixture";
 import { BUILD_DEADLINE_MS, runChild } from "./child-process.fixture";
 
 /**
@@ -402,61 +402,6 @@ export type BuildOptions = {
 };
 
 /**
- * An adapter that lets Astro build on-demand routes and serves nothing: a
- * server build's pages are prerendered, and the browser tests read only
- * those.
- */
-const STAND_IN_ADAPTER = `{
-	name: "bookkit-browser-test",
-	hooks: {
-		"astro:config:done": ({ setAdapter }) =>
-			setAdapter({
-				name: "bookkit-browser-test",
-				entrypointResolution: "auto",
-				serverEntrypoint: new URL("./server-entry.mjs", import.meta.url),
-				supportedAstroFeatures: {
-					serverOutput: "stable",
-					staticOutput: "stable",
-					hybridOutput: "stable",
-					sharpImageService: "stable",
-				},
-			}),
-	},
-}`;
-
-/**
- * A copy of `book` in a scratch workspace with `site.runtime: "server"` and
- * the stand-in adapter; apps/ is left alone. The caller removes `workspace`.
- */
-const serverRuntimeCopy = (
-	book: string,
-): { workspace: string; appDir: string } => {
-	const { workspace, appDir } = copyBooks(`browser-server-${book}-`, [book]);
-	const dir = appDir(book);
-	const edit = (file: string, from: string, to: string) => {
-		const path = join(dir, file);
-		const text = readFileSync(path, "utf8");
-		if (!text.includes(from)) {
-			throw new Error(
-				`apps/${book}/${file} has no "${from}" to give the server runtime.`,
-			);
-		}
-		writeFileSync(path, text.replace(from, to));
-	};
-	edit("src/book.config.ts", "site: {", 'site: {\n\t\truntime: "server",');
-	edit(
-		"astro.config.mjs",
-		"integrations: [",
-		`adapter: ${STAND_IN_ADAPTER},\n\tintegrations: [`,
-	);
-	writeFileSync(
-		join(dir, "server-entry.mjs"),
-		'export default { fetch: () => new Response("Not served in browser tests.", { status: 501 }) };\n',
-	);
-	return { workspace, appDir: dir };
-};
-
-/**
  * Builds `book` (one of apps/) into a scratch folder, serves the build as a
  * static host serves a book (404.html for an address with no page), and
  * starts Chromium.
@@ -485,7 +430,7 @@ export const openBuiltBook = async (
 		let buildDir = outDir;
 		let siteDir = outDir;
 		if (runtime === "server") {
-			const copy = serverRuntimeCopy(book);
+			const copy = serverRuntimeCopy(`browser-server-${book}-`, book);
 			workspace = copy.workspace;
 			appDir = copy.appDir;
 			buildDir = join(appDir, "dist");

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Subprocess } from "bun";
 import { repoRoot } from "./_lib";
 import { createBookWorkspace, runBun } from "./lib/book-workspace.fixture";
+import { childEnv } from "./lib/child-process.fixture";
 
 /**
  * Two books' dev servers running at once on one machine, as `bookkit dev`
@@ -59,7 +60,13 @@ const startDevServer = async (book: Book) => {
 			appDirs[book],
 			String(port),
 		],
-		{ cwd: workspace, env, stdin: "ignore", stdout: "pipe", stderr: "pipe" },
+		{
+			cwd: workspace,
+			env: childEnv(workspace, env),
+			stdin: "ignore",
+			stdout: "pipe",
+			stderr: "pipe",
+		},
 	);
 	servers.push(server);
 	// Drained as it arrives, so the server never blocks on a full pipe.

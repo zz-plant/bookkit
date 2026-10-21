@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, it } from "bun:test";
+import childProcess from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { loadavg, tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Browser, chromium, errors } from "playwright";
+import { type Browser, chromium, errors, type LaunchOptions } from "playwright";
 import { repoRoot } from "../_lib";
 import { resolveDistFile } from "./a11y";
 import { copyBooks } from "./book-workspace.fixture";
@@ -27,6 +28,9 @@ import { BUILD_DEADLINE_MS, runChild } from "./child-process.fixture";
  * - After Chromium was killed that way, `bun test` did not exit. So once the
  *   last book is closed, a run still going `EXIT_GRACE_MS` later exits with
  *   code 1, saying why.
+ * - In CI, the case running about 30 s into `test:browser` hung in many
+ *   runs, and its Chromium was gone: Bun had closed its pipes under it.
+ *   `launchChromium` prevents that.
  */
 
 /** How long each step of closing may take: the contexts (and their pages), then the browser. */
@@ -119,6 +123,36 @@ const settlesWithin = async (
 		]);
 	} finally {
 		clearTimeout(timer);
+	}
+};
+
+/** Every Chromium process `launchChromium` started, for the life of the run. */
+const launched: childProcess.ChildProcess[] = [];
+
+/**
+ * `chromium.launch`, keeping Chromium's process object reachable until the
+ * run ends. Bun (1.3.14) closes a child's pipes when it exits, and closes
+ * the same file descriptor numbers again when the garbage collector frees
+ * the child's process object. Each test file starts a Chromium after the
+ * last one closed, and it gets those numbers for its own pipes, so the
+ * first collection after that cut it off: it exited, and Playwright, which
+ * never saw it go, waited until the case's budget ran out. In CI the
+ * collection came about 30 s into the run, in the second or third file.
+ * A process object that is never freed never closes anything twice.
+ */
+export const launchChromium = async (
+	options: LaunchOptions = {},
+): Promise<Browser> => {
+	const spawn = childProcess.spawn;
+	childProcess.spawn = ((...args: Parameters<typeof spawn>) => {
+		const child = spawn(...args);
+		launched.push(child);
+		return child;
+	}) as typeof spawn;
+	try {
+		return await chromium.launch(options);
+	} finally {
+		childProcess.spawn = spawn;
 	}
 };
 
@@ -280,7 +314,7 @@ const startChromium = async (
 		const before = childPids();
 		let started: { browser: Browser; pids: number[] } | undefined;
 		try {
-			const browser = await chromium.launch({ timeout: LAUNCH_TIMEOUT_MS });
+			const browser = await launchChromium({ timeout: LAUNCH_TIMEOUT_MS });
 			started = {
 				browser,
 				pids: [...childPids()].filter((pid) => !before.has(pid)),

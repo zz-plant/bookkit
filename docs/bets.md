@@ -46,7 +46,7 @@ Bets use the same shape as mechanisms, so they can be held to the same standard.
 | Engine | 24.7k lines. 10.5k (42%) is reader UI (`components`, `layouts`, `styles`); `schemas` + `frames` + `validators` are 1.0k. |
 | Recent effort | 4 of the last 6 merged PRs (#227, #228, #231, #232) were reader-UI passes. |
 | Readers | None outside the project: private repo, placeholder `.book` domains, no external issues. |
-| Built but inert on the deploy target | Feedback, analytics, AI Q&A synthesis, release webhooks, MCP tool calls (README → Deploy). |
+| Built but inert on the deploy target | Feedback, analytics, AI Q&A synthesis, release webhooks, MCP tool calls ([Publishing](./guide/publishing.md#static-and-server-builds)). |
 | Runbook proof book | Content written to demo the frame. Its review dates are fixtures, so `reviewsAsOf` in its `book.config.ts` sets the day `check:runbooks` judges them on, and no review reads as overdue. |
 | Positioning headlines in use | Five: "book compiler, not a CMS"; "compiler + governance + AI-interface platform"; "compiler for verifiable operating procedures"; "the book as software / reader as forker"; "AI may propose; the compiler decides". |
 | Cross-book concept drift | 33 mechanisms across the three nonfiction books. Read side by side they form at least four clusters (below). `analyzeMechanismOverlap`, run over all 33 at once, flags **0** cross-book pairs even at threshold 0.15: it is lexical and runs one book at a time. |

@@ -59,7 +59,7 @@ flowchart LR
     RT --> OUT
 ```
 
-`OUT` is a plain `dist/` directory. `bun run check:build` verifies it is deployable and `bun run bookkit deploy` publishes it as Cloudflare Workers static assets (see README → Deploy). Anything that needs a request handler at runtime — preview tokens, feedback and analytics collection, Q&A synthesis, MCP JSON-RPC — is inert on that static host; the middleware and the client code both degrade rather than break.
+`OUT` is a plain `dist/` directory. `bun run check:build` verifies it is deployable and `bun run bookkit deploy` publishes it as Cloudflare Workers static assets (see [Publishing](./guide/publishing.md)). Anything that needs a request handler at runtime — preview tokens, feedback and analytics collection, Q&A synthesis, MCP JSON-RPC — is inert on that static host; the middleware and the client code both degrade rather than break.
 
 ### Governance pipeline — Bun CLI, at check time
 
@@ -91,7 +91,7 @@ The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` 
 | `packages/astro-bookkit` | the engine: schemas, frames, validators, graph, analyzers, MCP, exports, UI |
 | `packages/create-bookkit` | standalone project generator; vendors the engine, and the scripts the CLI and checks import (found by following their relative imports), so output needs no registry |
 | `scripts/` | CLI entrypoints — governance gates, scaffolds, compile/export tasks; tests live beside their source as `*.test.ts`, here and in the packages |
-| `docs/` | this document, design notes, authorship model, bets, debt register |
+| `docs/` | this document, design notes, authorship model, bets, debt register, and the user guide (`docs/guide/`) |
 | `.github/workflows/` | CI quality gate |
 
 <!-- architecture:workspace:end -->

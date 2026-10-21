@@ -6,7 +6,8 @@ This file defines non-negotiable rules for human and AI contributors. If guidanc
 
 ## Canonical document roles
 
-- `README.md` → orientation + operational commands
+- `README.md` → orientation + daily commands (keep it short; reference material goes in `docs/guide/`)
+- `docs/guide/*.md` → author reference: contracts, config, checks, import/export, publishing, AI/MCP, troubleshooting
 - `docs/architecture.md` → system structure: layers, pipelines, engine module map, import tiers
 - `CONTRIBUTING.md` → contribution workflow + lanes
 - `AGENTS.md` → hard invariants + risk boundaries

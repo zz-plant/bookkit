@@ -16,15 +16,14 @@ export type QaModelChoice = "download" | "declined";
  * says it. The sizes are the Hub's: each model's quantized ONNX file (the
  * one @xenova/transformers loads by default) and its tokenizer, about 23.7
  * MB each. The runtime is ONNX Runtime's WebAssembly build
- * (`ort-wasm-simd.wasm`, 10 MB), which @xenova/transformers loads from
- * jsDelivr. Update them with the models.
+ * (`ort-wasm-simd.wasm`, 10 MB), which the book's own site serves
+ * (`embeddings/onnx-wasm.ts`). Update them with the models.
  */
 export const QA_MODEL_DOWNLOAD = {
 	models: [EMBEDDING_MODEL, RERANK_MODEL],
 	modelMegabytes: 48,
 	modelHost: "huggingface.co",
 	runtimeMegabytes: 10,
-	runtimeHost: "cdn.jsdelivr.net",
 } as const;
 
 /** The stored choice, or null when this browser has not been asked (or the value is not one). */

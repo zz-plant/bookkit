@@ -97,6 +97,16 @@ const listOf = (value: unknown): string[] =>
 		? value.filter((item): item is string => typeof item === "string")
 		: [];
 
+/**
+ * Why the bet has no baseline commit. Cloud sessions and CI clone shallow,
+ * which cuts history off after the bet started; one fetch restores it (a
+ * date-bounded fetch can still stop short of the last commit before `since`).
+ */
+export const missingBaselineReason = (since: string, shallow: boolean) =>
+	shallow
+		? `this clone is shallow, so it has no commit before ${since}. Fetch the rest of its history once: git fetch --unshallow origin`
+		: `no commit before ${since} in this repository's history`;
+
 export const buildB1Report = async (
 	now: Date = new Date(),
 ): Promise<B1Report | { unavailable: string }> => {
@@ -119,7 +129,10 @@ export const buildB1Report = async (
 	])?.trim();
 	if (!baseline) {
 		return {
-			unavailable: `no commit before ${since} in this clone (fetch full history)`,
+			unavailable: missingBaselineReason(
+				since,
+				git(["rev-parse", "--is-shallow-repository"])?.trim() === "true",
+			),
 		};
 	}
 

@@ -18,7 +18,6 @@ const root = repoRoot();
 const SOURCES = [
 	"packages/astro-bookkit/src/components",
 	"packages/astro-bookkit/src/layouts",
-	"packages/astro-bookkit/src/llm-local",
 	"packages/astro-bookkit/templates",
 	...readdirSync(join(root, "apps")).flatMap((book) => [
 		`apps/${book}/src/pages`,

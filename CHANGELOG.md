@@ -48,6 +48,14 @@ Per-book editorial history lives in each app's `src/content/book/releases/`.
 - **`bookkit similar`** leaves out matches on a word or two (wording score below 0.3, the bar `check` and `new mechanism` already used).
 - **Migration:** `handleRequest`, `runTool`, and tool handlers now return promises; code that called them directly must `await` them. A `read_book` caller that relied on getting every record's text without `slug` must pass `full: true`. A call with an argument the tool does not take, which used to run, now returns an error.
 
+## 2026-10-21 — `bookkit bets` tells a shallow clone how to measure
+
+- **In a shallow clone, `bookkit bets` names the cause and the fix.** Cloud sessions and CI clone shallow, which drops the commit before the bet's start that B1 is measured against. The report now says the clone is shallow and prints `git fetch --unshallow origin`, instead of "fetch full history". A date-bounded fetch is not suggested: the last commit before 2026-10-07 is two days earlier, so `--shallow-since` near the bet date still misses it.
+
+## 2026-10-21 — `bookkit check <chapter>` shows how far the chapter is from drafted
+
+- **A chapter check now prints a draft readout**: words of prose against `site.minIndexableWords` (the threshold the build uses to keep stubs out of search and `bookkit bets` uses to count a chapter as drafted), the mechanisms in its `mechanisms:`, and the book's other mechanisms it could bind. Before, a stub such as Running Hot's chapter 1 (34 words) read "compiles with no findings" and nothing else. Advice only: exit codes are unchanged. `--json` adds a `draft` object (`words`, `minimum`, `stub`, `binds`, `unbound`), `null` for other sections.
+
 ## 2026-10-21 — The README is an entry point; the reference moves to `docs/guide/`
 
 - **The README keeps orientation and daily commands only**: what Bookkit is and who it is for, how a book compiles, the record types in brief, prerequisites, starting a book, the everyday commands, the example books, and a map of the documentation.

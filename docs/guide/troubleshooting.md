@@ -21,3 +21,5 @@
 **`bookkit dev` says the port is in use.** Another server holds it: `bun run bookkit dev status` finds one Bookkit started, or pass `--port <n>`.
 
 **A semantic overlap appears after a model or threshold change.** Run `bun run check:corpus -- --eval` to score the models against the recorded rulings before you rule on the pair.
+
+**`bookkit bets` says "not measured" because the clone is shallow.** Cloud sessions and CI clone with a short history, which stops after the bet started. Run `git fetch --unshallow origin` once, then `bun run bookkit bets` again. If git answers "error in object: unshallow" (a clone deepened earlier with `--shallow-since` or `--deepen`), clone again without `--depth`.

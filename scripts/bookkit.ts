@@ -35,11 +35,14 @@ import {
 import { listBookDirs, listFilesRecursive, repoRoot, slugify } from "./_lib";
 import {
 	booksWithMechanism,
+	type ChapterDraft,
+	chapterDraft,
 	chapterSource,
 	checkContentFile,
 	findSimilarMechanisms,
 	findSimilarMechanismsByMeaning,
 	listChapterFiles,
+	loadBookConfigSummary,
 	nextChapterFileName,
 	similarForMechanismFile,
 	summarizeBook,
@@ -1606,6 +1609,20 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 			: null;
 	// The book's suggestions about this file: advice, never a failure.
 	const suggestions = suggestionsForFile(book, file);
+	// A chapter's word count against the stub threshold, and what it binds.
+	const draft =
+		section === "chapter"
+			? chapterDraft(
+					readFileSync(file, "utf8"),
+					Array.isArray(result.frontmatter?.mechanisms)
+						? result.frontmatter.mechanisms.filter(
+								(slug): slug is string => typeof slug === "string",
+							)
+						: [],
+					loadBookContent(book).mechanisms.map((m) => m.slug),
+					(await loadBookConfigSummary(book)).site,
+				)
+			: null;
 	if (asJson) {
 		console.log(
 			JSON.stringify(
@@ -1618,6 +1635,7 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 					similar,
 					judged,
 					suggestions,
+					draft,
 				},
 				null,
 				2,
@@ -1654,6 +1672,7 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 		for (const match of elsewhere) console.log(describe(match));
 	}
 	if (judged) printJudged(slug, judged);
+	if (draft) printDraft(draft);
 	if (suggestions.length > 0) {
 		console.log("  suggestions (advisory; they never fail a check):");
 		for (const suggestion of suggestions) {
@@ -1662,6 +1681,22 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 		}
 	}
 	process.exit(result.ok ? 0 : 1);
+}
+
+function printDraft(draft: ChapterDraft) {
+	console.log(
+		draft.stub
+			? `  draft: ${draft.words} words of prose, a stub until ${draft.minimum}. A stub stays out of search and does not count as drafted.`
+			: `  draft: ${draft.words} words of prose.`,
+	);
+	console.log(
+		`  binds: ${draft.binds.length > 0 ? draft.binds.join(", ") : "no mechanism yet"}.`,
+	);
+	if (draft.unbound.length > 0) {
+		console.log(
+			`  the book's other mechanisms: ${draft.unbound.join(", ")}. Bind one by adding its slug to mechanisms: before naming a new idea.`,
+		);
+	}
 }
 
 /** The warning-level suggestions `bookkit check <book>` makes about one file. */
@@ -2730,7 +2765,9 @@ Check
                                             adds the info-level suggestions
   check <file.mdx> [--json] [--quick]       one content file: each finding with its field and fix; for a
                                             mechanism, similar ones, the judges' calls on it, and which of
-                                            its 3 nearest have no verdict (--quick: nearest by wording)
+                                            its 3 nearest have no verdict (--quick: nearest by wording); for
+                                            a chapter, its words against the stub threshold, what it binds,
+                                            and the book's other mechanisms
   check <folder|file> [--frame <slug>] [--json] [--release]
                                             any Markdown, where it is: the content contract, plus each frame
                                             section once --frame is given; exits 1 on an error (for CI);

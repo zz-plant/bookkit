@@ -3,6 +3,8 @@ import { describe, expect, it } from "bun:test";
 import {
 	type BookkitIntegrationOptions,
 	bookkit,
+	ONNX_RUNTIME_WASM_BUILD,
+	onnxRuntimeWasmOnly,
 	optionalDependencies,
 } from "./integration";
 import { safeHtmlMdastPlugins } from "./markdown/safe-html";
@@ -162,23 +164,66 @@ describe("optionalDependencies", () => {
 
 	it("leaves an installed optional dependency and other imports to Vite", async () => {
 		expect(
-			await plugin.resolveId.call(context(true), "@mlc-ai/web-llm", "/a.ts"),
-		).toEqual({ id: "/node_modules/@mlc-ai/web-llm/index.js" });
+			await plugin.resolveId.call(
+				context(true),
+				"@xenova/transformers",
+				"/a.ts",
+			),
+		).toEqual({ id: "/node_modules/@xenova/transformers/index.js" });
 		expect(
 			await plugin.resolveId.call(context(false), "zod", "/a.ts"),
+		).toBeNull();
+		expect(
+			await plugin.resolveId.call(
+				context(false),
+				"@xenova/transformers-extra",
+				"/a.ts",
+			),
 		).toBeNull();
 		expect(plugin.load("/a.ts")).toBeNull();
 	});
 
-	it("turns a missing one into a module that throws a message naming it", async () => {
-		const id = await plugin.resolveId.call(
-			context(false),
+	it("turns a missing one, or a file in it, into a module that throws a message naming it", async () => {
+		for (const source of [
 			"@xenova/transformers",
-			"/a.ts",
-		);
-		expect(typeof id).toBe("string");
-		const code = plugin.load(id as string);
-		expect(code).toStartWith("throw new Error(");
-		expect(code).toContain("@xenova/transformers is not installed");
+			"@xenova/transformers/dist/ort-wasm-simd.wasm?url",
+		]) {
+			const id = await plugin.resolveId.call(context(false), source, "/a.ts");
+			expect(typeof id).toBe("string");
+			const code = plugin.load(id as string);
+			expect(code).toStartWith("throw new Error(");
+			expect(code).toContain(
+				'"@xenova/transformers is not installed, so the feature that needs it is off.',
+			);
+		}
+	});
+});
+
+describe("onnxRuntimeWasmOnly", () => {
+	const plugin = onnxRuntimeWasmOnly();
+	const resolved: Array<[string, string | undefined]> = [];
+	const context = {
+		resolve: async (source: string, importer: string | undefined) => {
+			resolved.push([source, importer]);
+			return { id: `/node_modules/${source}` };
+		},
+	};
+
+	it("bundles ONNX Runtime's WebAssembly-only build, found from the package that imports it", async () => {
+		const importer = "/node_modules/@xenova/transformers/src/backends/onnx.js";
+		expect(
+			await plugin.resolveId.call(context, "onnxruntime-web", importer),
+		).toEqual({ id: `/node_modules/${ONNX_RUNTIME_WASM_BUILD}` });
+		expect(resolved).toEqual([[ONNX_RUNTIME_WASM_BUILD, importer]]);
+	});
+
+	it("leaves every other import to Vite", async () => {
+		for (const source of [
+			"onnxruntime-web/dist/ort.min.js",
+			"onnxruntime-node",
+			"zod",
+		]) {
+			expect(await plugin.resolveId.call(context, source, "/a.ts")).toBeNull();
+		}
 	});
 });

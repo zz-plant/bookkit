@@ -1,16 +1,17 @@
 import { afterAll, beforeAll, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { loadavg, tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Browser, chromium, errors } from "playwright";
 import { repoRoot } from "../_lib";
 import { resolveDistFile } from "./a11y";
+import { copyBooks } from "./book-workspace.fixture";
 import { BUILD_DEADLINE_MS, runChild } from "./child-process.fixture";
 
 /**
- * For the browser tests (`bun run test:browser`): a static build of one of
- * the repo's books, served as a static host serves it, and Playwright's
- * Chromium to read it. A test file calls `builtBookTests(book)` and writes
+ * For the browser tests (`bun run test:browser`): a build of one of the
+ * repo's books (static, or with a server runtime's pages), served as a
+ * static host serves it, and Playwright's Chromium to read it. A test file calls `builtBookTests(book)` and writes
  * its cases with the `it` that returns.
  *
  * On a loaded machine Chromium is slow, and the tests failed three ways:
@@ -356,26 +357,109 @@ export type BuiltBook = {
 	close: () => Promise<void>;
 };
 
+export type BuildOptions = {
+	/**
+	 * `"server"` builds the book as `site.runtime: "server"` would, so its
+	 * pages carry what needs a request handler (the Ask panel, feedback,
+	 * analytics), and serves those prerendered pages. The API routes are not
+	 * served: a case answers them with `page.route`, or they 404.
+	 */
+	runtime?: "static" | "server";
+};
+
+/**
+ * An adapter that lets Astro build on-demand routes and serves nothing: a
+ * server build's pages are prerendered, and the browser tests read only
+ * those.
+ */
+const STAND_IN_ADAPTER = `{
+	name: "bookkit-browser-test",
+	hooks: {
+		"astro:config:done": ({ setAdapter }) =>
+			setAdapter({
+				name: "bookkit-browser-test",
+				entrypointResolution: "auto",
+				serverEntrypoint: new URL("./server-entry.mjs", import.meta.url),
+				supportedAstroFeatures: {
+					serverOutput: "stable",
+					staticOutput: "stable",
+					hybridOutput: "stable",
+					sharpImageService: "stable",
+				},
+			}),
+	},
+}`;
+
+/**
+ * A copy of `book` in a scratch workspace with `site.runtime: "server"` and
+ * the stand-in adapter; apps/ is left alone. The caller removes `workspace`.
+ */
+const serverRuntimeCopy = (
+	book: string,
+): { workspace: string; appDir: string } => {
+	const { workspace, appDir } = copyBooks(`browser-server-${book}-`, [book]);
+	const dir = appDir(book);
+	const edit = (file: string, from: string, to: string) => {
+		const path = join(dir, file);
+		const text = readFileSync(path, "utf8");
+		if (!text.includes(from)) {
+			throw new Error(
+				`apps/${book}/${file} has no "${from}" to give the server runtime.`,
+			);
+		}
+		writeFileSync(path, text.replace(from, to));
+	};
+	edit("src/book.config.ts", "site: {", 'site: {\n\t\truntime: "server",');
+	edit(
+		"astro.config.mjs",
+		"integrations: [",
+		`adapter: ${STAND_IN_ADAPTER},\n\tintegrations: [`,
+	);
+	writeFileSync(
+		join(dir, "server-entry.mjs"),
+		'export default { fetch: () => new Response("Not served in browser tests.", { status: 501 }) };\n',
+	);
+	return { workspace, appDir: dir };
+};
+
 /**
  * Builds `book` (one of apps/) into a scratch folder, serves the build as a
  * static host serves a book (404.html for an address with no page), and
  * starts Chromium.
  */
-export const openBuiltBook = async (book: string): Promise<BuiltBook> => {
+export const openBuiltBook = async (
+	book: string,
+	{ runtime = "static" }: BuildOptions = {},
+): Promise<BuiltBook> => {
 	openBooks += 1;
 	clearTimeout(exitTimer);
 	const outDir = mkdtempSync(join(tmpdir(), `bookkit-browser-${book}-`));
 	let server: ReturnType<typeof Bun.serve> | undefined;
+	let workspace: string | undefined;
 	const done = () => {
 		server?.stop(true);
 		rmSync(outDir, { recursive: true, force: true });
+		if (workspace) rmSync(workspace, { recursive: true, force: true });
 		openBooks -= 1;
 		if (openBooks === 0) exitIfStillRunning(EXIT_GRACE_MS, stillRunning);
 	};
 	try {
+		let appDir = join(repoRoot(), "apps", book);
+		// A server build's prerender step imports the book's dependencies
+		// from its output, so that output stays in the workspace copy, where
+		// they resolve; a host serves what it puts under client/.
+		let buildDir = outDir;
+		let siteDir = outDir;
+		if (runtime === "server") {
+			const copy = serverRuntimeCopy(book);
+			workspace = copy.workspace;
+			appDir = copy.appDir;
+			buildDir = join(appDir, "dist");
+			siteDir = join(buildDir, "client");
+		}
 		const build = runChild(
-			[process.execPath, "run", "build", "--outDir", outDir],
-			{ cwd: join(repoRoot(), "apps", book), deadlineMs: BUILD_DEADLINE_MS },
+			[process.execPath, "run", "build", "--outDir", buildDir],
+			{ cwd: appDir, deadlineMs: BUILD_DEADLINE_MS },
 		);
 		if (build.status !== 0) {
 			throw new Error(`Building ${book} failed:\n${build.output}`);
@@ -384,10 +468,12 @@ export const openBuiltBook = async (book: string): Promise<BuiltBook> => {
 			hostname: "127.0.0.1",
 			port: 0,
 			fetch(request) {
-				const file = resolveDistFile(outDir, new URL(request.url).pathname);
+				const file = resolveDistFile(siteDir, new URL(request.url).pathname);
 				return file
 					? new Response(Bun.file(file))
-					: new Response(Bun.file(join(outDir, "404.html")), { status: 404 });
+					: new Response(Bun.file(join(siteDir, "404.html")), {
+							status: 404,
+						});
 			},
 		});
 		server = served;
@@ -422,10 +508,10 @@ export const openBuiltBook = async (book: string): Promise<BuiltBook> => {
  * returns the book's `origin` and the `it` its cases are written with,
  * which runs each through `runCase` within `CASE_TIMEOUT_MS`.
  */
-export const builtBookTests = (book: string) => {
+export const builtBookTests = (book: string, options: BuildOptions = {}) => {
 	let built: BuiltBook | undefined;
 	beforeAll(async () => {
-		built = await openBuiltBook(book);
+		built = await openBuiltBook(book, options);
 	}, OPEN_TIMEOUT_MS);
 	afterAll(() => built?.close(), CLOSE_TIMEOUT_MS);
 	const opened = (): BuiltBook => {

@@ -12,7 +12,8 @@ export type EmbeddingEngine = {
 	) => Promise<Map<string, EmbeddingVector>>;
 };
 
-const DEFAULT_MODEL = "Xenova/all-MiniLM-L6-v2";
+/** The model the reader's browser downloads to rank passages by meaning. */
+export const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
 const BATCH_SIZE = 16;
 
 const chunk = <T>(arr: T[], size: number): T[][] => {
@@ -46,7 +47,7 @@ export const createEmbeddingEngine = async (
 		// backend and ignores device/dtype options, so none are passed.
 		const extractor: (...args: unknown[]) => Promise<unknown> = await pipeline(
 			"feature-extraction",
-			DEFAULT_MODEL,
+			EMBEDDING_MODEL,
 			{
 				progress_callback: (p: {
 					status: string;
@@ -104,7 +105,7 @@ export const createEmbeddingEngine = async (
 
 		return {
 			state: "ready",
-			modelName: DEFAULT_MODEL,
+			modelName: EMBEDDING_MODEL,
 			encode,
 			encodeEntries,
 		};

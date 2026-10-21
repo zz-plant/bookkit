@@ -95,10 +95,12 @@ describe("search panel", () => {
 		await search(browser, QUERY);
 		await page.keyboard.press("ArrowDown");
 		const id = await activeId();
-		const href = await page.locator(`#${id}`).getAttribute("href");
-		expect(href).toBeTruthy();
+		// A result links to a path on this site, which the browser resolves.
+		const href = await page
+			.locator(`#${id}`)
+			.evaluate((link) => (link as HTMLAnchorElement).href);
+		expect(href).toStartWith(`${book.origin()}/read/`);
 		await page.keyboard.press("Enter");
-		// The result links are absolute (toSafeUrl resolves them).
 		await page.waitForURL((url) => url.href === href);
 		await page.close();
 	});
@@ -205,6 +207,70 @@ describe("one list of results", () => {
 		).toEqual(paths.map(() => "option"));
 		expect(await page.locator("#search-results h3").count()).toBe(0);
 		expect(await sections()).toHaveLength(paths.length);
+		await page.close();
+	});
+});
+
+describe("where a result links", () => {
+	it("links a result only to a page of this book; any other address keeps its title as text", async (browser) => {
+		// An index that names other sites, as a tampered or broken build might.
+		const entry = (title: string, url: string) => ({
+			id: title,
+			type: "chapters",
+			label: "Chapters",
+			order: 1,
+			title,
+			section: null,
+			snippet: `${title} rollback`,
+			url,
+			context: title,
+			text: "",
+		});
+		const entries = [
+			entry("Rollback here", "/read/chapters/rollback-first"),
+			entry("Rollback elsewhere", "https://evil.example/read"),
+			entry("Rollback protocol-relative", "//evil.example/read"),
+			entry("Rollback backslash", "/\\evil.example/read"),
+			entry("Rollback script", "javascript:alert(1)"),
+		];
+		page = await browser.newPage();
+		await page.route(
+			(url) => url.pathname === "/search-index.json",
+			(route) => route.fulfill({ json: { entries } }),
+		);
+		await page.goto(`${book.origin()}/`, { waitUntil: "networkidle" });
+		await page.click("[data-search-toggle]");
+		await page.waitForFunction(() =>
+			document.activeElement?.matches("[data-search-input]"),
+		);
+		await page.keyboard.type("rollback");
+		await page.waitForSelector("#search-results [role=option]");
+		const results = await options().evaluateAll((nodes) =>
+			nodes.map((node) => ({
+				title: node.querySelector(".search-panel__item-title")?.textContent,
+				href: node.getAttribute("href"),
+			})),
+		);
+		expect(
+			results.sort((a, b) => String(a.title).localeCompare(String(b.title))),
+		).toEqual(
+			entries
+				.map(({ title, url }) => ({
+					title,
+					href: url === "/read/chapters/rollback-first" ? url : null,
+				}))
+				.sort((a, b) => a.title.localeCompare(b.title)),
+		);
+		// Enter on a result with no link leaves the reader where they are.
+		const here = page.url();
+		while (
+			(await page.locator(`#${await activeId()}`).getAttribute("href")) !== null
+		) {
+			await page.keyboard.press("ArrowDown");
+		}
+		await page.keyboard.press("Enter");
+		expect(page.url()).toBe(here);
+		expect(await page.locator("[data-search-panel]").isVisible()).toBe(true);
 		await page.close();
 	});
 });

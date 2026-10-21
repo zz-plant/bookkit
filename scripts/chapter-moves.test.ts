@@ -117,6 +117,13 @@ describe("new chapter --after", () => {
 		).toEqual(["03-queue.mdx", "04-end.mdx"]);
 	});
 
+	it("takes the chapter's number for --after", () => {
+		const made = bookkit("new", "chapter", "Numbered", "--after", "4");
+		expect(made.status).toBe(0);
+		expect(chapters().at(-1)).toBe("05-numbered.mdx");
+		rmSync(at("apps/notes/src/content/book/chapters/05-numbered.mdx"));
+	});
+
 	it("names a chapter that is not there", () => {
 		const missing = bookkit("new", "chapter", "X", "--after", "strat");
 		expect(missing.status).toBe(1);

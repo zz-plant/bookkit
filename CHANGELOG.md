@@ -3,6 +3,17 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — Structure edits by command, and smaller fixes
+
+- **`bookkit rename mechanism [book] <slug> <new-slug> [--title "…"]`** changes a mechanism's slug in every book of its corpus, with what names it (chapters, actions, examples and their folder, glossary, links, config), and records the old slug in `corpus.json` so a stale reference names the new one. Before, `rename` pointed at `merge`, which needs both slugs to exist.
+- **`bookkit remove chapter|mechanism|tool [book] <slug>`** removes the record and the entries that name it (other chapters' `prerequisites:`, `mechanisms:` lists, the import manifest), and lists the lines that still mention it. A mechanism with actions or examples needs `--with-records`. `remove book <slug>` runs `remove-book`.
+- **`bookkit move tool [book] <tool> --to <mechanism>`** binds an action to another mechanism; its slug and URL stay.
+- **`bookkit sync <mechanism> --to <book>`** shares a mechanism with a book that has no copy; `new mechanism` names it when the slug exists elsewhere. `sync` rejects options it does not take.
+- **`bookkit new glossary [book] "<term>" [--definition "…"] [--mechanism <slug>]`** starts a glossary entry. `new example` ends with what to do next.
+- **Checks.** `IMAGE_MISSING`: an image that names no file in the book (a warning, an error under release rules). A list field written as text says it must be a list and shows it as one. Release notes are checked for an x.y.z version, a text `summary`, and a list of `highlights` too; `bookkit check <release note>` checks one, and `bookkit contract release` lists the fields. `bookkit check <file>` ends with the book's suggestions about that file.
+- **Smaller fixes.** `new chapter on-call` in another current book titles a chapter "on-call" instead of reading it as the book. `check <book> --info` passes `--info` to the suggestions. `--after 3` takes a chapter's number. `export` says when the PDF and EPUB are older than the book's latest edit. `judge record` says how many of the requested judges answered. The prerequisite suggestion names `propose --apply edges`, and an unlisted mechanism `remove mechanism`. Help lists `rename --title`.
+- **Migration:** a script that read `FIELD_INVALID`'s "schema issue at <field>" message for a list given as text now gets "`<field>:` must be a list". New finding codes: `IMAGE_MISSING`, `RELEASE_NOTE_VERSION`, `RELEASE_NOTE_FIELD`; all are warnings except `IMAGE_MISSING` under release rules.
+
 ## 2026-10-21 — From notes to a published book, with fewer stops
 
 - **`bookkit publish [book] [--dry-run] [--records]`** moves a book from draft to published: it checks the book with release rules (`validate-book --release`, new) and sets `status: "published"` in `book.config.ts` only when nothing fails. `--records` first marks the book's draft records published, and puts them back if the book still fails. Before, an author edited the status by hand and learned the rules from the next check.

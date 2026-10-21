@@ -125,13 +125,17 @@ The checks name every placeholder still in `book.config.ts`: the three `objectiv
 bun run bookkit use my-book                             # later commands default to this book
 bun run bookkit new                                     # asks what to start, then anything it needs
 bun run bookkit new chapter "Repair has a clock"        # the next chapter, as a draft
-bun run bookkit new chapter "Who holds the lever" --after <chapter-slug>
+bun run bookkit new chapter "Who holds the lever" --after <chapter-slug or number>
 bun run bookkit new mechanism "Waiting as leverage" --definition "<one sentence>"
 bun run bookkit new tool waiting-as-leverage "Name the deadline"
 bun run bookkit new example waiting-as-leverage Housing "The repair queue"
 bun run bookkit new release "Second draft"              # releases/<date>-second-draft.mdx, next minor version
+bun run bookkit new glossary "Pager queue" --definition "<one sentence>"
 bun run bookkit rename chapter <slug> <new-slug>        # slug, file, other chapters' prerequisites, and links
-bun run bookkit contract mechanism                      # the fields a section needs, and what to write in them
+bun run bookkit rename mechanism <slug> <new-slug>      # in every book that shares it, with what names it
+bun run bookkit remove chapter|mechanism|tool <slug>    # the record, and the lists that name it
+bun run bookkit move tool <tool> --to <mechanism>       # bind an action to another mechanism
+bun run bookkit contract mechanism                      # the fields a section needs (also: contract release)
 ```
 
 `new mechanism` first lists any mechanism in another book that covers the same idea, and asks before creating a duplicate.

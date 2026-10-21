@@ -450,10 +450,20 @@ export const planMerge = (input: {
 	reason: string;
 	definition?: string;
 	date: string;
+	/**
+	 * A rename: `keep` is a new slug, which no mechanism has, and `drop`'s
+	 * copies become it (with `title`, when given). `book` picks the corpus
+	 * when `drop` is in more than one.
+	 */
+	rename?: { title?: string; book?: string };
 }): MergePlan | { error: string } => {
-	const { keep, drop } = input;
+	const { keep, drop, rename } = input;
 	if (keep === drop) {
-		return { error: `Name two different mechanisms; got ${keep} twice.` };
+		return {
+			error: rename
+				? `The mechanism is already ${keep}.`
+				: `Name two different mechanisms; got ${keep} twice.`,
+		};
 	}
 	const root = repoRoot();
 	const books = listBookDirs();
@@ -466,12 +476,37 @@ export const planMerge = (input: {
 		})),
 	);
 	const slugs = [...new Set(loaded.map((m) => m.slug))];
-	for (const slug of [keep, drop]) {
+	for (const slug of rename ? [drop] : [keep, drop]) {
 		if (!slugs.includes(slug)) {
 			return { error: `No mechanism ${slug}.${didYouMean(slug, slugs)}` };
 		}
 	}
-	const found = pairCorpus(keep, drop, loaded, scope);
+	if (rename && slugs.includes(keep)) {
+		return {
+			error: `${keep} is already a mechanism. If ${drop} is the same idea, fold it in: bun run bookkit merge ${keep} ${drop} --reason "<why>"`,
+		};
+	}
+	const dropCorpora = [
+		...new Set(
+			loaded
+				.filter((m) => m.slug === drop)
+				.map((m) => ({ book: m.book, corpus: scope.corpusOf(m.book) })),
+		),
+	];
+	const renamed = rename
+		? (dropCorpora.find((held) => held.book === rename.book) ??
+			(new Set(dropCorpora.map((held) => held.corpus)).size === 1
+				? dropCorpora[0]
+				: undefined))
+		: undefined;
+	if (rename && !renamed) {
+		return {
+			error: `${drop} is in books of different corpora (${dropCorpora.map((held) => held.book).join(", ")}). Name the book whose copy to rename: bun run bookkit rename mechanism <book> ${drop} ${keep}`,
+		};
+	}
+	const found = renamed
+		? { corpus: renamed.corpus }
+		: pairCorpus(keep, drop, loaded, scope);
 	if ("where" in found) {
 		return {
 			error: `${keep} (${found.where[0]}) and ${drop} (${found.where[1]}) are in different corpora, where similar mechanisms are allowed. To hold two books to one vocabulary, list both in "books" in corpus.json.`,
@@ -492,7 +527,7 @@ export const planMerge = (input: {
 			error: `corpus.json is not valid JSON (${error instanceof Error ? error.message : String(error)}). Fix it first.`,
 		};
 	}
-	const ruled = findRuling(distinct, keep, drop);
+	const ruled = rename ? undefined : findRuling(distinct, keep, drop);
 	if (ruled) {
 		return {
 			error: `${keep} ~ ${drop} is ruled distinct in corpus.json: ${ruled.reason}\nIf they are one idea after all, delete that ruling first.`,
@@ -514,8 +549,13 @@ export const planMerge = (input: {
 			};
 		}
 	}
-	const [keeper] = keepCopies;
 	const [dropped] = dropCopies;
+	// A rename keeps drop's contract, under its new title when one is given.
+	const keeper: Copy = keepCopies[0] ?? {
+		...dropped,
+		slug: keep,
+		title: rename?.title?.trim() || dropped.title,
+	};
 	const contract: Contract = {
 		title: keeper.title,
 		definition: input.definition?.trim() || keeper.definition,
@@ -704,9 +744,12 @@ export const planMerge = (input: {
 	for (const file of removals) changes.push({ kind: "remove", path: file });
 
 	const leftovers: MergePlan["leftovers"] = [];
+	// A name that stays (a rename without a new title) is not a leftover.
 	const named = [
 		slugToken(drop, ""),
-		...dropTerms.map((term) => new RegExp(`\\b${escapeRegExp(term)}\\b`, "i")),
+		...dropTerms
+			.filter((term) => term.toLowerCase() !== keepTerm.toLowerCase())
+			.map((term) => new RegExp(`\\b${escapeRegExp(term)}\\b`, "i")),
 	];
 	for (const [file, text] of files) {
 		text.split("\n").forEach((line, index) => {
@@ -725,7 +768,7 @@ export const planMerge = (input: {
 		into: keep,
 		date: input.date,
 		reason: input.reason.trim(),
-		before: [dropped, keeper].map((copy) => ({
+		before: (rename ? [dropped] : [dropped, keeper]).map((copy) => ({
 			book: copy.book,
 			slug: copy.slug,
 			title: copy.title,

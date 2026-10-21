@@ -8,11 +8,14 @@ bun run bookkit judge <mechanism>             # three blind judges on its neares
 bun run bookkit rule <a> <b> --distinct "<what each one's lever is>"
 bun run bookkit merge <keep> <drop> --reason "<the lever and evidence they share>" --dry-run
 bun run bookkit sync <mechanism>              # copy the copy edited last to the mechanism's other books
+bun run bookkit sync <mechanism> --to <book>  # share it with a book that has no copy yet
+bun run bookkit rename mechanism <slug> <new-slug> --title "<title>"
 ```
 
 - **`judge [mechanism]`** writes one blind prompt per judge under `.bookkit/judging/` and, with a judge command (`--run "<command>"` or `BOOKKIT_JUDGE_COMMAND`), asks each judge in an empty folder of its own and records the answers. Without one, paste each prompt into a fresh session, save the replies as `answer-<n>.json` in the request folder, and run `bookkit judge record`. A verdict stops applying when either mechanism's text changes.
 - **`rule <a> <b> --distinct "<reason>"`** records in `corpus.json` that two mechanisms are different ideas.
 - **`merge <keep> <drop> --reason "<why>"`** records that they are one: in every book of the corpus, `<drop>` becomes `<keep>` with one contract, its glossary entry and examples move, and references are rebound. It removes `/read/mechanisms/<drop>`; note that in a published book's release notes.
-- **`sync <mechanism>`** copies a shared mechanism's contract to its other books, so the copies do not drift.
+- **`sync <mechanism>`** copies a shared mechanism's contract to its other books, so the copies do not drift. `--to <book>` shares it with a book that has no copy, which `new mechanism` suggests when the slug exists elsewhere.
+- **`rename mechanism [book] <slug> <new-slug> [--title "…"]`** changes a mechanism's slug in every book of its corpus, with everything that names it (chapters, actions, examples and their folder, the glossary entry, links, config), and records the old slug in `corpus.json`, so a stale reference names the new one. Slugs are durable identifiers: it removes `/read/mechanisms/<slug>`, which a published book's release notes should say.
 
 `check:corpus --book <slug>` reports only the pairs that involve one book. `--mode error` exits 1 while a cluster, drift, or stale ruling remains; `--json` and `--export <file>` print machine output, and `--eval` scores the models and the judges against the author's recorded rulings.

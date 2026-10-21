@@ -54,8 +54,9 @@ const manifestChange = (
 };
 
 /**
- * Where a new chapter goes to come right after `after` (a chapter slug or
- * file name): its file name, and the files after it renumbered to make room.
+ * Where a new chapter goes to come right after `after` (a chapter slug, file
+ * name, or number: `3` or `03` for 03-*.mdx): its file name, and the files
+ * after it renumbered to make room.
  */
 export const planInsertAfter = (
 	book: string,
@@ -67,7 +68,15 @@ export const planInsertAfter = (
 		content.chapters.find((chapter) => chapter.slug === after) ??
 		content.chapters.find(
 			(chapter) => chapter.file && basename(chapter.file) === after,
-		);
+		) ??
+		(/^\d+$/.test(after)
+			? content.chapters.find(
+					(chapter) =>
+						chapter.file &&
+						Number(basename(chapter.file).match(/^(\d+)-/)?.[1]) ===
+							Number(after),
+				)
+			: undefined);
 	if (!target?.file) {
 		return {
 			error: `${book} has no chapter "${after}".${didYouMean(

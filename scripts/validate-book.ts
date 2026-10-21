@@ -252,12 +252,16 @@ if (args.json) {
 		);
 	}
 	if (warnings.length > 0) {
-		console.log(`\nWARNINGS (${warnings.length})`);
 		// One line per file, so a tool missing five fields reads as one gap.
 		const lines = warnings.map((item) =>
 			item.file
 				? `${item.message}: ${join(workspaceRoot, item.file)}`
 				: item.message,
+		);
+		const grouped = groupFindingsByFile(lines);
+		// Say so when lines group warnings, or the count reads as lines missing.
+		console.log(
+			`\nWARNINGS (${warnings.length}${grouped.length < warnings.length ? ` on ${grouped.length} lines; a file's warnings share one` : ""})`,
 		);
 		// Each line's fixes, once each: those of the warnings it groups.
 		const fixesFor = (line: string): string[] => [
@@ -275,7 +279,7 @@ if (args.json) {
 			),
 		];
 		let manyFixes = false;
-		for (const line of groupFindingsByFile(lines)) {
+		for (const line of grouped) {
 			console.log(`- ${line}`);
 			const fixes = fixesFor(line);
 			// One fix in full; a file missing several fields gets one note below.

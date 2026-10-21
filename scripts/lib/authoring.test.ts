@@ -56,6 +56,12 @@ describe("chapterDraft", () => {
 		).toBe(false);
 	});
 
+	it("keeps a slug the book does not define out of binds", () => {
+		expect(
+			chapterDraft(chapter(words(70)), ["one", "tpyo"], ["one", "two"]),
+		).toMatchObject({ binds: ["one"], unknown: ["tpyo"], unbound: ["two"] });
+	});
+
 	it("lists the book's mechanisms the chapter does not bind, sorted", () => {
 		expect(
 			chapterDraft(chapter(words(70)), ["one"], ["three", "one", "two"])

@@ -3,6 +3,11 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-21 — Check output says what its counts and bindings mean
+
+- **The warning count says when lines group warnings.** `validate` puts a file's warnings on one line, so a fresh book showed "WARNINGS (23)" above 10 lines. The header now reads "WARNINGS (23 on 10 lines; a file's warnings share one)"; it is unchanged when every warning has its own line.
+- **A chapter's draft readout no longer counts an unknown slug as bound.** A misspelled slug in `mechanisms:` printed as `binds: context-dept` beside the error saying no such mechanism exists. It is now named apart (`binds: no mechanism yet (context-dept: not a mechanism of this book; see the error above)`), and `--json`'s `draft` gains `unknown`; `binds` holds only slugs the book defines.
+
 ## 2026-10-21 — Structure edits by command, and smaller fixes
 
 - **`bookkit rename mechanism [book] <slug> <new-slug> [--title "…"]`** changes a mechanism's slug in every book of its corpus, with what names it (chapters, actions, examples and their folder, glossary, links, config), and records the old slug in `corpus.json` so a stale reference names the new one. Before, `rename` pointed at `merge`, which needs both slugs to exist.

@@ -44,11 +44,10 @@ Extra-care areas:
 Lane C baseline from `CONTRIBUTING.md`:
 
 - `bun run verify` (see the `verify` skill): types, tests, shims, the architecture doc, and one book's build
-- `bun run validate:release`
 
 Escalation for behavior-affecting changes:
 
-- `bun run check:upgrade -- --release`
+- `bun run verify -- --all` (every gate CI's main job runs; `validate:release` and `check:upgrade` are subsets of it)
 
 ## PR note template
 

@@ -1,6 +1,6 @@
 # @bookkit/astro-bookkit
 
-A compiler engine for **recompilable books** — structured content that validates at build time, enforces pedagogical frames, and stays agentic.
+A compiler engine for **recompilable books**: structured content that the checks validate against pedagogical frames, and that agents can read and check through MCP.
 
 Most documentation tools treat content as static files that render into HTML. Bookkit treats a book as an **executable specification**: a set of declared mechanisms, enforceable structural frames, and graph-ordered content that compiles into reader experiences while staying human-editable.
 
@@ -16,7 +16,7 @@ Documentation systems are good at rendering markdown. They're bad at answering:
 - "Are these mechanisms properly bounded, or drifting into prose?"
 - "Can a depleted reader take a concrete action in under 10 minutes?"
 
-Bookkit adds compile-time governance to content. Every build validates structure, not just syntax.
+Bookkit adds governance to content: `bun run validate` and `bun run verify` check structure, not just syntax, and `bookkit deploy` refuses a book that fails them. `bookkit build` builds drafts with errors, so the build itself is not the gate.
 
 ---
 
@@ -98,46 +98,20 @@ This separation means engine upgrades (new export formats, AI features, MCP tool
 - **Zod schemas** for structured content entities
 - **Frame validator** with registered frame definitions
 - **Graph engine** with cycle detection, topological sort, and pathway derivation
-- **PDF/EPUB export** of the whole book (chapters, then each mechanism followed by its toolkit actions, then the glossary and examples), with a contents page and bookmarks; metadata comes from `book.config.ts` and the latest release note, so rebuilding unchanged content gives identical files. Both show inline and fenced code (Courier in the PDF), GFM tables (in the PDF a grid that fits the page, or row by row when the columns would be too narrow), reference-style links, footnotes (EPUB endnotes that link back; in the PDF, numbered notes after each entry), HTML character references, nested lists, and the HTML elements import keeps (`<kbd>`, `<details>`, `<sup>`, HTML tables and lists…; any other tag shows only its text). Headings carry the ids the site gives them, so links to a heading land on it. In the PDF, bold and italic text use bold and italic faces, and links are clickable: to a chapter, mechanism, or heading inside the PDF, else to the site. Both carry the book's PNG and JPEG images (the EPUB also GIF, SVG, and WebP); an image the format cannot carry, or one at a URL, shows its alt text and the build warns. The PDF draws Western European text in Helvetica and Latin Extended, Greek, and Cyrillic in embedded Noto Sans subsets; `exports.pdfFont` adds a font for other scripts, and `exports.pdf: false` builds the book without a PDF
+- **PDF/EPUB export** of the whole book (chapters, then each mechanism followed by its toolkit actions, then the glossary and examples), with a contents page and bookmarks; metadata comes from `book.config.ts` and the latest release note, so rebuilding unchanged content gives identical files. Both show inline and fenced code (Courier in the PDF), GFM tables (in the PDF a grid that fits the page, or row by row when the columns would be too narrow), reference-style links, footnotes (EPUB endnotes that link back; in the PDF, numbered notes after each entry), HTML character references, nested lists, task lists, fenced code at any indentation, setext headings and rules, and the HTML elements import keeps (`<kbd>`, `<details>`, `<sup>`, HTML tables and lists…; any other tag shows only its text). Headings carry the ids the site gives them, so links to a heading land on it. A link whose scheme is not http, https, mailto, tel, or ftp shows only its text. In the PDF, bold and italic text use bold and italic faces, and links are clickable: to a chapter, mechanism, or heading inside the PDF, else to the site. Both carry the book's PNG and JPEG images (the EPUB also GIF, SVG, and WebP); an image the format cannot carry, or one at a URL, shows its alt text and the build warns. The PDF draws Western European text in Helvetica and Latin Extended, Greek, and Cyrillic in embedded Noto Sans subsets; `exports.pdfFont` adds a font for other scripts, and `exports.pdf: false` builds the book without a PDF
 - **MCP endpoint** for AI-agent integration (validate, read, list, compile)
 - **Astro integration** (`bookkit()`) for zero-config setup
 - **Search index** generation and query engine
 - **Localization** support with locale routing and completeness tracking
 - **Release notes** with versioning, RSS, and webhook support
-- **25 test suites** covering graph, schemas, validators, search, keyboard shortcuts, and more
 
 ---
 
 ## Quick start
 
-```bash
-bun create astro my-book
-cd my-book
-bun add @bookkit/astro-bookkit
-```
+The package is not published to npm. Start a book in this workspace with `bun run bookkit new book <slug>`, or a standalone project with the engine copied in with `bun run create-bookkit <folder>` from a clone (see [`packages/create-bookkit/README.md`](../create-bookkit/README.md)). Either way the book app's `astro.config.mjs` adds the `bookkit()` integration from `@bookkit/astro-bookkit/integration`, and `src/book.config.ts` is typed `as const satisfies BookConfig`.
 
-```ts
-// astro.config.mjs
-import { bookkit } from "@bookkit/astro-bookkit/integration";
-export default defineConfig({
-  integrations: [bookkit()],
-});
-```
-
-```ts
-// src/book.config.ts
-export const bookConfig = {
-  slug: "my-book",
-  title: "My Book",
-  frame: {
-    slug: "intervention",
-    steps: ["recognition", "exoneration", "mechanism", "agency"],
-    intent: "Move readers from recognition to agency.",
-  },
-};
-```
-
-Content goes in `src/content/book/` as MDX files with typed frontmatter. Run `bun run dev` to iterate, `bun run validate` to check structure.
+Content goes in `src/content/book/` as MDX files with typed frontmatter. Run `bun run bookkit dev` to iterate and `bun run bookkit check` to check structure; the root [`README.md`](../../README.md) covers every command.
 
 ---
 
@@ -147,7 +121,7 @@ Content goes in `src/content/book/` as MDX files with typed frontmatter. Run `bu
 bun test
 ```
 
-25 test suites covering the graph engine, schema validation, frame enforcement, search ranking, keyboard shortcuts, MCP handlers, and export generation.
+Test files sit beside the modules they cover: the graph engine, schema validation, frame enforcement, search ranking, keyboard shortcuts, MCP handlers, export generation, and more. From the workspace root, `bun run test` runs them with the rest of the workspace's tests.
 
 ---
 

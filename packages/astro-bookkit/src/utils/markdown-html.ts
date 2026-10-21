@@ -1,10 +1,6 @@
-import { decodeEntities } from "../utils/character-references";
-import {
-	BLOCK_ELEMENTS,
-	KEPT_ELEMENTS,
-	VOID_ELEMENTS,
-} from "../utils/html-allowlist";
-import { SPREAD } from "../utils/markdown";
+import { decodeEntities } from "./character-references";
+import { BLOCK_ELEMENTS, KEPT_ELEMENTS, VOID_ELEMENTS } from "./html-allowlist";
+import { SPREAD } from "./markdown";
 
 /**
  * Raw HTML in Markdown, as the exports read it: tags, their attributes, and

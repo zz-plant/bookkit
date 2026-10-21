@@ -1,5 +1,6 @@
 import type { FrameDefinition } from "../frames/types";
-import { createHeadingSlugger, markdownHeadings } from "../utils/markdown";
+import { createHeadingSlugger } from "../utils/markdown";
+import { markdownHeadings } from "../utils/markdown-headings";
 import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type FrameValidationResult = {
@@ -81,8 +82,10 @@ export const validateFrameDefinition = (
  * site slugs the heading's id: `## Failure Modes`, `## Failure modes`, and
  * `## failure-modes` all count for `failure-modes` (and a link to
  * `#failure-modes` lands on the heading), while `## Failure modes we have
- * seen`, `## Owner`, and a line such as `Owner: Payments` do not. `body` is
- * the page without its frontmatter.
+ * seen`, `## Owner`, and a line such as `Owner: Payments` do not. The
+ * headings are the exports' (`markdownHeadings`), so one nested in a list
+ * item or a `<details>` counts too. `body` is the page without its
+ * frontmatter.
  */
 export const frameStepsInPage = (
 	frame: FrameDefinition,

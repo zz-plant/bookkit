@@ -418,6 +418,19 @@ describe("the frame check of the overview chapter", () => {
 		expect(frameFinding("field-guide")).toBeUndefined();
 	});
 
+	it("reads a step heading nested in a list item", () => {
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				overview([
+					"1. Start here:\n\n    ## Steps",
+					"2. When it goes wrong:\n\n    ## Failure Modes\n\n    ## Checklist",
+				]),
+			],
+		]);
+		expect(frameFinding("field-guide")).toBeUndefined();
+	});
+
 	it("names each missing step, and the heading that would add it", () => {
 		writeBook([
 			[

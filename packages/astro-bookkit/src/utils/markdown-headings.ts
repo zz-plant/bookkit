@@ -1,4 +1,4 @@
-import { createHeadingSlugger } from "../utils/markdown";
+import { createHeadingSlugger } from "./markdown";
 import {
 	type MarkdownBlock,
 	type MarkdownDocument,
@@ -7,8 +7,9 @@ import {
 import { headingSlugText, parseInline } from "./markdown-inline";
 
 /**
- * Headings and the ids the site gives them, for the EPUB, the PDF, and the
- * search index alike, from the one Markdown parse they share.
+ * Headings and the ids the site gives them, for the EPUB, the PDF, the
+ * search index, and the frame check alike, from the one Markdown parse they
+ * share.
  */
 
 export type HeadingBlock = Extract<MarkdownBlock, { type: "heading" }>;
@@ -60,6 +61,26 @@ export const headingIds = (
 		}
 	}
 	return ids;
+};
+
+/** A heading of a Markdown page: its level, its text, and the id the site gives it. */
+export type MarkdownHeading = { depth: number; text: string; id: string };
+
+/**
+ * The headings of a Markdown or MDX body (frontmatter removed), in page
+ * order, each with the id the site gives it (`headingIds`): every level,
+ * setext headings, and headings nested in a list item or a `<details>`,
+ * but nothing in code. A heading written as an HTML tag (`<h2>`) gets no id
+ * and is not listed. `text` is what the site slugs: the text the page
+ * shows, with smart punctuation's dashes.
+ */
+export const markdownHeadings = (body: string): MarkdownHeading[] => {
+	const document = parseMarkdown(body);
+	return [...headingIds([document.blocks], document)].map(([block, id]) => ({
+		depth: block.level,
+		text: headingSlugText(parseInline(block.text, document)),
+		id,
+	}));
 };
 
 /**

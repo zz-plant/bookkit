@@ -10,12 +10,14 @@ import {
 import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	elementReason,
+	embedTitle,
 	extraPermissions,
 	refusalReason,
 } from "../utils/html-allowlist";
 import { SAFE_SCHEME_LIST } from "../utils/links";
 import {
 	findUnsafeMarkup,
+	findUntitledEmbeds,
 	markupEntry,
 	type UnsafeMarkupEntry,
 } from "../utils/markdown";
@@ -475,6 +477,7 @@ export type ContentFindingCode =
 	| "BROKEN_LINK"
 	| "UNSAFE_LINK"
 	| "UNSAFE_HTML"
+	| "IFRAME_NO_TITLE"
 	| "DRAFT_IN_RELEASE"
 	| "MDX_HTML_COMMENT";
 
@@ -1029,6 +1032,15 @@ export const checkContentItem = (
 		findings.push({
 			level: released ? "error" : "warning",
 			...unsafeMarkupFinding(label, markupEntry(found, bodyLine)),
+		});
+	}
+	// Import titles each embed; one written by hand may have none.
+	for (const embed of findUntitledEmbeds(body, { tags })) {
+		findings.push({
+			level: "warning",
+			code: "IFRAME_NO_TITLE",
+			message: `${label} has an <iframe> with no title on line ${bodyLine + embed.line}, so a screen reader cannot say what it shows, and check:a11y fails its page`,
+			fix: `Add a title that says what it shows, as in <iframe title="${embedTitle(embed.src)}" src="…">.`,
 		});
 	}
 

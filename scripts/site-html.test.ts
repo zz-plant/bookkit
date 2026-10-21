@@ -11,6 +11,7 @@ import {
 } from "../packages/astro-bookkit/src/utils/html-allowlist";
 import { isSafeLink } from "../packages/astro-bookkit/src/utils/links";
 import { buildBook, createBookWorkspace } from "./lib/book-workspace.fixture";
+import { pageContentFindings } from "./lib/build-output";
 import {
 	BUILD_DEADLINE_MS,
 	CHILD_DEADLINE_MS,
@@ -132,6 +133,24 @@ beforeAll(() => {
 			"## Raw HTML",
 			"",
 			...UNSAFE_HTML.flatMap(({ mdx }) => [mdx, ""]),
+			// What the site's own Markdown writes beyond what raw HTML may.
+			"## Markdown",
+			"",
+			"```ts",
+			"const total = 1 < 2;",
+			"```",
+			"",
+			"A note.[^1]",
+			"",
+			"- [x] done",
+			"- [ ] to do",
+			"",
+			"| Left | Right |",
+			"| :- | -: |",
+			"| 1 | 2 |",
+			"",
+			"[^1]: The note.",
+			"",
 			"## End",
 			"",
 		].join("\n"),
@@ -255,6 +274,16 @@ describe("a page with links that run code or carry a document", () => {
 				).toBe(null);
 			}
 		}
+	});
+
+	it("passes check:build's check of its content, with what Markdown writes", () => {
+		expect(page).toContain('<pre class="astro-code');
+		expect(page).toContain("data-footnote-ref");
+		expect(page).toContain('<input type="checkbox" checked disabled');
+		expect(page).toContain('<th style="text-align:right">');
+		expect(
+			pageContentFindings("read/chapters/links-probe/index.html", page),
+		).toEqual([]);
 	});
 
 	it("keeps a title's </script> from ending the page's structured data", () => {

@@ -261,7 +261,7 @@ if (args.json) {
 		const grouped = groupFindingsByFile(lines);
 		// Say so when lines group warnings, or the count reads as lines missing.
 		console.log(
-			`\nWARNINGS (${warnings.length}${grouped.length < warnings.length ? `, on ${grouped.length} lines: one per file` : ""})`,
+			`\nWARNINGS (${warnings.length}${grouped.length < warnings.length ? ` on ${grouped.length} lines; a file's warnings share one` : ""})`,
 		);
 		// Each line's fixes, once each: those of the warnings it groups.
 		const fixesFor = (line: string): string[] => [

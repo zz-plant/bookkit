@@ -7,6 +7,7 @@ import {
 	type MechanismRecord,
 	type ToolRecord,
 } from "../suggestions";
+import { didYouMean } from "../utils/did-you-mean";
 import { linesBeforeBody, parseFrontmatter } from "../utils/frontmatter";
 import {
 	createSlugger,
@@ -15,6 +16,7 @@ import {
 	toMdxBody,
 	type UnsafeMarkupEntry,
 } from "../utils/markdown";
+import { markdownHeadings } from "../utils/markdown-headings";
 import {
 	type ContentFinding,
 	type ContentSection,
@@ -22,7 +24,7 @@ import {
 	mechanismSlugsFrom,
 	SECTION_DIRECTORIES,
 } from "../validators/content-check";
-import { frameStepsInHeadings, sectionLabelsOf } from "../validators/frame";
+import { frameStepsInPage } from "../validators/frame";
 import { buildProposalBundle } from "./build-proposal";
 
 /**
@@ -190,8 +192,9 @@ export const previewFolder = (
 	options: FolderPreviewOptions = {},
 ): FolderPreview => {
 	if (options.frame && !frameFor(options.frame)) {
+		const slugs = defaultFrames.map((frame) => frame.slug);
 		throw new Error(
-			`Unknown frame "${options.frame}". Use one of: ${defaultFrames.map((frame) => frame.slug).join(", ")}.`,
+			`Unknown frame "${options.frame}".${didYouMean(options.frame, slugs)} Use one of: ${slugs.join(", ")}.`,
 		);
 	}
 	const sorted = [...files].sort((a, b) => a.path.localeCompare(b.path));
@@ -284,8 +287,7 @@ export const previewFolder = (
 
 	const documents: FolderDocument[] = parsed.map((entry) => {
 		const findings: FolderFinding[] = [];
-		const headings = sectionLabelsOf(entry.body);
-		const covered = frameStepsInHeadings(frame, headings);
+		const covered = frameStepsInPage(frame, entry.body);
 		const missing = required.filter((id) => !covered.includes(id));
 
 		if (entry.contract) {
@@ -318,7 +320,7 @@ export const previewFolder = (
 				level: "error",
 				code: "FRAME_STEP_MISSING",
 				message: `Missing ${frame.name.toLowerCase()} section(s): ${labels.join(", ")}`,
-				fix: `Add a heading or a "Label:" line for each, e.g. "## ${labels[0]}". It counts when a word in it starts like the step: "Owner:" counts for Ownership.`,
+				fix: `Add a heading for each, its whole text the section's name (e.g. "## ${labels[0]}"), as a book's chapters need.`,
 			});
 		}
 
@@ -337,7 +339,7 @@ export const previewFolder = (
 				text(entry.data.title) ||
 				text(entry.data.name) ||
 				text(entry.data.term) ||
-				headings[0] ||
+				markdownHeadings(entry.body)[0]?.text ||
 				fileTitle(entry.file.path),
 			words: countWords(entry.body),
 			frameSteps: { covered, missing },

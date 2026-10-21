@@ -4,6 +4,7 @@ import {
 	mkdirSync,
 	mkdtempSync,
 	rmSync,
+	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -96,6 +97,26 @@ describe("remove:book", () => {
 
 		expect(removeBook("--book", "on-call", "--yes", "--force").status).toBe(0);
 		expect(exists()).toBe(false);
+	});
+
+	it("takes the book as its first argument, here and through bookkit, and never defaults to one", () => {
+		expect(removeBook("on-call", "--dry-run").status).toBe(0);
+		// bookkit runs the scripts of the workspace it is in.
+		symlinkSync(join(repoRoot(), "scripts"), join(workspace, "scripts"));
+		const viaBookkit = run([
+			process.execPath,
+			join(repoRoot(), "scripts", "bookkit.ts"),
+			"remove-book",
+			"on-call",
+			"--dry-run",
+		]);
+		expect(viaBookkit.output).toContain("apps/on-call: 1 files");
+		expect(viaBookkit.status).toBe(0);
+		expect(exists()).toBe(true);
+		const none = removeBook("--yes");
+		expect(none.status).toBe(1);
+		expect(none.output).toContain("Missing --book <book>.");
+		expect(exists()).toBe(true);
 	});
 
 	it("deletes a committed book with --yes", () => {

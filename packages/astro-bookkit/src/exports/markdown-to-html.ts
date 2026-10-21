@@ -5,13 +5,16 @@ import type {
 	ListItem,
 	MarkdownBlock,
 	TableAlign,
-} from "./markdown-blocks";
-import { type EntryMarkdown, parseEntryMarkdown } from "./markdown-headings";
+} from "../utils/markdown-blocks";
+import {
+	type EntryMarkdown,
+	parseEntryMarkdown,
+} from "../utils/markdown-headings";
 import {
 	createNoteNumbers,
 	type InlineNode,
 	parseInline,
-} from "./markdown-inline";
+} from "../utils/markdown-inline";
 import type { ExportEntryKind } from "./types";
 
 /** Where a link should point in the output, or null to keep only its text. */

@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 
 import { defaultFrames } from "../frames/defaults";
 import {
-	frameStepsInHeadings,
 	frameStepsInPage,
 	validateFrameDefinition,
 	validateFrameSteps,
@@ -79,38 +78,6 @@ describe("frame validator normalized errors", () => {
 	});
 });
 
-describe("frameStepsInHeadings", () => {
-	const runbook = {
-		slug: "runbook",
-		name: "Runbook",
-		steps: [
-			{ id: "ownership", label: "Ownership", required: true },
-			{ id: "trigger", label: "Trigger", required: true },
-			{ id: "steps", label: "Steps", required: true },
-			{ id: "escalation", label: "Escalation", required: true },
-			{ id: "verification", label: "Verification", required: true },
-		],
-	};
-
-	it("credits the words runbooks actually use", () => {
-		expect(
-			frameStepsInHeadings(runbook, [
-				"Owner",
-				"Triggers and alerts",
-				"Step 1: drain the node",
-				"Escalation path",
-				"Verify recovery",
-			]),
-		).toEqual(["ownership", "trigger", "steps", "escalation", "verification"]);
-	});
-
-	it("reports what no heading covers", () => {
-		expect(
-			frameStepsInHeadings(runbook, ["Overview", "Procedure", "Notes"]),
-		).toEqual([]);
-	});
-});
-
 describe("frameStepsInPage", () => {
 	const frame = (slug: string) => {
 		const found = defaultFrames.find((candidate) => candidate.slug === slug);
@@ -132,6 +99,15 @@ describe("frameStepsInPage", () => {
 		]) {
 			expect(frameStepsInPage(fieldGuide, heading)).toEqual(["failure-modes"]);
 		}
+	});
+
+	it("counts a heading nested in a list item, however deep, or in a <details> inside one", () => {
+		expect(
+			frameStepsInPage(
+				fieldGuide,
+				"1. First:\n\n    ## Steps\n\n- Outer\n  - Inner\n\n    ## Failure Modes\n\n- More\n\n  <details>\n  <summary>Notes</summary>\n\n      ### Checklist\n\n  </details>\n",
+			),
+		).toEqual(["steps", "failure-modes", "checklist"]);
 	});
 
 	it("does not count a heading that says more, says it in other words, or is not a heading", () => {

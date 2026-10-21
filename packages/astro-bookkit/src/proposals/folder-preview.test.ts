@@ -21,16 +21,16 @@ const RUNBOOKS = [
 	{
 		path: "queue/restart.md",
 		source: runbook("Restart the queue", [
-			"Owner",
+			"Ownership",
 			"Trigger",
 			"Steps",
 			"Escalation",
-			"Verify",
+			"Verification",
 		]),
 	},
 	{
 		path: "db/failover.md",
-		source: runbook("Fail over the database", ["Owner", "Steps"]),
+		source: runbook("Fail over the database", ["Ownership", "Steps"]),
 	},
 ];
 
@@ -201,18 +201,34 @@ describe("previewFolder on book content", () => {
 	});
 });
 
-describe("previewFolder section labels", () => {
-	it("counts field lines like **Owner:** as sections", () => {
-		const [doc] = previewFolder(
-			[
-				{
-					path: "drain.md",
-					source:
-						"# Drain a node\n\n**Owner:** Platform\nTrigger: DiskPressure for 15 minutes\n\n## Steps\n\n1. Cordon it.\n",
-				},
-			],
-			{ frame: "runbook" },
-		).documents;
-		expect(doc.frameSteps.covered).toEqual(["ownership", "trigger", "steps"]);
+describe("previewFolder frame sections", () => {
+	const covered = (source: string) =>
+		previewFolder([{ path: "drain.md", source }], { frame: "runbook" })
+			.documents[0].frameSteps.covered;
+
+	it("counts a heading whose whole text is the section's name, as a book's overview does", () => {
+		expect(
+			covered(
+				"# Drain a node\n\n## Ownership\n\nPlatform.\n\n### trigger\n\nDiskPressure.\n\n## **Steps**\n\n1. Cordon it.\n\nEscalation\n----------\n\nPage the lead.\n",
+			),
+		).toEqual(["ownership", "trigger", "steps", "escalation"]);
+	});
+
+	it("does not count a word that starts like the section, a heading that says more, or a field line", () => {
+		expect(
+			covered(
+				"# Drain a node\n\n**Owner:** Platform\nTrigger: DiskPressure for 15 minutes\n\n## Owner\n\n## Steps to drain\n\n## Verify\n\n```md\n## Escalation\n```\n",
+			),
+		).toEqual([]);
+	});
+});
+
+describe("previewFolder with a frame that does not exist", () => {
+	it("names the nearest frame", () => {
+		expect(() =>
+			previewFolder([{ path: "a.md", source: "# A\n" }], { frame: "runbok" }),
+		).toThrow(
+			'Unknown frame "runbok". Did you mean runbook? Use one of: intervention, explainer, field-guide, runbook.',
+		);
 	});
 });

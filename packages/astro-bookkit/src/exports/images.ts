@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
-import type { InlineImage } from "./markdown-blocks";
+import type { InlineImage } from "../utils/markdown-blocks";
 import { describeExportEntry } from "./metadata";
 import type { ExportEntry, ExportRenderOptions } from "./types";
 

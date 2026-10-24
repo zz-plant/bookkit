@@ -1,5 +1,5 @@
 import { setDefaultTimeout } from "bun:test";
-import { realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
 	insideScratchWorkspace,
@@ -45,6 +45,23 @@ export const SCRATCH_WORKSPACES = join(
 	".test-workspaces",
 );
 
+/**
+ * Where a test sends a build's `--outDir` (gitignored). Astro moves build
+ * output into the outDir with rename(2), which cannot cross devices: the
+ * Linux CI runners keep /tmp on its own device, as do machines with /tmp on
+ * tmpfs, so a build's outDir stays on the repository's own filesystem.
+ */
+export const SCRATCH_BUILDS = join(
+	realpathSync(join(import.meta.dir, "..", "..")),
+	".test-builds",
+);
+
+/** A fresh `--outDir` for a build, under SCRATCH_BUILDS. */
+export const scratchBuildDir = (prefix: string): string => {
+	mkdirSync(SCRATCH_BUILDS, { recursive: true });
+	return mkdtempSync(join(SCRATCH_BUILDS, prefix));
+};
+
 /** The scratch workspace `path` is in, or undefined if it is in none. */
 export const scratchWorkspaceOf = (path: string): string | undefined => {
 	const rel = relative(SCRATCH_WORKSPACES, resolve(path));
@@ -65,10 +82,15 @@ export const childEnv = (
 	cwd: string | undefined,
 	env?: Env,
 ): Env | undefined => {
-	const workspace = cwd ? scratchWorkspaceOf(cwd) : undefined;
-	if (!cwd || !workspace) return env;
+	if (!cwd) return env;
+	// PWD names where the child starts, as a shell would set it. When that
+	// folder is deleted mid-run, macOS fails process.cwd() outright (see
+	// repoRoot in scripts/_lib.ts), and PWD is what names the gone folder.
+	const withPwd = { ...(env ?? process.env), PWD: cwd };
+	const workspace = scratchWorkspaceOf(cwd);
+	if (!workspace) return withPwd;
 	insideScratchWorkspace(workspace, cwd);
-	return { ...(env ?? process.env), [SCRATCH_WORKSPACE_ENV]: workspace };
+	return { ...withPwd, [SCRATCH_WORKSPACE_ENV]: workspace };
 };
 
 type ChildOptions = {

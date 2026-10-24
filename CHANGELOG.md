@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-23 — CI green again: cross-device builds, the undici advisory, the gone-folder guard
+
+- **A test build's `--outDir` stays on the repository's filesystem.** The static-build and browser tests built into `os.tmpdir()`, but Astro moves build output into the outDir with `rename(2)`, which cannot cross devices. The Linux CI runners have kept `/tmp` on its own device since `ubuntu-latest` moved to Ubuntu 26, as do machines with `/tmp` on tmpfs, so every such build failed with `EXDEV`. Test builds now write to `.test-builds/` (gitignored, beside `.test-workspaces/`).
+- **`bun audit` is clean, over a Bun 1.4 lockfile.** GHSA-xjj6-f33q-929c flagged two undici copies: astro's 8.x updated in range to 8.12.3, and miniflare — through wrangler 4.152.0 — still pins exactly 7.29.1, so an override, `"undici@7": "7.30.1"`, holds it at the patched 7.x until Cloudflare ships one. That override (and the lockfile format it resolves into) needs Bun 1.4, where 1.3 records the override without applying it; the pinned Bun is now **1.4.3** (`packageManager`, `engines`, `mise.toml`, the README badge, and create-bookkit projects, which inherit the pin). The deploy dry run passes with it.
+- **`repoRoot()` names a deleted folder on macOS too.** On Linux, `process.cwd()` returns the path of a deleted folder and the guard reports it; on macOS the call throws `ENOENT` first, so the child crashed with the raw error instead of the message. The call is now caught, and `runChild` sets `PWD` to the folder the child starts in, which is what names the gone folder. `bun run verify` passes on a Mac again.
+
+Migration: install Bun 1.4.3 (`mise install` or the version `mise.toml` names). Everything else needs nothing: `.test-builds/` is created where `.test-workspaces/` is.
+
 ## 2026-10-23 — Reader-UI de-slop pass on the engine
 
 - **Dialog scrims are ink, not glass.** The overlays behind search, Q&A, and keyboard help replace a hardcoded `rgba(20, 20, 20, 0.52)` plus `backdrop-filter: blur(4px)` with a `--color-scrim` token: ink at 52% on light paper, 32% on dark. The blur is gone.

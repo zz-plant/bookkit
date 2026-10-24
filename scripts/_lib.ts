@@ -21,7 +21,17 @@ import { scratchWorkspaceRoot } from "../packages/astro-bookkit/src/utils/scratc
  * started in a scratch workspace gets that workspace, or an error.
  */
 export function repoRoot(): string {
-	const cwd = process.cwd();
+	let cwd: string;
+	try {
+		cwd = process.cwd();
+	} catch {
+		// On macOS the call itself fails once its folder is gone, where
+		// Linux returns the deleted path and existsSync reports it; PWD
+		// names the folder the child was started in.
+		throw new Error(
+			`The current folder no longer exists: ${process.env.PWD ?? "(unknown)"}\nRun the command again from a folder that does.`,
+		);
+	}
 	if (!existsSync(cwd)) {
 		throw new Error(
 			`The current folder no longer exists: ${cwd}\nRun the command again from a folder that does.`,

@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://github.com/zz-plant/bookkit/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zz-plant/bookkit/ci.yml?branch=main&style=flat-square&label=tests" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-CC0--1.0-informational?style=flat-square" alt="License: CC0-1.0"></a>
-  <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-1.3.14-black?style=flat-square&logo=bun&logoColor=white" alt="Bun 1.3.14"></a>
+  <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-1.4.3-black?style=flat-square&logo=bun&logoColor=white" alt="Bun 1.4.3"></a>
 </p>
 
 <picture>
@@ -63,7 +63,7 @@ The **frame** (`intervention`, `explainer`, `field-guide`, or `runbook`) sets th
 
 ## Prerequisites
 
-- **Bun 1.3.14**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`.
+- **Bun 1.4.3**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`.
 - **Node.js 22.22 or later**, which Astro 7.4 needs.
 - **git.** `bookkit deploy` publishes from a commit, so a project needs `git init` and a first commit before its first deploy. Every other command, `verify -- --all` included, works in a folder that is not a repository yet.
 - **To publish:** a Cloudflare account, and `bunx wrangler login` once (or `CLOUDFLARE_API_TOKEN` in the environment).

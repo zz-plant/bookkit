@@ -259,11 +259,11 @@ describe("feedback", () => {
 			expect(choices.filter((choice) => !choice.startsWith("emoji:"))).toEqual(
 				FEEDBACK_RESPONSES.filter((response) => response !== "emoji"),
 			);
-			expect(
-				choices
-					.filter((choice) => choice.startsWith("emoji:"))
-					.map((choice) => choice.slice("emoji:".length)),
-			).toEqual([...FEEDBACK_EMOJI]);
+			// The widget's emoji row is gone; the endpoint still accepts the
+			// emoji events builds before its removal sent.
+			expect(choices.filter((choice) => choice.startsWith("emoji:"))).toEqual(
+				[],
+			);
 		});
 	});
 });

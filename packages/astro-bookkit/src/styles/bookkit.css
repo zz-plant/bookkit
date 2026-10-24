@@ -17,6 +17,11 @@
 	--font-mono: var(--font-apparatus);
 	/* One paper, one ink, one rubric. Greys are ink at lower strength, never new hues. */
 	--color-paper: #f7f4ed;
+	/*
+	 * The scrim behind open dialogs: ink let down toward the page, never a
+	 * neutral grey or a blur.
+	 */
+	--color-scrim: color-mix(in srgb, var(--color-ink) 52%, transparent);
 	--color-ink: #1d1b17;
 	--color-rubric: #a3301c;
 	--color-text: var(--color-ink);
@@ -46,7 +51,6 @@
 	--color-danger-strong: #86270f;
 	--color-warning: #94620d;
 	--color-warning-strong: #6f4705;
-	--color-bg-gradient: var(--color-paper);
 	--radius-card: 2px;
 	--radius-control: 2px;
 	--radius-pill: 2px;
@@ -94,6 +98,8 @@
 		--color-paper: #171511;
 		--color-ink: #e9e3d6;
 		--color-rubric: #e07a63;
+		/* On dark paper the ink is light, so the scrim is let down thinner. */
+		--color-scrim: color-mix(in srgb, var(--color-ink) 32%, transparent);
 		--color-success: #7cb98c;
 		--color-success-strong: #9fd0ab;
 		--color-danger-strong: #f0a08c;
@@ -107,6 +113,8 @@
 	--color-paper: #171511;
 	--color-ink: #e9e3d6;
 	--color-rubric: #e07a63;
+	/* On dark paper the ink is light, so the scrim is let down thinner. */
+	--color-scrim: color-mix(in srgb, var(--color-ink) 32%, transparent);
 	--color-success: #7cb98c;
 	--color-success-strong: #9fd0ab;
 	--color-danger-strong: #f0a08c;
@@ -921,7 +929,7 @@ a.stat-card:hover {
 
 .stat-meta {
 	font-size: var(--text-sm);
-	color: color-mix(in oklab, var(--color-accent-strong), var(--color-ink) 42%);
+	color: var(--color-ink);
 	font-weight: 600;
 }
 
@@ -1024,14 +1032,6 @@ a.card:hover h3 {
 
 .hero-shell {
 	margin-bottom: var(--space-7);
-}
-
-.hero-shell::before {
-	content: none;
-}
-
-.hero-shell::after {
-	content: none;
 }
 
 .hero-kicker {
@@ -1211,8 +1211,8 @@ a.card:hover h3 {
 
 .preview-link__masked {
 	font-family: var(--font-mono, ui-monospace, monospace);
-	font-size: 0.85rem;
-	color: var(--color-muted, #6d6d6d);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
 	white-space: nowrap;
 }
 
@@ -1223,14 +1223,11 @@ a.card:hover h3 {
 	font-size: var(--text-sm);
 	background: var(--color-surface);
 	cursor: pointer;
-	transition:
-		background 0.2s ease,
-		transform 0.2s ease;
+	transition: background 0.2s ease;
 }
 
 .preview-link__copy:hover {
 	background: color-mix(in srgb, var(--color-accent) 8%, transparent);
-	transform: translateY(-1px);
 }
 
 .preview-status {
@@ -1835,8 +1832,7 @@ a.card:hover h3 {
 .keyboard-help {
 	position: fixed;
 	inset: 0;
-	background: rgba(20, 20, 20, 0.52);
-	backdrop-filter: blur(4px);
+	background: var(--color-scrim);
 	display: flex;
 	align-items: flex-start;
 	justify-content: center;
@@ -2165,7 +2161,7 @@ a.card:hover h3 {
 .kbd-hint kbd {
 	display: inline-block;
 	padding: 2px 6px;
-	border-radius: 6px;
+	border-radius: var(--radius-control);
 	border: 1px solid var(--color-border);
 	background: var(--color-bg);
 	font-size: var(--text-sm);
@@ -2277,13 +2273,16 @@ a.card:hover h3 {
 
 .release-details summary::after {
 	content: "▾";
+	display: inline-block;
 	margin-left: var(--space-2);
 	font-size: var(--text-sm);
 	color: var(--color-muted);
+	transform-origin: center;
+	transition: transform var(--timing-snappy) ease;
 }
 
 .release-details[open] summary::after {
-	content: "▴";
+	transform: rotate(-180deg);
 }
 
 .release-details .content-block {
@@ -2507,7 +2506,7 @@ a.card:hover h3 {
 }
 
 .feedback-widget__prompt {
-	font-weight: 600;
+	font-weight: 500;
 	font-size: var(--text-sm);
 	color: var(--color-text);
 }
@@ -2532,31 +2531,8 @@ a.card:hover h3 {
 }
 
 .feedback-widget__button:hover {
-	background: var(--color-surface-hover, var(--color-bg));
-	border-color: var(--color-accent);
-}
-
-.feedback-widget__emoji {
-	display: flex;
-	gap: var(--space-1);
-	margin-left: auto;
-}
-
-.feedback-widget__emoji button {
-	border: 1px solid transparent;
-	background: transparent;
-	padding: 0.25rem 0.4rem;
-	border-radius: var(--radius-control);
-	font-size: 1.1rem;
-	cursor: pointer;
-	transition:
-		transform 0.15s ease,
-		background 0.15s ease;
-}
-
-.feedback-widget__emoji button:hover {
 	background: var(--color-bg);
-	transform: scale(1.15);
+	border-color: var(--color-accent);
 }
 
 .feedback-widget__step2 {
@@ -2565,7 +2541,6 @@ a.card:hover h3 {
 	gap: var(--space-2);
 	padding-top: var(--space-2);
 	border-top: 1px dashed var(--color-border);
-	animation: fadeInDown 0.2s ease;
 }
 
 .feedback-widget__step2 textarea {
@@ -3109,7 +3084,6 @@ pre code {
 	.search-panel,
 	.qa-panel,
 	.keyboard-help,
-	.command-palette,
 	.feedback-widget,
 	.reader-settings,
 	.site-settings,

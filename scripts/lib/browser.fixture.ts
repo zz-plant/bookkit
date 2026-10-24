@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, it } from "bun:test";
 import childProcess from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { loadavg, tmpdir } from "node:os";
+import { rmSync } from "node:fs";
+import { loadavg } from "node:os";
 import { join } from "node:path";
 import { type Browser, chromium, errors, type LaunchOptions } from "playwright";
 import { repoRoot } from "../_lib";
 import { resolveDistFile } from "./a11y";
 import { serverRuntimeCopy } from "./book-workspace.fixture";
-import { BUILD_DEADLINE_MS, runChild } from "./child-process.fixture";
+import {
+	BUILD_DEADLINE_MS,
+	runChild,
+	scratchBuildDir,
+} from "./child-process.fixture";
 
 /**
  * For the browser tests (`bun run test:browser`): a build of one of the
@@ -412,7 +416,7 @@ export const openBuiltBook = async (
 ): Promise<BuiltBook> => {
 	openBooks += 1;
 	clearTimeout(exitTimer);
-	const outDir = mkdtempSync(join(tmpdir(), `bookkit-browser-${book}-`));
+	const outDir = scratchBuildDir(`bookkit-browser-${book}-`);
 	let server: ReturnType<typeof Bun.serve> | undefined;
 	let workspace: string | undefined;
 	const done = () => {

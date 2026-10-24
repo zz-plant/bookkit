@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
-import { BUILD_DEADLINE_MS, runChild } from "./lib/child-process.fixture";
+import {
+	BUILD_DEADLINE_MS,
+	runChild,
+	scratchBuildDir,
+} from "./lib/child-process.fixture";
 import {
 	definitionPairs,
 	exportedToolSections,
@@ -34,7 +37,7 @@ const filesUnder = (dir: string): string[] =>
 const pages = () => filesUnder(outDir).filter((file) => file.endsWith(".html"));
 
 beforeAll(() => {
-	outDir = mkdtempSync(join(tmpdir(), "bookkit-static-build-"));
+	outDir = scratchBuildDir("bookkit-static-build-");
 	const result = runChild(
 		[process.execPath, "run", "build", "--outDir", outDir],
 		{

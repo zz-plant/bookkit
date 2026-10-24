@@ -3,6 +3,16 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-23 — Reader-UI de-slop pass on the engine
+
+- **Dialog scrims are ink, not glass.** The overlays behind search, Q&A, and keyboard help replace a hardcoded `rgba(20, 20, 20, 0.52)` plus `backdrop-filter: blur(4px)` with a `--color-scrim` token: ink at 52% on light paper, 32% on dark. The blur is gone.
+- **The feedback widget loses its emoji row.** Yes/No remain; the four emoji reactions (😀🤔😕🔥), their `scale(1.15)` hover pop, and a `fadeInDown` animation with no keyframes are removed. New feedback events no longer send `emoji`; the endpoint and feedback dashboard still read the field, so existing emoji events keep rendering.
+- **Off-token values return to tokens.** A `#6d6d6d` fallback grey and hardcoded `0.85rem` in preview links, a 6px `kbd` radius, and a `translateY(-1px)` hover lift on the preview copy button all use the engine's tokens and lose the lift.
+- **`read-hub.css` joins the token system.** Hardcoded `rem` gaps and sizes become `--space-*`/`--text-*` tokens; the read hub's `h1` keeps the engine display size (56px) instead of its own 3rem cap, and the hero lede is no longer shrunk to `1rem` on phones. The "until you start" release card mutes its text toward paper instead of fading the whole card to 82% opacity, and a phone-only hero inset is gone.
+- **Dead code removed:** `.hero-shell::before/::after` null rules, the unused `--color-bg-gradient` token, `.command-palette` in the print selector list, and a no-op `color-mix` of ink into ink. Release-notes toggles use one ▾ glyph that rotates, matching the nav's own toggle.
+
+Migration: none. All changes are CSS and widget markup; no schema, frame, or validator changes. `bun run verify` passes.
+
 ## 2026-10-21 — The engine serves every book's pages
 
 - **`bookkit()` injects the routes.** The pages, API routes, exports, layout, and middleware every book app carried as identical copies (45 files, about 2,200 lines per book) now live once in the engine, `packages/astro-bookkit/src/routes/`. The integration adds them to each book with Astro's `injectRoute` and `addMiddleware`, and serves the book's `src/book.config.ts` and `src/content/book/**` to them as `virtual:bookkit/book`. A book app now holds `book.config.ts`, its content, `astro.config.mjs`, `wrangler.jsonc`, and only the pages it serves differently. Every book's `dist/` is byte-for-byte what it was.

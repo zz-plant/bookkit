@@ -330,13 +330,19 @@ describe("ci.yml", () => {
 	it("runs the meaning pass of check:corpus, with the model download allowed and cached, and fails if it did not run", () => {
 		const job = workflow.jobs["semantic-corpus"];
 		expect(job.env?.BOOKKIT_DOWNLOAD_MODEL).toBe("1");
-		expect(job.env?.BOOKKIT_MODEL_CACHE).toBeTruthy();
 		const cache = job.steps.find((step) =>
 			step.uses?.startsWith("actions/cache"),
 		);
 		expect(cache?.with?.path).toBe(expression("env.BOOKKIT_MODEL_CACHE"));
 		expect(cache?.with?.key).toContain("steps.model.outputs.id");
 		const run = job.steps.map((step) => step.run ?? "").join("\n");
+		// actions/cache will not save a path containing "..", so the model
+		// would be downloaded on every run.
+		const cachePath = run.match(
+			/BOOKKIT_MODEL_CACHE=(\S+)"? >> "\$GITHUB_ENV"/,
+		)?.[1];
+		expect(cachePath).toBeTruthy();
+		expect(cachePath).not.toContain("..");
 		expect(run).toContain("check:corpus -- --mode error");
 		expect(run).toContain('grep -q "semantic pass: "');
 	});

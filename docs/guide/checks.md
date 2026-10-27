@@ -8,6 +8,8 @@ The rules `bookkit check`, `validate`, `check:build`, `check:runbooks`, and `che
 
 `bookkit check <chapter.mdx>` also says how far the chapter is from drafted: its words of prose against `site.minIndexableWords` (a chapter below it is a stub, kept out of search and not counted by `bookkit bets`), the mechanisms its `mechanisms:` binds (a slug the book does not define is named apart, beside its error), and the book's other mechanisms, so a new idea can bind an existing slug before it gets a name of its own. This is advice and never fails the check; `--json` reports it as `draft`.
 
+`bookkit map [book]` shows the same thing for a whole book: a grid of its mechanisms by chapter, marking which chapters list which mechanisms and which chapters are stubs. Below the grid it names the chapters that list no mechanism, with their words, so a drafted chapter that binds nothing stands out. It also names the mechanisms no chapter lists, the ones another book in the corpus defines too, and any listed slug the book does not define. It counts words the way `bookkit check <chapter.mdx>` does, never fails, and `--json` prints the map.
+
 `bun run verify -- --all` runs every gate: formatting and lint, types, tests, content, shared pages, the architecture map, and a build of every book followed by `check:build`. CI runs it on every push and pull request to `main`. `--list` shows the plan, and `--json` prints the results for an agent.
 
 ## Content rules

@@ -15,10 +15,13 @@ const lastUpdated = new Date().toLocaleDateString("en-US", {
 	year: "numeric",
 });
 
-const previewLinks = createPreviewLinks(bookConfig.previewAccess, {
-	baseUrl: bookConfig.site?.url,
-	path: readRoutes.root,
-});
+const previewLinks = createPreviewLinks(
+	bookConfig.previewAccess ?? { tokens: [] },
+	{
+		baseUrl: bookConfig.site?.url,
+		path: readRoutes.root,
+	},
+);
 
 // This dashboard is not access-controlled, so tokenized links are only rendered
 // in local development. A built site never contains them.

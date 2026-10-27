@@ -85,9 +85,6 @@ describe("new:book", () => {
 		]) {
 			expect(text).not.toContain(authorBook);
 		}
-		expect(
-			readFileSync(join(appDir, "src", "book.config.ts"), "utf8"),
-		).toContain("relatedBooks: [],");
 	});
 
 	it("holds no pages: the engine serves them, with their copy in book.config.ts", () => {
@@ -96,13 +93,21 @@ describe("new:book", () => {
 			expect(existsSync(join(appDir, "src", folder))).toBe(false);
 		}
 		const config = readFileSync(join(appDir, "src", "book.config.ts"), "utf8");
-		expect(config).toContain('kicker: "",');
-		expect(config).toContain('title: "Browse the mechanisms",');
-		expect(config).toContain("readHub: {");
-		// No cards of its own, so the hub's default cards end with chapter 1.
-		expect(config).not.toContain("quickStartCards: [");
-		expect(config).toContain("mechanismsIndex: {");
-		expect(config).toContain("urgency: {},");
+		// The pages' copy is the engine's default until the author sets it, so
+		// the starter names each field in a comment and sets none of them.
+		for (const field of [
+			"home",
+			"readHub",
+			"mechanismsIndex",
+			"relatedBooks",
+			"localization",
+			"previewAccess",
+		]) {
+			expect(config).toContain(`// - ${field}: `);
+			expect(config).not.toMatch(new RegExp(`^\\t${field}: `, "m"));
+		}
+		// A draft is noindex already, and indexable: false fails the release check.
+		expect(config).not.toContain("indexable:");
 	});
 
 	it("gives each book its own starter slugs", () => {

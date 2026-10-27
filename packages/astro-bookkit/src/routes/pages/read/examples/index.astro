@@ -40,5 +40,7 @@ const localizedLede = buildTranslationLede(
     filterMode="always"
     filterPlaceholder="Filter by title, mechanism, or domain"
     alphaMode="always"
+    emptyMessage="No examples yet."
+    emptyCommand={`bun run bookkit new example ${bookConfig.slug} <mechanism> <domain> "<title>"`}
   />
 </BaseLayout>

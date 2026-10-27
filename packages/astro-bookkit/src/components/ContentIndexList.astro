@@ -24,6 +24,10 @@ type Props = {
 	quickFilters?: Array<{ value: string; label: string }>;
 	quickFiltersLabel?: string;
 	quickFiltersClearLabel?: string;
+	/** Shown in place of the list when it has no items. */
+	emptyMessage?: string;
+	/** In local development only: the command that adds an item, under the empty message. */
+	emptyCommand?: string;
 };
 
 const {
@@ -41,21 +45,30 @@ const {
 	quickFilters = [],
 	quickFiltersLabel = "Show",
 	quickFiltersClearLabel = "All",
+	emptyMessage = "Nothing here yet.",
+	emptyCommand,
 } = Astro.props;
 
 const resolvedItems = Array.isArray(items) ? items : [];
-const resolvedQuickFilters = Array.isArray(quickFilters) ? quickFilters : [];
+// With no items there is nothing to filter, sort, or follow: the page shows
+// the empty message instead of the list, its tools, and the after-list slot.
+const hasItems = resolvedItems.length > 0;
+const resolvedQuickFilters =
+	hasItems && Array.isArray(quickFilters) ? quickFilters : [];
 const shouldAutoFilter = resolvedItems.length > 6;
 const showFilter =
-	filterMode === true ||
-	filterMode === "always" ||
-	(filterMode === "auto" &&
-		(shouldAutoFilter || resolvedQuickFilters.length > 0));
+	hasItems &&
+	(filterMode === true ||
+		filterMode === "always" ||
+		(filterMode === "auto" &&
+			(shouldAutoFilter || resolvedQuickFilters.length > 0)));
 const shouldAutoAlpha = resolvedItems.length > 10;
 const showAlphaNav =
-	alphaMode === true ||
-	alphaMode === "always" ||
-	(alphaMode === "auto" && shouldAutoAlpha);
+	hasItems &&
+	(alphaMode === true ||
+		alphaMode === "always" ||
+		(alphaMode === "auto" && shouldAutoAlpha));
+const showEmptyCommand = import.meta.env.DEV && Boolean(emptyCommand);
 const alphaGroups = resolvedItems.reduce((groups, item) => {
 	const raw = item.title?.trim()?.charAt(0)?.toUpperCase() ?? "#";
 	const key = /[A-Z]/.test(raw) ? raw : "#";
@@ -99,7 +112,7 @@ const filterId = `list-filter-${String(title ?? "items")
     </button>
   </div>
 )}
-{(showFilter || showDensityToggle || showAlphaNav || Astro.slots.has("list-tools-extra")) && (
+{(showFilter || showDensityToggle || showAlphaNav || (hasItems && Astro.slots.has("list-tools-extra"))) && (
 <section class="list-tools" aria-label="List tools">
   <p class="list-summary">{listSummary}</p>
   {showDensityToggle && (
@@ -141,71 +154,84 @@ const filterId = `list-filter-${String(title ?? "items")
   <slot name="list-tools-extra" />
 </section>
 )}
-<div class="stack list-stack" data-list-container={filterId} data-list-density="comfortable">
-  {showAlphaNav
-    ? alphaKeys.map((letter) => (
-        <section class="alpha-group" data-alpha-group>
-          <h2 class="alpha-group__letter" id={`alpha-${letter}`}>
-            {letter}
-          </h2>
-          <div class="stack" data-alpha-items>
-            {alphaGroups.get(letter)?.map((item) => (
-              <a
-                class="list-link"
-                href={item.href}
-                data-list-item
-                data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
-              >
-                {(item.eyebrow || (item.badges?.length ?? 0) > 0) && (
-                  <div class="list-link__meta-row">
-                    {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
-                    {item.badges?.length ? (
-                      <span class="list-link__badges" aria-label="Entry metadata">
-                        {item.badges.map((badge) => (
-                          <span class="list-link__badge">{badge}</span>
-                        ))}
-                      </span>
-                    ) : null}
-                  </div>
-                )}
-                <strong>{item.title}</strong>
-                {item.meta && <span class="meta">{item.meta}</span>}
-                {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
-              </a>
-            ))}
-          </div>
-        </section>
-      ))
-    : resolvedItems.map((item) => (
-        <a
-          class="list-link"
-          href={item.href}
-          data-list-item
-          data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
-        >
-          {(item.eyebrow || (item.badges?.length ?? 0) > 0) && (
-            <div class="list-link__meta-row">
-              {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
-              {item.badges?.length ? (
-                <span class="list-link__badges" aria-label="Entry metadata">
-                  {item.badges.map((badge) => (
-                    <span class="list-link__badge">{badge}</span>
-                  ))}
-                </span>
-              ) : null}
-            </div>
-          )}
-          <strong>{item.title}</strong>
-          {item.meta && <span class="meta">{item.meta}</span>}
-          {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
-        </a>
-      ))}
-</div>
-<div class="list-empty" data-list-empty hidden>
-  <p>Nothing matches that filter.</p>
-  <button type="button" class="pill" data-list-reset>Clear filter</button>
-</div>
-<slot name="after-list" />
+{hasItems ? (
+  <Fragment>
+    <div class="stack list-stack" data-list-container={filterId} data-list-density="comfortable">
+      {showAlphaNav
+        ? alphaKeys.map((letter) => (
+            <section class="alpha-group" data-alpha-group>
+              <h2 class="alpha-group__letter" id={`alpha-${letter}`}>
+                {letter}
+              </h2>
+              <div class="stack" data-alpha-items>
+                {alphaGroups.get(letter)?.map((item) => (
+                  <a
+                    class="list-link"
+                    href={item.href}
+                    data-list-item
+                    data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
+                  >
+                    {(item.eyebrow || (item.badges?.length ?? 0) > 0) && (
+                      <div class="list-link__meta-row">
+                        {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+                        {item.badges?.length ? (
+                          <span class="list-link__badges" aria-label="Entry metadata">
+                            {item.badges.map((badge) => (
+                              <span class="list-link__badge">{badge}</span>
+                            ))}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                    <strong>{item.title}</strong>
+                    {item.meta && <span class="meta">{item.meta}</span>}
+                    {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))
+        : resolvedItems.map((item) => (
+            <a
+              class="list-link"
+              href={item.href}
+              data-list-item
+              data-filter-text={`${item.title ?? ""} ${item.meta ?? ""} ${item.eyebrow ?? ""}`.toLowerCase()}
+            >
+              {(item.eyebrow || (item.badges?.length ?? 0) > 0) && (
+                <div class="list-link__meta-row">
+                  {item.eyebrow && <span class="eyebrow">{item.eyebrow}</span>}
+                  {item.badges?.length ? (
+                    <span class="list-link__badges" aria-label="Entry metadata">
+                      {item.badges.map((badge) => (
+                        <span class="list-link__badge">{badge}</span>
+                      ))}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+              <strong>{item.title}</strong>
+              {item.meta && <span class="meta">{item.meta}</span>}
+              {itemActionLabel && <span class="list-link__action">{itemActionLabel} →</span>}
+            </a>
+          ))}
+    </div>
+    <div class="list-empty" data-list-empty hidden>
+      <p>Nothing matches that filter.</p>
+      <button type="button" class="pill" data-list-reset>Clear filter</button>
+    </div>
+    <slot name="after-list" />
+  </Fragment>
+) : (
+  <div class="list-empty">
+    <p>{emptyMessage}</p>
+    {showEmptyCommand && (
+      <p class="list-empty__command">
+        Shown only in local development. To add one: <code>{emptyCommand}</code>
+      </p>
+    )}
+  </div>
+)}
 {(showFilter || showDensityToggle) && (
   <script define:vars={{ filterId }}>
     const input = document.querySelector(`[data-list-filter="${filterId}"]`);

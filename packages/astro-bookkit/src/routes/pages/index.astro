@@ -61,6 +61,7 @@ const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
 const metaDescription = config.site.defaultMeta?.description;
+// A section with nothing in it yet is not worth a link from the front door.
 const stats = [
 	{
 		label: "Chapters",
@@ -92,7 +93,7 @@ const stats = [
 		count: examples.entries.length,
 		completeness: examples.completeness,
 	},
-];
+].filter((stat) => stat.count > 0);
 const startLinks = [
 	{
 		title: readSectionTitles.overview,
@@ -140,20 +141,22 @@ const startLinks = [
     </div>
   </section>
 
-  <section class="content-block">
-    <h2>What’s inside</h2>
-    <div class="stats-grid">
-      {stats.map((stat) => (
-        <a class="stat-card" href={stat.href}>
-          <div class="stat-value">{stat.count}</div>
-          <div class="stat-label">{stat.label}</div>
-          {formatTranslationCompleteness(stat.completeness) && (
-            <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
-          )}
-        </a>
-      ))}
-    </div>
-  </section>
+  {stats.length > 0 && (
+    <section class="content-block">
+      <h2>What’s inside</h2>
+      <div class="stats-grid">
+        {stats.map((stat) => (
+          <a class="stat-card" href={stat.href}>
+            <div class="stat-value">{stat.count}</div>
+            <div class="stat-label">{stat.label}</div>
+            {formatTranslationCompleteness(stat.completeness) && (
+              <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
+            )}
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
 
   <RelatedBooks books={config.relatedBooks} />
   <script>

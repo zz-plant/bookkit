@@ -160,6 +160,7 @@ const showChangeMarkers =
                   )}
                   <h4>{section.title}</h4>
                   <p class="meta">{section.description}</p>
+                  {section.count === 0 && <p class="meta">None yet.</p>}
                 </a>
               );
             })}

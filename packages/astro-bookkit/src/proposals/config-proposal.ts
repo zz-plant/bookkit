@@ -52,32 +52,9 @@ export const proposeConfigDraft = (
 	site: {
 		url: "https://${options.book}.book",
 		enforceHttps: true,
-		indexable: false,
 		defaultMeta: {
 			description: "Draft book instance for ${escapeQuoted(title)}.",
 		},
-	},
-	localization: {
-		defaultLocale: "en",
-		includeDefaultPrefix: false,
-		label: "Language",
-		locales: [
-			{
-				code: "en",
-				label: "English",
-				isDefault: true,
-				completeness: 1,
-			},
-		],
-	},
-	previewAccess: {
-		enabled: false,
-		paramName: "preview",
-		protectedPaths: ["/"],
-		tokens: [],
-	},
-	features: {
-		aiQa: true,
 	},
 	objectives: {
 		readerStart: "${escapeQuoted(readerStart)}",

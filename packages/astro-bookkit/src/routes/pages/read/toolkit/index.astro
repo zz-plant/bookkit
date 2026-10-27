@@ -40,5 +40,7 @@ const localizedLede = buildTranslationLede(
     filterMode="always"
     filterPlaceholder="Filter by name or mechanism"
     alphaMode="always"
+    emptyMessage="No toolkit actions yet."
+    emptyCommand={`bun run bookkit new tool ${bookConfig.slug} <mechanism> "<name>"`}
   />
 </BaseLayout>

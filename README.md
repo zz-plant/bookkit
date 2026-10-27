@@ -176,6 +176,7 @@ bun run bookkit deploy my-book             # every check, build, and publish to 
 | [`apps/bad-people`](./apps/bad-people) | intervention | draft |
 | [`apps/running-hot`](./apps/running-hot) | intervention | draft |
 | [`apps/crumple-zone`](./apps/crumple-zone) | intervention | draft |
+| [`apps/match-to-july`](./apps/match-to-july) | field-guide | draft |
 
 The On-Call Runbook is the one to read first: four mechanisms, each with one action of 10 minutes, a drill, and an escalation. `check:runbooks` prints its compliance matrix:
 
@@ -189,7 +190,7 @@ COMPLIANCE on-call: 4/4 controls with tool coverage
   REL-ROLLBACK-01 → rollback-first-change [identify-rollback-candidate] ✓drilled ·review due 2026-02-24
 ```
 
-The other three are drafts by one author, held to one vocabulary through `corpus.json` ([Several books](./docs/guide/corpus.md)).
+Bad People, Running Hot and Crumple Zone are drafts by one author, held to one vocabulary through `corpus.json` ([Several books](./docs/guide/corpus.md)). Match Day to July 1 is a draft field guide for new residents, outside that corpus.
 
 ## Documentation
 

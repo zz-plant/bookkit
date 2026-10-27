@@ -1,0 +1,30 @@
+---
+slug: annualized-withholding
+title: "Annualized withholding"
+definition: "Payroll withholds federal income tax from each paycheck as if that paycheck were paid all year, so a resident paid from July to December has about half a year of income withheld at a full-year rate, and the first return tends to produce a refund the following April."
+is:
+  - "Per-paycheck withholding figured by multiplying the period's wages by the number of pay periods in a year."
+  - "A refund on the first resident tax return that reflects tax withheld from July to December, not a tax credit."
+isNot:
+  - "Under-withholding from a second job or moonlighting, which can produce a balance due instead."
+  - "FICA (Social Security and Medicare), which is withheld at flat rates and is not annualized."
+predictions:
+  - "A resident with no other wages in the calendar year sees more federal tax withheld from July to December than the return shows as owed."
+  - "The difference grows with the stipend and shrinks with other wages earned earlier in the year."
+tests:
+  - "Compare the federal tax withheld on the first December pay stub with the tax the IRS Tax Withholding Estimator projects for the year."
+status: draft
+---
+
+## Scope
+
+IRS Publication 15-T (2026), Worksheet 1A, line 1c, multiplies the wages for the payroll period by the number of pay periods in the year before looking up the tax ([IRS Pub. 15-T](https://www.irs.gov/publications/p15t)). A July start means about 5.3 months of pay, figured as if it were twelve.
+
+Section 6 of the same publication describes a **part-year employment method**: an employee who expects to work no more than 245 days in the calendar year, across all employers, may ask the employer in writing, under penalties of perjury, to withhold on the wages actually paid in the term of employment. July 1 to December 31 is 184 days. It is listed among the alternative methods an employer may use, so whether a hospital's payroll offers it is a question for payroll.
+
+Andwise's [Match money plan](https://www.joinandwise.com/residency/plan/texas) estimates the effect for a single resident in Texas with a $70,000 stipend, a July 1 start and a first paycheck three weeks later: about $2,789 of federal income tax withheld in 2027 against about $1,471 owed, a refund of about $1,318 on the return due April 15, 2028. The plan uses 2026 federal brackets and standard deduction ([Rev. Proc. 2025-32](https://www.irs.gov/pub/irs-drop/rp-25-32.pdf)) and assumes no other wages that year.
+
+## Boundaries
+
+- A refund is withheld pay returned, not income. Whether to adjust withholding is the reader's decision; the [W-4 check](/read/toolkit/check-the-w4) shows the numbers.
+- The first return's AGI also prices the second year of loan payments; that link is [student-year pricing](/read/mechanisms/student-year-pricing).

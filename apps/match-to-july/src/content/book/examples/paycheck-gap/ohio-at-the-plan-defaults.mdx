@@ -1,0 +1,22 @@
+---
+mechanism: paycheck-gap
+domain: "Ohio, PGY-1"
+title: "Ohio at the plan's defaults"
+summary: "A May graduate starting in Ohio on July 1, with a first paycheck three weeks later, goes 52 days without pay and needs $10,589 before it arrives at the Match money plan's default inputs."
+status: draft
+---
+
+Andwise's [Match money plan for Ohio](https://www.joinandwise.com/residency/plan/ohio) starts from a $68,600 salary, the AAMC's 2025–26 average PGY-1 stipend for the Central region rounded to the nearest $100 ([AAMC stipend survey](https://www.aamc.org/data-reports/students-residents/report/aamc-survey-resident/fellow-stipends-and-benefits)). The cash gap does not depend on the salary. It depends on three dates, and the plan's defaults (`DEFAULT_INPUTS` in Andwise's `src/lib/match-plan.ts`) set them to a May 2027 graduation, a July 1 start and a first paycheck three weeks later.
+
+From May 31 to July 22, 2027 is **52 days**. At the default inputs, the cash needed before the first paycheck is $10,589:
+
+| Item | Default |
+| --- | --- |
+| Moving | $2,500 |
+| Deposit and rent paid up front | $3,200 |
+| Training license and fees | $100 |
+| Living costs for 52 days at $1,600 rent plus $1,200 other spending a month | $4,789 |
+
+With the plan's default $6,000 of cash on hand, the shortfall is $4,589.
+
+Two defaults are placeholders, not Ohio facts. The license line is $100, while the State Medical Board of Ohio lists the Training Certificate at $130 plus a $3.50 transaction fee ([State Medical Board of Ohio](https://med.ohio.gov/apply-and-renew/licenses-and-certifications/training-certificate)). The three-week wait for the first paycheck is an assumption until the program's GME office publishes its payroll calendar. Replacing either changes the total, not the mechanism.

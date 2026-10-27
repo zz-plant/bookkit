@@ -10,32 +10,13 @@ export const bookConfig = {
 	status: "draft",
 	site: {
 		// Where the book will be published; canonical URLs, the sitemap, and
-		// robots.txt use it.
+		// robots.txt use it. A draft is kept out of search until its status is
+		// published or stable.
 		url: "https://__BOOK_SLUG__.book",
 		enforceHttps: true,
-		indexable: false,
 		defaultMeta: {
 			description: "Draft of __BOOK_TITLE__.",
 		},
-	},
-	localization: {
-		defaultLocale: "en",
-		includeDefaultPrefix: false,
-		label: "Language",
-		locales: [
-			{
-				code: "en",
-				label: "English",
-				isDefault: true,
-				completeness: 1,
-			},
-		],
-	},
-	previewAccess: {
-		enabled: false,
-		paramName: "preview",
-		protectedPaths: ["/"],
-		tokens: [],
 	},
 	features: {
 		aiQa: false,
@@ -63,33 +44,17 @@ export const bookConfig = {
 	// it to explain: { slug: "...", focus: "..." }.
 	mechanisms: [],
 	glossaryFocus: [],
-	// Copy on the home page: a short label above the title (such as "Field
-	// guide"; empty for none) and the "Where to start" card that opens the
-	// mechanisms index.
-	home: {
-		kicker: "",
-		mechanismsCard: {
-			title: "Browse the mechanisms",
-			description: "The named patterns this book explains.",
-		},
-	},
-	// Copy on the reading hub (/read): the line under its title, and the
-	// "Where to start" cards. Leave quickStartCards out for the default ones
-	// (About this book, the chapter list, and "Start with chapter 1: <its
-	// title>"), or list your own in order ({ title, description, href,
-	// recommended?, funnelStep? }); an empty list shows none.
-	readHub: {
-		lede: "See what the book sets out to do, start at chapter 1, or look something up.",
-	},
-	// The mechanisms index (/read/mechanisms): the line under its title, and
-	// how urgent each mechanism is by slug ("urgent", "high-leverage" or
-	// "stabilize"), which orders the list and adds tag filters.
-	mechanismsIndex: {
-		lede: "The named patterns this book explains, and how to recognize each one.",
-		urgency: {},
-	},
-	// Other books to link from the home page: { title, href, description }.
-	relatedBooks: [],
+	// Optional fields, each with an engine default until you set it:
+	// - author: { name, url? }, the byline.
+	// - home: { kicker, mechanismsCard: { title, description } }, the home
+	//   page's label above the title and its card for the mechanisms index.
+	// - readHub: { lede, quickStartCards }, the reading hub's line under its
+	//   title and its "Where to start" cards ([] shows none).
+	// - mechanismsIndex: { lede, urgency }, the mechanisms index's line under
+	//   its title, and "urgent", "high-leverage" or "stabilize" by slug.
+	// - relatedBooks: [{ title, href, description? }], other books to link.
+	// - localization: other languages; the default is English only.
+	// - previewAccess: token-gated previews, which need a server runtime.
 } as const satisfies BookConfig;
 
 export default bookConfig;

@@ -36,5 +36,7 @@ const localizedLede = buildTranslationLede(
     filterMode="always"
     filterPlaceholder="Filter terms"
     alphaMode="always"
+    emptyMessage="No glossary terms yet."
+    emptyCommand={`bun run bookkit new glossary ${bookConfig.slug} "<term>"`}
   />
 </BaseLayout>

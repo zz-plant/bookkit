@@ -80,7 +80,8 @@ export type BookConfig = BookLayoutConfig &
 		slug: string;
 		status: string;
 		site: BookSeoConfig & { url: string };
-		previewAccess: PreviewAccessConfig;
+		/** Token-gated previews. Leave it out for none. */
+		previewAccess?: PreviewAccessConfig;
 		/** Who the reader is at the start, who they are at the end, and the change between. */
 		objectives: {
 			readerStart: string;

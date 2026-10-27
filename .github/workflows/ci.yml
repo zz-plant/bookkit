@@ -173,7 +173,6 @@ jobs:
     # Recent runs: under a minute; longer when the model is not cached.
     timeout-minutes: 20
     env:
-      BOOKKIT_MODEL_CACHE: ${{ github.workspace }}/../bookkit-models
       BOOKKIT_DOWNLOAD_MODEL: "1"
     steps:
       - uses: actions/checkout@v7
@@ -191,6 +190,9 @@ jobs:
         run: |
           id="$(bun -e 'import { DEFAULT_EMBEDDING_MODEL_KEY, EMBEDDING_MODELS } from "./scripts/lib/embed-text.ts"; console.log(EMBEDDING_MODELS[DEFAULT_EMBEDDING_MODEL_KEY].id)')"
           echo "id=$id" >> "$GITHUB_OUTPUT"
+          # Outside the checkout, under $HOME: actions/cache will not save a
+          # path with "..", so a workspace/../ path downloaded 550 MB every run.
+          echo "BOOKKIT_MODEL_CACHE=$HOME/.cache/bookkit-models" >> "$GITHUB_ENV"
 
       - uses: actions/cache@v6
         with:

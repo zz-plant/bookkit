@@ -16,9 +16,19 @@ describe("planGates", () => {
 			ids(["apps/running-hot/src/content/book/chapters/12-put-a-clock.mdx"]),
 		).toEqual([
 			"validate:running-hot",
+			"unused",
 			"separation",
 			"concepts",
 			"build:running-hot",
+		]);
+	});
+
+	it("checks mechanism coverage when a book's status could have changed", () => {
+		const gate = planGates(["apps/on-call/src/book.config.ts"], books).find(
+			(candidate) => candidate.id === "unused",
+		);
+		expect(gate?.commands).toEqual([
+			["bun", "run", "scripts/audit-unused.ts", "--book", "on-call"],
 		]);
 	});
 
@@ -105,6 +115,7 @@ describe("planGates", () => {
 			"validate:bad-people",
 			"validate:on-call",
 			"validate:running-hot",
+			"unused",
 			"corpus",
 			"concepts",
 			"build:all",

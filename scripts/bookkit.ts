@@ -2472,7 +2472,14 @@ Usage: ${usage}`);
 	console.log(
 		`\n🔎 ${book} checked with the rules a published book is held to\n`,
 	);
-	const checked = runScript("validate-book.ts", ["--book", book, "--release"]);
+	const validated = runScript("validate-book.ts", [
+		"--book",
+		book,
+		"--release",
+	]);
+	// verify holds a published book to this too, so publish must not pass a book verify then fails.
+	const covered = runScript("audit-unused.ts", ["--book", book, "--release"]);
+	const checked = validated || covered;
 	// A dry run, or a book that still fails, keeps its records as they were.
 	if (checked !== 0 || dryRun) {
 		for (const [path, text] of originals) writeFileSync(path, text);

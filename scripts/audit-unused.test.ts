@@ -61,6 +61,21 @@ describe("audit:unused", () => {
 		expect(result.output).toContain("untooled");
 	});
 
+	it("holds a draft to the published rule with --release, as publish does", () => {
+		const result = runChild(
+			[
+				process.execPath,
+				join(repoRoot(), "scripts", "audit-unused.ts"),
+				"--book",
+				"drafting",
+				"--release",
+			],
+			{ cwd: workspace },
+		);
+		expect(result.status).toBe(1);
+		expect(result.output).toContain("checked as published");
+	});
+
 	it("passes for this repository's books", () => {
 		const result = runChild(
 			[process.execPath, join(repoRoot(), "scripts", "audit-unused.ts")],

@@ -10,9 +10,9 @@
  * | packages/astro-bookkit/**            | types, tests, shims, architecture, build one book   |
  * | packages/create-bookkit/**           | types, tests                                        |
  * | scripts/**                           | types (.ts only), tests                             |
- * | apps/<book>/src/content/**           | validate that book, separation, concepts, build it  |
+ * | apps/<book>/src/content/**           | validate that book, unused, separation, concepts, build it |
  * | apps/<book>/src/content/.../mechanisms, corpus.json, corpus-judgments.json | mechanisms across books |
- * | apps/<book>/** (config, pages, lib)  | types, shims, validate, build that book             |
+ * | apps/<book>/** (config, pages, lib)  | types, shims, validate, unused, build that book     |
  * | docs/architecture.md                 | architecture                                        |
  * | TODOS.md                             | todos                                               |
  * | package.json, bun.lock, tsconfig, biome.json, CI | everything in the first column above    |
@@ -87,6 +87,16 @@ const validateGate = (book: string, why: string): Gate => ({
 	parse: "findings-json",
 });
 
+/** A published or stable book's mechanisms each need an action and an example; `null` checks every book. */
+const unusedGate = (books: string[] | null, why: string): Gate => ({
+	id: "unused",
+	label: "mechanism coverage",
+	why,
+	commands: books
+		? books.map((book) => bun("scripts/audit-unused.ts", "--book", book))
+		: [bun("scripts/audit-unused.ts")],
+});
+
 /**
  * Gates a standalone project (create-bookkit) has nothing for: it installs no
  * Biome, vendors no engine tests, and has no architecture doc.
@@ -154,6 +164,7 @@ const planWorkspaceGates = (
 				commands: [bun("check:shims")],
 			},
 			...books.map((book) => validateGate(book, "every book")),
+			unusedGate(null, "every book"),
 			corpusGate("mechanisms stay distinct across books"),
 			conceptsGate(null, "every book"),
 			{
@@ -231,13 +242,17 @@ const planWorkspaceGates = (
 		});
 	}
 
-	for (const book of [...new Set([...contentBooks, ...appCode])]) {
+	const changedBooks = [...new Set([...contentBooks, ...appCode])];
+	for (const book of changedBooks) {
 		add(
 			validateGate(
 				book,
 				contentBooks.includes(book) ? "content changed" : "book config or app",
 			),
 		);
+	}
+	if (changedBooks.length > 0) {
+		add(unusedGate(changedBooks, "records or status changed"));
 	}
 	if (contentBooks.length > 0) {
 		add({
@@ -285,15 +300,14 @@ const planWorkspaceGates = (
 
 	// Builds last: they are the slowest and catch what nothing else does (MDX
 	// syntax, prerender failures, shipped output).
-	const buildBooks = [...new Set([...contentBooks, ...appCode])];
-	for (const book of buildBooks) {
+	for (const book of changedBooks) {
 		add(buildGate(book, "its content or app changed"));
 	}
 	// A fork or standalone project may not have the representative book.
 	const representative = books.includes(REPRESENTATIVE_BOOK)
 		? REPRESENTATIVE_BOOK
 		: [...books].sort()[0];
-	if (engine && representative && !buildBooks.includes(representative)) {
+	if (engine && representative && !changedBooks.includes(representative)) {
 		add(
 			buildGate(representative, "engine changed; one book stands in for all"),
 		);

@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-27 — A published book's mechanisms each need an action and an example; author pages are reachable
+
+- **`verify` and `bookkit publish` hold a published book to an action and an example per mechanism.** `bun run audit:unused` had this rule, but nothing ran it. `verify` now runs it for every book a change touches (and for every book with `--all`, which CI runs), and `bookkit publish` runs it with the new `--release` flag before it changes the status. Before: a published book could lose its last action or example for a mechanism and pass CI. After: `verify` fails and names the mechanism. A draft book still passes, with its gaps listed as work to do. create-bookkit projects get the script and an `audit:unused` package script.
+- **The new-book form can be found.** Only the preview menu linked `/new-book`, and a static build has no preview. Author tools, which the reading hub links, now links the form, and `g b` opens it, as the menu link already announced. The menu's "For authors" group now shows under `bookkit dev` as well as in a token preview.
+- **The guide documents translations, author pages, and `SOURCE_DATE_EPOCH`.** [Translations](./docs/guide/concepts.md#translations) says what a build does not serve yet: translated pages show only under `bookkit dev`.
+
+Migration: a published or stable book with a mechanism that has no action or no example fails `verify` until it gets one (`bookkit new tool`, `bookkit new example`). `bun run audit:unused -- --book <book>` lists them. Every book in this repository passes.
+
 ## 2026-10-23 — CI green again: cross-device builds, the undici advisory, the gone-folder guard
 
 - **A test build's `--outDir` stays on the repository's filesystem.** The static-build and browser tests built into `os.tmpdir()`, but Astro moves build output into the outDir with `rename(2)`, which cannot cross devices. The Linux CI runners have kept `/tmp` on its own device since `ubuntu-latest` moved to Ubuntu 26, as do machines with `/tmp` on tmpfs, so every such build failed with `EXDEV`. Test builds now write to `.test-builds/` (gitignored, beside `.test-workspaces/`).

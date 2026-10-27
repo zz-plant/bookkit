@@ -21,6 +21,7 @@ export const ENTRY_SCRIPTS = [
 	"check-todos.ts",
 	"check-corpus.ts",
 	"check-floating-concepts.ts",
+	"audit-unused.ts",
 	"check-suggestions.ts",
 	"check-runbooks.ts",
 	"import-book-from-markdown.ts",

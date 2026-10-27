@@ -13,14 +13,21 @@ import {
 exitOnHelp({
 	summary:
 		"Lists, per book, mechanisms with no toolkit action or example, and\nactions or examples whose mechanism is missing or unknown. A draft book\nmay still lack actions and examples; a published or stable book may not.",
-	usage: ["bun run audit:unused [--book <book>]"],
-	options: [["--book <book>", "One book (default: every book)"]],
+	usage: ["bun run audit:unused [--book <book>] [--release]"],
+	options: [
+		["--book <book>", "One book (default: every book)"],
+		[
+			"--release",
+			"Hold a draft to the published rule too (bookkit publish does)",
+		],
+	],
 	notes:
-		"Exits 1 on a missing or unknown mechanism, and, in a published or\nstable book, on a mechanism without an action or example.",
+		"Exits 1 on a missing or unknown mechanism, and, in a published or\nstable book, on a mechanism without an action or example. verify runs it\nfor every book a change touches, and bookkit publish runs it with --release.",
 	examples: ["bun run audit:unused", "bun run audit:unused -- --book on-call"],
 });
 
 const onlyBook = optionalArg("--book");
+const releaseRules = process.argv.includes("--release");
 const books = onlyBook ? [onlyBook] : listBookDirs();
 
 if (books.length === 0) {
@@ -39,7 +46,7 @@ for (const book of books) {
 			: undefined) ?? "draft";
 	// A draft is expected to have mechanisms it has not written tools or
 	// examples for yet; a published or stable book is not.
-	const released = isReleasedStatus(status);
+	const released = releaseRules || isReleasedStatus(status);
 	const mechanismFiles = listContentFiles(join(bookRoot, "mechanisms"));
 	const toolFiles = listContentFiles(join(bookRoot, "toolkit"));
 	const exampleFiles = listContentFiles(join(bookRoot, "examples"));
@@ -109,9 +116,14 @@ for (const book of books) {
 		continue;
 	}
 
-	console.log(
-		`\n${book} (${status}${released ? "" : ": mechanisms without tools or examples are still to write, not failures"}):`,
-	);
+	let note = "";
+	if (!released) {
+		note =
+			": mechanisms without tools or examples are still to write, not failures";
+	} else if (!isReleasedStatus(status)) {
+		note = ", checked as published";
+	}
+	console.log(`\n${book} (${status}${note}):`);
 	reportList("Mechanisms without tools", mechanismsWithoutTools);
 	reportList("Mechanisms without examples", mechanismsWithoutExamples);
 	reportList("Tools missing mechanism frontmatter", toolsMissingMechanism);

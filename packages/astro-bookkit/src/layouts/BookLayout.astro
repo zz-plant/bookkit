@@ -205,7 +205,7 @@ const qaEnabled = hasServerRuntime && aiQaEnabled;
         includeDefaultLocalePrefix={renderState.locale.includeDefaultLocalePrefix}
         localeLabel={renderState.locale.label}
         aiQaEnabled={qaEnabled}
-        enableAuthorTools={enableAuthorTools ?? renderState.preview.isPreview}
+        enableAuthorTools={enableAuthorTools ?? (renderState.preview.isPreview || import.meta.env.DEV)}
       />
       {renderState.translationNotice.show && (
         <div class="translation-notice" role="status">

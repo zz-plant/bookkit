@@ -51,6 +51,7 @@ export const PROJECT_SCRIPT_NAMES = [
 	"check:todos",
 	"check:corpus",
 	"check:concepts",
+	"audit:unused",
 	"check:runbooks",
 	"validate",
 	"validate:book",

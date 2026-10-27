@@ -3,6 +3,13 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-27 — `bookkit map`: which chapters bind which mechanisms
+
+- **`bookkit map [book] [--json]`** prints a book's mechanisms by chapter as a grid, with stub chapters marked. Below it, the map names the chapters that list no mechanism (with their words), the mechanisms no chapter lists, the mechanisms another book of the corpus also defines, and slugs a chapter lists that the book does not define. Word counts and the stub threshold come from `chapterDraft`, the count `bookkit check <chapter.mdx>` and `bookkit bets` use. Read-only.
+- **`bookkit bets` no longer says a chapter that binds nothing "binds existing mechanisms only".** A drafted chapter whose `mechanisms:` is empty now reads "binds no mechanism" and points to `bookkit map`. The verdict is unchanged: such a chapter still introduces no new mechanism.
+
+Migration: none. New command; the `bets` change is wording only.
+
 ## 2026-10-23 — CI green again: cross-device builds, the undici advisory, the gone-folder guard
 
 - **A test build's `--outDir` stays on the repository's filesystem.** The static-build and browser tests built into `os.tmpdir()`, but Astro moves build output into the outDir with `rename(2)`, which cannot cross devices. The Linux CI runners have kept `/tmp` on its own device since `ubuntu-latest` moved to Ubuntu 26, as do machines with `/tmp` on tmpfs, so every such build failed with `EXDEV`. Test builds now write to `.test-builds/` (gitignored, beside `.test-workspaces/`).

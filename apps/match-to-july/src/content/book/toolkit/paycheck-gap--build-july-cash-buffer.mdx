@@ -1,0 +1,24 @@
+---
+slug: build-july-cash-buffer
+mechanism: paycheck-gap
+name: "Build the July cash buffer"
+trigger: "The program and city are known, and the move date is not yet booked."
+timeboxMinutes: 10
+steps:
+  - "Ask the GME office for the payroll calendar and write down the first payday."
+  - "Count the days from the end of the graduation month to that payday."
+  - "Enter the state, rent, other monthly spending, moving cost, deposit, license fee and cash on hand in the Match money plan (joinandwise.com/residency/plan/<state>)."
+  - "Note the plan's cash needed and the shortfall, if any."
+  - "Read the residency agreement for relocation pay, a signing advance or a living allowance, and subtract any amount and its pay date."
+failureLooksLike:
+  - "The first payday turns out later than the date the budget assumed."
+  - "The deposit and the move land on a credit card with no date to pay it off."
+legitimateDemand:
+  - "When is the first payday, and does it cover the full first pay period?"
+  - "Does the program offer relocation pay, a pay advance or a housing stipend, and when is it paid?"
+status: draft
+---
+
+The [Match money plan](https://www.joinandwise.com/residency/plan/texas) computes the gap from the graduation month and an estimated first payday; with a May graduation and a first paycheck three weeks after July 1, it counts 52 days. Its inputs are assumptions until replaced with the reader's own, and they stay in the browser's address bar, not on a server.
+
+Relocation pay and living allowances appear in some residency agreements and not others ([Andwise, 2023-02-08](https://www.joinandwise.com/blog/a-medical-students-first-contract-what-to-know-about-the-gme-residency-agreement)). The [residency overview](https://www.joinandwise.com/residency) lists the sequence the costs fall in.

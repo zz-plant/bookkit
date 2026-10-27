@@ -1,0 +1,24 @@
+---
+slug: check-the-w4
+mechanism: annualized-withholding
+name: "Check the W-4"
+trigger: "Payroll onboarding asks for a Form W-4, or the first pay stub has arrived."
+timeboxMinutes: 10
+steps:
+  - "From the first pay stub, write down the gross pay, the federal income tax withheld and the number of paychecks left in the calendar year."
+  - "Multiply the withholding by the paychecks left and add what was withheld so far: that is the year's projected withholding."
+  - "Run the IRS Tax Withholding Estimator with the year's actual wages, including any earlier in the year, and note its projected tax."
+  - "Note the difference: a positive number is the refund the current W-4 points to."
+  - "Write the question for payroll: does it offer the part-year employment method in IRS Publication 15-T, and what does the written request need?"
+failureLooksLike:
+  - "The estimator projects a balance due rather than a refund, which points to wages the W-4 does not reflect, such as moonlighting or a spouse's job."
+  - "Payroll does not answer whether it offers the part-year method."
+legitimateDemand:
+  - "Does payroll use the part-year employment method on written request?"
+  - "Which form or portal changes the W-4, and from which paycheck does a change apply?"
+status: draft
+---
+
+Withholding annualizes each paycheck ([IRS Pub. 15-T, Worksheet 1A](https://www.irs.gov/publications/p15t)); the part-year employment method in section 6 of the same publication applies to an employee expecting no more than 245 days of work in the year, on a written request under penalties of perjury. The [Tax Withholding Estimator](https://www.irs.gov/individuals/tax-withholding-estimator) and [Form W-4](https://www.irs.gov/forms-pubs/about-form-w-4) are on irs.gov.
+
+The [Match money plan](https://www.joinandwise.com/residency/plan/texas) estimates the first-year withholding, tax owed and refund for the state matched. A refund on the first return, and a change to the W-4, are both within the rules; which one fits is the reader's decision.

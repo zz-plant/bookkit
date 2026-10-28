@@ -4,8 +4,8 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build",
+		"dev": "bun --bun astro dev",
+		"build": "bun --bun astro build",
 		"validate": "bun run ../../scripts/validate-book.ts --book bad-people",
 		"deploy": "bun run --cwd ../.. bookkit deploy bad-people"
 	},

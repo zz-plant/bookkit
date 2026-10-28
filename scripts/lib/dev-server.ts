@@ -117,10 +117,8 @@ export const runDevServer = async (
 		return 1;
 	}
 	const appDir = join(repoRoot(), "apps", book);
-	// Node, like the `astro` command; Bun stands in when Node is not installed.
-	const runtime = Bun.which("node") ?? process.execPath;
 	const child = spawn(
-		runtime,
+		process.execPath,
 		[join(import.meta.dir, "astro-dev.mjs"), appDir, String(port)],
 		{
 			cwd: appDir,
@@ -141,7 +139,7 @@ export const runDevServer = async (
 	return new Promise((resolve) => {
 		child.once("error", (error) => {
 			console.error(
-				`Could not start the dev server with ${runtime}: ${error.message}`,
+				`Could not start the dev server with ${process.execPath}: ${error.message}`,
 			);
 			resolve(1);
 		});

@@ -100,13 +100,19 @@ if (process.env.STUB_BREAK_DIST === book) rmSync(join(process.cwd(), "dist", "ex
 	);
 
 	// deploy runs scripts/check-build.ts and node_modules/.bin/wrangler from
-	// the directory it starts in.
+	// the directory it starts in, wrangler under Bun, so the stub is JavaScript.
 	symlinkSync(join(repoRoot(), "scripts"), join(root, "scripts"));
 	const bin = join(root, "node_modules", ".bin");
 	mkdirSync(bin, { recursive: true });
 	writeFileSync(
 		join(bin, "wrangler"),
-		`#!/bin/sh\necho "$(basename "$PWD") $*" >> "${log("wrangler")}"\n[ "$(basename "$PWD")" != "$STUB_FAIL_WRANGLER" ]\n`,
+		`#!/usr/bin/env node
+import { appendFileSync } from "node:fs";
+import { basename } from "node:path";
+const book = basename(process.cwd());
+appendFileSync(${JSON.stringify(log("wrangler"))}, \`\${book} \${process.argv.slice(2).join(" ")}\\n\`);
+if (process.env.STUB_FAIL_WRANGLER === book) process.exit(1);
+`,
 	);
 	chmodSync(join(bin, "wrangler"), 0o755);
 

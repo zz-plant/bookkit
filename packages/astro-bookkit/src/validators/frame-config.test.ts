@@ -157,6 +157,20 @@ describe("extractSiteSettingsFromSource", () => {
 		});
 	});
 
+	test("reads a literal that a comment comes before", () => {
+		const source = `export const bookConfig = {
+	site: {
+		url: /* the public address */ "https://book.example",
+		indexable: // kept out of search for now
+			false,
+	},
+};`;
+		expect(extractSiteSettingsFromSource(source)).toEqual({
+			url: "https://book.example",
+			indexable: false,
+		});
+	});
+
 	test("leaves out a value written as an expression", () => {
 		expect(
 			extractSiteSettingsFromSource(

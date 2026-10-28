@@ -291,7 +291,16 @@ function literalOfKey(
 		key.lastIndex = i;
 		const match = key.exec(source);
 		if (!match) continue;
-		const start = i + match[0].length;
+		// Comments may sit between the colon and the value, as whitespace may.
+		let start = i + match[0].length;
+		for (
+			let next = skipComment(source, start);
+			next !== start;
+			next = skipComment(source, start)
+		) {
+			start = next;
+			while (/\s/.test(source[start] ?? "")) start++;
+		}
 		const end = STRING_START.test(source[start])
 			? readStringAt(source, start)
 			: (/true|false/y.exec(source.slice(start, start + 5))?.[0].length ?? 0) +

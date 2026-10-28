@@ -61,7 +61,7 @@
 		"check": "bun run bookkit check"
 	},
 	"devDependencies": {
-		"@astrojs/check": "^0.9.10",
+		"@astrojs/check": "^0.9.12",
 		"@biomejs/biome": "^2.5.8",
 		"@bookkit/astro-bookkit": "workspace:*",
 		"@mdx-js/mdx": "^3.1.1",

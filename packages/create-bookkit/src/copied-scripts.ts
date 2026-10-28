@@ -21,7 +21,6 @@ export const ENTRY_SCRIPTS = [
 	"check-todos.ts",
 	"check-corpus.ts",
 	"check-floating-concepts.ts",
-	"audit-unused.ts",
 	"check-suggestions.ts",
 	"check-runbooks.ts",
 	"import-book-from-markdown.ts",
@@ -73,7 +72,8 @@ export type VendoredScripts = {
 
 /**
  * Script files a source names in a string rather than importing, as
- * `runScript("validate-book.ts")` and `join("scripts", "lib", "x.mjs")` do.
+ * `runScript("validate-book.ts")`, `join("scripts", "lib", "x.mjs")`, and
+ * verify's gates (`"scripts/check-floating-concepts.ts"`) do.
  */
 const namedScripts = (source: string, from: string, scriptsDir: string) =>
 	[...source.matchAll(/["']([\w.-]+(?:\/[\w.-]+)*\.(?:ts|mjs))["']/g)]
@@ -81,6 +81,7 @@ const namedScripts = (source: string, from: string, scriptsDir: string) =>
 			join(dirname(from), match[1]),
 			join(scriptsDir, match[1]),
 			join(scriptsDir, "lib", match[1]),
+			join(dirname(scriptsDir), match[1]),
 		])
 		.filter(
 			(path) =>

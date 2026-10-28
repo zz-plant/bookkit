@@ -44,7 +44,6 @@
 		"check:runbooks": "bun run scripts/check-runbooks.ts",
 		"check:runbooks:error": "bun run scripts/check-runbooks.ts --mode error",
 		"propose": "bun run scripts/propose-book.ts",
-		"audit:unused": "bun run scripts/audit-unused.ts",
 		"export:gitbook": "bun run scripts/export-gitbook.ts",
 		"export:smoke": "bun run scripts/export-smoke.ts",
 		"check:separation": "bun run scripts/check-separation.ts",

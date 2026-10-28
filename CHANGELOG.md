@@ -3,13 +3,19 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
-## 2026-10-27 — A published book's mechanisms each need an action and an example; author pages are reachable
+## 2026-10-28 — One validator: every rule a book is held to lives in the engine
 
-- **`verify` and `bookkit publish` hold a published book to an action and an example per mechanism.** `bun run audit:unused` had this rule, but nothing ran it. `verify` now runs it for every book a change touches (and for every book with `--all`, which CI runs), and `bookkit publish` runs it with the new `--release` flag before it changes the status. Before: a published book could lose its last action or example for a mechanism and pass CI. After: `verify` fails and names the mechanism. A draft book still passes, with its gaps listed as work to do. create-bookkit projects get the script and an `audit:unused` package script.
+- **MCP's `validate_book` applies the rules `bun run validate` does.** Four rules lived only in `scripts/validate-book.ts`, so the MCP tool never ran them: release-note checks (`RELEASE_NOTE_*`), starter text left in `book.config.ts` (`CONFIG_PLACEHOLDER`), and, under release rules, `site.indexable: false` (`RELEASE_NOT_INDEXABLE`) and a missing or local `site.url` (`RELEASE_SITE_URL`). Before: `match-to-july` checked as published got `RELEASE_NOT_INDEXABLE` from the CLI and not from MCP. After: all of them come from `checkBookContent`, which every caller uses, and `bookkit check <file>` reports each one on the file it is about.
+- **A mechanism needs an action and an example.** `MECHANISM_NO_ACTION` and `MECHANISM_NO_EXAMPLE` are warnings in a draft and errors under release rules, on the mechanism's file, each with the command that adds one. This replaces `bun run audit:unused`, which nothing ran; the script and its package script are removed.
+- **`site.url` and `site.indexable` are read without TypeScript.** The engine may not depend on `typescript`, so the validator reads them as literals in `site: { ... }`, the way it already reads `status` and `frame`. Every book in this repository and the starter write them that way. A config that sets `site` through a variable or a spread (`site: sharedSite`, `{ site }`) now gets `RELEASE_SITE_URL` once it is published.
+- **create-bookkit copies every script verify's gates name.** Its copy followed scripts named as `"x.ts"`, not as `"scripts/x.ts"`, which is how gates and MCP tools name them; it now follows both, and a test checks that every script a gate, the CLI, or an MCP tool starts is copied. A new project gets the same 65 files as before.
+
+Migration: drafts get warnings for each mechanism without an action or example (here: crumple-zone 19, match-to-july 4); a published or stable book gets errors until it has them (`bookkit new tool`, `bookkit new example`). A book that sets `site` through a variable or a spread writes it as `site: { url: "…" }` before it publishes. In place of `bun run audit:unused`, `bun run validate -- --book <book>` lists the same gaps.
+
+## 2026-10-27 — Author pages are reachable; the guide covers translations and export dates
+
 - **The new-book form can be found.** Only the preview menu linked `/new-book`, and a static build has no preview. Author tools, which the reading hub links, now links the form, and `g b` opens it, as the menu link already announced. The menu's "For authors" group now shows under `bookkit dev` as well as in a token preview.
 - **The guide documents translations, author pages, and `SOURCE_DATE_EPOCH`.** [Translations](./docs/guide/concepts.md#translations) says what a build does not serve yet: translated pages show only under `bookkit dev`.
-
-Migration: a published or stable book with a mechanism that has no action or no example fails `verify` until it gets one (`bookkit new tool`, `bookkit new example`). `bun run audit:unused -- --book <book>` lists them. Every book in this repository passes.
 
 ## 2026-10-23 — CI green again: cross-device builds, the undici advisory, the gone-folder guard
 

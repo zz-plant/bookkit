@@ -37,7 +37,7 @@ The book's `status` in `book.config.ts` decides which rules apply and whether se
 | --- | --- | --- |
 | `draft`, or no status | Draft records are allowed. Broken links, unknown prerequisites, and unsafe links are warnings. | Every page is `noindex`, `robots.txt` disallows everything, and the sitemap is empty. |
 | `in-review` | As for `draft`, except that a book with no chapters is an error (`BOOK_EMPTY`). | As for `draft`. |
-| `published`, `stable` | Release rules: a draft record is an error (`DRAFT_IN_RELEASE`), as are broken links, unknown prerequisites, unsafe links, missing runbook fields, and a book with no chapters. `site.url` must be a public address and `site.indexable` must not be `false`. | Indexable. |
+| `published`, `stable` | Release rules: a draft record is an error (`DRAFT_IN_RELEASE`), as are broken links, unknown prerequisites, unsafe links, missing runbook fields, a mechanism with no action or example, starter text left in `book.config.ts`, and a book with no chapters. `site.url` must be a public address, written as a string in `site: { ... }`, and `site.indexable` must not be `false`. | Indexable. |
 
 Every chapter, mechanism, action, example, and glossary entry has its own `status` with the same four values (default `draft`). A draft record is still built and shown: chapter pages label any status other than published. A record marked `published` or `stable` is held to release rules even in a draft book.
 

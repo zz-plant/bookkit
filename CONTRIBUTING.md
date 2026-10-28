@@ -115,9 +115,9 @@ Requirements:
 | any formattable file | Biome format, import order, lint (changed files only) |
 | `packages/astro-bookkit/**` | types, tests, shims, architecture doc, build `on-call` |
 | `packages/create-bookkit/**`, `scripts/**` | types (`.ts` only), tests |
-| `apps/<book>/src/content/**` | validate that book, mechanism coverage (an action and example each, once published), separation, named concepts (warnings only), build that book |
+| `apps/<book>/src/content/**` | validate that book, separation, named concepts (warnings only), build that book |
 | a mechanism file, `corpus.json`, `corpus-judgments.json` | mechanisms across books (wording, and judges' verdicts) |
-| `apps/<book>/**` (config, content, pages) | types, shims, validate, mechanism coverage, build that book |
+| `apps/<book>/**` (config, content, pages) | types, shims, validate, build that book |
 | `docs/architecture.md` | architecture doc |
 | `TODOS.md` | todos |
 | `package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**` | as for engine code |

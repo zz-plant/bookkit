@@ -221,19 +221,24 @@ describe("ci.yml", () => {
 		const guard = steps[deploy].run?.match(/<<'GUARD'\n([\s\S]*?)\nGUARD/)?.[1];
 		expect(guard).toBeDefined();
 		writeFileSync(join(scratch, "wrangler"), `${guard}\n`);
+		// deploy runs wrangler with `bun --bun`, so the guard and the wrangler it
+		// wraps both run as JavaScript under Bun, as they do here.
 		writeFileSync(
 			join(scratch, "wrangler-real"),
-			'#!/bin/sh\necho "real wrangler: $*"\n',
+			'#!/usr/bin/env node\nconsole.log(`real wrangler: ${process.argv.slice(2).join(" ")}`);\n',
 		);
 		chmodSync(join(scratch, "wrangler"), 0o755);
 		chmodSync(join(scratch, "wrangler-real"), 0o755);
 		const env = { RUNNER_TEMP: scratch };
 
-		const publish = runStep("./wrangler deploy --message abc", env);
+		const publish = runStep("bun --bun ./wrangler deploy --message abc", env);
 		expect(publish.status).toBe(1);
 		expect(publish.output).not.toContain("real wrangler");
 
-		const dryRun = runStep("./wrangler deploy --dry-run --message abc", env);
+		const dryRun = runStep(
+			"bun --bun ./wrangler deploy --dry-run --message abc",
+			env,
+		);
 		expect(dryRun.status).toBe(0);
 		expect(dryRun.output).toContain(
 			"real wrangler: deploy --dry-run --message abc",

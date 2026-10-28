@@ -55,7 +55,7 @@ const startDevServer = async (book: Book) => {
 	delete env.BOOKKIT_DATA_DIR;
 	const server = Bun.spawn(
 		[
-			Bun.which("node") ?? process.execPath,
+			process.execPath,
 			join(repoRoot(), "scripts", "lib", "astro-dev.mjs"),
 			appDirs[book],
 			String(port),

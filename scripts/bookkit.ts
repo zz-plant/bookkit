@@ -648,7 +648,7 @@ switch (findCommand(command)?.name ?? command) {
 			}
 			// Then one astro dev moved to the background itself. Astro answers
 			// in JSON when it detects an agent; print just its message.
-			const result = spawnSync("bunx", ["astro", "dev", control], {
+			const result = spawnSync("bunx", ["--bun", "astro", "dev", control], {
 				cwd: join(repoRoot(), "apps", targetBook),
 				stdio: ["inherit", "pipe", "inherit"],
 			});

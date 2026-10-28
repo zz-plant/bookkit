@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-28 — Bun runs Astro and wrangler; Node is no longer needed
+
+- **A book's `dev` and `build` scripts are `bun --bun astro dev` and `bun --bun astro build`.** The `astro` command starts with `#!/usr/bin/env node`, so `bun run build` ran Astro under Node, and Node 22.22 was a prerequisite. Bun now runs it. All five books build to the same pages, search index, sitemap, feeds, icons, and link-preview images under either runtime; the only difference is Vite's module-preload helper, which Vite prints from a function at build time and Bun prints with `let f = function` where Node prints `function f`. The two behave the same, but that changes the hash in every bundle file name once.
+- **`bookkit dev`, `bookkit dev stop`, `check:types` (`astro check`), and `bookkit deploy` (wrangler) run under Bun too.** The wrangler dry run passes under Bun; a real publish under Bun has not run yet.
+- **Node is unpinned:** gone from `engines`, `mise.toml`, the CI and deploy workflows (no `setup-node`), and `scripts/codex-setup.sh`. `toolchain-pins.test.ts` now checks that nothing pins Node and that the Node version Bun reports (26.3 on Bun 1.4.3) is one Astro accepts. The pre-commit hook and lint-staged use `bunx` in place of `npx`.
+
+Migration: a book scaffolded before this change keeps `"build": "astro build"`, which still works where Node is installed. To drop Node, change its `dev` and `build` scripts to the ones above.
+
 ## 2026-10-28 — Node 22.23.4, the minimum Astro 7.4.2 accepts
 
 - **`engines.node` is `>=22.23.4`.** The Astro group bump (#351) brought Astro 7.4.2, which refuses Node below 22.23.4, while `package.json` still allowed 22.22.0, so the toolchain-pins test failed `main`'s CI. The major is still 22, so `mise.toml` and the workflows are unchanged.

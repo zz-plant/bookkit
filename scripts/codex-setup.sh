@@ -85,23 +85,19 @@ cd "${REPO_ROOT}"
 log "Repository root: ${REPO_ROOT}"
 
 command -v git >/dev/null 2>&1 || fail "git is required"
-command -v node >/dev/null 2>&1 || fail "node is required (see engines.node in package.json)"
 command -v bun >/dev/null 2>&1 || fail "bun is required (see engines.bun in package.json)"
 
 # The minimums are set once, in package.json "engines".
 engine_minimum() {
-  node -p "require('./package.json').engines['$1'].replace(/^>=/, '')"
+  bun -p "require('./package.json').engines['$1'].replace(/^>=/, '')"
 }
-MIN_NODE_VERSION="$(engine_minimum node)"
 MIN_BUN_VERSION="$(engine_minimum bun)"
 
-NODE_VERSION_RAW="$(node -v | sed 's/^v//')"
 BUN_VERSION_RAW="$(bun --version)"
 
-version_gte "${NODE_VERSION_RAW}" "${MIN_NODE_VERSION}" || fail "node ${MIN_NODE_VERSION}+ required; found ${NODE_VERSION_RAW}"
 version_gte "${BUN_VERSION_RAW}" "${MIN_BUN_VERSION}" || fail "bun ${MIN_BUN_VERSION}+ required; found ${BUN_VERSION_RAW}"
 
-log "Detected node ${NODE_VERSION_RAW} and bun ${BUN_VERSION_RAW}"
+log "Detected bun ${BUN_VERSION_RAW}"
 
 if ((SKIP_INSTALL == 0)); then
   log "Installing dependencies with bun"

@@ -1,5 +1,5 @@
 [tools]
-# Keep in step with package.json: bun = "packageManager", node = the major of
-# "engines.node". scripts/toolchain-pins.test.ts fails when they disagree.
+# Keep in step with package.json "packageManager". Bun runs everything,
+# Astro and wrangler included, so there is no Node to pin.
+# scripts/toolchain-pins.test.ts fails when they disagree.
 bun = "1.4.3"
-node = "22"

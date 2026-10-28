@@ -1,10 +1,10 @@
-// Runs one book's Astro dev server for `bookkit dev`, under Node like the
-// `astro` command. It uses Astro's JavaScript API because `astro dev` moves
+// Runs one book's Astro dev server for `bookkit dev`, under Bun like the
+// books' `dev` script. It uses Astro's JavaScript API because `astro dev` moves
 // itself to the background when it detects an AI agent, returning at once and
 // leaving the server holding its port; this process instead lives exactly as
 // long as the server.
 //
-// Usage: node scripts/lib/astro-dev.mjs <app dir> <port>
+// Usage: bun scripts/lib/astro-dev.mjs <app dir> <port>
 import { createRequire } from "node:module";
 import { constants } from "node:os";
 import { join } from "node:path";

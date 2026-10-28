@@ -15,6 +15,7 @@ const sequenceMap: Record<string, string> = {
 	n: "/release-notes",
 	d: "/downloads",
 	a: "/read/tools",
+	b: "/new-book",
 	o: "/read/overview",
 	c: "/read/chapters",
 	m: "/read/mechanisms",

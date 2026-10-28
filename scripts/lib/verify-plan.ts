@@ -231,7 +231,8 @@ const planWorkspaceGates = (
 		});
 	}
 
-	for (const book of [...new Set([...contentBooks, ...appCode])]) {
+	const changedBooks = [...new Set([...contentBooks, ...appCode])];
+	for (const book of changedBooks) {
 		add(
 			validateGate(
 				book,
@@ -285,15 +286,14 @@ const planWorkspaceGates = (
 
 	// Builds last: they are the slowest and catch what nothing else does (MDX
 	// syntax, prerender failures, shipped output).
-	const buildBooks = [...new Set([...contentBooks, ...appCode])];
-	for (const book of buildBooks) {
+	for (const book of changedBooks) {
 		add(buildGate(book, "its content or app changed"));
 	}
 	// A fork or standalone project may not have the representative book.
 	const representative = books.includes(REPRESENTATIVE_BOOK)
 		? REPRESENTATIVE_BOOK
 		: [...books].sort()[0];
-	if (engine && representative && !buildBooks.includes(representative)) {
+	if (engine && representative && !changedBooks.includes(representative)) {
 		add(
 			buildGate(representative, "engine changed; one book stands in for all"),
 		);

@@ -4,6 +4,7 @@ import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
 	extractMechanismUrgencySlugsFromSource,
+	extractSiteSettingsFromSource,
 } from "./frame-config";
 
 describe("extractFrameConfigFromSource", () => {
@@ -137,5 +138,56 @@ describe("extractMechanismUrgencySlugsFromSource", () => {
 				'export default { mechanismsIndex: { lede: "x" } };',
 			),
 		).toEqual([]);
+	});
+});
+
+describe("extractSiteSettingsFromSource", () => {
+	test("reads site.url and site.indexable written as literals", () => {
+		const source = `export const bookConfig = {
+	site: {
+		// url: "https://commented.example",
+		url: "https://book.example",
+		defaultMeta: { url: "https://nested.example" },
+		indexable: false, /* indexable: true */
+	},
+};`;
+		expect(extractSiteSettingsFromSource(source)).toEqual({
+			url: "https://book.example",
+			indexable: false,
+		});
+	});
+
+	test("reads a literal that a comment comes before", () => {
+		const source = `export const bookConfig = {
+	site: {
+		url: /* the public address */ "https://book.example",
+		indexable: // kept out of search for now
+			false,
+	},
+};`;
+		expect(extractSiteSettingsFromSource(source)).toEqual({
+			url: "https://book.example",
+			indexable: false,
+		});
+	});
+
+	test("leaves out a value written as an expression", () => {
+		expect(
+			extractSiteSettingsFromSource(
+				`export default { site: { url: \`https://\${slug}.book\`, indexable: isProduction && !forceNoindex } };`,
+			),
+		).toEqual({});
+		expect(
+			extractSiteSettingsFromSource(
+				'export default { site: { url: "https://a" + path, indexable: false || preview } };',
+			),
+		).toEqual({});
+	});
+
+	test("is null when the config has no site object", () => {
+		expect(extractSiteSettingsFromSource("export default {};")).toBeNull();
+		expect(
+			extractSiteSettingsFromSource("export default { site: sharedSite };"),
+		).toBeNull();
 	});
 });

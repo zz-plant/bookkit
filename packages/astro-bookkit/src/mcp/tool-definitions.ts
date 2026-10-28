@@ -211,7 +211,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.validate_book",
 		description:
-			"Validate a book with the checks bun run validate runs, in process. The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, and missing runbook fields are errors); a draft or in-review book does not. Each finding has a code, the field, a fix, and its file.",
+			"Validate a book with the checks bun run validate runs, in process. The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, missing runbook fields, a mechanism without an action or example, starter text in book.config.ts, and a missing or local site.url are errors); a draft or in-review book does not. Each finding has a code, the field, a fix, and its file.",
 		safety: "read_only",
 		expectedRuntime: "<=10m",
 		expectedRuntimeClass: "long",
@@ -249,7 +249,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.compile_book",
 		description:
-			"Validate and build a book (bun run compile:book). The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, and missing runbook fields are errors); a draft or in-review book does not. Validation errors stop the compile.",
+			"Validate and build a book (bun run compile:book). The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, missing runbook fields, a mechanism without an action or example, starter text in book.config.ts, and a missing or local site.url are errors); a draft or in-review book does not. Validation errors stop the compile.",
 		safety: "mutating",
 		expectedRuntime: "<=2m",
 		expectedRuntimeClass: "moderate",

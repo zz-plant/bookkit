@@ -147,7 +147,7 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `localization/` | 1 | locale resolution and translation notices |
 | `suggestions/` | 1 | deterministic analyzers — overlap (per book and across a corpus of books), concept triage, example audit, prerequisites, runbook coverage |
 | `frames/` | 1 | frame registry and the built-in frames (intervention, field-guide, runbook) |
-| `validators/` | 1 | book, frame, and separation validation; content contracts, the per-file checker, and scaffolds built from them; the `NormalizedErrorPayload` shape |
+| `validators/` | 1 | book, frame, release-note, and separation validation, and the book.config.ts values they read; content contracts, the per-file checker, and scaffolds built from them; the `NormalizedErrorPayload` shape |
 | `search/` | 2 | search index construction and querying |
 | `seo/` | 2 | sitemap, metadata, indexability rules, link-preview images, site icons |
 | `mcp/` | 2 | JSON-RPC router, workspace reader, and deterministic tool handlers |

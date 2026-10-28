@@ -3,7 +3,11 @@ import { createServer, type Server } from "node:net";
 import { join } from "node:path";
 import type { Subprocess } from "bun";
 import { repoRoot } from "./_lib";
-import { runChild, waitForChildren } from "./lib/child-process.fixture";
+import {
+	BUILD_DEADLINE_MS,
+	runChild,
+	waitForChildren,
+} from "./lib/child-process.fixture";
 import { isPortInUse } from "./lib/dev-server";
 
 /**
@@ -19,6 +23,9 @@ waitForChildren();
 // parallel, so two Astro processes would share its .astro/ folder.
 const BOOK = "running-hot";
 const AGENT_ENV = { ...process.env, CLAUDECODE: "1", NO_COLOR: "1" };
+
+/** Starting astro dev and compiling its first route costs about what a build does. */
+const START_DEADLINE_MS = BUILD_DEADLINE_MS;
 
 const freePort = (): Promise<number> =>
 	new Promise((resolve, reject) => {
@@ -73,10 +80,13 @@ describe("bookkit dev", () => {
 			new Response(dev.stdout).text(),
 			new Response(dev.stderr).text(),
 		]).then((parts) => parts.join(""));
-		const deadline = Date.now() + 60_000;
+		const started = Date.now();
+		const deadline = started + START_DEADLINE_MS;
 		while (Date.now() < deadline && dev.exitCode === null) {
+			// Bounded, so a probe the server accepts but never answers cannot
+			// outlast the hook and hide what the server printed.
 			if (
-				await fetch(mcpUrl).then(
+				await fetch(mcpUrl, { signal: AbortSignal.timeout(5_000) }).then(
 					(r) => r.ok,
 					() => false,
 				)
@@ -86,9 +96,9 @@ describe("bookkit dev", () => {
 		}
 		dev.kill("SIGKILL");
 		throw new Error(
-			`The dev server did not answer on port ${port}${dev.exitCode === null ? "" : ` (bookkit exited with ${dev.exitCode})`}:\n${await output}`,
+			`The dev server did not answer on port ${port} within ${Math.round((Date.now() - started) / 1000)} s${dev.exitCode === null ? "" : ` (bookkit exited with ${dev.exitCode})`}:\n${await output}`,
 		);
-	}, 70_000);
+	}, START_DEADLINE_MS + 10_000);
 
 	afterAll(() => {
 		dev?.kill("SIGKILL");

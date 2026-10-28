@@ -234,3 +234,86 @@ export function extractMechanismUrgencySlugsFromSource(
 	}
 	return slugs;
 }
+
+export type SiteSettingsFromSource = {
+	/** `site.url`, when it is a string literal. */
+	url?: string;
+	/** `site.indexable`, when it is `true` or `false` as written. */
+	indexable?: boolean;
+};
+
+/**
+ * `site.url` and `site.indexable` from a book.config.ts source, each when it
+ * is written as a literal in a `site: { ... }` object; a value written as an
+ * expression (`indexable: isProduction`) is left unset. Null when the config
+ * has no such object.
+ */
+export function extractSiteSettingsFromSource(
+	source: string,
+): SiteSettingsFromSource | null {
+	const site = objectAfterKey(source, "site");
+	if (!site) return null;
+	const settings: SiteSettingsFromSource = {};
+	const url = literalOfKey(source, "url", site);
+	if (typeof url === "string") settings.url = url;
+	const indexable = literalOfKey(source, "indexable", site);
+	if (typeof indexable === "boolean") settings.indexable = indexable;
+	return settings;
+}
+
+/**
+ * The literal value of the property `name` directly inside the object at
+ * [open, close]: a string without `${}`, or `true` or `false` followed by the
+ * end of the property. Undefined for an expression, or when there is no such
+ * property at that level.
+ */
+function literalOfKey(
+	source: string,
+	name: string,
+	[open, close]: [number, number],
+): string | boolean | undefined {
+	const key = new RegExp(`${name}\\s*:\\s*`, "y");
+	let depth = 0;
+	for (let i = open + 1; i < close; i++) {
+		const ch = source[i];
+		if (STRING_START.test(ch)) {
+			i = readStringAt(source, i) - 1;
+			continue;
+		}
+		const afterComment = skipComment(source, i);
+		if (afterComment !== i) {
+			i = afterComment - 1;
+			continue;
+		}
+		if ("{[(".includes(ch)) depth++;
+		else if ("}])".includes(ch)) depth--;
+		if (depth !== 0 || /[\w$]/.test(source[i - 1] ?? "")) continue;
+		key.lastIndex = i;
+		const match = key.exec(source);
+		if (!match) continue;
+		// Comments may sit between the colon and the value, as whitespace may.
+		let start = i + match[0].length;
+		for (
+			let next = skipComment(source, start);
+			next !== start;
+			next = skipComment(source, start)
+		) {
+			start = next;
+			while (/\s/.test(source[start] ?? "")) start++;
+		}
+		const end = STRING_START.test(source[start])
+			? readStringAt(source, start)
+			: (/true|false/y.exec(source.slice(start, start + 5))?.[0].length ?? 0) +
+				start;
+		// A literal ends the property; `false || x` or `"a" + b` is an expression.
+		if (end === start || !/^\s*(?:[,}]|\/[/*]|$)/.test(source.slice(end))) {
+			return undefined;
+		}
+		const value = source.slice(start, end);
+		if (value === "true" || value === "false") return value === "true";
+		return value[0] === "`" && value.includes("${")
+			? undefined
+			: value.slice(1, -1);
+	}
+	return undefined;
+}

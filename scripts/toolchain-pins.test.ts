@@ -4,15 +4,16 @@ import { join } from "node:path";
 import { repoRoot } from "./_lib";
 
 /**
- * The Bun and Node versions are set in package.json ("packageManager" and
- * "engines"). mise.toml, the CI workflows, and scripts/codex-setup.sh must
- * agree with them, or contributors, CI, and agents run different toolchains.
+ * The Bun version is set in package.json ("packageManager" and "engines").
+ * mise.toml, the CI workflows, and scripts/codex-setup.sh must agree with it,
+ * or contributors, CI, and agents run different toolchains. Bun runs Astro
+ * and wrangler too (the books' scripts use `bun --bun`), so nothing pins Node.
  */
 
 const read = (path: string) => readFileSync(join(repoRoot(), path), "utf8");
 const pkg = JSON.parse(read("package.json")) as {
 	packageManager: string;
-	engines: { node: string; bun: string };
+	engines: { bun: string };
 };
 const mise = read("mise.toml");
 const miseTool = (tool: string) =>
@@ -58,7 +59,7 @@ describe("toolchain pins agree", () => {
 				expect({ name, tool, range }).toEqual({
 					name,
 					tool,
-					range: pkg.engines[tool as "node" | "bun"],
+					range: pkg.engines[tool as "bun"],
 				});
 			}
 		}
@@ -82,33 +83,22 @@ describe("toolchain pins agree", () => {
 		}
 	});
 
-	it("needs a Node that Astro supports, and uses its major everywhere", () => {
+	it("pins no Node: Bun runs Astro, and its Node version is one Astro supports", () => {
 		const astro = JSON.parse(
 			read(join("node_modules", "astro", "package.json")),
 		) as { engines: { node: string } };
-		expect(pkg.engines.node).toMatch(/^>=\d+\.\d+\.\d+$/);
 		expect(
-			atLeast(version(pkg.engines.node), version(astro.engines.node)),
-			`engines.node ${pkg.engines.node} allows Node versions Astro (${astro.engines.node}) refuses`,
+			atLeast(version(process.versions.node), version(astro.engines.node)),
+			`Bun ${Bun.version} reports Node ${process.versions.node}, which Astro (${astro.engines.node}) refuses`,
 		).toBe(true);
 
-		const major = String(version(pkg.engines.node)[0]);
-		expect(miseTool("node")).toBe(major);
+		expect(Object.keys(pkg.engines)).toEqual(["bun"]);
+		expect(miseTool("node")).toBeUndefined();
 		for (const { file, text } of workflows) {
-			for (const match of text.matchAll(/node-version:\s*"?([^"\s]+)/g)) {
-				expect({ file, node: match[1] }).toEqual({ file, node: major });
-			}
-			// A major alone resolves to the runner's cached Node, which can be
-			// older than engines.node (22.23.3 against Astro's 22.23.4).
-			const steps = text
-				.split(/\n\s*- /)
-				.filter((step) => step.includes("actions/setup-node"));
-			for (const step of steps) {
-				expect({
-					file,
-					checkLatest: /check-latest:\s*true/.test(step),
-				}).toEqual({ file, checkLatest: true });
-			}
+			expect({ file, setupNode: text.includes("actions/setup-node") }).toEqual({
+				file,
+				setupNode: false,
+			});
 		}
 	});
 

@@ -150,7 +150,7 @@ const runJob = (job: Job) =>
 				"-p",
 				join(job.dir, "tsconfig.json"),
 			])
-		: run(job, "bunx", ["astro", "check"], job.dir);
+		: run(job, "bunx", ["--bun", "astro", "check"], job.dir);
 
 const astroTargets = skipAstro
 	? []

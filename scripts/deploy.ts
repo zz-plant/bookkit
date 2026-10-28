@@ -434,8 +434,15 @@ const message = versionMessage(gitState, uncommitted);
 for (const outcome of outcomes) {
 	console.log(`\n── ${outcome.book}\n`);
 	const deploy = spawnSync(
-		wranglerBin,
-		["deploy", ...(dryRun ? ["--dry-run"] : []), "--message", message],
+		process.execPath,
+		[
+			"--bun",
+			wranglerBin,
+			"deploy",
+			...(dryRun ? ["--dry-run"] : []),
+			"--message",
+			message,
+		],
 		{ cwd: join(appsDir, outcome.book), stdio: "inherit" },
 	);
 	outcome.published = deploy.status === 0;

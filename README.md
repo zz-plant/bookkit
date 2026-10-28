@@ -63,8 +63,7 @@ The **frame** (`intervention`, `explainer`, `field-guide`, or `runbook`) sets th
 
 ## Prerequisites
 
-- **Bun 1.4.3**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`.
-- **Node.js 22.23.4 or later**, which Astro 7.4.2 needs.
+- **Bun 1.4.3**, the version `package.json` pins. With [mise](https://mise.jdx.dev), `bun run setup` (`mise trust && bun install`) installs it from `mise.toml`. Bun runs Astro and wrangler too, so Node.js is not needed.
 - **git.** `bookkit deploy` publishes from a commit, so a project needs `git init` and a first commit before its first deploy. Every other command, `verify -- --all` included, works in a folder that is not a repository yet.
 - **To publish:** a Cloudflare account, and `bunx wrangler login` once (or `CLOUDFLARE_API_TOKEN` in the environment).
 - **Optional:** Playwright's Chromium for the accessibility and browser checks (`bunx playwright install chromium`), and about 550 MB of disk for the embedding model that compares mechanisms by meaning. Bookkit asks before it downloads the model.

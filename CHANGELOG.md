@@ -17,6 +17,21 @@ Migration: drafts get warnings for each mechanism without an action or example (
 - **The new-book form can be found.** Only the preview menu linked `/new-book`, and a static build has no preview. Author tools, which the reading hub links, now links the form, and `g b` opens it, as the menu link already announced. The menu's "For authors" group now shows under `bookkit dev` as well as in a token preview.
 - **The guide documents translations, author pages, and `SOURCE_DATE_EPOCH`.** [Translations](./docs/guide/concepts.md#translations) says what a build does not serve yet: translated pages show only under `bookkit dev`.
 
+## 2026-10-27 — Defaults instead of copies, and empty sections that say so
+
+- **The starter `book.config.ts` sets only what a book decides.** It no longer copies the engine's defaults into every new book: the `home`, `readHub`, `mechanismsIndex`, `relatedBooks`, `localization`, and `previewAccess` blocks are gone, and one comment names each optional field. A copied default never changes: `match-to-july`'s `readHub.lede` is still the starter's text. `site.indexable: false` is gone too, since a draft is already `noindex` and that line fails the release check once the book is published. `bookkit propose` drops the same blocks, and `features.aiQa: true`, which is the default.
+- **`previewAccess` is optional in `BookConfig`.** Left out, the book has no preview tokens, as the middleware already assumed.
+- **An empty section says it is empty.** An index page with no entries (chapters, mechanisms, toolkit, glossary, examples) showed "0 items" over a filter with nothing to filter. It now shows one line, such as "No toolkit actions yet.", and leaves out its list tools and what follows the list (the mechanisms index's "Then pick an action", the chapters index's download panel). Under `astro dev` the line also gives the `bun run bookkit new …` command that adds the first entry; built pages never carry it. The reading hub marks an empty section's card "None yet.", the home page's "What's inside" leaves out sections with no entries, and About this book leaves out "Core mechanisms" until `mechanisms` lists one.
+
+Migration: none. Existing books keep their blocks and behave as before; deleting a block that matches the default is safe.
+
+## 2026-10-27 — `bookkit map`: which chapters bind which mechanisms
+
+- **`bookkit map [book] [--json]`** prints a book's mechanisms by chapter as a grid, with stub chapters marked. Below it, the map names the chapters that list no mechanism (with their words), the mechanisms no chapter lists, the mechanisms another book of the corpus also defines, and slugs a chapter lists that the book does not define. Word counts and the stub threshold come from `chapterDraft`, the count `bookkit check <chapter.mdx>` and `bookkit bets` use. Read-only.
+- **`bookkit bets` no longer says a chapter that binds nothing "binds existing mechanisms only".** A drafted chapter whose `mechanisms:` is empty now reads "binds no mechanism" and points to `bookkit map`. The verdict is unchanged: such a chapter still introduces no new mechanism.
+
+Migration: none. New command; the `bets` change is wording only.
+
 ## 2026-10-23 — CI green again: cross-device builds, the undici advisory, the gone-folder guard
 
 - **A test build's `--outDir` stays on the repository's filesystem.** The static-build and browser tests built into `os.tmpdir()`, but Astro moves build output into the outDir with `rename(2)`, which cannot cross devices. The Linux CI runners have kept `/tmp` on its own device since `ubuntu-latest` moved to Ubuntu 26, as do machines with `/tmp` on tmpfs, so every such build failed with `EXDEV`. Test builds now write to `.test-builds/` (gitignored, beside `.test-workspaces/`).

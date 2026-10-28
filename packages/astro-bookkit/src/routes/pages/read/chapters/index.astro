@@ -60,6 +60,8 @@ const localizedLede = buildTranslationLede(
     items={listedChapters}
     filterPlaceholder="Filter by title"
     alphaMode={false}
+    emptyMessage="No chapters yet."
+    emptyCommand={`bun run bookkit new chapter ${bookConfig.slug} "<title>"`}
   >
     {draftCount > 0 && (
       <details slot="after-header" class="content-block content-block--flush">

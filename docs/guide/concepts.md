@@ -63,12 +63,12 @@ Errors exit 1 whatever the status; `bun run validate:release` is an alias of `bu
 | `relatedBooks` | `[{ title, href, description? }]`, listed as "Other books" on the home page. |
 | `exports.pdf` | `false` publishes without a PDF. |
 | `exports.pdfFont` | A TTF or OTF file, relative to `apps/<book>/`, for scripts the bundled fonts lack, such as CJK. |
-| `previewAccess` | Token-gated previews. Static builds cannot honor it: `check:build` fails a static build that enables it. |
-| `localization` | The book's languages: `defaultLocale`, and `locales: [{ code, label, isDefault?, completeness? }]`. `defaultLocale` is also the PDF's and EPUB's language. See [Translations](#translations): today only `bookkit dev` serves them. |
+| `localization` | Other languages: `{ defaultLocale, locales: [{ code, label, isDefault?, completeness? }], includeDefaultPrefix?, label? }`. Leave it out for English only. `defaultLocale` is also the PDF's and EPUB's language. See [Translations](#translations): today only `bookkit dev` serves them. |
+| `previewAccess` | Token-gated previews; leave it out for none. Static builds cannot honor it: `check:build` fails a static build that enables it. |
 | `features.aiQa` | `false` turns off the reader's Ask panel, which otherwise appears on a server runtime; see [What readers get](./reader-site.md). |
 | `reviewsAsOf` | For a runbook book whose content is an example: the date `check:runbooks` judges review cadence on, instead of today. |
 
-The home page, reading hub, and mechanisms index are shared pages, so their copy lives in these fields rather than in the page files.
+The home page, reading hub, and mechanisms index are shared pages, so their copy lives in these fields rather than in the page files. Every field in this table is optional except `status`, `frame`, `objectives`, `causalStance`, and `site.url`; one left out takes the engine's default, so a book picks up a better default when the engine ships one. The starter `book.config.ts` sets only the required fields and names the optional ones in a comment.
 
 ## A book's own pages
 

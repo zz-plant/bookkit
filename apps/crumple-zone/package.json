@@ -10,8 +10,8 @@
 		"deploy": "bun run --cwd ../.. bookkit deploy crumple-zone"
 	},
 	"dependencies": {
-		"@astrojs/mdx": "^8.1.0",
+		"@astrojs/mdx": "^8.1.1",
 		"@bookkit/astro-bookkit": "workspace:*",
-		"astro": "^7.4.0"
+		"astro": "^7.4.2"
 	}
 }

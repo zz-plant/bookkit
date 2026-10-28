@@ -210,6 +210,19 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		},
 	},
 	{
+		name: "map",
+		help: {
+			summary:
+				"A grid of a book's mechanisms by chapter: which chapters list which\nmechanisms in mechanisms:, which chapters list none (with their words,\nso a drafted chapter that binds nothing stands out), the mechanisms no\nchapter binds, and the ones shared with other books of the corpus.",
+			usage: ["bun run bookkit map [book] [--json]"],
+			options: [BOOK, ["--json", "The map as JSON"]],
+			examples: [
+				"bun run bookkit map running-hot",
+				"bun run bookkit map --json",
+			],
+		},
+	},
+	{
 		name: "use",
 		help: {
 			summary:

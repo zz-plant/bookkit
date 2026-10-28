@@ -22,15 +22,11 @@ beforeAll(() => {
 	({ workspace, appDir } = createBookWorkspace("page-copy-", BOOK));
 	const configPath = join(appDir, "src", "book.config.ts");
 	const config = readFileSync(configPath, "utf8");
-	const starterHome = config.match(/\thome: \{[\s\S]*?\n\t\},\n/)?.[0];
-	const starterHub = config.match(/\treadHub: \{[\s\S]*?\n\t\},\n/)?.[0];
-	const starterIndex = config.match(
-		/\tmechanismsIndex: \{[\s\S]*?\n\t\},\n/,
-	)?.[0];
-	if (!starterHome || !starterHub || !starterIndex) {
-		throw new Error(
-			`No home, readHub or mechanismsIndex block in ${configPath}`,
-		);
+	// The starter leaves the pages' copy to the engine's defaults, so the
+	// book's own copy goes after its last required field.
+	const anchor = "\tglossaryFocus: [],\n";
+	if (!config.includes(anchor)) {
+		throw new Error(`No glossaryFocus: [] line in ${configPath}`);
 	}
 	// A second mechanism, not in book.config.ts and first by title, so the
 	// urgency order and the tags that tell mechanisms apart show.
@@ -44,29 +40,20 @@ beforeAll(() => {
 	);
 	writeFileSync(
 		configPath,
-		config
-			.replace(
-				starterHome,
-				`\thome: {
+		config.replace(
+			anchor,
+			`${anchor}\thome: {
 		kicker: "Field notes",
 		mechanismsCard: {
 			title: "Find your situation",
 			description: "Start from what you can see.",
 		},
 	},
-`,
-			)
-			.replace(
-				starterIndex,
-				`\tmechanismsIndex: {
+	mechanismsIndex: {
 		lede: "The patterns this shore shows.",
 		urgency: { "${BOOK}-starter-mechanism": "urgent" },
 	},
-`,
-			)
-			.replace(
-				starterHub,
-				`\treadHub: {
+	readHub: {
 		lede: "Pick up where the tide left you.",
 		quickStartCards: [
 			{
@@ -78,7 +65,7 @@ beforeAll(() => {
 		],
 	},
 `,
-			),
+		),
 	);
 	build = buildBook(appDir);
 }, 240_000);

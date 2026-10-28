@@ -99,6 +99,8 @@ const localizedLede = buildTranslationLede(copy.lede, completeness);
     filterPlaceholder="Filter by name or definition"
     alphaMode={false}
     quickFilters={quickFilters}
+    emptyMessage="No mechanisms yet."
+    emptyCommand={`bun run bookkit new mechanism ${bookConfig.slug} "<title>"`}
   >
     <Fragment slot="after-list">
       <section class="content-block index-tail">

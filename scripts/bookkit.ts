@@ -65,6 +65,7 @@ import { compileFinding, compileMdx } from "./lib/compile-mdx";
 import { callsFor, nearestTo, readJudgments } from "./lib/corpus-judgments";
 import { addDistinctRuling, findRuling } from "./lib/corpus-rulings";
 import { corpusScope, pairCorpus, readCorpusBooks } from "./lib/corpus-scope";
+import { formatCoverageMap, loadCoverageMap } from "./lib/coverage-map";
 import {
 	DEFAULT_DEV_PORT,
 	foregroundServer,
@@ -234,6 +235,21 @@ switch (findCommand(command)?.name ?? command) {
 			await printStatus(
 				named ? requireBook(named, "bun run bookkit status [book]") : undefined,
 			);
+		}
+		process.exit(0);
+		break;
+	}
+
+	case "map": {
+		const named = args.slice(1).find((arg) => !arg.startsWith("--"));
+		const map = await loadCoverageMap(
+			requireBook(named, "bun run bookkit map [book] [--json]"),
+			books,
+		);
+		if (args.includes("--json")) {
+			console.log(JSON.stringify(map, null, 2));
+		} else {
+			console.log(`\n${formatCoverageMap(map).join("\n")}\n`);
 		}
 		process.exit(0);
 		break;
@@ -955,7 +971,7 @@ function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
 	);
 	for (const chapter of b1.drafted) {
 		console.log(
-			`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : " binds existing mechanisms only"}`,
+			`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : chapter.mechanisms.length ? " binds existing mechanisms only" : ` binds no mechanism (bun run bookkit map ${chapter.book})`}`,
 		);
 	}
 	console.log("");
@@ -2792,6 +2808,8 @@ Write
 
 Check
   status [book] [--json]                    chapters, stubs, mechanisms, and tools per book
+  map [book] [--json]                       which chapters bind which mechanisms: the chapters that bind
+                                            none, and the mechanisms no chapter binds
   check [book] [--all] [--quick] [--info] [--download-model]
                                             structure, plus mechanisms that overlap across books; the
                                             meaning pass needs a 550 MB model, downloaded once with

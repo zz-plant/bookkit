@@ -54,19 +54,23 @@ const mechanismTitles = new Map(
       )}
     </ul>
 
-    <h2>Core mechanisms</h2>
-    <ul>
-      {mechanisms.map((mechanism) => (
-        <li>
-          <strong>
-            <a href={readItemPath("mechanisms", mechanism.slug)}>
-              {mechanismTitles.get(mechanism.slug) ?? mechanism.slug}
-            </a>:
-          </strong>{" "}
-          {mechanism.focus}
-        </li>
-      ))}
-    </ul>
+    {mechanisms.length > 0 && (
+      <Fragment>
+        <h2>Core mechanisms</h2>
+        <ul>
+          {mechanisms.map((mechanism) => (
+            <li>
+              <strong>
+                <a href={readItemPath("mechanisms", mechanism.slug)}>
+                  {mechanismTitles.get(mechanism.slug) ?? mechanism.slug}
+                </a>:
+              </strong>{" "}
+              {mechanism.focus}
+            </li>
+          ))}
+        </ul>
+      </Fragment>
+    )}
   </section>
   <section class="next-steps">
     <h2>Keep going</h2>

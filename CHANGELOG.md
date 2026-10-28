@@ -3,6 +3,12 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-10-28 — Node 22.23.4, the minimum Astro 7.4.2 accepts
+
+- **`engines.node` is `>=22.23.4`.** The Astro group bump (#351) brought Astro 7.4.2, which refuses Node below 22.23.4, while `package.json` still allowed 22.22.0, so the toolchain-pins test failed `main`'s CI. The major is still 22, so `mise.toml` and the workflows are unchanged.
+
+Migration: on Node 22.22.x, `mise install` (or install Node 22.23.4 or later).
+
 ## 2026-10-28 — One validator: every rule a book is held to lives in the engine
 
 - **MCP's `validate_book` applies the rules `bun run validate` does.** Four rules lived only in `scripts/validate-book.ts`, so the MCP tool never ran them: release-note checks (`RELEASE_NOTE_*`), starter text left in `book.config.ts` (`CONFIG_PLACEHOLDER`), and, under release rules, `site.indexable: false` (`RELEASE_NOT_INDEXABLE`) and a missing or local `site.url` (`RELEASE_SITE_URL`). Before: `match-to-july` checked as published got `RELEASE_NOT_INDEXABLE` from the CLI and not from MCP. After: all of them come from `checkBookContent`, which every caller uses, and `bookkit check <file>` reports each one on the file it is about.

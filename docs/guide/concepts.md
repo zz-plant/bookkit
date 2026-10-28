@@ -37,7 +37,7 @@ The book's `status` in `book.config.ts` decides which rules apply and whether se
 | --- | --- | --- |
 | `draft`, or no status | Draft records are allowed. Broken links, unknown prerequisites, and unsafe links are warnings. | Every page is `noindex`, `robots.txt` disallows everything, and the sitemap is empty. |
 | `in-review` | As for `draft`, except that a book with no chapters is an error (`BOOK_EMPTY`). | As for `draft`. |
-| `published`, `stable` | Release rules: a draft record is an error (`DRAFT_IN_RELEASE`), as are broken links, unknown prerequisites, unsafe links, missing runbook fields, and a book with no chapters. `site.url` must be a public address and `site.indexable` must not be `false`. | Indexable. |
+| `published`, `stable` | Release rules: a draft record is an error (`DRAFT_IN_RELEASE`), as are broken links, unknown prerequisites, unsafe links, missing runbook fields, a mechanism with no action or example, starter text left in `book.config.ts`, and a book with no chapters. `site.url` must be a public address, written as a string in `site: { ... }`, and `site.indexable` must not be `false`. | Indexable. |
 
 Every chapter, mechanism, action, example, and glossary entry has its own `status` with the same four values (default `draft`). A draft record is still built and shown: chapter pages label any status other than published. A record marked `published` or `stable` is held to release rules even in a draft book.
 
@@ -63,7 +63,7 @@ Errors exit 1 whatever the status; `bun run validate:release` is an alias of `bu
 | `relatedBooks` | `[{ title, href, description? }]`, listed as "Other books" on the home page. |
 | `exports.pdf` | `false` publishes without a PDF. |
 | `exports.pdfFont` | A TTF or OTF file, relative to `apps/<book>/`, for scripts the bundled fonts lack, such as CJK. |
-| `localization` | Other languages: `{ defaultLocale, locales: [{ code, label, isDefault?, completeness? }], includeDefaultPrefix?, label? }`. Leave it out for English only. |
+| `localization` | Other languages: `{ defaultLocale, locales: [{ code, label, isDefault?, completeness? }], includeDefaultPrefix?, label? }`. Leave it out for English only. `defaultLocale` is also the PDF's and EPUB's language. See [Translations](#translations): today only `bookkit dev` serves them. |
 | `previewAccess` | Token-gated previews; leave it out for none. Static builds cannot honor it: `check:build` fails a static build that enables it. |
 | `features.aiQa` | `false` turns off the reader's Ask panel, which otherwise appears on a server runtime; see [What readers get](./reader-site.md). |
 | `reviewsAsOf` | For a runbook book whose content is an example: the date `check:runbooks` judges review cadence on, instead of today. |
@@ -75,6 +75,36 @@ The home page, reading hub, and mechanisms index are shared pages, so their copy
 A book app holds no pages of its own by default. `bookkit()` in `astro.config.mjs` serves every book the engine's pages, API routes, and middleware (`packages/astro-bookkit/src/routes/`), reading the book's `book.config.ts` and content through the virtual module `virtual:bookkit/book`.
 
 To serve one page differently, put a file in `apps/<book>/src/pages/` that serves the same URL: `src/pages/read/examples/index.astro` (or `src/pages/read/examples.astro`) replaces `/read/examples`, and `src/pages/sitemap.xml.ts` replaces `/sitemap.xml`. It replaces that URL only; `/read/examples/[...slug]` stays the engine's. Names starting with `_` do not count, as Astro skips them. Start from the engine's file in `src/routes/pages/`, and read the book from `@bookkit/astro-bookkit/routes/runtime` (`bookConfig`, `bookEntryPoints`, and the rest of the book's runtime), with `@bookkit/astro-bookkit/routes/BaseLayout.astro` as the layout; `apps/running-hot/src/pages/read/examples/index.astro` does this. A file at a URL the engine does not serve is an ordinary Astro page.
+
+## Author pages
+
+Each book also serves three pages for its author, all kept out of search engines:
+
+- `/read/tools`, Author tools: links to analytics, release notes, downloads, and the new-book form.
+- `/new-book`: a form that drafts a new book's brief, setup checklist, config, SEO settings, and link-preview image addresses, to copy one at a time or download as JSON.
+- `/read/analytics`: what readers sent, which needs the [server runtime](./publishing.md#server-runtime).
+
+The reading hub's "For authors" card links Author tools. Under `bookkit dev` and in a `previewAccess` preview, the menu's "For authors" group links Author tools and the form as well. On any page, `g a` opens Author tools and `g b` opens the form; `?` lists the shortcuts.
+
+## Translations
+
+A translation is a second file for the same record, in the same folder: the same `slug`, plus `locale: <code>` in its frontmatter (`chapters/20-rollback-first.es.mdx` beside `20-rollback-first.mdx`). Each language is listed in `book.config.ts`:
+
+```ts
+localization: {
+	defaultLocale: "en",
+	includeDefaultPrefix: false, // the default language at /read/…, not /en/read/…
+	label: "Language",
+	locales: [
+		{ code: "en", label: "English", isDefault: true, completeness: 1 },
+		{ code: "es", label: "Español", completeness: 0.2 },
+	],
+},
+```
+
+Under `bookkit dev`, `/es/read/chapters/rollback-first` shows the Spanish file, and the page's `lang` is `es`. A record with no translation shows in the default language, and in a locale whose `completeness` is below 1, pages say the translation is in progress. The engine has breadcrumb labels for `en` and `es` only. For any other code, the build stops until the language has an entry in `packages/astro-bookkit/src/routes/read-copy.ts`.
+
+A build does not serve translations yet. It prerenders each page once, from the default-language file, so a built site has no `/es/…` pages, static or server. The language switcher appears only with `site.runtime: "server"`.
 
 ## Where data lives
 

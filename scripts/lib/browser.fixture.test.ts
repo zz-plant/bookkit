@@ -8,7 +8,7 @@ import {
 	closeBrowser,
 	runCase,
 } from "./browser.fixture";
-import { runChild } from "./child-process.fixture";
+import { runChild, waitForChildren } from "./child-process.fixture";
 
 /**
  * The browser fixture without Chromium: a stand-in browser whose pages or
@@ -16,6 +16,8 @@ import { runChild } from "./child-process.fixture";
  * which a stalled close must kill; cases that pass, fail, hang, or lose
  * their browser; and a run that something holds open.
  */
+
+waitForChildren();
 
 const never = () => new Promise<void>(() => {});
 const done = () => Promise.resolve();

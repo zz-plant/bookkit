@@ -136,8 +136,8 @@ describe("validate-book", () => {
 	it("names starter text left in book.config.ts, with what to write instead", () => {
 		const result = run("validate-book.ts", "--book", "placeholder-book");
 		expect(result.status).toBe(0);
-		expect(result.output).toContain(
-			"apps/placeholder-book/src/book.config.ts still has the starter text for causalStance, which shows on the About this book page (/read/overview)",
+		expect(result.output).toMatch(
+			/- book\.config\.ts still has the starter text for causalStance, which shows on the About this book page \(\/read\/overview\): \S+\/apps\/placeholder-book\/src\/book\.config\.ts\n/,
 		);
 		// https://<slug>.book may be the domain the author means to buy.
 		expect(result.output).not.toContain("site.url");

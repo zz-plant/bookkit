@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { readItemPath } from "../packages/astro-bookkit/src/book/read-routes";
 import { isReleasedStatus } from "../packages/astro-bookkit/src/schemas/status";
@@ -10,62 +9,10 @@ import {
 	firstUnlinkedGlossaryMentions,
 	glossaryTermsFrom,
 } from "../packages/astro-bookkit/src/validators/glossary-mentions";
-import { listBookDirs, listFilesRecursive, repoRoot } from "./_lib";
+import { listBookDirs, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { parseScriptArgs, requireExistingBook } from "./lib/cli";
 import { compileBookFindings } from "./lib/compile-mdx";
-import { checkReleaseNote } from "./lib/release-notes";
-import { starterTemplateRootIn } from "./lib/scaffold-book";
-import { extractSiteConfig } from "./lib/site-config";
-
-/**
- * The placeholder prose a new book's book.config.ts starts with, read from
- * the starter template, so an edited template needs no change here. Not
- * site.url: https://<slug>.book may be the domain the author means to buy,
- * and deploy already says when the Worker does not serve it.
- */
-function starterPlaceholders(root: string) {
-	const template = join(starterTemplateRootIn(root), "src", "book.config.ts");
-	if (!existsSync(template)) return [];
-	const source = readFileSync(template, "utf8");
-	const fields = [
-		{
-			field: "objectives.readerStart",
-			key: "readerStart",
-			shown: "shows on the About this book page (/read/overview)",
-			meaning: "who the reader is before the first page",
-		},
-		{
-			field: "objectives.readerEnd",
-			key: "readerEnd",
-			shown: "shows on the About this book page (/read/overview)",
-			meaning: "what the reader can do after the last page",
-		},
-		{
-			field: "objectives.transformation",
-			key: "transformation",
-			shown: "shows on the About this book page (/read/overview)",
-			meaning: "the change between the two, in one sentence",
-		},
-		{
-			field: "frame.intent",
-			key: "intent",
-			meaning: "what the book moves the reader through",
-		},
-		{
-			field: "causalStance",
-			key: "causalStance",
-			shown: "shows on the About this book page (/read/overview)",
-			meaning: "the book's core claim about what causes the problem it covers",
-		},
-	];
-	return fields.flatMap((field) => {
-		const value = source.match(
-			new RegExp(`\\b${field.key}:\\s*("(?:[^"\\\\]|\\\\.)*")`),
-		)?.[1];
-		return value ? [{ ...field, text: value }] : [];
-	});
-}
 
 const args = parseScriptArgs(
 	{
@@ -105,11 +52,10 @@ requireExistingBook(book, listBookDirs());
 const workspaceRoot = repoRoot();
 
 const findings: Finding[] = [];
-const error = (message: string, code: string, fix: string) =>
-	findings.push({ level: "error", code, message, fix });
 
-// Content and frame findings come from the engine (validators/book-validator.ts),
-// the same function MCP and generated projects call.
+// Every rule the book is held to comes from the engine
+// (validators/book-validator.ts), the same function MCP and generated
+// projects call.
 const content = checkBookContent({
 	workspaceRoot,
 	bookSlug: book,
@@ -125,7 +71,6 @@ for (const finding of content.findings) {
 // Every MDX file goes through the compiler the build uses, so a syntax error
 // is reported here, with its line, instead of stopping the build. A file
 // already reported for an HTML comment is skipped: that is the same failure.
-const contentDir = join("apps", book, "src", "content", "book");
 const reportedComment = new Set(
 	findings
 		.filter((finding) => finding.code === "MDX_HTML_COMMENT" && finding.file)
@@ -137,59 +82,6 @@ for (const finding of await compileBookFindings(
 	reportedComment,
 )) {
 	findings.push({ ...finding, file: relative(workspaceRoot, finding.file) });
-}
-
-// Release notes are not a content section, but the release page drops a
-// note it cannot date: say so instead of losing it silently.
-const releasesDir = join(contentDir, "releases");
-if (existsSync(join(workspaceRoot, releasesDir))) {
-	for (const name of listFilesRecursive(join(workspaceRoot, releasesDir))) {
-		if (!/\.mdx?$/.test(name)) continue;
-		const file = join(releasesDir, name);
-		for (const finding of checkReleaseNote(
-			readFileSync(join(workspaceRoot, file), "utf8"),
-		)) {
-			findings.push({ ...finding, file });
-		}
-	}
-}
-
-const configFile = join("apps", book, "src", "book.config.ts");
-if (content.releaseMode && existsSync(join(workspaceRoot, configFile))) {
-	const siteConfig = extractSiteConfig(
-		readFileSync(join(workspaceRoot, configFile), "utf8"),
-	);
-	const siteUrl = siteConfig?.url?.trim();
-	if (siteConfig?.indexable === false) {
-		error(
-			`${configFile} sets site.indexable to false, but a ${content.status} book is meant to be found`,
-			"RELEASE_NOT_INDEXABLE",
-			'Remove indexable: false (or set it to true), or set status: "draft" until the book should be found.',
-		);
-	}
-	if (!siteUrl || /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(siteUrl)) {
-		error(
-			`${configFile} has ${siteUrl ? `a local site.url (${siteUrl})` : "no site.url"}, so canonical links, the sitemap, and link previews would not point at the published site`,
-			"RELEASE_SITE_URL",
-			'Set site.url to the public address readers will use, e.g. url: "https://example.com".',
-		);
-	}
-}
-
-// Starter text left in book.config.ts shows on the book's own pages: a
-// warning while it is a draft, an error once it is published.
-if (existsSync(join(workspaceRoot, configFile))) {
-	const source = readFileSync(join(workspaceRoot, configFile), "utf8");
-	const level = content.releaseMode ? "error" : "warning";
-	for (const placeholder of starterPlaceholders(workspaceRoot)) {
-		if (!source.includes(placeholder.text)) continue;
-		findings.push({
-			level,
-			code: "CONFIG_PLACEHOLDER",
-			message: `${configFile} still has the starter text for ${placeholder.field}${placeholder.shown ? `, which ${placeholder.shown}` : ""}`,
-			fix: `Replace it with ${placeholder.meaning}.`,
-		});
-	}
 }
 
 const errors = findings.filter((finding) => finding.level === "error");

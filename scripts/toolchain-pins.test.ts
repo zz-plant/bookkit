@@ -98,6 +98,17 @@ describe("toolchain pins agree", () => {
 			for (const match of text.matchAll(/node-version:\s*"?([^"\s]+)/g)) {
 				expect({ file, node: match[1] }).toEqual({ file, node: major });
 			}
+			// A major alone resolves to the runner's cached Node, which can be
+			// older than engines.node (22.23.3 against Astro's 22.23.4).
+			const steps = text
+				.split(/\n\s*- /)
+				.filter((step) => step.includes("actions/setup-node"));
+			for (const step of steps) {
+				expect({
+					file,
+					checkLatest: /check-latest:\s*true/.test(step),
+				}).toEqual({ file, checkLatest: true });
+			}
 		}
 	});
 

@@ -22,25 +22,31 @@ import {
 	extractBookStatusFromSource,
 	extractFrameConfigFromSource,
 	extractMechanismUrgencySlugsFromSource,
+	extractSiteSettingsFromSource,
 } from "./frame-config";
 import type { NormalizedErrorPayload } from "./normalized-error";
+import { checkReleaseNote } from "./release-note";
 
 /**
- * Validates a whole book's content from disk. `bun run validate`,
- * `bookkit deploy`, the MCP `validate_book` tool, and the validate script that
- * create-bookkit writes all call this, so a book gets the same findings
- * wherever it is checked.
+ * Validates a whole book from disk. `bun run validate`, `bookkit check`,
+ * `bookkit publish`, `bookkit deploy`, the MCP `validate_book` tool, and the
+ * validate script that create-bookkit writes all call this, so a book gets the
+ * same findings wherever it is checked. A rule a book is held to belongs here,
+ * not in one of those callers.
  * Each file goes through `checkContentItem`; the book adds the cross-file
  * context (every section's slugs, merges recorded in corpus.json), the frame,
- * slugs used twice, and the rules its status sets: a published or stable
- * book is checked with release rules (`releaseMode`).
+ * slugs used twice, an action and an example per mechanism, its release
+ * notes, its config's starter text and site, and the rules its status sets:
+ * a published or stable book is checked with release rules (`releaseMode`).
  */
 
 export type BookFinding = Omit<ContentFinding, "code"> & {
 	/**
 	 * Content codes, plus DIRECTORY_MISSING, FRAME_STEP_MISSING, FRAME_UNKNOWN,
 	 * FRAME_STEP_UNKNOWN, FRAME_STEP_REQUIRED, DUPLICATE_SLUG,
-	 * BOOK_STATUS_INVALID, BOOK_EMPTY, and IMAGE_MISSING.
+	 * BOOK_STATUS_INVALID, BOOK_EMPTY, IMAGE_MISSING, MECHANISM_NO_ACTION,
+	 * MECHANISM_NO_EXAMPLE, RELEASE_NOTE_*, CONFIG_PLACEHOLDER,
+	 * RELEASE_NOT_INDEXABLE, and RELEASE_SITE_URL.
 	 */
 	code: string;
 	/** Absolute path, when the finding is about one file. */
@@ -452,6 +458,178 @@ const urgencyFindings = (
 			};
 		});
 
+/**
+ * A mechanism with no toolkit action leaves a reader who meets it nothing to
+ * do about it; one with no example, no case to recognize it by. A warning in
+ * a draft, which may still be writing them; an error once release rules apply.
+ */
+const coverageFindings = (
+	book: string,
+	parsed: Record<ContentSection, ParsedSource[]>,
+	releaseMode: boolean,
+): BookFinding[] => {
+	const bound = (section: ContentSection) =>
+		new Set(
+			parsed[section].flatMap(({ data }) =>
+				typeof data?.mechanism === "string" && data.mechanism.trim()
+					? [data.mechanism.trim()]
+					: [],
+			),
+		);
+	const tools = bound("tool");
+	const examples = bound("example");
+	const level = releaseMode ? "error" : "warning";
+	return parsed.mechanism.flatMap(({ file, data }): BookFinding[] => {
+		// A mechanism without a slug is already an error of its own.
+		const slug = typeof data?.slug === "string" ? data.slug.trim() : "";
+		if (!slug) return [];
+		return [
+			...(tools.has(slug)
+				? []
+				: [
+						{
+							level,
+							code: "MECHANISM_NO_ACTION",
+							field: "slug",
+							file,
+							message: `Mechanism "${slug}" has no toolkit action, so a reader who meets it has nothing to do about it`,
+							fix: `Add one: bun run bookkit new tool ${book} ${slug} "<name>"`,
+						} as const,
+					]),
+			...(examples.has(slug)
+				? []
+				: [
+						{
+							level,
+							code: "MECHANISM_NO_EXAMPLE",
+							field: "slug",
+							file,
+							message: `Mechanism "${slug}" has no example, so a reader has no case to recognize it by`,
+							fix: `Add one: bun run bookkit new example ${book} ${slug} <domain> "<title>"`,
+						} as const,
+					]),
+		];
+	});
+};
+
+/** The book's release notes, as the release notes page would read them. */
+const releaseNoteFindings = (root: string): BookFinding[] =>
+	listFiles(join(root, "releases")).flatMap((file) =>
+		checkReleaseNote(readFileSync(file, "utf8")).map((finding) => ({
+			...finding,
+			file,
+		})),
+	);
+
+/**
+ * The placeholder prose a new book's book.config.ts starts with, read from
+ * the engine's starter template, so an edited template needs no change here.
+ * Not site.url: https://<slug>.book may be the domain the author means to buy,
+ * and deploy already says when the Worker does not serve it.
+ */
+const STARTER_FIELDS = [
+	{
+		field: "objectives.readerStart",
+		key: "readerStart",
+		shown: "shows on the About this book page (/read/overview)",
+		meaning: "who the reader is before the first page",
+	},
+	{
+		field: "objectives.readerEnd",
+		key: "readerEnd",
+		shown: "shows on the About this book page (/read/overview)",
+		meaning: "what the reader can do after the last page",
+	},
+	{
+		field: "objectives.transformation",
+		key: "transformation",
+		shown: "shows on the About this book page (/read/overview)",
+		meaning: "the change between the two, in one sentence",
+	},
+	{
+		field: "frame.intent",
+		key: "intent",
+		meaning: "what the book moves the reader through",
+	},
+	{
+		field: "causalStance",
+		key: "causalStance",
+		shown: "shows on the About this book page (/read/overview)",
+		meaning: "the book's core claim about what causes the problem it covers",
+	},
+] as const;
+
+const starterPlaceholders = (workspaceRoot: string) => {
+	const template = join(
+		workspaceRoot,
+		"packages",
+		"astro-bookkit",
+		"templates",
+		"starter",
+		"src",
+		"book.config.ts",
+	);
+	if (!existsSync(template)) return [];
+	const source = readFileSync(template, "utf8");
+	return STARTER_FIELDS.flatMap((field) => {
+		const value = source.match(
+			new RegExp(`\\b${field.key}:\\s*("(?:[^"\\\\]|\\\\.)*")`),
+		)?.[1];
+		return value ? [{ ...field, text: value }] : [];
+	});
+};
+
+/**
+ * What book.config.ts shows readers that is not the author's: starter text
+ * (a warning in a draft, an error under release rules) and, under release
+ * rules, a site kept out of search or without its public address.
+ */
+const configFindings = (
+	workspaceRoot: string,
+	configSource: string,
+	configPath: string,
+	status: string | undefined,
+	releaseMode: boolean,
+): BookFinding[] => {
+	const findings: BookFinding[] = [];
+	for (const placeholder of starterPlaceholders(workspaceRoot)) {
+		if (!configSource.includes(placeholder.text)) continue;
+		findings.push({
+			level: releaseMode ? "error" : "warning",
+			code: "CONFIG_PLACEHOLDER",
+			field: placeholder.field,
+			file: configPath,
+			message: `book.config.ts still has the starter text for ${placeholder.field}${"shown" in placeholder ? `, which ${placeholder.shown}` : ""}`,
+			fix: `Replace it with ${placeholder.meaning}.`,
+		});
+	}
+	if (!releaseMode) return findings;
+	const released = isReleasedStatus(status) ? status : "published";
+	const site = extractSiteSettingsFromSource(configSource);
+	if (site?.indexable === false) {
+		findings.push({
+			level: "error",
+			code: "RELEASE_NOT_INDEXABLE",
+			field: "site.indexable",
+			file: configPath,
+			message: `site.indexable is false, but a ${released} book is meant to be found`,
+			fix: 'Remove indexable: false (or set it to true), or set status: "draft" until the book should be found.',
+		});
+	}
+	const url = site?.url?.trim();
+	if (!url || /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(url)) {
+		findings.push({
+			level: "error",
+			code: "RELEASE_SITE_URL",
+			field: "site.url",
+			file: configPath,
+			message: `${url ? `site.url is a local address (${url})` : "There is no site.url written as a string"}, so canonical links, the sitemap, and link previews would not point at the published site`,
+			fix: 'Set site.url to the public address readers will use, as a string inside site: { ... }, e.g. url: "https://example.com".',
+		});
+	}
+	return findings;
+};
+
 export const checkBookContent = (
 	options: CheckBookOptions,
 ): BookCheckResult => {
@@ -536,6 +714,8 @@ export const checkBookContent = (
 		findings.push(...duplicateSlugFindings(root, section, parsed[section]));
 	}
 	findings.push(...prerequisiteOrderFindings(parsed.chapter));
+	findings.push(...coverageFindings(book, parsed, releaseMode));
+	findings.push(...releaseNoteFindings(root));
 
 	if (configSource) {
 		findings.push(
@@ -544,6 +724,13 @@ export const checkBookContent = (
 				configPath,
 				mechanismSlugs,
 				retiredSlugs,
+				releaseMode,
+			),
+			...configFindings(
+				workspaceRoot,
+				configSource,
+				configPath,
+				status,
 				releaseMode,
 			),
 		);

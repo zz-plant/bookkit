@@ -77,6 +77,10 @@ legitimateDemand:
 Tool body.
 `,
 			],
+			[
+				"examples/starter-example.mdx",
+				'---\nmechanism: starter-mechanism\ndomain: Housing\ntitle: "Starter example"\nstatus: draft\n---\n',
+			],
 		]);
 
 		const result = validateBookInMemory({
@@ -117,7 +121,7 @@ Tool body.
 const writeConfig = (body: string): void => {
 	writeFileSync(
 		join(root, "apps", "test-book", "src", "book.config.ts"),
-		`export const bookConfig = {\n\tslug: "test-book",\n${body}} as const;\nexport default bookConfig;\n`,
+		`export const bookConfig = {\n\tslug: "test-book",\n\tsite: { url: "https://test-book.example" },\n${body}} as const;\nexport default bookConfig;\n`,
 		"utf8",
 	);
 };
@@ -143,6 +147,10 @@ describe("the book's status sets the rules", () => {
 			[
 				"mechanisms/m.mdx",
 				'---\nslug: m\nstatus: published\ntitle: "M"\ndefinition: "d"\nis: ["a"]\nisNot: ["b"]\npredictions: ["c"]\ntests: ["e"]\n---\n',
+			],
+			[
+				"toolkit/m--act.mdx",
+				'---\nslug: m--act\nstatus: published\nmechanism: m\nname: "Act"\ntrigger: "t"\ntimeboxMinutes: 10\nsteps: ["s"]\nfailureLooksLike: ["f"]\nlegitimateDemand: ["l"]\n---\n',
 			],
 		]);
 	});
@@ -308,7 +316,7 @@ describe("mechanismsIndex.urgency", () => {
 
 	it("accepts slugs that name the book's mechanisms", () => {
 		urgency("published", '\t\t\t"delay-as-force": "urgent",\n');
-		expect(check().findings).toEqual([]);
+		expect(urgencyFindings()).toEqual([]);
 	});
 
 	it("warns about a slug that names no mechanism in a draft, and says which one was meant", () => {
@@ -542,5 +550,157 @@ describe("the frame book.config.ts declares", () => {
 		]);
 		writeConfig("");
 		expect(frameFindings()).toEqual([]);
+	});
+});
+
+describe("what every caller of the validator holds a book to", () => {
+	const mechanism = (slug: string) =>
+		`---\nslug: ${slug}\nstatus: published\ntitle: "${slug}"\ndefinition: "d"\nis: ["a"]\nisNot: ["b"]\npredictions: ["c"]\ntests: ["e"]\n---\n`;
+	const tool = (slug: string, mechanismSlug: string) =>
+		`---\nslug: ${slug}\nstatus: published\nmechanism: ${mechanismSlug}\nname: "Act"\ntrigger: "t"\ntimeboxMinutes: 10\nsteps: ["s"]\nfailureLooksLike: ["f"]\nlegitimateDemand: ["l"]\n---\n`;
+	const example = (mechanismSlug: string) =>
+		`---\nmechanism: ${mechanismSlug}\ndomain: Housing\ntitle: "Case"\nstatus: published\n---\n`;
+	const writeRaw = (config: string) =>
+		writeFileSync(
+			join(root, "apps", "test-book", "src", "book.config.ts"),
+			config,
+			"utf8",
+		);
+	const ofCode = (prefix: string) =>
+		check().findings.filter((finding) => finding.code.startsWith(prefix));
+
+	beforeEach(() => {
+		writeBook([
+			["chapters/01-start.mdx", chapter("start")],
+			["mechanisms/covered.mdx", mechanism("covered")],
+			["toolkit/covered--act.mdx", tool("covered--act", "covered")],
+			["examples/covered-case.mdx", example("covered")],
+			["mechanisms/bare.mdx", mechanism("bare")],
+		]);
+	});
+
+	it("asks a draft for each mechanism's missing action and example, as warnings", () => {
+		writeConfig('\tstatus: "draft",\n');
+		const findings = ofCode("MECHANISM_NO_");
+		expect(
+			findings.map((finding) => `${finding.level}:${finding.code}`),
+		).toEqual(["warning:MECHANISM_NO_ACTION", "warning:MECHANISM_NO_EXAMPLE"]);
+		expect(findings[0].file).toEndWith("mechanisms/bare.mdx");
+		expect(findings[0].fix).toBe(
+			'Add one: bun run bookkit new tool test-book bare "<name>"',
+		);
+		expect(check().ok).toBe(true);
+	});
+
+	it("fails a published book with a mechanism no action or example covers", () => {
+		writeConfig('\tstatus: "published",\n');
+		expect(ofCode("MECHANISM_NO_").map((finding) => finding.level)).toEqual([
+			"error",
+			"error",
+		]);
+		writeBook([
+			["toolkit/bare--act.mdx", tool("bare--act", "bare")],
+			["examples/bare-case.mdx", example("bare")],
+		]);
+		expect(check().findings).toEqual([]);
+	});
+
+	it("reads each release note as the release notes page would", () => {
+		writeConfig('\tstatus: "draft",\n');
+		const releases = join(
+			root,
+			"apps",
+			"test-book",
+			"src",
+			"content",
+			"book",
+			"releases",
+		);
+		mkdirSync(releases);
+		writeFileSync(
+			join(releases, "first.mdx"),
+			'---\ntitle: "First"\nversion: 1\n---\n',
+		);
+		const [finding] = ofCode("RELEASE_NOTE_");
+		expect(finding).toMatchObject({
+			level: "warning",
+			code: "RELEASE_NOTE_INCOMPLETE",
+			message:
+				"Release note has no version or date (version is the number 1; quote it), so the release notes page leaves it out",
+		});
+		expect(finding.file).toEndWith("releases/first.mdx");
+	});
+
+	it("names starter text left in book.config.ts: a warning in a draft, an error once published", () => {
+		const template = join(
+			root,
+			"packages",
+			"astro-bookkit",
+			"templates",
+			"starter",
+			"src",
+		);
+		mkdirSync(template, { recursive: true });
+		writeFileSync(
+			join(template, "book.config.ts"),
+			'export const bookConfig = { causalStance: "Name the cause here." };\n',
+		);
+		writeConfig(
+			'\tstatus: "draft",\n\tcausalStance: "Name the cause here.",\n',
+		);
+		expect(ofCode("CONFIG_PLACEHOLDER")).toEqual([
+			expect.objectContaining({
+				level: "warning",
+				field: "causalStance",
+				message:
+					"book.config.ts still has the starter text for causalStance, which shows on the About this book page (/read/overview)",
+				fix: "Replace it with the book's core claim about what causes the problem it covers.",
+			}),
+		]);
+		writeConfig(
+			'\tstatus: "published",\n\tcausalStance: "Name the cause here.",\n',
+		);
+		expect(ofCode("CONFIG_PLACEHOLDER")[0].level).toBe("error");
+	});
+
+	it("holds a published book to a public site.url, and to being found", () => {
+		writeBook([
+			["toolkit/bare--act.mdx", tool("bare--act", "bare")],
+			["examples/bare-case.mdx", example("bare")],
+		]);
+		writeRaw('export const bookConfig = { status: "draft" };\n');
+		expect(ofCode("RELEASE_")).toEqual([]);
+
+		writeRaw('export const bookConfig = { status: "published" };\n');
+		expect(codes(check())).toEqual(["error:RELEASE_SITE_URL"]);
+
+		writeRaw(
+			'export const bookConfig = { status: "published", site: { url: "http://localhost:4321", indexable: false } };\n',
+		);
+		expect(ofCode("RELEASE_").map((finding) => finding.message)).toEqual([
+			"site.indexable is false, but a published book is meant to be found",
+			"site.url is a local address (http://localhost:4321), so canonical links, the sitemap, and link previews would not point at the published site",
+		]);
+		expect(ofCode("RELEASE_")[0].file).toEndWith(
+			"apps/test-book/src/book.config.ts",
+		);
+	});
+
+	it("applies release rules to a draft when asked, as publish does", () => {
+		writeRaw('export const bookConfig = { status: "draft" };\n');
+		const forced = checkBookContent({
+			workspaceRoot: root,
+			bookSlug: "test-book",
+			releaseMode: true,
+		});
+		expect(
+			forced.findings
+				.filter((finding) => finding.level === "error")
+				.map((finding) => finding.code),
+		).toEqual([
+			"MECHANISM_NO_ACTION",
+			"MECHANISM_NO_EXAMPLE",
+			"RELEASE_SITE_URL",
+		]);
 	});
 });

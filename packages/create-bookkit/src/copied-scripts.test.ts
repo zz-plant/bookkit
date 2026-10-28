@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { planGates } from "../../../scripts/lib/verify-plan";
 import {
 	ENTRY_SCRIPTS,
 	importSpecifiers,
@@ -21,6 +29,41 @@ describe("vendoredScripts", () => {
 		// Reached only through imports; the old hand-kept list missed both.
 		expect(vendored.files).toContain("lib/load-book.ts");
 		expect(vendored.files).toContain("lib/verify-plan.ts");
+	});
+
+	it("copies every script a project starts by its path", () => {
+		// verify's gates, the bookkit CLI, and the MCP tools start these by path,
+		// not by import, so the walk from ENTRY_SCRIPTS cannot reach them.
+		const read = (path: string) => readFileSync(join(repoRoot, path), "utf8");
+		const handlers = "packages/astro-bookkit/src/mcp/tool-handlers";
+		const sources = [
+			read("scripts/bookkit.ts"),
+			...readdirSync(join(repoRoot, handlers))
+				.filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+				.map((name) => read(`${handlers}/${name}`)),
+		];
+		const started = new Set([
+			...planGates(null, ["a-book"], () => true, "project").flatMap((gate) =>
+				gate.commands
+					.flat()
+					.flatMap((arg) => arg.match(/^scripts\/([\w/.-]+\.ts)$/)?.[1] ?? []),
+			),
+			...sources.flatMap((source) =>
+				[
+					...source.matchAll(
+						/runScript\(\s*"([\w/.-]+\.ts)"|"scripts\/([\w/.-]+\.ts)"/g,
+					),
+				].map((match) => match[1] ?? match[2]),
+			),
+		]);
+		expect(started).toContain("validate-book.ts");
+		expect(started).toContain("check-corpus.ts");
+		for (const file of started) {
+			expect({ file, vendored: vendored.files.includes(file) }).toEqual({
+				file,
+				vendored: true,
+			});
+		}
 	});
 
 	it("names the packages a project's root must install", () => {

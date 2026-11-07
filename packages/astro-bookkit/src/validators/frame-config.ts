@@ -317,3 +317,65 @@ function literalOfKey(
 	}
 	return undefined;
 }
+
+/**
+ * The mechanism slugs declared in `mechanisms: [ { slug: "..." }, ... ]` in
+ * a book.config.ts source. Null when the property is absent; empty when the
+ * array is empty.
+ */
+export function extractConfigMechanismSlugsFromSource(
+	source: string,
+): string[] | null {
+	const match = source.search(/\bmechanisms\s*:\s*\[/);
+	if (match === -1) return null;
+	const start = source.indexOf("[", match);
+	let depth = 0;
+	let end = -1;
+	for (let i = start; i < source.length; i++) {
+		const ch = source[i];
+		if (STRING_START.test(ch)) {
+			i = readStringAt(source, i) - 1;
+			continue;
+		}
+		const afterComment = skipComment(source, i);
+		if (afterComment !== i) {
+			i = afterComment - 1;
+			continue;
+		}
+		if (ch === "[") depth++;
+		else if (ch === "]") {
+			depth--;
+			if (depth === 0) {
+				end = i;
+				break;
+			}
+		}
+	}
+	if (end === -1) return null;
+	const slice = source.slice(start, end + 1);
+	const slugs: string[] = [];
+	for (const m of slice.matchAll(
+		/\bslug\s*:\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g,
+	)) {
+		const slug = m[1] ?? m[2] ?? m[3];
+		if (slug) slugs.push(slug);
+	}
+	return slugs;
+}
+
+/**
+ * The `constraints.mechanismCountTarget: [min, max]` tuple from a book.config.ts
+ * source, or null when absent or malformed.
+ */
+export function extractMechanismCountTargetFromSource(
+	source: string,
+): [number, number] | null {
+	const constraints = objectAfterKey(source, "constraints");
+	if (!constraints) return null;
+	const slice = source.slice(constraints[0], constraints[1] + 1);
+	const match = slice.match(
+		/\bmechanismCountTarget\s*:\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]/,
+	);
+	if (!match) return null;
+	return [Number(match[1]), Number(match[2])];
+}

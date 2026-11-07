@@ -60,7 +60,9 @@ A traditional book is frozen at print time. A Bookkit book is a living codebase 
 **Constraints, and what holds each one:**
 
 - **Actions take 10 minutes or less.** The toolkit schema rejects a `timeboxMinutes` over 10 (`TIMEBOX_TOO_LONG`), whatever `constraints.actionPrimitiveMaxMinutes` says.
-- **Reading order is a graph over the chapters.** Chapters are read in file order (or `order:`), and `prerequisites:` connect them. An unknown prerequisite is an error once the book is published, one that comes after its chapter is a warning, and readers see a chapter's prerequisites as "Read first". `constraints.orderingModel` records the intent; no check reads it.
+- **Reading order is a graph over the chapters.** Chapters are read in file order (or `order:`), and `prerequisites:` connect them. The engine proves that chapters form a directed acyclic graph (`detectCycles`; `PREREQUISITE_CYCLE` is a blocking error), an unknown prerequisite is an error once the book is published, one that comes after its chapter is a warning, and readers see a chapter's prerequisites as "Read first". `constraints.orderingModel` records the intent.
+- **Mechanisms declared in `book.config.ts` match content bindings.** The author commits to the book's mechanism commitments and target range (`constraints.mechanismCountTarget`); the validator proves that declared mechanisms exist (`UNKNOWN_MECHANISM`), that content mechanisms are declared in config (`UNLISTED_MECHANISM`), and that the mechanism count satisfies the declared target constraint (`MECHANISM_COUNT_TARGET`).
+- **Frames are structurally enforceable.** The overview chapter is checked against required frame steps (`FRAME_STEP_MISSING` warning); standalone documents checked via `bookkit check --frame` or `validateFrameSteps` enforce required steps as blocking errors.
 - **Examples are swappable.** Changing an example must not change the mechanism it illustrates. `check:suggestions` flags an example that restates its mechanism's definition; it advises and never fails a check, and no check reads `constraints.examplesMustBeSwappable`.
 
 ---

@@ -5,6 +5,7 @@ import type { FrameDefinition } from "../frames/types";
 import { isReleasedStatus, isStatus, STATUSES } from "../schemas/status";
 import { didYouMean } from "../utils/did-you-mean";
 import { parseFrontmatter } from "../utils/frontmatter";
+import { detectCycles, type GraphNode } from "../utils/graph";
 import {
 	CONTENT_SECTIONS,
 	type ContentFinding,
@@ -20,7 +21,9 @@ import {
 import { frameStepsInPage } from "./frame";
 import {
 	extractBookStatusFromSource,
+	extractConfigMechanismSlugsFromSource,
 	extractFrameConfigFromSource,
+	extractMechanismCountTargetFromSource,
 	extractMechanismUrgencySlugsFromSource,
 	extractSiteSettingsFromSource,
 } from "./frame-config";
@@ -392,6 +395,41 @@ const prerequisiteOrderFindings = (
 	});
 };
 
+const prerequisiteCycleFindings = (
+	chapters: readonly ParsedSource[],
+): BookFinding[] => {
+	const nodes: GraphNode[] = chapters.map((chapter) => ({
+		slug: routeSlug(chapter.file, chapter.data ?? {}),
+		title:
+			typeof chapter.data?.title === "string"
+				? chapter.data.title
+				: routeSlug(chapter.file, chapter.data ?? {}),
+		prerequisites: Array.isArray(chapter.data?.prerequisites)
+			? chapter.data.prerequisites.filter(
+					(item): item is string => typeof item === "string",
+				)
+			: [],
+	}));
+	const cycleResult = detectCycles(nodes);
+	if (!cycleResult.hasCycle) return [];
+	const chapterBySlug = new Map(
+		chapters.map((c) => [routeSlug(c.file, c.data ?? {}), c]),
+	);
+	return cycleResult.cycles.map((cycle) => {
+		const startSlug = cycle[0];
+		const file = chapterBySlug.get(startSlug)?.file ?? chapters[0]?.file;
+		const cycleDesc = cycle.join(" -> ");
+		return {
+			level: "error",
+			code: "PREREQUISITE_CYCLE",
+			field: "prerequisites",
+			file,
+			message: `Prerequisite cycle detected in chapters: ${cycleDesc}`,
+			fix: `Break the cycle by removing or relaxing prerequisites in one of: ${cycle.slice(0, -1).join(", ")}.`,
+		};
+	});
+};
+
 /**
  * Two records of a section served at the same slug (in the same locale): the
  * site builds one page for it and drops the other, while the PDF and EPUB
@@ -457,6 +495,84 @@ const urgencyFindings = (
 							: `Use the slug of one of this book's mechanisms (src/content/book/mechanisms/), or remove the key.`,
 			};
 		});
+
+/**
+ * Slugs in `book.config.ts` `mechanisms: [ { slug: "..." } ]` that name no
+ * mechanism of the book, or mechanisms in the content folder that are omitted
+ * from the declaration. An error in releaseMode, a warning in draft.
+ */
+const configMechanismFindings = (
+	configSource: string,
+	configPath: string,
+	mechanismSlugs: ReadonlySet<string>,
+	retiredSlugs: ReadonlyMap<string, RetiredSlug>,
+	releaseMode: boolean,
+): BookFinding[] => {
+	const declaredSlugs = extractConfigMechanismSlugsFromSource(configSource);
+	if (!declaredSlugs) return [];
+	const declaredSet = new Set(declaredSlugs);
+	const findings: BookFinding[] = [];
+	for (const slug of declaredSlugs) {
+		if (!mechanismSlugs.has(slug)) {
+			const retired = retiredSlugs.get(slug);
+			const close = nearest(slug, [...mechanismSlugs]);
+			findings.push({
+				level: releaseMode ? "error" : "warning",
+				code: "UNKNOWN_MECHANISM",
+				field: "mechanisms",
+				file: configPath,
+				message: `book.config.ts mechanisms commits to "${slug}", which is not a mechanism in this book (src/content/book/mechanisms/)`,
+				fix:
+					retired && mechanismSlugs.has(retired.into)
+						? `${slug} was merged into ${retired.into}${retired.date ? ` on ${retired.date}` : ""}: update the entry to "${retired.into}".`
+						: close.length > 0
+							? `Did you mean ${close.map((candidate) => `"${candidate}"`).join(" or ")}? Update the slug or add mechanisms/${slug}.mdx.`
+							: `Add mechanisms/${slug}.mdx, or remove the entry from book.config.ts mechanisms.`,
+			});
+		}
+	}
+	if (declaredSlugs.length > 0) {
+		for (const mechSlug of mechanismSlugs) {
+			if (!declaredSet.has(mechSlug)) {
+				findings.push({
+					level: releaseMode ? "error" : "warning",
+					code: "UNLISTED_MECHANISM",
+					field: "mechanisms",
+					file: configPath,
+					message: `Mechanism "${mechSlug}" exists in src/content/book/mechanisms/ but is not declared in book.config.ts mechanisms`,
+					fix: `Add an entry for "${mechSlug}" with its focus sentence to book.config.ts mechanisms, or remove mechanisms/${mechSlug}.mdx.`,
+				});
+			}
+		}
+	}
+	return findings;
+};
+
+/**
+ * Checks constraints.mechanismCountTarget: [min, max] if declared in book.config.ts.
+ */
+const constraintTargetFindings = (
+	configSource: string,
+	configPath: string,
+	mechanismCount: number,
+): BookFinding[] => {
+	const target = extractMechanismCountTargetFromSource(configSource);
+	if (!target) return [];
+	const [min, max] = target;
+	if (mechanismCount < min || mechanismCount > max) {
+		return [
+			{
+				level: "warning",
+				code: "MECHANISM_COUNT_TARGET",
+				field: "constraints.mechanismCountTarget",
+				file: configPath,
+				message: `Book has ${mechanismCount} mechanism(s), outside constraints.mechanismCountTarget [${min}, ${max}]`,
+				fix: `Add or consolidate mechanisms, or adjust constraints.mechanismCountTarget in book.config.ts.`,
+			},
+		];
+	}
+	return [];
+};
 
 /**
  * A mechanism with no toolkit action leaves a reader who meets it nothing to
@@ -713,6 +829,7 @@ export const checkBookContent = (
 		}
 		findings.push(...duplicateSlugFindings(root, section, parsed[section]));
 	}
+	findings.push(...prerequisiteCycleFindings(parsed.chapter));
 	findings.push(...prerequisiteOrderFindings(parsed.chapter));
 	findings.push(...coverageFindings(book, parsed, releaseMode));
 	findings.push(...releaseNoteFindings(root));
@@ -725,6 +842,18 @@ export const checkBookContent = (
 				mechanismSlugs,
 				retiredSlugs,
 				releaseMode,
+			),
+			...configMechanismFindings(
+				configSource,
+				configPath,
+				mechanismSlugs,
+				retiredSlugs,
+				releaseMode,
+			),
+			...constraintTargetFindings(
+				configSource,
+				configPath,
+				mechanismSlugs.size,
 			),
 			...configFindings(
 				workspaceRoot,

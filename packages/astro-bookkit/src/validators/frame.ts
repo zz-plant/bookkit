@@ -1,3 +1,4 @@
+import { findDuplicateFrameStepIds } from "../frames/registry";
 import type { FrameDefinition } from "../frames/types";
 import { createHeadingSlugger } from "../utils/markdown";
 import { markdownHeadings } from "../utils/markdown-headings";
@@ -11,18 +12,6 @@ export type FrameValidationResult = {
 export type FrameDefinitionValidationResult = {
 	duplicateStepIds: string[];
 	errors: NormalizedErrorPayload[];
-};
-
-const findDuplicateIds = (ids: string[]): string[] => {
-	const counts = new Map<string, number>();
-
-	ids.forEach((id) => {
-		counts.set(id, (counts.get(id) ?? 0) + 1);
-	});
-
-	return Array.from(counts.entries())
-		.filter(([, count]) => count > 1)
-		.map(([id]) => id);
 };
 
 export const validateFrameSteps = (
@@ -56,8 +45,7 @@ export const validateFrameSteps = (
 export const validateFrameDefinition = (
 	frame: FrameDefinition,
 ): FrameDefinitionValidationResult => {
-	const stepIds = frame.steps.map((step) => step.id);
-	const duplicateStepIds = findDuplicateIds(stepIds);
+	const duplicateStepIds = findDuplicateFrameStepIds(frame);
 	const errors = duplicateStepIds.map(
 		(stepId) =>
 			({

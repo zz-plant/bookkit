@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { defaultFrames } from "../frames/defaults";
 import {
 	extractBookStatusFromSource,
+	extractConfigMechanismSlugsFromSource,
 	extractFrameConfigFromSource,
+	extractMechanismCountTargetFromSource,
 	extractMechanismUrgencySlugsFromSource,
 	extractSiteSettingsFromSource,
 } from "./frame-config";
@@ -188,6 +190,56 @@ describe("extractSiteSettingsFromSource", () => {
 		expect(extractSiteSettingsFromSource("export default {};")).toBeNull();
 		expect(
 			extractSiteSettingsFromSource("export default { site: sharedSite };"),
+		).toBeNull();
+	});
+});
+
+describe("extractConfigMechanismSlugsFromSource", () => {
+	test("extracts slug properties from mechanisms array", () => {
+		const source = `
+			export const bookConfig = {
+				mechanisms: [
+					{ slug: "delay-as-force", focus: "One sentence." },
+					{ slug: 'compliance-trap', focus: 'Another sentence.' },
+					{ slug: \`drift\`, focus: \`Third sentence.\` },
+				],
+			};
+		`;
+		expect(extractConfigMechanismSlugsFromSource(source)).toEqual([
+			"delay-as-force",
+			"compliance-trap",
+			"drift",
+		]);
+	});
+
+	test("returns null when mechanisms is absent", () => {
+		expect(
+			extractConfigMechanismSlugsFromSource("export default {};"),
+		).toBeNull();
+	});
+});
+
+describe("extractMechanismCountTargetFromSource", () => {
+	test("extracts [min, max] target tuple from constraints", () => {
+		const source = `
+			export const bookConfig = {
+				constraints: {
+					mechanismCountTarget: [4, 6],
+					actionPrimitiveMaxMinutes: 10,
+				},
+			};
+		`;
+		expect(extractMechanismCountTargetFromSource(source)).toEqual([4, 6]);
+	});
+
+	test("returns null when constraints or mechanismCountTarget is absent", () => {
+		expect(
+			extractMechanismCountTargetFromSource("export default {};"),
+		).toBeNull();
+		expect(
+			extractMechanismCountTargetFromSource(
+				"export default { constraints: { actionPrimitiveMaxMinutes: 10 } };",
+			),
 		).toBeNull();
 	});
 });

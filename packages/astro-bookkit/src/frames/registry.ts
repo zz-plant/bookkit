@@ -1,7 +1,16 @@
-import { validateFrameDefinition } from "../validators/frame";
 import type { FrameDefinition } from "./types";
 
 const frames = new Map<string, FrameDefinition>();
+
+export const findDuplicateFrameStepIds = (frame: FrameDefinition): string[] => {
+	const counts = new Map<string, number>();
+	for (const step of frame.steps) {
+		counts.set(step.id, (counts.get(step.id) ?? 0) + 1);
+	}
+	return Array.from(counts.entries())
+		.filter(([, count]) => count > 1)
+		.map(([id]) => id);
+};
 
 export const registerFrame = (frame: FrameDefinition): void => {
 	// Rationale: fail fast on duplicate slugs/steps to keep frames enforceable and stable.
@@ -11,7 +20,7 @@ export const registerFrame = (frame: FrameDefinition): void => {
 		);
 	}
 
-	const { duplicateStepIds } = validateFrameDefinition(frame);
+	const duplicateStepIds = findDuplicateFrameStepIds(frame);
 	if (duplicateStepIds.length > 0) {
 		throw new Error(
 			`Frame "${frame.slug}" has duplicate step ids: ${duplicateStepIds.join(

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "../_lib";
 import {
+	chapterCorpusHints,
 	chapterDraft,
 	chapterSource,
 	findSimilarMechanisms,
@@ -67,6 +68,49 @@ describe("chapterDraft", () => {
 			chapterDraft(chapter(words(70)), ["one"], ["three", "one", "two"])
 				.unbound,
 		).toEqual(["three", "two"]);
+	});
+
+	it("detects corpus mechanisms mentioned in draft prose and recommends binding or syncing", () => {
+		const source = `---
+slug: testing-corpus
+title: "Testing Corpus"
+mechanisms: []
+---
+
+We rely on delay as force to exhaust patience, while transfer success pushes blame down.
+`;
+		const hints = chapterCorpusHints({
+			source,
+			book: "running-hot",
+			binds: [],
+		});
+		// delay-as-force is in running-hot (bind); transfer-success is in bad-people (sync)
+		const delayHint = hints.find((h) => h.slug === "delay-as-force");
+		const transferHint = hints.find((h) => h.slug === "transfer-success");
+
+		expect(delayHint).toBeDefined();
+		expect(delayHint?.action).toBe("bind");
+
+		expect(transferHint).toBeDefined();
+		expect(transferHint?.action).toBe("sync");
+	});
+
+	it("omits already bound mechanisms from corpus hints", () => {
+		const source = `---
+slug: testing-corpus
+title: "Testing Corpus"
+mechanisms:
+  - delay-as-force
+---
+
+We rely on delay as force to exhaust patience.
+`;
+		const hints = chapterCorpusHints({
+			source,
+			book: "running-hot",
+			binds: ["delay-as-force"],
+		});
+		expect(hints.some((h) => h.slug === "delay-as-force")).toBe(false);
 	});
 });
 

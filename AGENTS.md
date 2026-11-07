@@ -66,7 +66,7 @@ Engine modules are tiered in the module map in `docs/architecture.md`.
 
 ❌ do not import sideways or upward, and do not introduce a new import cycle
 
-Two cycles are declared and tolerated (`frames` ↔ `validators`, `book` ↔ `components` ↔ `layouts`). Any other cycle fails `bun run check:architecture`. Break it by moving shared code down a tier or inverting the dependency — not by adding an entry to the declared list.
+Engine modules form a strict DAG with zero import cycles across tiers 0 to 7. Any import cycle fails `bun run check:architecture`. Break any potential cycle by moving shared code down a tier or inverting the dependency — never add declared cycles.
 
 ---
 

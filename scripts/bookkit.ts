@@ -1649,6 +1649,7 @@ async function checkOneFile(path: string, asJson: boolean, quick = false) {
 						: [],
 					loadBookContent(book).mechanisms.map((m) => m.slug),
 					(await loadBookConfigSummary(book)).site,
+					book,
 				)
 			: null;
 	if (asJson) {
@@ -1724,6 +1725,20 @@ function printDraft(draft: ChapterDraft) {
 		console.log(
 			`  the book's other mechanisms: ${draft.unbound.join(", ")}. Bind one by adding its slug to mechanisms: before naming a new idea.`,
 		);
+	}
+	if (draft.corpusHints && draft.corpusHints.length > 0) {
+		console.log("  corpus hints (reuse existing concepts):");
+		for (const hint of draft.corpusHints) {
+			if (hint.action === "bind") {
+				console.log(
+					`    • ${hint.slug}: mentioned in prose — bind by adding to mechanisms:`,
+				);
+			} else {
+				console.log(
+					`    • ${hint.slug} (${hint.books.join(", ")}): mentioned in prose — share with bun run bookkit sync ${hint.slug} --to <this book>`,
+				);
+			}
+		}
 	}
 }
 

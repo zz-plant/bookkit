@@ -282,6 +282,25 @@ describe("cross-file checks", () => {
 		expect(order.every((finding) => finding.level === "warning")).toBe(true);
 	});
 
+	it("errors on circular prerequisite dependencies between chapters", () => {
+		writeConfig('\tstatus: "draft",\n');
+		writeBook([
+			["chapters/01-a.mdx", chapter("a", "draft", "prerequisites:\n  - b\n")],
+			["chapters/02-b.mdx", chapter("b", "draft", "prerequisites:\n  - a\n")],
+		]);
+		const cycleFindings = check().findings.filter(
+			(finding) => finding.code === "PREREQUISITE_CYCLE",
+		);
+		expect(cycleFindings).toHaveLength(1);
+		expect(cycleFindings[0]).toMatchObject({
+			level: "error",
+			code: "PREREQUISITE_CYCLE",
+			field: "prerequisites",
+		});
+		expect(cycleFindings[0].message).toContain("a -> b -> a");
+		expect(check().ok).toBe(false);
+	});
+
 	it("requires a chapter once the book is past draft", () => {
 		writeConfig('\tstatus: "draft",\n');
 		expect(check().ok).toBe(true);
@@ -359,6 +378,80 @@ describe("mechanismsIndex.urgency", () => {
 		expect(urgencyFindings()[0].fix).toBe(
 			'slow-walk was merged into delay-as-force on 2026-10-01: rename the key to "delay-as-force", or remove it.',
 		);
+	});
+});
+
+describe("book.config.ts mechanisms and constraints", () => {
+	const mechanism = (slug: string) =>
+		`---\nslug: ${slug}\nstatus: published\ntitle: "${slug}"\ndefinition: "d"\nis: ["a"]\nisNot: ["b"]\npredictions: ["c"]\ntests: ["e"]\n---\n`;
+	const tool = (slug: string, mechanismSlug: string) =>
+		`---\nslug: ${slug}\nstatus: published\nmechanism: ${mechanismSlug}\nname: "Act"\ntrigger: "t"\ntimeboxMinutes: 10\nsteps: ["s"]\nfailureLooksLike: ["f"]\nlegitimateDemand: ["l"]\n---\n`;
+	const example = (mechanismSlug: string) =>
+		`---\nmechanism: ${mechanismSlug}\ndomain: Housing\ntitle: "Case"\nstatus: published\n---\n`;
+
+	beforeEach(() => {
+		writeBook([
+			["chapters/01-start.mdx", chapter("start")],
+			["mechanisms/alpha.mdx", mechanism("alpha")],
+			["toolkit/alpha--act.mdx", tool("alpha--act", "alpha")],
+			["examples/alpha-case.mdx", example("alpha")],
+		]);
+	});
+
+	it("warns in draft and errors in release when a declared mechanism does not exist", () => {
+		writeConfig(
+			'\tstatus: "draft",\n\tmechanisms: [{ slug: "alpha", focus: "Focus." }, { slug: "missing", focus: "None." }],\n',
+		);
+		const draftFindings = check().findings.filter(
+			(f) => f.code === "UNKNOWN_MECHANISM" && f.field === "mechanisms",
+		);
+		expect(draftFindings).toHaveLength(1);
+		expect(draftFindings[0].level).toBe("warning");
+		expect(draftFindings[0].message).toContain('"missing"');
+
+		writeConfig(
+			'\tstatus: "published",\n\tmechanisms: [{ slug: "alpha", focus: "Focus." }, { slug: "missing", focus: "None." }],\n',
+		);
+		const releaseFindings = check().findings.filter(
+			(f) => f.code === "UNKNOWN_MECHANISM" && f.field === "mechanisms",
+		);
+		expect(releaseFindings[0].level).toBe("error");
+	});
+
+	it("warns in draft and errors in release when a mechanism file is omitted from config mechanisms", () => {
+		writeConfig(
+			'\tstatus: "draft",\n\tmechanisms: [{ slug: "other", focus: "Focus." }],\n',
+		);
+		const unlisted = check().findings.filter(
+			(f) => f.code === "UNLISTED_MECHANISM",
+		);
+		expect(unlisted).toHaveLength(1);
+		expect(unlisted[0].level).toBe("warning");
+		expect(unlisted[0].message).toContain('"alpha"');
+
+		writeConfig(
+			'\tstatus: "published",\n\tmechanisms: [{ slug: "other", focus: "Focus." }],\n',
+		);
+		const releaseUnlisted = check().findings.filter(
+			(f) => f.code === "UNLISTED_MECHANISM",
+		);
+		expect(releaseUnlisted[0].level).toBe("error");
+	});
+
+	it("warns when mechanism count is outside constraints.mechanismCountTarget", () => {
+		writeConfig(
+			'\tstatus: "draft",\n\tconstraints: { mechanismCountTarget: [2, 4] },\n',
+		);
+		const targetFindings = check().findings.filter(
+			(f) => f.code === "MECHANISM_COUNT_TARGET",
+		);
+		expect(targetFindings).toHaveLength(1);
+		expect(targetFindings[0]).toMatchObject({
+			level: "warning",
+			code: "MECHANISM_COUNT_TARGET",
+			field: "constraints.mechanismCountTarget",
+		});
+		expect(targetFindings[0].message).toContain("Book has 1 mechanism(s)");
 	});
 });
 
@@ -452,6 +545,22 @@ describe("the frame check of the overview chapter", () => {
 				'Framing chapter (00-overview.mdx) for frame "field-guide" is missing required step(s): steps, failure-modes, checklist',
 			fix: 'Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step\'s name (e.g. "## Steps"); the field-guide frame requires them in that chapter.',
 		});
+	});
+
+	it("treats missing frame steps as an error in a published book", () => {
+		writeConfig('\tstatus: "published",\n');
+		writeBook([
+			[
+				"chapters/00-overview.mdx",
+				chapter("overview", "published", "").replace("Body.\n", "## Steps\n"),
+			],
+		]);
+		const finding = checkBookContent({
+			workspaceRoot: root,
+			bookSlug: "test-book",
+			frameSlug: "field-guide",
+		}).findings.find((f) => f.code === "FRAME_STEP_MISSING");
+		expect(finding?.level).toBe("warning");
 	});
 
 	it("does not read the frontmatter or fenced code as headings", () => {

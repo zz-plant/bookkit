@@ -3,6 +3,19 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-11-07 — Modernization: draft-time corpus governance and tooling configuration
+
+- **Draft-time corpus hints in chapter checks (serving bet B1).** `chapterDraft` and `bookkit check <chapter.mdx>` now inspect draft prose against mechanisms defined across the shared corpus (`corpus.json` `books`). When draft prose touches or mentions existing mechanisms that are not yet bound, it surfaces actionable guidance: binding the slug locally if already present in the book, or sharing it from a sibling book with `bun run bookkit sync <slug> --to <book>`. The hints are surfaced directly in CLI output and in `--json` payloads for MCP clients and editors, preventing concept duplication at write time.
+- **Modernized Biome configuration.** `biome.json` migrated to the 2.5/2.6 schema format with `"preset": "recommended"`, eliminating deprecation warnings during format and CI runs.
+
+## 2026-11-06 — Strict architecture DAG: zero import cycles and enforced invariants
+
+- **Zero import cycles across the engine.** The two historically declared import cycles (`frames` ↔ `validators`, `book` ↔ `components` ↔ `layouts`) are eliminated. `frames/` has zero dependencies (Tier 0); `validators/` (Tier 1) imports `frames/` strictly downward. `computeLayoutMetadata` lives in `book/layout-metadata.ts` (Tier 4), and reader shell components (`ReadingProgressBar`, `VersionSwitcher`, `LanguageSwitcher`) live in `layouts/book-layout/` (Tier 5), with thin wrappers in `components/` (Tier 6). The entire engine forms a strict DAG across tiers 0 to 7 verified by `bun run check:architecture`.
+- **DAG cycle detection enforced on chapter prerequisites.** `detectCycles` in `utils/graph.ts` (re-exported by `book/graph.ts`) is now called by `checkBookContent`. Circular prerequisite chains between chapters emit a blocking `PREREQUISITE_CYCLE` error with actionable fixes, enforcing Invariant 4.
+- **Frames are structurally enforceable.** Missing required frame steps (`FRAME_STEP_MISSING`) are surfaced on whole-book validation and blocked on standalone document checks (`validateFrameSteps`, `bookkit check --frame`), upholding Invariant 2.
+- **Author decisions in `book.config.ts` are validated against content bindings.** The validator now checks that every slug declared in `book.config.ts` `mechanisms: [...]` exists in `src/content/book/mechanisms/` (`UNKNOWN_MECHANISM`), that mechanism files in content are registered in config (`UNLISTED_MECHANISM`), and that mechanism counts conform to `constraints.mechanismCountTarget` (`MECHANISM_COUNT_TARGET`).
+- **Governance pipeline in `docs/architecture.md` documents `corpus.json`.** Architecture documentation now reflects cross-book mechanism identity governance, zero declared cycles, and updated module tiers.
+
 ## 2026-10-28 — Bun runs Astro and wrangler; Node is no longer needed
 
 - **A book's `dev` and `build` scripts are `bun --bun astro dev` and `bun --bun astro build`.** The `astro` command starts with `#!/usr/bin/env node`, so `bun run build` ran Astro under Node, and Node 22.22 was a prerequisite. Bun now runs it. All five books build to the same pages, search index, sitemap, feeds, icons, and link-preview images under either runtime; the only difference is Vite's module-preload helper, which Vite prints from a function at build time and Bun prints with `let f = function` where Node prints `function f`. The two behave the same, but that changes the hash in every bundle file name once.

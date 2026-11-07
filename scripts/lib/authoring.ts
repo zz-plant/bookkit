@@ -114,6 +114,70 @@ export type ChapterDraft = {
 	unknown: string[];
 	/** The book's other mechanisms, which the chapter could bind instead of coining one. */
 	unbound: string[];
+	/** Existing corpus mechanisms touched in prose that could be bound or synced (serving bet B1). */
+	corpusHints?: ChapterCorpusHint[];
+};
+
+export type ChapterCorpusHint = {
+	slug: string;
+	title: string;
+	books: string[];
+	action: "bind" | "sync";
+	matchedBy: "prose-mention" | "wording-overlap";
+};
+
+const escapeRegExp = (value: string): string =>
+	value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Detects mechanisms across the corpus that a chapter's prose touches or mentions
+ * but does not yet bind, helping authors reuse existing concepts across drafts
+ * instead of coining duplicates (serving bet B1).
+ */
+export const chapterCorpusHints = ({
+	source,
+	book,
+	binds,
+	books = listBookDirs(),
+}: {
+	source: string;
+	book?: string;
+	binds: string[];
+	books?: string[];
+}): ChapterCorpusHint[] => {
+	const prose = source.replace(/^---[\s\S]*?---\n?/, "");
+	if (!prose.trim()) return [];
+
+	const corpusEntries = loadCorpusEntries(books);
+	const { corpusOf } = corpusScope(books, readCorpusBooks());
+	const bookCorpus = book ? corpusOf(book) : undefined;
+
+	// Only consider mechanisms that belong to the same corpus (if book belongs to one)
+	const candidates = corpusEntries.filter((entry) => {
+		if (binds.includes(entry.slug)) return false;
+		if (!bookCorpus) return true;
+		return entry.books.some((other) => corpusOf(other) === bookCorpus);
+	});
+
+	const hints: ChapterCorpusHint[] = [];
+	for (const entry of candidates) {
+		const titlePhrase = entry.title.trim();
+		const slugPhrase = entry.slug.replace(/-/g, " ").trim();
+		const regexTitle = new RegExp(`\\b${escapeRegExp(titlePhrase)}\\b`, "i");
+		const regexSlug = new RegExp(`\\b${escapeRegExp(slugPhrase)}\\b`, "i");
+
+		if (regexTitle.test(prose) || regexSlug.test(prose)) {
+			const isLocal = book ? entry.books.includes(book) : false;
+			hints.push({
+				slug: entry.slug,
+				title: entry.title,
+				books: entry.books,
+				action: isLocal ? "bind" : "sync",
+				matchedBy: "prose-mention",
+			});
+		}
+	}
+	return hints;
 };
 
 /**
@@ -126,15 +190,19 @@ export const chapterDraft = (
 	listed: string[],
 	bookMechanisms: string[],
 	site?: BookConfigSummary["site"],
+	book?: string,
 ): ChapterDraft => {
 	const words = extractPageFacts(source).wordCount;
+	const binds = listed.filter((slug) => bookMechanisms.includes(slug));
+	const corpusHints = book ? chapterCorpusHints({ source, book, binds }) : [];
 	return {
 		words,
 		minimum: site?.minIndexableWords ?? DEFAULT_MIN_INDEXABLE_WORDS,
 		stub: isThinPage(words, site),
-		binds: listed.filter((slug) => bookMechanisms.includes(slug)),
+		binds,
 		unknown: listed.filter((slug) => !bookMechanisms.includes(slug)),
 		unbound: bookMechanisms.filter((slug) => !listed.includes(slug)).sort(),
+		...(corpusHints.length > 0 ? { corpusHints } : {}),
 	};
 };
 

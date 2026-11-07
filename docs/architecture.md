@@ -62,19 +62,21 @@ flowchart LR
 
 ### Governance pipeline — Bun CLI, at check time
 
-Nothing here touches Astro. Scripts read the content tree from disk, parse frontmatter into records, and run validators and analyzers over them.
+Nothing here touches Astro. Scripts read the content tree and corpus from disk, parse frontmatter into records, and run validators and analyzers over them.
 
 ```mermaid
 flowchart LR
-    FS["apps/*/src/content/book/**"] --> LB["scripts/lib/load-book.ts<br/><i>fs + frontmatter → records</i>"]
-    LB --> V["validators/<br/>schema · frame · separation"]
-    LB --> AN["suggestions/<br/>deterministic analyzers"]
+    FS["apps/*/src/content/book/**<br/><i>content bindings</i>"] --> LB["scripts/lib/load-book.ts<br/><i>fs + frontmatter → records</i>"]
+    BC["apps/*/src/book.config.ts<br/><i>author decisions</i>"] --> LB
+    CP["corpus.json<br/><i>cross-book identity & merges</i>"] --> LB
+    LB --> V["validators/<br/>schema · frame · separation · graph"]
+    LB --> AN["suggestions/<br/>deterministic analyzers & corpus overlap"]
     AN --> P["proposals/<br/>drafts, never live config"]
     V --> N["NormalizedErrorPayload<br/>machineCode · humanSummary · location · failingRule · nextAction"]
     N --> X["exit code → CI gate"]
 ```
 
-The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` wraps the validators and the workspace reader behind JSON-RPC so an agent gets the identical answers the CLI gives.
+The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` wraps the validators and the workspace reader behind JSON-RPC so an agent gets the identical answers the CLI gives. Cross-book mechanism identity is governed against `corpus.json` and `corpus-judgments.json`, ensuring stable slugs across books.
 
 **Where a change goes:** rendering, routing, or reader UI → render pipeline. Rules, checks, suggestions, or anything CI should fail on → governance pipeline. A new *record field* usually touches both — the schema (`schemas/`) and the CLI record parser (`scripts/lib/load-book.ts`).
 
@@ -146,28 +148,35 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | `exports/` | 1 | PDF and EPUB generation |
 | `localization/` | 1 | locale resolution and translation notices |
 | `suggestions/` | 1 | deterministic analyzers — overlap (per book and across a corpus of books), concept triage, example audit, prerequisites, runbook coverage |
-| `frames/` | 1 | frame registry and the built-in frames (intervention, field-guide, runbook) |
+| `frames/` | 0 | frame registry, definitions, and built-in frames (intervention, field-guide, runbook) with duplicate-step validation |
+| `markdown/` | 1 | page facts read from MDX source (the opening paragraph, the word count); the Markdown-tree step that keeps unsafe links and raw HTML out of the site's pages; the deprecated heading-id rehype plugin |
+| `rerank/` | 1 | result reranking for search |
+| `qa/` | 1 | AI question-answering providers behind the reader Q&A feature, and the limits on what a reader may send them |
+| `analytics/` | 1 | reader analytics events and the append-only log |
+| `feedback/` | 1 | reader feedback capture |
+| `preview/` | 1 | preview links and their access state |
+| `releases/` | 1 | release notes, versions, RSS, email, webhooks |
+| `exports/` | 1 | PDF and EPUB generation |
+| `localization/` | 1 | locale resolution and translation notices |
+| `suggestions/` | 1 | deterministic analyzers — overlap (per book and across a corpus of books), concept triage, example audit, prerequisites, runbook coverage |
 | `validators/` | 1 | book, frame, release-note, and separation validation, and the book.config.ts values they read; content contracts, the per-file checker, and scaffolds built from them; the `NormalizedErrorPayload` shape |
 | `search/` | 2 | search index construction and querying |
 | `seo/` | 2 | sitemap, metadata, indexability rules, link-preview images, site icons |
 | `mcp/` | 2 | JSON-RPC router, workspace reader, and deterministic tool handlers |
 | `proposals/` | 2 | turns analyzer output into reviewable drafts; frame detection; guarded materialization; a read-only preview of any folder of Markdown (`bookkit try`, `bookkit check <dir>`) |
-| `app-wrappers/` | 3 | route-handler factories the book apps re-export as API endpoints |
+| `app-wrappers/` | 3 | route-handler factories used by runtime entrypoints |
 | `book/` | 4 | runtime assembly, entrypoints, reading graph, ordering, read routes, layout state |
-| `components/` | 4 | shared Astro components and page-level compositions |
-| `layouts/` | 4 | `BookLayout` and the reader shell islands |
-| `routes/` | 5 | the pages, API routes, layout, and middleware `bookkit()` injects into every book, and the book runtime they build from `virtual:bookkit/book` |
+| `layouts/` | 5 | `BookLayout` and the reader shell islands |
+| `components/` | 6 | shared Astro components and page-level compositions |
+| `routes/` | 7 | the pages, API routes, layout, and middleware `bookkit()` injects into every book, and the book runtime they build from `virtual:bookkit/book` |
 
 <!-- architecture:modules:end -->
 
 ### Declared import cycles
 
-Two cycles exist and are tolerated. They are listed here so the gate can hold the line at *these two* and fail any new one.
+Zero import cycles exist in the engine. All modules form a strict DAG across tiers 0 to 7.
 
 <!-- architecture:cycles:start -->
-
-- `frames` ↔ `validators` — the registry validates frame definitions on registration, while validation reads the default frames. Both halves are small and stable; splitting them would add an indirection layer for one function.
-- `book` ↔ `components` ↔ `layouts` — Astro's component model is mutually recursive by nature: a layout renders components, and page-level components render the layout. Breaking this would mean duplicating the shell.
 
 <!-- architecture:cycles:end -->
 

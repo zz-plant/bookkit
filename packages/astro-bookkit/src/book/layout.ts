@@ -1,9 +1,4 @@
 import {
-	type BookAuthor,
-	computeLayoutMetadata,
-	type LayoutMetadataState,
-} from "../layouts/book-layout/metadata";
-import {
 	buildLocalizedContentIndex,
 	calculateLocaleCompleteness,
 	type LocaleEntry,
@@ -24,6 +19,11 @@ import {
 	type SeoProps,
 } from "../seo/config";
 import { canonicalPathname } from "../seo/urls";
+import {
+	type BookAuthor,
+	computeLayoutMetadata,
+	type LayoutMetadataState,
+} from "./layout-metadata";
 
 type BookLayoutAstroProps = {
 	title?: string;

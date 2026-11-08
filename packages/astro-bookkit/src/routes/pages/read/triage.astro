@@ -1,0 +1,331 @@
+---
+import BaseLayout from "../../BaseLayout.astro";
+import { bookConfig, bookEntryPoints } from "../../runtime";
+import { readRoutes, readSectionTitles } from "../../../book";
+import { bookPageTitle } from "../../../seo/page-meta";
+
+const mechanisms = Object.values(
+	bookEntryPoints.contentModules.mechanisms || {},
+).map((mod) => {
+	const fm = mod.frontmatter || {};
+	return {
+		slug: String(fm.slug || ""),
+		title: String(fm.title || fm.slug || ""),
+		definition: String(fm.definition || ""),
+		tests: Array.isArray(fm.tests) ? (fm.tests as string[]) : [],
+		is: Array.isArray(fm.is) ? (fm.is as string[]) : [],
+		isNot: Array.isArray(fm.isNot) ? (fm.isNot as string[]) : [],
+	};
+});
+
+const tools = Object.values(bookEntryPoints.contentModules.toolkit || {}).map(
+	(mod) => {
+		const fm = mod.frontmatter || {};
+		const rawSteps = Array.isArray(fm.steps) ? (fm.steps as string[]) : [];
+		const runbookSteps = Array.isArray(fm.runbookSteps)
+			? (fm.runbookSteps as Array<Record<string, unknown>>)
+					.map((s) => (typeof s?.action === "string" ? s.action : ""))
+					.filter(Boolean)
+			: [];
+		return {
+			slug: String(fm.slug || ""),
+			mechanism: String(fm.mechanism || ""),
+			name: String(fm.name || fm.title || fm.slug || ""),
+			timeboxMinutes:
+				typeof fm.timeboxMinutes === "number" ? fm.timeboxMinutes : 10,
+			trigger: String(fm.trigger || ""),
+			steps: rawSteps.length > 0 ? rawSteps : runbookSteps,
+			failureLooksLike: Array.isArray(fm.failureLooksLike)
+				? (fm.failureLooksLike as string[])
+				: [],
+			legitimateDemand: Array.isArray(fm.legitimateDemand)
+				? (fm.legitimateDemand as string[])
+				: [],
+		};
+	},
+);
+
+const triageDataPayload = JSON.stringify({ mechanisms, tools });
+---
+<BaseLayout title={bookPageTitle("Incident Triage", bookConfig.title)}>
+  <a class="back-link" href={readRoutes.root}>← Reading hub</a>
+  <div class="section-header">
+    <div class="eyebrow">Decision Model & Diagnostic Engine</div>
+    <h1>Incident Triage</h1>
+    <p class="lede">Describe an operational symptom, failure mode, or observed friction to diagnose the governing mechanism and receive an executable &le; 10-minute runbook action.</p>
+  </div>
+
+  <section class="content-block triage-console" data-triage-container>
+    <form class="triage-search-form" data-triage-form action="" method="get">
+      <label for="triage-query" class="eyebrow">Describe what is happening</label>
+      <div style="display: flex; gap: var(--space-2); margin-top: var(--space-1);">
+        <input
+          id="triage-query"
+          name="q"
+          type="text"
+          class="input"
+          style="flex: 1; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);"
+          placeholder="e.g., deploy rollback, pager alert sev-1, queue reset, withholding dispute..."
+          autocomplete="off"
+        />
+        <button type="submit" class="button button--primary">Triage</button>
+      </div>
+    </form>
+
+    <div style="margin-top: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;" aria-label="Sample symptoms">
+      <span class="meta">Try:</span>
+      {mechanisms.slice(0, 4).map((m) => (
+        <button
+          type="button"
+          class="read-pill"
+          style="cursor: pointer; background: transparent; border: none; padding: 0;"
+          data-sample-query={m.title}
+        >
+          {m.title}
+        </button>
+      ))}
+    </div>
+
+    <div data-triage-results style="margin-top: var(--space-5);">
+      <div data-triage-empty class="meta" style="padding: var(--space-5) 0; text-align: center;">
+        Enter a symptom above to diagnose against this book's mechanisms and toolkit actions.
+      </div>
+      <div data-triage-output hidden>
+        <!-- Populated safely via DOM methods -->
+      </div>
+    </div>
+
+    <!-- Hidden data transport node -->
+    <script id="bookkit-triage-data" type="application/json" set:html={triageDataPayload} />
+  </section>
+</BaseLayout>
+
+<script>
+  function initializeTriageApp() {
+    const dataScript = document.getElementById("bookkit-triage-data");
+    if (!dataScript?.textContent) return;
+
+    let payload: { mechanisms: any[]; tools: any[] };
+    try {
+      payload = JSON.parse(dataScript.textContent);
+    } catch {
+      return;
+    }
+
+    const { mechanisms, tools } = payload;
+    const form = document.querySelector("[data-triage-form]") as HTMLFormElement | null;
+    const input = document.getElementById("triage-query") as HTMLInputElement | null;
+    const emptyState = document.querySelector("[data-triage-empty]") as HTMLElement | null;
+    const outputContainer = document.querySelector("[data-triage-output]") as HTMLElement | null;
+
+    if (!form || !input || !emptyState || !outputContainer) return;
+
+    function tokenizeQuery(text: string): string[] {
+      return text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length > 2);
+    }
+
+    function runTriage(queryText: string) {
+      const trimmed = queryText.trim();
+      if (!trimmed) {
+        emptyState!.hidden = false;
+        outputContainer!.hidden = true;
+        while (outputContainer!.firstChild) {
+          outputContainer!.removeChild(outputContainer!.firstChild);
+        }
+        return;
+      }
+
+      emptyState!.hidden = true;
+      outputContainer!.hidden = false;
+      while (outputContainer!.firstChild) {
+        outputContainer!.removeChild(outputContainer!.firstChild);
+      }
+
+      const qTokens = tokenizeQuery(trimmed);
+      const scoredMechs = mechanisms
+        .map((mech) => {
+          const allText = `${mech.title} ${mech.definition} ${mech.tests.join(" ")} ${mech.is.join(" ")}`.toLowerCase();
+          let score = 0;
+          const matchedTerms: string[] = [];
+
+          for (const token of qTokens) {
+            if (allText.includes(token)) {
+              matchedTerms.push(token);
+              if (mech.title.toLowerCase().includes(token)) score += 3;
+              else if (mech.tests.some((t: string) => t.toLowerCase().includes(token))) score += 2.5;
+              else score += 1;
+            }
+          }
+
+          return { mech, score, matchedTerms };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      if (scoredMechs.length === 0) {
+        const noMatch = document.createElement("p");
+        noMatch.className = "meta";
+        noMatch.textContent = `No mechanisms matched "${trimmed}". Try broader keywords or inspect the full mechanism list.`;
+        outputContainer!.appendChild(noMatch);
+        return;
+      }
+
+      const top = scoredMechs[0];
+      const second = scoredMechs.length > 1 ? scoredMechs[1] : null;
+
+      // 1. Diagnosed Mechanism Card
+      const card = document.createElement("article");
+      card.className = "next-action-panel";
+
+      const eyebrow = document.createElement("div");
+      eyebrow.className = "eyebrow";
+      eyebrow.textContent = `Primary Diagnosis • ${Math.min(99, Math.round(top.score * 20))}% Match`;
+      card.appendChild(eyebrow);
+
+      const title = document.createElement("h2");
+      title.textContent = top.mech.title;
+      card.appendChild(title);
+
+      const def = document.createElement("p");
+      def.className = "lede";
+      def.textContent = top.mech.definition;
+      card.appendChild(def);
+
+      outputContainer!.appendChild(card);
+
+      // 2. Discriminating Question
+      if (second) {
+        const discBox = document.createElement("div");
+        discBox.className = "next-action-panel";
+
+        const discEyebrow = document.createElement("div");
+        discEyebrow.className = "eyebrow";
+        discEyebrow.textContent = "Discriminating Test (Borderline Boundary)";
+        discBox.appendChild(discEyebrow);
+
+        const discPrompt = document.createElement("p");
+        discPrompt.style.fontWeight = "600";
+        discPrompt.style.margin = "var(--space-1) 0 var(--space-2)";
+        discPrompt.textContent = `To confirm whether this is "${top.mech.title}" or "${second.mech.title}":`;
+        discBox.appendChild(discPrompt);
+
+        const discList = document.createElement("ul");
+        discList.style.paddingLeft = "var(--space-4)";
+        discList.style.margin = "0";
+
+        const liA = document.createElement("li");
+        liA.textContent = `If: ${top.mech.tests[0] || top.mech.definition} → ${top.mech.title}`;
+        discList.appendChild(liA);
+
+        const liB = document.createElement("li");
+        liB.textContent = `If instead: ${second.mech.tests[0] || second.mech.definition} → ${second.mech.title}`;
+        discList.appendChild(liB);
+
+        discBox.appendChild(discList);
+        outputContainer!.appendChild(discBox);
+      }
+
+      // 3. Executable Runbook Action (<= 10 minutes)
+      const matchingTool = tools.find(
+        (t) => t.mechanism === top.mech.slug || t.slug.includes(top.mech.slug)
+      );
+
+      const actionCard = document.createElement("article");
+      actionCard.className = "next-action-panel";
+
+      const actEyebrow = document.createElement("div");
+      actEyebrow.className = "eyebrow";
+      actEyebrow.textContent = `Executable Runbook Action • ${matchingTool?.timeboxMinutes || 10} Minutes Max`;
+      actionCard.appendChild(actEyebrow);
+
+      const actTitle = document.createElement("h3");
+      actTitle.style.margin = "var(--space-1) 0 var(--space-2)";
+      actTitle.textContent = matchingTool?.name || `Diagnostic Drill: ${top.mech.title}`;
+      actionCard.appendChild(actTitle);
+
+      if (matchingTool?.trigger) {
+        const triggerP = document.createElement("p");
+        triggerP.className = "meta";
+        triggerP.textContent = `Trigger: ${matchingTool.trigger}`;
+        actionCard.appendChild(triggerP);
+      }
+
+      const stepsHeading = document.createElement("div");
+      stepsHeading.style.fontWeight = "600";
+      stepsHeading.style.marginTop = "var(--space-3)";
+      stepsHeading.textContent = "Procedure Steps:";
+      actionCard.appendChild(stepsHeading);
+
+      const stepList = document.createElement("ol");
+      stepList.style.paddingLeft = "var(--space-4)";
+      stepList.style.marginTop = "var(--space-1)";
+
+      const stepsToRender: string[] = matchingTool?.steps?.length
+        ? matchingTool.steps
+        : top.mech.tests.map((t: string) => `Check criteria: ${t}`);
+
+      for (const st of stepsToRender) {
+        const li = document.createElement("li");
+        li.textContent = st;
+        stepList.appendChild(li);
+      }
+      actionCard.appendChild(stepList);
+
+      if (matchingTool?.legitimateDemand?.length) {
+        const demandHeading = document.createElement("div");
+        demandHeading.style.fontWeight = "600";
+        demandHeading.style.marginTop = "var(--space-3)";
+        demandHeading.textContent = "Contestable Legitimate Demands:";
+        actionCard.appendChild(demandHeading);
+
+        const demandList = document.createElement("ul");
+        demandList.style.paddingLeft = "var(--space-4)";
+        demandList.style.marginTop = "var(--space-1)";
+        for (const dm of matchingTool.legitimateDemand) {
+          const li = document.createElement("li");
+          li.textContent = dm;
+          demandList.appendChild(li);
+        }
+        actionCard.appendChild(demandList);
+      }
+
+      outputContainer!.appendChild(actionCard);
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      runTriage(input.value);
+    });
+
+    input.addEventListener("input", () => {
+      runTriage(input.value);
+    });
+
+    // Sample pills
+    document.querySelectorAll("[data-sample-query]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const q = btn.getAttribute("data-sample-query") || "";
+        input.value = q;
+        runTriage(q);
+      });
+    });
+
+    // Support URL param ?q=...
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialQ = urlParams.get("q");
+    if (initialQ) {
+      input.value = initialQ;
+      runTriage(initialQ);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeTriageApp);
+  } else {
+    initializeTriageApp();
+  }
+</script>

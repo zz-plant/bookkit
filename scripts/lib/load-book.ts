@@ -88,10 +88,19 @@ export const loadBookContent = (book: string): LoadedBookContent => {
 			typeof escalationRaw?.to === "string" ? escalationRaw.to : undefined;
 		const escalationWhen =
 			typeof escalationRaw?.when === "string" ? escalationRaw.when : undefined;
+		const rawSteps = arrayValue(data.steps);
+		const runbookSteps = Array.isArray(data.runbookSteps)
+			? (data.runbookSteps as unknown as Array<Record<string, unknown>>)
+					.map((s) => (typeof s?.action === "string" ? s.action : ""))
+					.filter(Boolean)
+			: [];
+		const resolvedSteps = rawSteps.length > 0 ? rawSteps : runbookSteps;
+
 		return {
 			slug: toStringValue(data.slug),
 			mechanism: toStringValue(data.mechanism),
-			name: toStringValue(data.name),
+			name: toStringValue(data.name) || toStringValue(data.title),
+			title: toStringValue(data.title) || toStringValue(data.name),
 			owner: toStringValue(data.owner),
 			reviewEveryDays:
 				typeof data.reviewEveryDays === "number"
@@ -99,6 +108,12 @@ export const loadBookContent = (book: string): LoadedBookContent => {
 					: undefined,
 			drills: arrayValue(data.drills),
 			satisfies: arrayValue(data.satisfies),
+			trigger: toStringValue(data.trigger),
+			timeboxMinutes:
+				typeof data.timeboxMinutes === "number" ? data.timeboxMinutes : 10,
+			steps: resolvedSteps,
+			failureLooksLike: arrayValue(data.failureLooksLike),
+			legitimateDemand: arrayValue(data.legitimateDemand),
 			escalation:
 				escalationRaw && escalationTo && escalationWhen
 					? {

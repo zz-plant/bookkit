@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	computeTopologicalOrder,
 	deriveReaderPathways,
+	deriveRolePathways,
 	detectCycles,
 	type GraphNode,
 } from "./graph";
@@ -47,5 +48,37 @@ describe("graph pedagogical engine", () => {
 		expect(pathways[0].slugs).toEqual(["intro", "ch1", "ch2", "ch3"]);
 		expect(pathways[1].name).toBe("Fast-Path");
 		expect(pathways[1].slugs).toEqual(["intro", "ch1", "ch2"]);
+	});
+
+	it("derives role-based pathways including emergency triage and structural governance", () => {
+		const nodes: GraphNode[] = [
+			{ slug: "core-policy", title: "Core Policy", prerequisites: [] },
+			{ slug: "sub-a", title: "Sub A", prerequisites: ["core-policy"] },
+			{ slug: "sub-b", title: "Sub B", prerequisites: ["core-policy"] },
+			{
+				slug: "incident-triage-runbook",
+				title: "Incident Triage Runbook",
+				prerequisites: ["core-policy"],
+				type: "tool",
+			},
+		];
+
+		const rolePathways = deriveRolePathways(nodes);
+		expect(rolePathways.length).toBeGreaterThanOrEqual(4);
+
+		const names = rolePathways.map((p) => p.name);
+		expect(names).toContain("Foundational");
+		expect(names).toContain("Fast-Path");
+		expect(names).toContain("Emergency Triage");
+		expect(names).toContain("Structural Governance");
+
+		const triage = rolePathways.find((p) => p.name === "Emergency Triage");
+		expect(triage?.slugs).toContain("incident-triage-runbook");
+
+		const governance = rolePathways.find(
+			(p) => p.name === "Structural Governance",
+		);
+		// core-policy has 3 dependents, so it should rank highest in governance
+		expect(governance?.slugs[0]).toBe("core-policy");
 	});
 });

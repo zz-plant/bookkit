@@ -149,3 +149,62 @@ export function deriveReaderPathways(nodes: GraphNode[]): ReadingPathway[] {
 		},
 	];
 }
+
+/**
+ * Derives specialized role-based reading traversals (e.g. crisis triage,
+ * structural governance, foundational sequence) from the content dependency graph.
+ */
+export function deriveRolePathways(nodes: GraphNode[]): ReadingPathway[] {
+	const base = deriveReaderPathways(nodes);
+
+	// Count how many other nodes depend on each node
+	const dependentCounts = new Map<string, number>();
+	for (const n of nodes) {
+		dependentCounts.set(n.slug, 0);
+	}
+	for (const n of nodes) {
+		for (const prereq of n.prerequisites) {
+			dependentCounts.set(prereq, (dependentCounts.get(prereq) ?? 0) + 1);
+		}
+	}
+
+	// Governance & Reform: high-leverage nodes with highest downstream dependents
+	const governanceSlugs = [...nodes]
+		.sort((a, b) => {
+			const countA = dependentCounts.get(a.slug) ?? 0;
+			const countB = dependentCounts.get(b.slug) ?? 0;
+			if (countB !== countA) return countB - countA;
+			return a.slug.localeCompare(b.slug);
+		})
+		.map((n) => n.slug)
+		.slice(0, Math.min(4, nodes.length));
+
+	// Emergency Triage: actionable tools and practical intervention points
+	const triageNodes = nodes.filter(
+		(n) =>
+			n.type === "tool" ||
+			n.slug.includes("triage") ||
+			n.slug.includes("escalat") ||
+			n.slug.includes("rollback") ||
+			n.metadata?.hasAction,
+	);
+	const triageSlugs = (
+		triageNodes.length > 0 ? triageNodes : nodes.slice(0, 3)
+	).map((n) => n.slug);
+
+	return [
+		...base,
+		{
+			name: "Emergency Triage",
+			description:
+				"Actionable runbooks and operational intervention points for immediate incident response.",
+			slugs: triageSlugs,
+		},
+		{
+			name: "Structural Governance",
+			description:
+				"Root causal levers and highest-impact structural mechanisms that govern the system.",
+			slugs: governanceSlugs,
+		},
+	];
+}

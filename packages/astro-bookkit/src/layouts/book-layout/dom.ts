@@ -237,3 +237,190 @@ export const initializeToolkitChecklists = (
 		});
 	});
 };
+
+/**
+ * In-situ popover previews for inline references (mechanisms, glossary, toolkit).
+ * When a reader hovers over or focuses a link pointing to an entry, a small floating
+ * card shows its definition/snippet without breaking reading continuity.
+ */
+export const initializePreviewPopovers = (root: ParentNode): void => {
+	const links = Array.from(
+		root.querySelectorAll<HTMLAnchorElement>("a[href]"),
+	).filter((a) => {
+		const href = a.getAttribute("href") || "";
+		return (
+			href.includes("/read/mechanisms/") ||
+			href.includes("/read/glossary/") ||
+			href.includes("/read/toolkit/")
+		);
+	});
+
+	if (!links.length) return;
+
+	let popover: HTMLElement | null = null;
+	let activeLink: HTMLAnchorElement | null = null;
+	let hoverTimeout: number | null = null;
+	let hideTimeout: number | null = null;
+
+	const ensurePopover = (): HTMLElement => {
+		let el = document.getElementById("bookkit-preview-popover");
+		if (el) return el;
+		el = document.createElement("div");
+		el.id = "bookkit-preview-popover";
+		el.className = "preview-popover";
+		el.setAttribute("role", "tooltip");
+		el.setAttribute("aria-hidden", "true");
+		el.hidden = true;
+
+		el.addEventListener("pointerenter", () => {
+			if (hideTimeout !== null) {
+				window.clearTimeout(hideTimeout);
+				hideTimeout = null;
+			}
+		});
+
+		el.addEventListener("pointerleave", () => {
+			hide();
+		});
+
+		document.body.appendChild(el);
+		return el;
+	};
+
+	const hide = () => {
+		if (hoverTimeout !== null) {
+			window.clearTimeout(hoverTimeout);
+			hoverTimeout = null;
+		}
+		if (popover) {
+			popover.hidden = true;
+			popover.classList.remove("is-visible");
+			popover.setAttribute("aria-hidden", "true");
+		}
+		activeLink = null;
+	};
+
+	const scheduleHide = () => {
+		if (hideTimeout !== null) {
+			window.clearTimeout(hideTimeout);
+		}
+		hideTimeout = window.setTimeout(hide, 200);
+	};
+
+	const showForLink = async (link: HTMLAnchorElement) => {
+		activeLink = link;
+		const href = link.getAttribute("href") || "";
+		const targetPath = href.split("?")[0].split("#")[0].replace(/\/$/, "");
+
+		try {
+			const { getSharedIndexStore } = await import("./shared-index");
+			const store = getSharedIndexStore();
+			const entries = await store.load();
+			if (activeLink !== link) return;
+
+			const match = entries.find((e) => {
+				const entryPath = e.url.split("?")[0].split("#")[0].replace(/\/$/, "");
+				return entryPath === targetPath || targetPath.endsWith(entryPath);
+			});
+
+			if (!match?.snippet) {
+				return;
+			}
+
+			popover = ensurePopover();
+			while (popover.firstChild) {
+				popover.removeChild(popover.firstChild);
+			}
+
+			const header = document.createElement("div");
+			header.className = "preview-popover__header";
+
+			const badge = document.createElement("span");
+			badge.className = "preview-popover__badge";
+			const rawType = match.type || match.section || "Reference";
+			badge.textContent = rawType.charAt(0).toUpperCase() + rawType.slice(1);
+			header.appendChild(badge);
+
+			const title = document.createElement("strong");
+			title.className = "preview-popover__title";
+			title.textContent = match.title;
+			header.appendChild(title);
+
+			const snippet = document.createElement("p");
+			snippet.className = "preview-popover__snippet";
+			const text =
+				match.snippet.length > 240
+					? `${match.snippet.slice(0, 240)}…`
+					: match.snippet;
+			snippet.textContent = text;
+
+			const footer = document.createElement("div");
+			footer.className = "preview-popover__footer";
+			const prompt = document.createElement("span");
+			prompt.className = "preview-popover__prompt";
+			prompt.textContent = "Click to inspect full entry →";
+			footer.appendChild(prompt);
+
+			popover.appendChild(header);
+			popover.appendChild(snippet);
+			popover.appendChild(footer);
+
+			const rect = link.getBoundingClientRect();
+			const popoverWidth = Math.min(360, window.innerWidth - 32);
+			popover.style.width = `${popoverWidth}px`;
+
+			let left = rect.left + window.scrollX;
+			if (left + popoverWidth > window.innerWidth - 16) {
+				left = window.innerWidth - popoverWidth - 16;
+			}
+			if (left < 16) left = 16;
+
+			let top = rect.bottom + window.scrollY + 8;
+			if (rect.bottom + 180 > window.innerHeight && rect.top > 180) {
+				top = rect.top + window.scrollY - 180;
+			}
+
+			popover.style.top = `${top}px`;
+			popover.style.left = `${left}px`;
+			popover.hidden = false;
+			popover.setAttribute("aria-hidden", "false");
+			requestAnimationFrame(() => {
+				if (popover && activeLink === link) {
+					popover.classList.add("is-visible");
+				}
+			});
+		} catch {
+			// Quietly ignore if search index is unavailable
+		}
+	};
+
+	for (const link of links) {
+		link.addEventListener("pointerenter", () => {
+			if (hideTimeout !== null) {
+				window.clearTimeout(hideTimeout);
+				hideTimeout = null;
+			}
+			hoverTimeout = window.setTimeout(() => {
+				void showForLink(link);
+			}, 250);
+		});
+
+		link.addEventListener("pointerleave", () => {
+			scheduleHide();
+		});
+
+		link.addEventListener("focusin", () => {
+			void showForLink(link);
+		});
+
+		link.addEventListener("focusout", () => {
+			scheduleHide();
+		});
+	}
+
+	document.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			hide();
+		}
+	});
+};

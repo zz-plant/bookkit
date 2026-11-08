@@ -1,4 +1,6 @@
 ---
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import BaseLayout from "../../../BaseLayout.astro";
 import {
 	buildLocalizedContentIndex,
@@ -12,7 +14,10 @@ import {
 	actionLinksForMechanisms,
 	buildLocalizedReadRoutePath,
 	chapterLinksForMechanism,
+	distinctionsForMechanism,
+	type DistinctRuling,
 	exampleLinksForMechanisms,
+	readItemPath,
 	readRoutes,
 	termLinksForMechanism,
 } from "../../../../book";
@@ -37,9 +42,12 @@ const modules = bookEntryPoints.contentModules.mechanisms;
 const localizedIndex = buildLocalizedContentIndex(modules, {
 	defaultLocale: "en",
 });
-const { missingSlugs } = resolveLocalizedContent(localizedIndex, {
-	locale: Astro.locals?.locale,
-});
+const { entries: allMechanismEntries, missingSlugs } = resolveLocalizedContent(
+	localizedIndex,
+	{
+		locale: Astro.locals?.locale,
+	},
+);
 const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
 	locale: Astro.locals?.locale,
 });
@@ -47,6 +55,40 @@ const module = resolveLocalizedModule(localizedIndex, Astro.params.slug ?? "", {
 if (!module) {
 	throw new Error(`Missing mechanism for slug: ${Astro.params.slug}`);
 }
+
+const mechanismTitleBySlug = new Map(
+	allMechanismEntries.map(({ slug, module: m }) => [
+		slug,
+		m.frontmatter?.title ?? slug,
+	]),
+);
+
+const loadDistinctRulings = (): DistinctRuling[] => {
+	const candidates = [
+		resolve(process.cwd(), "corpus.json"),
+		resolve(process.cwd(), "../../corpus.json"),
+		resolve(process.cwd(), "../../../corpus.json"),
+	];
+	for (const candidate of candidates) {
+		if (existsSync(candidate)) {
+			try {
+				const parsed = JSON.parse(readFileSync(candidate, "utf8"));
+				if (Array.isArray(parsed.distinct)) {
+					return parsed.distinct;
+				}
+			} catch {
+				// Ignore and check next
+			}
+		}
+	}
+	return [];
+};
+
+const allDistinctRulings = loadDistinctRulings();
+const mechanismDistinctions = distinctionsForMechanism(
+	Astro.params.slug,
+	allDistinctRulings,
+);
 
 const { frontmatter, default: Content } = module;
 const metaDescription = firstMetaDescription(frontmatter.definition);
@@ -152,6 +194,9 @@ const mechanismStructuredData = createDefinedTermStructuredData({
     {(hasIs || hasIsNot || hasPredictions || hasTests) && (
       <a class="pill" href="#recognize">How to recognize it</a>
     )}
+    {mechanismDistinctions.length > 0 && (
+      <a class="pill" href="#distinctions">Distinctions ({mechanismDistinctions.length})</a>
+    )}
     {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
       <a class="pill" href="#next-steps">Next steps</a>
     )}
@@ -206,6 +251,37 @@ const mechanismStructuredData = createDefinedTermStructuredData({
           </ul>
         </>
       )}
+    </section>
+  )}
+  {mechanismDistinctions.length > 0 && (
+    <section class="content-block" id="distinctions">
+      <h2>Distinctions from adjacent mechanisms</h2>
+      <p class="meta">
+        The compiler verifies that mechanisms do not overlap. The author’s rulings distinguish this mechanism from adjacent concepts:
+      </p>
+      <div class="stack">
+        {mechanismDistinctions.map((distinction) => {
+          const otherTitle =
+            mechanismTitleBySlug.get(distinction.otherSlug) ??
+            distinction.otherSlug;
+          const isLocal = mechanismTitleBySlug.has(distinction.otherSlug);
+          return (
+            <div class="ruling-card">
+              <div class="ruling-card__header">
+                <span class="eyebrow">Distinct from</span>
+                {isLocal ? (
+                  <a class="ruling-card__title" href={readItemPath("mechanisms", distinction.otherSlug)}>
+                    {otherTitle} →
+                  </a>
+                ) : (
+                  <strong class="ruling-card__title">{otherTitle}</strong>
+                )}
+              </div>
+              <p class="ruling-card__reason">{distinction.reason}</p>
+            </div>
+          );
+        })}
+      </div>
     </section>
   )}
   {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (

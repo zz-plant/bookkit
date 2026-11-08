@@ -25,12 +25,19 @@ export type {
 	MechanismUrgency,
 	RelatedBook,
 } from "./config";
-export type { CrossLink, CrossLinkEntry } from "./cross-links";
+export type {
+	CrossLink,
+	CrossLinkEntry,
+	DistinctRuling,
+	MechanismDistinction,
+} from "./cross-links";
 export {
 	actionLinksForMechanisms,
 	chapterLinksForMechanism,
 	chapterLinksInReadingOrder,
 	chapterReadingOrder,
+	chaptersEnabledByLinks,
+	distinctionsForMechanism,
 	exampleLinksForMechanisms,
 	mechanismLinksForTerm,
 	mechanismTitle,

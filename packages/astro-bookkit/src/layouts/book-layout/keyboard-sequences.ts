@@ -6,6 +6,7 @@ export type KeyboardSequenceCommand =
 	| { type: "toggle-help" }
 	| { type: "open-search" }
 	| { type: "toggle-search" }
+	| { type: "toggle-focus" }
 	| { type: "dismiss-panels" }
 	| { type: "noop" };
 
@@ -51,6 +52,10 @@ export const resolveKeyboardSequence = (
 
 	if (normalizedKey === "]") {
 		return { nextPending: null, command: { type: "next-heading" } };
+	}
+
+	if (normalizedKey === "f") {
+		return { nextPending: null, command: { type: "toggle-focus" } };
 	}
 
 	if (normalizedKey === "g") {

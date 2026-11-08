@@ -166,6 +166,32 @@ export const initializeKeyboardShortcuts = ({
 			search?.close();
 			qa?.close();
 			help.close();
+			if (document.body.classList.contains("focus-mode")) {
+				document.body.classList.remove("focus-mode");
+				const indicator = document.getElementById("focus-mode-indicator");
+				if (indicator) indicator.hidden = true;
+			}
+			return;
+		}
+		if (command.type === "toggle-focus") {
+			const isFocus = document.body.classList.toggle("focus-mode");
+			let indicator = document.getElementById("focus-mode-indicator");
+			if (isFocus) {
+				if (!indicator) {
+					indicator = document.createElement("div");
+					indicator.id = "focus-mode-indicator";
+					indicator.className = "focus-mode-indicator";
+					indicator.setAttribute("role", "status");
+					indicator.textContent = "Focus mode on · Press F or Esc to exit";
+					document.body.appendChild(indicator);
+				}
+				indicator.hidden = false;
+				window.setTimeout(() => {
+					if (indicator) indicator.hidden = true;
+				}, 2500);
+			} else if (indicator) {
+				indicator.hidden = true;
+			}
 			return;
 		}
 		if (command.type === "toggle-help") {

@@ -6,6 +6,7 @@
 import { createBufferedTracker } from "./analytics-buffer";
 import {
 	initializeHeadingAnchors,
+	initializePreviewPopovers,
 	initializeToolkitChecklists,
 	queryAllElements,
 	queryElement,
@@ -164,6 +165,7 @@ const helpToggle = queryElement(
 const mainRoot = queryElement(document, "#main-content", HTMLElement);
 initializeHeadingAnchors(mainRoot ?? document);
 initializeToolkitChecklists(mainRoot ?? document);
+initializePreviewPopovers(mainRoot ?? document);
 
 if (helpPanelRoot) {
 	Promise.all(controllerPromises).then(() => {

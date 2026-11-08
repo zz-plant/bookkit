@@ -20,6 +20,7 @@ import {
 	buildLocalizedReadRoutePath,
 	chapterLinksInReadingOrder,
 	chapterPositionLabel,
+	chaptersEnabledByLinks,
 	defaultChapterPageCopy,
 	prerequisiteChapterLinks,
 	readItemPath,
@@ -95,6 +96,7 @@ const prerequisites = prerequisiteChapterLinks(
 	frontmatter.prerequisites,
 	entries,
 );
+const chaptersEnabled = chaptersEnabledByLinks(frontmatter.slug, entries);
 const { entries: toolkitEntries } = resolveLocalizedContent(
 	buildLocalizedContentIndex(bookEntryPoints.contentModules.toolkit, {
 		defaultLocale: "en",
@@ -188,6 +190,14 @@ const chapterEyebrow = [
           ))}
         </div>
       )}
+      {chaptersEnabled.length > 0 && (
+        <div class="chapter-mechanisms chapter-enabled">
+          <span class="meta chapter-mechanisms__label">Unlocks / Deepens:</span>
+          {chaptersEnabled.map((link) => (
+            <a class="pill pill--subtle" href={link.href}>{link.label}</a>
+          ))}
+        </div>
+      )}
       {headings.length > 0 && (
         <details class="chapter-toc-mobile">
           <summary>{defaultChapterPageCopy.chapterStepsHeading} ({headings.filter((h: any) => h.depth <= 3).length})</summary>
@@ -200,6 +210,26 @@ const chapterEyebrow = [
     </article>
 
     <aside class="chapter-meta-panel">
+      {chapterActions.length > 0 && (
+        <section class="chapter-tools-card" aria-label="Tools for this chapter">
+          <div class="chapter-tools-card__header">
+            <span class="eyebrow">Executable Procedures</span>
+            <h2 class="chapter-tools-card__title">Tools for this chapter</h2>
+          </div>
+          <p class="chapter-tools-card__desc">
+            Direct action primitives (≤10 min) for the mechanisms in this chapter:
+          </p>
+          <div class="stack">
+            {chapterActions.map((action) => (
+              <a class="chapter-tools-card__link" href={action.href}>
+                <span class="chapter-tools-card__badge">Procedure</span>
+                <strong class="chapter-tools-card__label">{action.label}</strong>
+                {action.meta && <span class="meta">{action.meta}</span>}
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
       {headings.length > 0 && <h2>{defaultChapterPageCopy.chapterStepsHeading}</h2>}
       <ChapterToc headings={headings} label={defaultChapterPageCopy.chapterMapLabel} />
       <ExportPanel

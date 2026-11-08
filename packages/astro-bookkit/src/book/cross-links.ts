@@ -105,6 +105,49 @@ export const chapterLinksForMechanism = (
 				.map(chapterLink)
 		: [];
 
+/** Chapters that list `slug` under `prerequisites`, in reading order. */
+export const chaptersEnabledByLinks = (
+	slug: string | undefined,
+	chapters: readonly CrossLinkEntry<ChapterFrontmatter>[],
+): CrossLink[] =>
+	slug
+		? chapterReadingOrder(chapters)
+				.filter((entry) =>
+					slugList(entry.module.frontmatter?.prerequisites).includes(slug),
+				)
+				.map(chapterLink)
+		: [];
+
+export type DistinctRuling = {
+	pair: [string, string];
+	reason: string;
+};
+
+export type MechanismDistinction = {
+	otherSlug: string;
+	reason: string;
+};
+
+/**
+ * Finds author rulings distinguishing `slug` from adjacent mechanisms in the corpus.
+ */
+export const distinctionsForMechanism = (
+	slug: string | undefined,
+	rulings: readonly DistinctRuling[],
+): MechanismDistinction[] => {
+	if (!slug || !Array.isArray(rulings)) return [];
+	const results: MechanismDistinction[] = [];
+	for (const ruling of rulings) {
+		if (!Array.isArray(ruling.pair) || ruling.pair.length !== 2) continue;
+		if (ruling.pair[0] === slug) {
+			results.push({ otherSlug: ruling.pair[1], reason: ruling.reason });
+		} else if (ruling.pair[1] === slug) {
+			results.push({ otherSlug: ruling.pair[0], reason: ruling.reason });
+		}
+	}
+	return results;
+};
+
 /**
  * The actions for any of `mechanisms`, grouped in the order the mechanisms
  * are given and shortest first within each, as the mechanism page lists them.

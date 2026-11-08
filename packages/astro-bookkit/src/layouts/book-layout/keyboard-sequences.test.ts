@@ -25,6 +25,10 @@ describe("keyboard sequence parsing", () => {
 			nextPending: null,
 			command: { type: "toggle-help" },
 		});
+		expect(resolveKeyboardSequence(null, "f")).toEqual({
+			nextPending: null,
+			command: { type: "toggle-focus" },
+		});
 	});
 
 	it("goes where each header link that announces a g shortcut points", () => {

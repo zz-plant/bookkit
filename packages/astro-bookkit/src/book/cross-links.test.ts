@@ -3,6 +3,8 @@ import {
 	actionLinksForMechanisms,
 	chapterLinksForMechanism,
 	chapterReadingOrder,
+	chaptersEnabledByLinks,
+	distinctionsForMechanism,
 	mechanismLinksForTerm,
 	prerequisiteChapterLinks,
 	termLinksForMechanism,
@@ -50,6 +52,16 @@ describe("chapter links", () => {
 			chapterLinksForMechanism("triage", chapters).map((link) => link.slug),
 		).toEqual(["late", "intro"]);
 		expect(chapterLinksForMechanism(undefined, chapters)).toEqual([]);
+	});
+
+	it("finds chapters enabled by a prerequisite in reading order", () => {
+		expect(
+			chaptersEnabledByLinks("intro", chapters).map((link) => link.slug),
+		).toEqual(["early"]);
+		expect(
+			chaptersEnabledByLinks("late", chapters).map((link) => link.slug),
+		).toEqual(["drills"]);
+		expect(chaptersEnabledByLinks(undefined, chapters)).toEqual([]);
 	});
 });
 
@@ -128,5 +140,38 @@ describe("glossary ↔ mechanism", () => {
 		expect(
 			termLinksForMechanism("severity", glossary).map((l) => l.label),
 		).toEqual(["Severity"]);
+	});
+});
+
+describe("distinctionsForMechanism", () => {
+	const rulings = [
+		{
+			pair: ["delay-as-force", "attrition-by-queue"] as [string, string],
+			reason: "Duration vs structural transaction cost",
+		},
+		{
+			pair: ["temporal-capture", "delay-as-force"] as [string, string],
+			reason: "Uncounted time vs forced decision",
+		},
+	];
+
+	it("extracts author distinctions for a given mechanism slug regardless of pair ordering", () => {
+		expect(distinctionsForMechanism("delay-as-force", rulings)).toEqual([
+			{
+				otherSlug: "attrition-by-queue",
+				reason: "Duration vs structural transaction cost",
+			},
+			{
+				otherSlug: "temporal-capture",
+				reason: "Uncounted time vs forced decision",
+			},
+		]);
+		expect(distinctionsForMechanism("attrition-by-queue", rulings)).toEqual([
+			{
+				otherSlug: "delay-as-force",
+				reason: "Duration vs structural transaction cost",
+			},
+		]);
+		expect(distinctionsForMechanism("unrelated", rulings)).toEqual([]);
 	});
 });

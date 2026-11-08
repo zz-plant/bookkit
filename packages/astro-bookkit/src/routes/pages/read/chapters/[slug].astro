@@ -140,13 +140,19 @@ const metaDescription = firstMetaDescription(
 	pageFacts?.excerpt,
 );
 // Outlines and stub chapters stay readable but out of search until they are written.
-const robots = isThinPage(pageFacts?.wordCount, bookConfig.site)
-	? THIN_PAGE_ROBOTS
-	: undefined;
+const isStub = isThinPage(pageFacts?.wordCount, bookConfig.site);
+const robots = isStub ? THIN_PAGE_ROBOTS : undefined;
+
+const wordCount = pageFacts?.wordCount ?? 0;
+const readTimeMinutes = Math.max(1, Math.round(wordCount / 200));
+const readTimeLabel =
+	!isStub && wordCount > 0 ? `${readTimeMinutes} min read` : null;
+
 const chapterEyebrow = [
 	currentIndex >= 0
 		? chapterPositionLabel(currentIndex + 1, chapterOrder.length)
 		: null,
+	readTimeLabel,
 	frontmatter.status === "published" ? null : (frontmatter.status ?? "draft"),
 	isFallback ? "not yet translated" : null,
 ]

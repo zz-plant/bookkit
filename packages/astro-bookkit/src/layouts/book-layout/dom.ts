@@ -101,3 +101,139 @@ export const initializeHeadingAnchors = (root: ParentNode = document): void => {
 		heading.appendChild(anchor);
 	});
 };
+
+export const initializeToolkitChecklists = (
+	root: ParentNode = document,
+): void => {
+	const stepLists = root.querySelectorAll<HTMLOListElement>("ol.step-list");
+	if (!stepLists.length) return;
+
+	const pathParts = window.location.pathname.split("/").filter(Boolean);
+	const toolSlug = pathParts[pathParts.length - 1] || "default";
+	const storageKey = `bookkit:tool-steps:${toolSlug}`;
+
+	stepLists.forEach((list) => {
+		if (list.dataset.checklistInitialized === "true") return;
+		list.dataset.checklistInitialized = "true";
+
+		const heading = list.previousElementSibling?.matches("h2#steps")
+			? (list.previousElementSibling as HTMLElement)
+			: (list.closest("section")?.querySelector<HTMLElement>("h2#steps") ??
+				null);
+
+		const cards = Array.from(
+			list.querySelectorAll<HTMLLIElement>("li.step-card"),
+		);
+		if (!cards.length) return;
+
+		let savedIndices: number[] = [];
+		try {
+			const raw = localStorage.getItem(storageKey);
+			if (raw) savedIndices = JSON.parse(raw);
+		} catch {}
+
+		let resetBtn: HTMLButtonElement | null = null;
+
+		if (
+			heading &&
+			!heading.parentElement?.querySelector(".toolkit-steps-actions")
+		) {
+			const headerWrap = document.createElement("div");
+			headerWrap.className = "toolkit-steps-header";
+
+			heading.parentElement?.insertBefore(headerWrap, heading);
+			headerWrap.appendChild(heading);
+
+			const actionsBar = document.createElement("div");
+			actionsBar.className = "toolkit-steps-actions";
+
+			const copyBtn = document.createElement("button");
+			copyBtn.type = "button";
+			copyBtn.className = "toolkit-btn";
+			copyBtn.textContent = "Copy checklist";
+			copyBtn.title = "Copy steps as markdown checklist";
+
+			copyBtn.addEventListener("click", () => {
+				const title =
+					document.querySelector("h1")?.textContent?.trim() ||
+					"Procedure Steps";
+				const lines = cards.map((card, idx) => {
+					const cb = card.querySelector<HTMLInputElement>(".step-checkbox");
+					const stepText =
+						card.querySelector(".step-card__text")?.textContent?.trim() ||
+						card.lastElementChild?.textContent?.trim() ||
+						"";
+					return `- [${cb?.checked ? "x" : " "}] ${idx + 1}. ${stepText}`;
+				});
+				const markdown = `### ${title}\n\n${lines.join("\n")}\n`;
+				navigator.clipboard?.writeText(markdown).catch(() => {});
+				copyBtn.textContent = "✓ Copied!";
+				setTimeout(() => {
+					copyBtn.textContent = "Copy checklist";
+				}, 2000);
+			});
+
+			resetBtn = document.createElement("button");
+			resetBtn.type = "button";
+			resetBtn.className = "toolkit-btn";
+			resetBtn.textContent = "Reset";
+			resetBtn.title = "Clear checked steps";
+			resetBtn.hidden = !savedIndices.length;
+
+			resetBtn.addEventListener("click", () => {
+				cards.forEach((card) => {
+					const cb = card.querySelector<HTMLInputElement>(".step-checkbox");
+					if (cb) cb.checked = false;
+					card.classList.remove("step-card--completed");
+				});
+				try {
+					localStorage.removeItem(storageKey);
+				} catch {}
+				if (resetBtn) resetBtn.hidden = true;
+			});
+
+			actionsBar.appendChild(copyBtn);
+			actionsBar.appendChild(resetBtn);
+			headerWrap.appendChild(actionsBar);
+		}
+
+		cards.forEach((card, idx) => {
+			const numberSpan = card.querySelector(".step-card__number");
+			const textNode = card.lastElementChild;
+			if (!numberSpan || !textNode) return;
+
+			textNode.classList.add("step-card__text");
+
+			const checkbox = document.createElement("input");
+			checkbox.type = "checkbox";
+			checkbox.className = "step-checkbox";
+			checkbox.setAttribute("aria-label", `Step ${idx + 1}`);
+
+			if (savedIndices.includes(idx)) {
+				checkbox.checked = true;
+				card.classList.add("step-card--completed");
+			}
+
+			checkbox.addEventListener("change", () => {
+				if (checkbox.checked) {
+					card.classList.add("step-card--completed");
+				} else {
+					card.classList.remove("step-card--completed");
+				}
+				const currentChecked = cards
+					.map((c, i) =>
+						c.querySelector<HTMLInputElement>(".step-checkbox")?.checked
+							? i
+							: -1,
+					)
+					.filter((i) => i >= 0);
+				try {
+					localStorage.setItem(storageKey, JSON.stringify(currentChecked));
+				} catch {}
+				if (resetBtn) resetBtn.hidden = !currentChecked.length;
+			});
+
+			card.insertBefore(checkbox, numberSpan);
+		});
+	});
+};

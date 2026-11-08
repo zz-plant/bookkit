@@ -3,6 +3,7 @@ export const readRoutes = {
 	overview: "/read/overview",
 	tools: "/read/tools",
 	analytics: "/read/analytics",
+	triage: "/read/triage",
 	chapters: "/read/chapters",
 	mechanisms: "/read/mechanisms",
 	toolkit: "/read/toolkit",
@@ -34,6 +35,7 @@ export const readSectionTitles = {
 	examples: "Examples",
 	tools: "Author tools",
 	analytics: "Analytics",
+	triage: "Incident Triage",
 } as const satisfies Record<keyof typeof readRoutes, string>;
 
 /** The sections the menu lists, in the reading hub's order. */

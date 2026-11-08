@@ -365,6 +365,73 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		},
 	},
 	{
+		name: "triage",
+		help: {
+			summary:
+				"Diagnoses real-world symptoms and operational incidents against the\nmechanism corpus, generates a discriminating question between top candidates,\nand provides an executable <= 10-minute runbook action.",
+			usage: [
+				'bun run bookkit triage "<incident or symptom description>" [book] [--semantic] [--json]',
+			],
+			options: [
+				[
+					'"<incident description>"',
+					"The symptom, failure mode, or observed friction",
+				],
+				BOOK,
+				["--semantic", "Rank by meaning using embedding similarity"],
+				["--json", "Output the diagnostic result and runbook action as JSON"],
+			],
+			examples: [
+				'bun run bookkit triage "pager alert sev-1 deploy failing" on-call',
+				'bun run bookkit triage "payroll withholding dispute and w4 question" match-to-july',
+				'bun run bookkit triage "handoff reset and queue delay" --json',
+			],
+		},
+	},
+	{
+		name: "redteam",
+		help: {
+			summary:
+				"Adversarially simulates institutional bureaucracy and defensive evasion\nagainst a tool's action steps, identifying vulnerabilities and producing\nhardened additions for failureLooksLike and legitimateDemand.",
+			usage: ["bun run bookkit redteam <tool> [book] [--json]"],
+			options: [
+				["<tool>", "The slug or name of the tool to red-team"],
+				BOOK,
+				[
+					"--json",
+					"Output the adversarial report and hardened additions as JSON",
+				],
+			],
+			examples: [
+				"bun run bookkit redteam check-the-w4 match-to-july",
+				"bun run bookkit redteam ramp-escalation on-call",
+				"bun run bookkit redteam ramp-escalation --json",
+			],
+		},
+	},
+	{
+		name: "probe",
+		help: {
+			summary:
+				"Active learning boundary probe that generates synthetic edge-case vignettes\nbetween two mechanisms to locate semantic ambiguity and sharpen definitions.",
+			usage: ["bun run bookkit probe <slugA> <slugB> [book] [--json]"],
+			options: [
+				["<slugA>", "First mechanism slug"],
+				["<slugB>", "Second mechanism slug"],
+				BOOK,
+				[
+					"--json",
+					"Output boundary vignettes and sharpening recommendations as JSON",
+				],
+			],
+			examples: [
+				"bun run bookkit probe bounded-escalation incident-triage on-call",
+				"bun run bookkit probe attrition-by-queue documentation-tollbooth running-hot",
+				"bun run bookkit probe bounded-escalation incident-triage --json",
+			],
+		},
+	},
+	{
 		name: "similar",
 		help: {
 			summary:

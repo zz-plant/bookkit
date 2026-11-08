@@ -61,6 +61,17 @@ export type {
 	BookExportsConfig,
 } from "./exports";
 export { createBookExportHelpersFromConfig } from "./exports";
+export type {
+	CycleResult,
+	GraphNode,
+	ReadingPathway,
+} from "./graph";
+export {
+	computeTopologicalOrder,
+	deriveReaderPathways,
+	deriveRolePathways,
+	detectCycles,
+} from "./graph";
 export type { BookHomeCopy } from "./home-copy";
 export { defaultBookHomeCopy, resolveBookHomeCopy } from "./home-copy";
 export type {

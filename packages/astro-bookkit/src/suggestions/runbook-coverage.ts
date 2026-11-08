@@ -11,6 +11,11 @@ export type ToolRecord = {
 	drills?: string[];
 	satisfies?: string[];
 	escalation?: { to: string; when: string; withinHours?: number };
+	trigger?: string;
+	timeboxMinutes?: number;
+	steps?: string[];
+	failureLooksLike?: string[];
+	legitimateDemand?: string[];
 	file?: string;
 };
 

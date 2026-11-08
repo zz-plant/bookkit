@@ -1740,6 +1740,69 @@ a.card:hover h3 {
 	border-top: 1px solid var(--color-border);
 }
 
+.step-card:has(.step-checkbox) {
+	grid-template-columns: auto 2.5ch 1fr;
+}
+
+.step-checkbox {
+	margin-top: 0.35rem;
+	cursor: pointer;
+	accent-color: var(--color-accent);
+	width: 1.1rem;
+	height: 1.1rem;
+}
+
+.step-card--completed .step-card__text {
+	text-decoration: line-through var(--color-muted);
+	opacity: 0.65;
+	transition: opacity var(--timing-snappy) ease;
+}
+
+.step-card--completed .step-card__number {
+	opacity: 0.5;
+}
+
+.toolkit-steps-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--space-3);
+	margin-bottom: var(--space-2);
+}
+
+.toolkit-steps-header h2 {
+	margin-bottom: 0;
+}
+
+.toolkit-steps-actions {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+.toolkit-btn {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+	background: transparent;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm, 3px);
+	padding: 0.2rem 0.55rem;
+	cursor: pointer;
+	transition: all var(--timing-snappy) ease;
+	line-height: 1.4;
+}
+
+.toolkit-btn:hover {
+	color: var(--color-ink);
+	border-color: var(--color-accent);
+}
+
+.toolkit-btn:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+
 .step-card__number {
 	font-family: var(--font-apparatus);
 	font-size: var(--text-apparatus);

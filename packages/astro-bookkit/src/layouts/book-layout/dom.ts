@@ -152,7 +152,6 @@ export const initializeToolkitChecklists = (
 			copyBtn.className = "toolkit-btn";
 			copyBtn.textContent = "Copy checklist";
 			copyBtn.title = "Copy steps as markdown checklist";
-			copyBtn.setAttribute("aria-label", "Copy steps as markdown checklist");
 
 			copyBtn.addEventListener("click", () => {
 				const title =
@@ -179,7 +178,6 @@ export const initializeToolkitChecklists = (
 			resetBtn.className = "toolkit-btn";
 			resetBtn.textContent = "Reset";
 			resetBtn.title = "Clear checked steps";
-			resetBtn.setAttribute("aria-label", "Clear checked steps");
 			resetBtn.hidden = !savedIndices.length;
 
 			resetBtn.addEventListener("click", () => {

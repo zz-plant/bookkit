@@ -59,6 +59,15 @@ Write
                                             a mechanism's slug in every book of its corpus, with every
                                             reference to it; corpus.json records the old one
   propose [book] [--apply all|…]            draft mechanisms, tools, edges, and config from a book's text
+  draft [book] <chapter> [--writer "<command>"] [--judge "<command>"] [--notes <path>] [--apply]
+                                            draft a stub with models: writer commands (--writer, or
+                                            BOOKKIT_DRAFT_COMMAND) each write a candidate, the compiler
+                                            checks each one, and judge commands (--judge, or
+                                            BOOKKIT_JUDGE_COMMAND) rank the ones that pass, blind;
+                                            --stubs drafts every stub of the book
+  draft apply [folder] [--pick <n>]         write the winner into the chapter (default: the newest call)
+  draft resume [folder]                     ask the writers and judges that have not answered
+  draft results                             each writer's and each judge's record so far
   remove chapter|mechanism|tool [book] <slug> [--dry-run]
                                             the record, and the prerequisites and mechanisms: entries
                                             that name it; a mechanism's tools and examples need

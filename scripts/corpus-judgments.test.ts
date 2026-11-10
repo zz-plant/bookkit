@@ -20,7 +20,7 @@ import {
 	mergeRecords,
 	textHash,
 } from "./lib/corpus-judgments";
-import { commandLabel, splitCommands } from "./lib/judge-runner";
+import { commandLabel, splitCommands } from "./lib/model-command";
 
 /**
  * check:corpus with judges' verdicts, in a workspace of its own: a pair the

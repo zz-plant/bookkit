@@ -44,7 +44,7 @@ export const bookConfig = {
 	},
 	objectives: {
 		readerStart:
-			"Feels isolated, over-responsible, and unsure how to act when harm is normalized.",
+			"Someone who feels isolated and over-responsible, and unsure how to act when harm is treated as normal.",
 		readerEnd:
 			"Can follow the load, price recourse, spot hidden buffers, and execute a small, reversible move that routes ownership correctly.",
 		transformation:
@@ -54,7 +54,7 @@ export const bookConfig = {
 		slug: "intervention",
 		steps: ["recognition", "exoneration", "mechanism", "agency"],
 		intent:
-			"Move readers from seeing harm to locating the mechanism and taking a small, executable action.",
+			"Moves from seeing the harm, to locating the mechanism behind it, to a small action you can take.",
 	},
 	causalStance:
 		"Harm persists through incentive alignment and transfer, not individual villainy.",

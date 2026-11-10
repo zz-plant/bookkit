@@ -53,7 +53,7 @@ export const bookConfig = {
 		slug: "field-guide",
 		steps: ["steps", "failure-modes", "checklist"],
 		intent:
-			"Move the reader through the steps from Match Day to the first loan payment, the failure modes each rule produces, and a checklist of 10-minute actions.",
+			"Moves through the steps from Match Day to the first loan payment, the failure modes each rule produces, and a checklist of 10-minute actions.",
 	},
 	causalStance:
 		"The costs of the first months of residency come from rules and schedules (a tax return a year out of date, a payroll calendar, a board's processing time, an annualized withholding table, a forbearance that pauses PSLF), not from the reader's planning.",

@@ -4,6 +4,18 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-10 — Reader pages say what a reader needs, in a reader's words
+
+- **A draft is not called usable.** The draft note on the home page, the reading hub, and the chapter index said "Drafts are complete enough to use." It now says a draft is still being written, that its mechanisms keep their names and meanings, and that chapters may be outlines.
+- **A chapter too short to count as drafted is labelled "outline".** The line above a chapter's title read "Chapter 2 of 11 · draft" for a two-sentence stub. Below `minIndexableWords` (60 by default, the same threshold that keeps it out of search and out of `bookkit bets`) it reads "Chapter 2 of 11 · outline".
+- **About this book opens with the claim.** The page now runs: core claim, what you'll get from it, approach, core mechanisms, ground rules. Frame steps show by their labels ("Failure Modes") instead of their ids ("failure-modes").
+- **Chapter pages drop engine vocabulary.** "Unlocks / Deepens:" is "Leads to:". The tools panel loses its "Executable Procedures" eyebrow, describes its links as "Actions of ten minutes or less for the mechanisms in this chapter.", and badges each "Action".
+- **The chapter index no longer shows "Role-Based Reading Pathways".** The four badges (Foundational, Fast-Path, Emergency Triage, Structural Governance) were not links, did not say which chapters they held, and named an emergency path in books that have no emergencies. `deriveRolePathways` and `deriveReaderPathways` are unchanged and still exported.
+- **Mechanism pages say how a mechanism differs, not that the compiler checked.** "Distinctions from adjacent mechanisms" is "How it differs from its neighbours". A mechanism from another book in the corpus shows as words ("Death of slack", "from another book") instead of a slug.
+- **`/read/triage` is "Match what’s happening".** It was "Incident Triage", the name of a mechanism in the on-call book. Its labels use the toolkit page's words (When to use this, Steps, Legitimate demand), and the invented "% Match" figure is gone.
+
+No schema, validator, or config field changed. A book that overrides one of these pages keeps its own copy.
+
 ## 2026-11-09 — Quieter passing checks, a rendered verification matrix, the changelog by month
 
 - **`verify --all` counts warnings.** Each check prints how many warnings it has, not the list: the same standing warnings no longer fill every run (a passing run printed 9 KB; it prints under 1 KB). `--warnings` lists them. Errors always print, `--json` carries every finding, and a run scoped to a change still lists the warnings in the files it touched.

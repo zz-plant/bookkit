@@ -9,7 +9,8 @@ import { createBookWorkspace, runBun } from "./lib/book-workspace.fixture";
  * from the shared templates: the hub's "Where to start" ends with chapter 1,
  * the page built from book.config.ts is "About this book", a draft book says
  * so on its home page and hub, each chapter says "Chapter N of M" in the
- * order the index lists, the menu lists the read sections with the current
+ * order the index lists and a chapter too short to count as drafted says
+ * "outline", the menu lists the read sections with the current
  * one marked, and page titles use the book's short title. The book's title
  * has a subtitle, and a second chapter that `order:` puts first.
  */
@@ -45,10 +46,11 @@ beforeAll(() => {
 			`\ttitle: "${SHORT_TITLE}: Reading the Shore",`,
 		),
 	);
-	// Later by file name, first by `order:`.
+	// Later by file name, first by `order:`. Long enough to count as drafted,
+	// which the scaffolded overview is not.
 	writeFileSync(
 		join(appDir, "src", "content", "book", "chapters", "05-low-water.mdx"),
-		'---\nslug: low-water\ntitle: "Low water"\nsummary: "What the shore shows at the ebb."\nstatus: draft\norder: 1\n---\n\n## Read the line\n\nThe tide line is the record.\n',
+		`---\nslug: low-water\ntitle: "Low water"\nsummary: "What the shore shows at the ebb."\nstatus: draft\norder: 1\n---\n\n## Read the line\n\n${"The tide line is the record. ".repeat(12)}\n`,
 	);
 	build = runBun(["run", "build"], appDir);
 }, 240_000);
@@ -102,16 +104,16 @@ describe("reader orientation", () => {
 		expect(page("read/chapters")).toContain(draftCopy.meaning);
 	});
 
-	it("numbers each chapter in the order the index lists, drafts included", () => {
+	it("numbers each chapter in the order the index lists, and calls a chapter too short to count as drafted an outline", () => {
 		const index = page("read/chapters");
 		expect(index.indexOf("Low water")).toBeLessThan(
 			index.indexOf(">Overview<"),
 		);
 		expect(page("read/chapters/low-water")).toMatch(
-			/<div class="eyebrow">Chapter 1 of 2 · draft<\/div>\s*<h1/,
+			/<div class="eyebrow">Chapter 1 of 2 · 1 min read · draft<\/div>\s*<h1/,
 		);
 		expect(page("read/chapters/overview")).toContain(
-			'<div class="eyebrow">Chapter 2 of 2 · draft</div>',
+			'<div class="eyebrow">Chapter 2 of 2 · outline</div>',
 		);
 	});
 

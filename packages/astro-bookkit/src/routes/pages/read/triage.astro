@@ -47,17 +47,16 @@ const tools = Object.values(bookEntryPoints.contentModules.toolkit || {}).map(
 
 const triageDataPayload = JSON.stringify({ mechanisms, tools });
 ---
-<BaseLayout title={bookPageTitle("Incident Triage", bookConfig.title)}>
+<BaseLayout title={bookPageTitle(readSectionTitles.triage, bookConfig.title)}>
   <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
-    <div class="eyebrow">Decision Model & Diagnostic Engine</div>
-    <h1>Incident Triage</h1>
-    <p class="lede">Describe an operational symptom, failure mode, or observed friction to diagnose the governing mechanism and receive an executable &le; 10-minute runbook action.</p>
+    <h1>{readSectionTitles.triage}</h1>
+    <p class="lede">Describe what you’re seeing. This page matches it to the closest mechanism in the book and shows the action for it.</p>
   </div>
 
   <section class="content-block triage-console" data-triage-container>
     <form class="triage-search-form" data-triage-form action="" method="get">
-      <label for="triage-query" class="eyebrow">Describe what is happening</label>
+      <label for="triage-query" class="eyebrow">What’s happening</label>
       <div style="display: flex; gap: var(--space-2); margin-top: var(--space-1);">
         <input
           id="triage-query"
@@ -65,14 +64,14 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
           type="text"
           class="input"
           style="flex: 1; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);"
-          placeholder="e.g., deploy rollback, pager alert sev-1, queue reset, withholding dispute..."
+          placeholder="A few words, such as “asked for the same documents again”"
           autocomplete="off"
         />
-        <button type="submit" class="button button--primary">Triage</button>
+        <button type="submit" class="button button--primary">Find a match</button>
       </div>
     </form>
 
-    <div style="margin-top: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;" aria-label="Sample symptoms">
+    <div style="margin-top: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;" aria-label="Mechanisms to try">
       <span class="meta">Try:</span>
       {mechanisms.slice(0, 4).map((m) => (
         <button
@@ -88,7 +87,7 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
 
     <div data-triage-results style="margin-top: var(--space-5);">
       <div data-triage-empty class="meta" style="padding: var(--space-5) 0; text-align: center;">
-        Enter a symptom above to diagnose against this book's mechanisms and toolkit actions.
+        Matches come from this book’s mechanisms and toolkit actions.
       </div>
       <div data-triage-output hidden>
         <!-- Populated safely via DOM methods -->
@@ -169,7 +168,7 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
       if (scoredMechs.length === 0) {
         const noMatch = document.createElement("p");
         noMatch.className = "meta";
-        noMatch.textContent = `No mechanisms matched "${trimmed}". Try broader keywords or inspect the full mechanism list.`;
+        noMatch.textContent = `Nothing in this book matches “${trimmed}”. Try fewer or plainer words, or browse the mechanisms.`;
         outputContainer!.appendChild(noMatch);
         return;
       }
@@ -183,7 +182,7 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
 
       const eyebrow = document.createElement("div");
       eyebrow.className = "eyebrow";
-      eyebrow.textContent = `Primary Diagnosis • ${Math.min(99, Math.round(top.score * 20))}% Match`;
+      eyebrow.textContent = "Closest mechanism";
       card.appendChild(eyebrow);
 
       const title = document.createElement("h2");
@@ -204,13 +203,13 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
 
         const discEyebrow = document.createElement("div");
         discEyebrow.className = "eyebrow";
-        discEyebrow.textContent = "Discriminating Test (Borderline Boundary)";
+        discEyebrow.textContent = "Or it could be";
         discBox.appendChild(discEyebrow);
 
         const discPrompt = document.createElement("p");
         discPrompt.style.fontWeight = "600";
         discPrompt.style.margin = "var(--space-1) 0 var(--space-2)";
-        discPrompt.textContent = `To confirm whether this is "${top.mech.title}" or "${second.mech.title}":`;
+        discPrompt.textContent = `To tell “${top.mech.title}” from “${second.mech.title}”:`;
         discBox.appendChild(discPrompt);
 
         const discList = document.createElement("ul");
@@ -218,11 +217,11 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
         discList.style.margin = "0";
 
         const liA = document.createElement("li");
-        liA.textContent = `If: ${top.mech.tests[0] || top.mech.definition} → ${top.mech.title}`;
+        liA.textContent = `${top.mech.title}: ${top.mech.tests[0] || top.mech.definition}`;
         discList.appendChild(liA);
 
         const liB = document.createElement("li");
-        liB.textContent = `If instead: ${second.mech.tests[0] || second.mech.definition} → ${second.mech.title}`;
+        liB.textContent = `${second.mech.title}: ${second.mech.tests[0] || second.mech.definition}`;
         discList.appendChild(liB);
 
         discBox.appendChild(discList);
@@ -239,25 +238,27 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
 
       const actEyebrow = document.createElement("div");
       actEyebrow.className = "eyebrow";
-      actEyebrow.textContent = `Executable Runbook Action • ${matchingTool?.timeboxMinutes || 10} Minutes Max`;
+      actEyebrow.textContent = matchingTool
+        ? `Action · ${matchingTool.timeboxMinutes || 10} minutes`
+        : "No action yet · check the match";
       actionCard.appendChild(actEyebrow);
 
       const actTitle = document.createElement("h3");
       actTitle.style.margin = "var(--space-1) 0 var(--space-2)";
-      actTitle.textContent = matchingTool?.name || `Diagnostic Drill: ${top.mech.title}`;
+      actTitle.textContent = matchingTool?.name || `Is it ${top.mech.title}?`;
       actionCard.appendChild(actTitle);
 
       if (matchingTool?.trigger) {
         const triggerP = document.createElement("p");
         triggerP.className = "meta";
-        triggerP.textContent = `Trigger: ${matchingTool.trigger}`;
+        triggerP.textContent = `When to use this: ${matchingTool.trigger}`;
         actionCard.appendChild(triggerP);
       }
 
       const stepsHeading = document.createElement("div");
       stepsHeading.style.fontWeight = "600";
       stepsHeading.style.marginTop = "var(--space-3)";
-      stepsHeading.textContent = "Procedure Steps:";
+      stepsHeading.textContent = matchingTool?.steps?.length ? "Steps" : "Quick tests";
       actionCard.appendChild(stepsHeading);
 
       const stepList = document.createElement("ol");
@@ -266,7 +267,7 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
 
       const stepsToRender: string[] = matchingTool?.steps?.length
         ? matchingTool.steps
-        : top.mech.tests.map((t: string) => `Check criteria: ${t}`);
+        : top.mech.tests;
 
       for (const st of stepsToRender) {
         const li = document.createElement("li");
@@ -279,7 +280,7 @@ const triageDataPayload = JSON.stringify({ mechanisms, tools });
         const demandHeading = document.createElement("div");
         demandHeading.style.fontWeight = "600";
         demandHeading.style.marginTop = "var(--space-3)";
-        demandHeading.textContent = "Contestable Legitimate Demands:";
+        demandHeading.textContent = "Legitimate demand";
         actionCard.appendChild(demandHeading);
 
         const demandList = document.createElement("ul");

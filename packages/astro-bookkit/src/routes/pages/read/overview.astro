@@ -7,11 +7,19 @@ import {
 	readRoutes,
 	readSectionTitles,
 } from "../../../book";
+import { defaultFrames } from "../../../frames/defaults";
 import { bookPageTitle } from "../../../seo/page-meta";
 
 // Read through BookConfig: under `as const`, an empty `mechanisms: []` has no element type.
 const config: BookConfig = bookConfig;
 const { objectives, frame, causalStance, constraints, mechanisms } = config;
+// A step is shown by its frame's label ("Failure modes"), not its id
+// ("failure-modes"); an id no built-in frame defines is shown as written.
+const stepLabels = new Map(
+	(defaultFrames.find((entry) => entry.slug === frame.slug)?.steps ?? []).map(
+		(step) => [step.id, step.label],
+	),
+);
 const mechanismTitles = new Map(
 	Object.values(bookEntryPoints.contentModules.mechanisms)
 		.filter(
@@ -25,9 +33,12 @@ const mechanismTitles = new Map(
   <a class="back-link" href={readRoutes.root}>← Reading hub</a>
   <div class="section-header">
     <h1>{readSectionTitles.overview}</h1>
-    <p class="lede">What the book sets out to do, how it approaches the problem, and the rules it follows.</p>
+    <p class="lede">What the book argues, what you can do by the end, and how it gets you there.</p>
   </div>
   <section class="content-block">
+    <h2>Core claim</h2>
+    <p>{causalStance}</p>
+
     <h2>What you’ll get from it</h2>
     <ul>
       <li><strong>Starting point:</strong> {objectives.readerStart}</li>
@@ -39,20 +50,9 @@ const mechanismTitles = new Map(
     <p>{frame.intent}</p>
     <ol>
       {frame.steps.map((step) => (
-        <li>{step}</li>
+        <li>{stepLabels.get(step) ?? step}</li>
       ))}
     </ol>
-
-    <h2>Core claim</h2>
-    <p>{causalStance}</p>
-
-    <h2>Ground rules</h2>
-    <ul>
-      <li>Every toolkit action takes {constraints.actionPrimitiveMaxMinutes} minutes or less.</li>
-      {constraints.examplesMustBeSwappable && (
-        <li>Examples are interchangeable: swap in your own and the mechanism still holds.</li>
-      )}
-    </ul>
 
     {mechanisms.length > 0 && (
       <Fragment>
@@ -71,6 +71,14 @@ const mechanismTitles = new Map(
         </ul>
       </Fragment>
     )}
+
+    <h2>Ground rules</h2>
+    <ul>
+      <li>Every toolkit action takes {constraints.actionPrimitiveMaxMinutes} minutes or less.</li>
+      {constraints.examplesMustBeSwappable && (
+        <li>Examples are interchangeable: swap in your own and the mechanism still holds.</li>
+      )}
+    </ul>
   </section>
   <section class="next-steps">
     <h2>Keep going</h2>

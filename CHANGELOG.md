@@ -4,6 +4,13 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-10 — Social preview no longer cropped
+
+- **`docs/assets/social-preview.png` is redrawn at 1280×640.** The On-Call Runbook panel on its right ran off the right and bottom edges and cut its steps short. It is now a whole card, 64px from every edge, with three steps that fit.
+- **It has a source.** `docs/assets/social-preview.html` is the layout and `bun docs/assets/social-preview.ts` renders it with Playwright in the books' typefaces. The render writes nothing if a typeface fails to load, if anything leaves the 64px side and 48px top and bottom margins, or if the card clips its own text.
+- **Removed: `.github/social-preview.png`** (1200×630, which GitHub crops to 2:1). Nothing referenced it. The image to upload under Settings → General → Social preview is `docs/assets/social-preview.png`.
+- **Migration:** none.
+
 ## 2026-11-10 — Ask says who wrote the answer
 
 - **A model's answer no longer looks like the book.** A passage quoted from the book and an answer written by the server's model were the same paragraph in the book's typeface, told apart by one word in a grey line under it ("assembled" or "synthesized"). A model's answer is now set in the apparatus face (Fragment Mono, at a 68-character measure); the book's own words keep Newsreader.

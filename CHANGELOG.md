@@ -13,6 +13,18 @@ This file holds the current month, newest first. Earlier months are in `docs/cha
 
 No config field, schema, or endpoint changed.
 
+## 2026-11-10 — Stubs drafted by writer models, a winner chosen by judge models
+
+- **`bookkit draft [book] <chapter>`** drafts a stub chapter in three steps. Writer commands (`--writer`, or `BOOKKIT_DRAFT_COMMAND`, one per line) each write a candidate from one brief: the stub, the book's claim, its mechanisms' contracts, a drafted chapter for length and voice, and `--notes`. The compiler checks each candidate as the chapter it would replace. Judge commands (`--judge`, or `BOOKKIT_JUDGE_COMMAND`) rank the candidates that pass, blind to who wrote which, and reject any that break the brief. `--stubs` does this for every stub of a book.
+- **A draft cannot change what the author decided.** A candidate is the stub's frontmatter with the draft's body, `mechanisms:`, and `summary:`. One that is still a stub, binds a mechanism the book does not define, or has any other error is out before a judge is asked.
+- **The call is a table over the ballots, not a score.** A draft most judges reject is out; of the rest, the one most judges rank above each other draft wins; with no such draft the judges split and the author picks; with every draft out there is no winner.
+- **`bookkit draft apply [folder] [--pick <n>]` is the only step that writes to the book.** It refuses when the chapter has changed since the brief or the candidate no longer passes the check. `draft resume` asks the writers and judges that have not answered, and takes replies saved by hand; `draft results` counts, per command, the drafts that passed, were rejected, and won.
+- **Writers are asked one at a time**, each command's candidates together, and stopped after 300 s (`--parallel`, `--timeout`): asked all at once, three of four local writers waited out their time limit behind each other. A command's terminal codes and spinner frames are removed from what it printed.
+- **`bookkit judge` runs its judge commands through the same runner** (`scripts/lib/model-command.ts`); its behavior and files are unchanged. `new chapter --after` also takes a file name without `.mdx`.
+- `bookkit status` names the command for the next stub. Requests live in `.bookkit/drafting/`, which git ignores.
+
+No schema, validator, or engine module changed. A chapter written by `draft apply` counts as drafted in `bookkit bets`, which cannot tell it from one the author wrote ([bets](./docs/bets.md)).
+
 ## 2026-11-10 — The bet's scope where the tools can read it
 
 - **`corpus.json` records what the active bet excludes.** `bet` gains `title`, `focusBook`, and `isNot`: each exclusion's name and the path prefixes that work lives under (for B1: reader UI, new frames, MCP work). `since` and `killBy` are unchanged, and a `bet` without the new fields reads as before.

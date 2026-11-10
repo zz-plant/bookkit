@@ -21,10 +21,10 @@ import { resolveFromCaller } from "../folder-report";
 import {
 	JUDGE_COMMAND_ENV,
 	runJudges,
-	splitCommands,
 	unansweredJudges,
 } from "../judge-runner";
 import { loadBookContent } from "../load-book";
+import { commandsFrom } from "../model-command";
 import { args, books, runScript } from "./context";
 
 /**
@@ -139,14 +139,7 @@ function newestAnswered(): { folder: string } | { error: string } {
  */
 function judgeCommands(rest: string[]): string[] {
 	if (rest.includes("--no-run")) return [];
-	const passed = rest.flatMap((arg, index) =>
-		arg === "--run" && rest[index + 1] && !rest[index + 1].startsWith("--")
-			? [rest[index + 1]]
-			: [],
-	);
-	return passed.length > 0
-		? passed
-		: splitCommands(process.env[JUDGE_COMMAND_ENV]);
+	return commandsFrom(rest, "--run", JUDGE_COMMAND_ENV);
 }
 
 /** How to have bookkit ask the judges itself. */

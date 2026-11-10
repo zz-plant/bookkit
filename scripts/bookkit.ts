@@ -10,6 +10,7 @@
  *   check.ts       check [book|folder], validate, try, contract
  *   check-file.ts  check <file>
  *   judge.ts       similar, judge, rule
+ *   draft.ts       draft
  *   merge.ts       merge, sync
  *   structure.ts   remove, move, rename
  *   publish.ts     dev, build, export, publish
@@ -40,6 +41,7 @@ import {
 	redteamCommand,
 	triageCommand,
 } from "./lib/commands/diagnose";
+import { draft } from "./lib/commands/draft";
 import { printHelp, printHelpFor } from "./lib/commands/help";
 import { judge, rule, similarCommand } from "./lib/commands/judge";
 import { merge, sync } from "./lib/commands/merge";
@@ -130,6 +132,11 @@ switch (findCommand(command)?.name ?? command) {
 
 	case "judge": {
 		process.exit(await judge(args.slice(1)));
+		break;
+	}
+
+	case "draft": {
+		process.exit(await draft(args.slice(1)));
 		break;
 	}
 

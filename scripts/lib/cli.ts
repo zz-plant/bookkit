@@ -216,13 +216,10 @@ export function flagValue(list: string[], name: string): string | undefined {
 	return value && !value.startsWith("--") ? value : undefined;
 }
 
-/** Positional arguments, skipping the values of the named flags. */
+/** Positional arguments, skipping the value after each use of the named flags. */
 export function positionals(list: string[], valued: string[]): string[] {
-	const values = new Set(
-		valued.map((name) => list.indexOf(name) + 1).filter((index) => index > 0),
-	);
 	return list.filter(
-		(arg, index) => !arg.startsWith("--") && !values.has(index),
+		(arg, index) => !arg.startsWith("--") && !valued.includes(list[index - 1]),
 	);
 }
 

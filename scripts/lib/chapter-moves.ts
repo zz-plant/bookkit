@@ -53,6 +53,29 @@ const manifestChange = (
 		: [];
 };
 
+/** A chapter by its slug, its file name (with or without .mdx), or its number. */
+export const chapterNamed = <T extends { slug: string; file?: string }>(
+	chapters: readonly T[],
+	name: string,
+): T | undefined => {
+	const fileName = (chapter: T) => (chapter.file ? basename(chapter.file) : "");
+	return (
+		chapters.find((chapter) => chapter.slug === name) ??
+		chapters.find(
+			(chapter) =>
+				fileName(chapter) !== "" &&
+				fileName(chapter).replace(/\.mdx?$/, "") ===
+					name.replace(/\.mdx?$/, ""),
+		) ??
+		(/^\d+$/.test(name)
+			? chapters.find(
+					(chapter) =>
+						Number(fileName(chapter).match(/^(\d+)-/)?.[1]) === Number(name),
+				)
+			: undefined)
+	);
+};
+
 /**
  * Where a new chapter goes to come right after `after` (a chapter slug, file
  * name, or number: `3` or `03` for 03-*.mdx): its file name, and the files
@@ -64,19 +87,7 @@ export const planInsertAfter = (
 	slug: string,
 ): { fileName: string; changes: ChapterChange[] } | { error: string } => {
 	const content = loadBookContent(book);
-	const target =
-		content.chapters.find((chapter) => chapter.slug === after) ??
-		content.chapters.find(
-			(chapter) => chapter.file && basename(chapter.file) === after,
-		) ??
-		(/^\d+$/.test(after)
-			? content.chapters.find(
-					(chapter) =>
-						chapter.file &&
-						Number(basename(chapter.file).match(/^(\d+)-/)?.[1]) ===
-							Number(after),
-				)
-			: undefined);
+	const target = chapterNamed(content.chapters, after);
 	if (!target?.file) {
 		return {
 			error: `${book} has no chapter "${after}".${didYouMean(

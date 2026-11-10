@@ -501,6 +501,71 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		},
 	},
 	{
+		name: "draft",
+		help: {
+			summary:
+				"Drafts a stub chapter with models, in three steps. Writer commands each\nwrite a candidate from one brief. The compiler checks each candidate as\nthe chapter it would replace. Judge commands, blind to who wrote which,\nrank the ones that pass and reject any that break the brief. Nothing\nreaches the chapter until draft apply.",
+			usage: [
+				'bun run bookkit draft [book] <chapter> [--candidates <n>] [--judges <n>] [--writer "<command>"] [--judge "<command>"] [--notes <path>] [--apply]',
+				"bun run bookkit draft [book] --stubs [the same options]",
+				"bun run bookkit draft resume [folder] [--apply]",
+				"bun run bookkit draft apply [folder] [--pick <candidate>]",
+				"bun run bookkit draft results",
+			],
+			options: [
+				BOOK,
+				["<chapter>", "The stub: its slug, file name, or number"],
+				["--stubs", "Every stub of the book, in reading order"],
+				["--candidates <n>", "Drafts to ask for (default: 3)"],
+				["--judges <n>", "Judges to ask (default: 3)"],
+				[
+					'--writer "<command>"',
+					"A command that reads a prompt on stdin and prints the\nreply; or set BOOKKIT_DRAFT_COMMAND (one per line).\nGiven more than once, the candidates are written in turn",
+				],
+				[
+					'--judge "<command>"',
+					"The same, for the judges; or set BOOKKIT_JUDGE_COMMAND",
+				],
+				[
+					"--notes <path>",
+					"Your own source text for the chapter, a file or a\nfolder, put in the brief; may be given more than once",
+				],
+				[
+					"--words <n>",
+					"The length to aim for (default: the book's drafted\nchapters' median, and at least twice the stub threshold)",
+				],
+				[
+					"--parallel <n>",
+					"Writers asked at once (default: 1, each command's\ncandidates together: local models share one server)",
+				],
+				["--timeout <seconds>", "How long one writer may take (default: 300)"],
+				["--redraft", "Draft a chapter that is past the stub threshold"],
+				[
+					"--apply",
+					"Write the winner into the chapter when the judges agree\non one",
+				],
+				["--no-run", "Write the brief and the prompts; ask no one"],
+				[
+					"resume [folder]",
+					"Ask the writers and judges that have not answered,\nthen make the call (default: the newest request)",
+				],
+				[
+					"apply [folder]",
+					"Write the winner into the chapter (default: the newest\nrequest with a call); --pick <candidate> names another",
+				],
+				["results", "Each writer's and each judge's record so far"],
+			],
+			notes:
+				"A request is a folder under .bookkit/drafting/, which git ignores. A\ndraft changes the chapter's body, mechanisms:, and summary:; its slug,\ntitle, status, and prerequisites stay the stub's. Without a command,\nsave a writer's reply as candidate-<n>.mdx or a judge's as\nballot-<n>.json in the request folder, then run draft resume.",
+			examples: [
+				'bun run bookkit draft running-hot the-hot-potato --writer "ollama run <model> --think=false" --judge "claude -p"',
+				"bun run bookkit draft running-hot --stubs --notes ~/notes/running-hot",
+				"bun run bookkit draft apply",
+				"bun run bookkit draft results",
+			],
+		},
+	},
+	{
 		name: "rule",
 		help: {
 			summary:

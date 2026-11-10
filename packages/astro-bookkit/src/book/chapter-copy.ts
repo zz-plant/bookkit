@@ -33,11 +33,13 @@ export const chapterPositionLabel = (number: number, total: number): string =>
 /**
  * What a draft is. The chapter index says it of its chapters; a draft
  * book's home page and reading hub say it of the book, in the same words.
+ * It promises only what the contracts hold a draft to: stable mechanisms.
+ * A draft chapter can be an outline, so the note does not call it usable.
  */
 export const draftCopy = {
 	book: "This book is a draft.",
 	allChapters: "These chapters are drafts",
 	someChapters: "Some chapters are drafts",
 	meaning:
-		"Drafts are complete enough to use. The mechanisms they describe won’t change, but wording, examples, and order may.",
+		"A draft is still being written. Its mechanisms keep their names and meanings; chapters may be outlines, and wording, examples, and order may change.",
 } as const;

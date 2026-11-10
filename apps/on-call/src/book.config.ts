@@ -51,7 +51,7 @@ export const bookConfig = {
 		slug: "runbook",
 		steps: ["ownership", "trigger", "steps", "escalation", "verification"],
 		intent:
-			"Move owners from an ambiguous alert to a documented, drilled, verifiable procedure.",
+			"Moves an owner from an ambiguous alert to a documented, drilled, verifiable procedure.",
 	},
 	causalStance:
 		"Incident chaos persists through missing ownership and undrilled procedures, not through individual laziness.",

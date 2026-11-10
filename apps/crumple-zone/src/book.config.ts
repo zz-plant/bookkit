@@ -37,19 +37,20 @@ export const bookConfig = {
 	},
 	objectives: {
 		readerStart:
-			"Feels stuck at the starting edge of the transformation and lacks a reliable next move.",
+			"Someone who keeps absorbing the cost of failures they did not cause, and is told the problem is personal.",
 		readerEnd:
-			"Can name the core mechanism, route responsibility correctly, and take a small, reversible action.",
+			"Can name the pattern that moved the cost onto them, say who owns the failure, and take a small, reversible action.",
 		transformation:
-			"From stuck and over-responsible to system-aware action with a concrete first step.",
+			"From absorbing the impact to naming the design that routes it, with a concrete first step.",
 	},
 	frame: {
 		slug: "intervention",
 		steps: ["recognition", "exoneration", "mechanism", "agency"],
-		intent: "Move readers from recognition to agency with enforceable steps.",
+		intent:
+			"Moves from recognizing the harm, to seeing it is not a personal failing, to the mechanism behind it, to an action.",
 	},
 	causalStance:
-		"Outcomes are shaped by incentives and constraints, not just individual intent or character.",
+		"Systems externalize harm onto people by design: when something fails, a person absorbs the impact a buffer should have taken.",
 	constraints: {
 		mechanismCountTarget: [16, 22],
 		actionPrimitiveMaxMinutes: 10,

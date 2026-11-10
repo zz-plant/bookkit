@@ -4,6 +4,14 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-10 — The bet's scope where the tools can read it
+
+- **`corpus.json` records what the active bet excludes.** `bet` gains `title`, `focusBook`, and `isNot`: each exclusion's name and the path prefixes that work lives under (for B1: reader UI, new frames, MCP work). `since` and `killBy` are unchanged, and a `bet` without the new fields reads as before.
+- **`verify` notes out-of-bet changes.** When changed files fall under an `isNot` path it prints one line naming the excluded work and the file count, and after `killBy` says the bet needs a ruling. It is a note: no run fails on it. `--json` carries it as `bet`.
+- **`bookkit bets` names the next step.** It now shows days past `killBy` instead of a negative count, the focus book's stubs with their words against the stub threshold, and the share of engine lines under excluded paths. `--json` adds `title`, `daysPastKillBy`, `focusBook`, `nextStubs`, and `engine`.
+- **Closed debt rows moved.** The twelve `Done` rows of `docs/tech-debt-register.md` are, unchanged, in `docs/changelog/tech-debt-closed.md`; the register lists open debt only.
+- **`validate:release:seo` is gone.** It ran `bun run validate` and nothing named it. Use `bun run validate`.
+
 ## 2026-11-10 — Reader pages say what a reader needs, in a reader's words
 
 - **A draft is not called usable.** The draft note on the home page, the reading hub, and the chapter index said "Drafts are complete enough to use." It now says a draft is still being written, that its mechanisms keep their names and meanings, and that chapters may be outlines.

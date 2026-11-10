@@ -2,10 +2,14 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/pageFacts";
-import { isThinPage } from "../../packages/astro-bookkit/src/seo/page-meta";
+import {
+	DEFAULT_MIN_INDEXABLE_WORDS,
+	isThinPage,
+} from "../../packages/astro-bookkit/src/seo/page-meta";
 import { parseFrontmatter } from "../../packages/astro-bookkit/src/utils/frontmatter";
-import { repoRoot } from "../_lib";
-import { loadBookConfigSummary } from "./authoring";
+import { listFilesRecursive, repoRoot } from "../_lib";
+import { loadBookConfigSummary, summarizeBook } from "./authoring";
+import { type Bet, daysPastKillBy, parseBet } from "./bet-scope";
 
 /**
  * Bet B1's test, measured (docs/bets.md): the next three chapters drafted
@@ -26,11 +30,26 @@ export type DraftedChapter = {
 	changedAt: string;
 };
 
+/** A stub in the bet's focus book: a chapter the test is waiting on. */
+export type NextStub = { file: string; words: number; threshold: number };
+
+/** How much of the engine is work the bet excludes, by exclusion. */
+export type EngineShare = {
+	lines: number;
+	excluded: { what: string; lines: number }[];
+};
+
 export type B1Report = {
 	bet: string;
+	title?: string;
 	since: string;
 	killBy?: string;
 	daysLeft?: number;
+	/** Set once killBy has passed: the bet needs the author's ruling. */
+	daysPastKillBy?: number;
+	focusBook?: string;
+	nextStubs: NextStub[];
+	engine: EngineShare;
 	baseline: string;
 	mechanisms: {
 		before: number;
@@ -43,7 +62,51 @@ export type B1Report = {
 	summary: string;
 };
 
-type CorpusBet = { id?: string; since?: string; killBy?: string };
+const ENGINE_SRC = "packages/astro-bookkit/src";
+const SOURCE = /\.(ts|tsx|mjs|astro|css)$/;
+
+/** Lines of engine source, and how many sit under paths the bet excludes. */
+export const engineShare = (
+	bet: Bet,
+	root: string = repoRoot(),
+): EngineShare => {
+	const excluded = bet.isNot.map(({ what }) => ({ what, lines: 0 }));
+	let lines = 0;
+	const dir = join(root, ENGINE_SRC);
+	if (!existsSync(dir)) return { lines, excluded: [] };
+	for (const file of listFilesRecursive(dir)) {
+		if (!SOURCE.test(file) || /\.test\.ts$/.test(file)) continue;
+		const count = readFileSync(join(dir, file), "utf8").split("\n").length;
+		lines += count;
+		const rel = `${ENGINE_SRC}/${file}`;
+		bet.isNot.forEach(({ paths }, index) => {
+			if (paths.some((prefix) => rel.startsWith(prefix))) {
+				excluded[index].lines += count;
+			}
+		});
+	}
+	return { lines, excluded: excluded.filter((entry) => entry.lines > 0) };
+};
+
+/** The focus book's stubs, in reading order, with the words each has so far. */
+const nextStubsOf = async (book: string): Promise<NextStub[]> => {
+	if (!existsSync(join(repoRoot(), chaptersDir(book)))) return [];
+	const [summary, config] = await Promise.all([
+		summarizeBook(book),
+		loadBookConfigSummary(book),
+	]);
+	const threshold =
+		config.site?.minIndexableWords ?? DEFAULT_MIN_INDEXABLE_WORDS;
+	return summary.stubChapters.map((name) => {
+		const file = join(chaptersDir(book), name);
+		return {
+			file,
+			words: extractPageFacts(readFileSync(join(repoRoot(), file), "utf8"))
+				.wordCount,
+			threshold,
+		};
+	});
+};
 
 const git = (args: string[]): string | null => {
 	const result = spawnSync("git", args, { cwd: repoRoot(), encoding: "utf8" });
@@ -114,11 +177,11 @@ export const buildB1Report = async (
 	if (!existsSync(corpusPath)) return { unavailable: "no corpus.json" };
 	const corpus = JSON.parse(readFileSync(corpusPath, "utf8")) as {
 		books?: string[];
-		bet?: CorpusBet;
 	};
-	const since = corpus.bet?.since;
+	const bet = parseBet(corpus);
+	const since = bet?.since;
 	const books = corpus.books ?? [];
-	if (!since || books.length === 0) {
+	if (!bet || !since || books.length === 0) {
 		return { unavailable: "corpus.json names no bet.since or books" };
 	}
 	const baseline = git([
@@ -188,7 +251,8 @@ export const buildB1Report = async (
 			: introduced.size <= 1
 				? "passing"
 				: "failing";
-	const killBy = corpus.bet?.killBy;
+	const killBy = bet.killBy;
+	const past = daysPastKillBy(bet, now);
 	const daysLeft = killBy
 		? Math.ceil(
 				(Date.parse(`${killBy}T00:00:00Z`) - now.getTime()) / 86_400_000,
@@ -200,10 +264,15 @@ export const buildB1Report = async (
 			: `The first 3 chapters drafted since ${since} introduce ${introduced.size} new mechanism(s) (at most 1 allowed).`;
 
 	return {
-		bet: corpus.bet?.id ?? "B1",
+		bet: bet.id,
+		title: bet.title,
 		since,
 		killBy,
 		daysLeft,
+		daysPastKillBy: past > 0 ? past : undefined,
+		focusBook: bet.focusBook,
+		nextStubs: bet.focusBook ? await nextStubsOf(bet.focusBook) : [],
+		engine: engineShare(bet),
 		baseline,
 		mechanisms: { before: before.size, now: current.size, added, retired },
 		drafted,

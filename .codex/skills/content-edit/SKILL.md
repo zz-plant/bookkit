@@ -44,6 +44,18 @@ The compiler decides whether content is valid; a draft is a proposal until it pa
 3. A reference to an unknown mechanism is an error. When the slug was merged away, the fix names its replacement (from `corpus.json`); otherwise it names the closest existing slugs. Bind one of those, or run `bookkit similar` before coining a new mechanism.
 4. Fields such as a tool's `trigger` and `steps`, or a mechanism's `definition`, are the author's argument. Draft them only when the author asks, keep `status: draft`, and say which fields you wrote.
 
+## Prose
+
+No book has a finished chapter of prose yet: the drafted ones are claims, lists, and checklists. So there is no passage to imitate, and the author has not picked one. Until they do:
+
+- Write a chapter only when the author asks for that chapter. Start from its `## Claim` and section list, and from the contracts of the mechanisms it binds (`bun run bookkit map <book>`).
+- One idea per paragraph; no sentence that repeats another.
+- No filler ("simply", "just", "easily") and no generic startup language.
+- Every claim should survive a skeptical first reader: name who does what to whom, and what you would observe.
+- Bind existing mechanism slugs; a new name is a new mechanism or glossary term, not a turn of phrase.
+
+When the author marks a passage as right, name its file here and take voice from it.
+
 ## Required checks
 
 1. `bun run verify` (see the `verify` skill). For a content edit it validates and builds the book you touched, checks separation, and, when a mechanism changed, compares mechanisms across books.

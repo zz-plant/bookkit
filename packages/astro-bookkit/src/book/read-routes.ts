@@ -35,7 +35,7 @@ export const readSectionTitles = {
 	examples: "Examples",
 	tools: "Author tools",
 	analytics: "Analytics",
-	triage: "Incident Triage",
+	triage: "Match what’s happening",
 } as const satisfies Record<keyof typeof readRoutes, string>;
 
 /** The sections the menu lists, in the reading hub's order. */

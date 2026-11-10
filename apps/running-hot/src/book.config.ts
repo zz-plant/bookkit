@@ -37,7 +37,7 @@ export const bookConfig = {
 	},
 	objectives: {
 		readerStart:
-			"Feels overheated by obligation and blamed for adapting to systems that offload harm.",
+			"Someone overheated by obligation, and blamed for adapting to systems that offload harm.",
 		readerEnd:
 			"Can name where institutional heat is being dumped, route ownership clearly, and run a reversible cooling move.",
 		transformation:
@@ -47,7 +47,7 @@ export const bookConfig = {
 		slug: "intervention",
 		steps: ["recognition", "exoneration", "mechanism", "agency"],
 		intent:
-			"Move readers from symptom heat to structural diagnosis and executable cooling actions.",
+			"Moves from the heat you feel, to the structure that produces it, to a cooling action you can run.",
 	},
 	causalStance:
 		"Systems continue operating by moving volatility somewhere; when cooling is underfunded, humans absorb the load.",

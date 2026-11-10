@@ -155,7 +155,12 @@ const chapterEyebrow = [
 		? chapterPositionLabel(currentIndex + 1, chapterOrder.length)
 		: null,
 	readTimeLabel,
-	frontmatter.status === "published" ? null : (frontmatter.status ?? "draft"),
+	// A chapter too short to count as drafted is an outline, and says so.
+	frontmatter.status === "published"
+		? null
+		: isStub
+			? "outline"
+			: (frontmatter.status ?? "draft"),
 	isFallback ? "not yet translated" : null,
 ]
 	.filter(Boolean)
@@ -192,7 +197,7 @@ const chapterEyebrow = [
       )}
       {chaptersEnabled.length > 0 && (
         <div class="chapter-mechanisms chapter-enabled">
-          <span class="meta chapter-mechanisms__label">Unlocks / Deepens:</span>
+          <span class="meta chapter-mechanisms__label">Leads to:</span>
           {chaptersEnabled.map((link) => (
             <a class="pill pill--subtle" href={link.href}>{link.label}</a>
           ))}
@@ -213,16 +218,15 @@ const chapterEyebrow = [
       {chapterActions.length > 0 && (
         <section class="chapter-tools-card" aria-label="Tools for this chapter">
           <div class="chapter-tools-card__header">
-            <span class="eyebrow">Executable Procedures</span>
             <h2 class="chapter-tools-card__title">Tools for this chapter</h2>
           </div>
           <p class="chapter-tools-card__desc">
-            Direct action primitives (≤10 min) for the mechanisms in this chapter:
+            Actions of ten minutes or less for the mechanisms in this chapter.
           </p>
           <div class="stack">
             {chapterActions.map((action) => (
               <a class="chapter-tools-card__link" href={action.href}>
-                <span class="chapter-tools-card__badge">Procedure</span>
+                <span class="chapter-tools-card__badge">Action</span>
                 <strong class="chapter-tools-card__label">{action.label}</strong>
                 {action.meta && <span class="meta">{action.meta}</span>}
               </a>

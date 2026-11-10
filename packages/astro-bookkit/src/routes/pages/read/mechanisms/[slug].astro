@@ -195,7 +195,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
       <a class="pill" href="#recognize">How to recognize it</a>
     )}
     {mechanismDistinctions.length > 0 && (
-      <a class="pill" href="#distinctions">Distinctions ({mechanismDistinctions.length})</a>
+      <a class="pill" href="#distinctions">How it differs ({mechanismDistinctions.length})</a>
     )}
     {(relatedToolkit.length > 0 || relatedExamples.length > 0) && (
       <a class="pill" href="#next-steps">Next steps</a>
@@ -255,16 +255,19 @@ const mechanismStructuredData = createDefinedTermStructuredData({
   )}
   {mechanismDistinctions.length > 0 && (
     <section class="content-block" id="distinctions">
-      <h2>Distinctions from adjacent mechanisms</h2>
+      <h2>How it differs from its neighbours</h2>
       <p class="meta">
-        The compiler verifies that mechanisms do not overlap. The author’s rulings distinguish this mechanism from adjacent concepts:
+        The mechanisms closest to this one, and what sets each apart.
       </p>
       <div class="stack">
         {mechanismDistinctions.map((distinction) => {
+          const isLocal = mechanismTitleBySlug.has(distinction.otherSlug);
+          // A mechanism from another book in the corpus has no page here, so
+          // its slug is read out as words instead of shown as an identifier.
+          const slugAsWords = distinction.otherSlug.replace(/-/g, " ");
           const otherTitle =
             mechanismTitleBySlug.get(distinction.otherSlug) ??
-            distinction.otherSlug;
-          const isLocal = mechanismTitleBySlug.has(distinction.otherSlug);
+            slugAsWords.charAt(0).toUpperCase() + slugAsWords.slice(1);
           return (
             <div class="ruling-card">
               <div class="ruling-card__header">
@@ -275,6 +278,7 @@ const mechanismStructuredData = createDefinedTermStructuredData({
                   </a>
                 ) : (
                   <strong class="ruling-card__title">{otherTitle}</strong>
+                  <span class="meta">from another book</span>
                 )}
               </div>
               <p class="ruling-card__reason">{distinction.reason}</p>

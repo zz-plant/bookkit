@@ -1,14 +1,14 @@
 ---
-import { readRoutes } from "../../../book";
+import { readRoutes, readSectionTitles } from "../../../book";
 import { runtimeFeatures } from "../../../seo/config";
 import ToolsPage from "../../../components/ToolsPage.astro";
 import { bookConfig, getVersionEntries } from "../../runtime";
 
 const toolLinks = [
 	{
-		title: "Incident Triage",
+		title: readSectionTitles.triage,
 		description:
-			"Diagnose real-world friction and symptoms into <= 10-minute runbook actions.",
+			"Describe a situation and get the closest mechanism and its action.",
 		href: readRoutes.triage,
 	},
 	{

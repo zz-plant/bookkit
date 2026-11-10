@@ -273,6 +273,66 @@ describe("the Ask panel's models", () => {
 	});
 });
 
+describe("Ask's answers", () => {
+	it("say who wrote them, and set a model's words in the apparatus face, not the book's", async (browser) => {
+		const { context, page, elsewhere } = await open(browser);
+		await context.addInitScript((key) => {
+			localStorage.setItem(key, "declined");
+		}, MODELS_KEY);
+		const box = page.locator("[data-qa-answer]");
+		const shown = async () => ({
+			says: await box.locator(".qa-panel__provenance").textContent(),
+			face: await box
+				.locator(".qa-panel__answer-text")
+				.evaluate((node) => getComputedStyle(node).fontFamily),
+			// The line that says who wrote it comes first.
+			order: await box.evaluate((node) =>
+				[...node.children].map((child) => child.className),
+			),
+		});
+
+		// No one has answered yet, so no one wrote anything.
+		await openAsk(page);
+		expect(await box.getAttribute("data-qa-written-by")).toBeNull();
+
+		// This server writes no answer, so the answer is a passage of the book.
+		await ask(page);
+		await page.waitForSelector('[data-qa-answer][data-qa-written-by="book"]');
+		const quoted = await shown();
+		expect(quoted.says).toStartWith("The book’s own words");
+		expect(quoted.face).toStartWith('"Newsreader');
+		expect(quoted.order).toEqual([
+			"qa-panel__provenance",
+			"qa-panel__answer-text",
+		]);
+
+		// A server with a key answers in a model's words.
+		await page.route(
+			(url) => url.pathname === "/api/qa.json",
+			(route) =>
+				route.fulfill({
+					json: {
+						answer: "Name one owner.",
+						citations: [
+							{ id: "a", title: "Own the incident", url: "/read/chapters/a" },
+							{ id: "b", title: "Hand it over", url: "/read/chapters/b" },
+						],
+					},
+				}),
+		);
+		await ask(page, "owner");
+		await page.waitForSelector('[data-qa-answer][data-qa-written-by="model"]');
+		const written = await shown();
+		expect(written.says).toBe(
+			"Written by a model from 2 passages of this book, listed under Sources.",
+		);
+		expect(written.face).toStartWith('"Fragment Mono"');
+		expect(written.order).toEqual(quoted.order);
+		expect(elsewhere).toEqual([]);
+		await context.close();
+	});
+});
+
 describe("Ask's citations", () => {
 	it("link only to pages of this book; any other address keeps its title as text", async (browser) => {
 		const { context, page, elsewhere } = await open(browser);

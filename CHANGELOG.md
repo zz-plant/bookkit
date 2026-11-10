@@ -3,6 +3,14 @@
 Dated, documented behavior changes to the Bookkit engine, schemas, validators, and scripts.
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 
+## 2026-11-09 — A quick check while iterating; the CLI and the stylesheet in smaller files
+
+- **`bun run verify -- --quick`.** The same gates, with the tests narrowed to the change: the engine's own tests for engine code (about 3 s against 35 s for the suite), the generator's for `create-bookkit`, and for a script the test file beside it. The tests under `scripts/` that build books wait for the full run. A quick pass says the suite did not run, and `--json` carries `quick` and `note`. `bun run verify` without the flag is still the gate before a commit; CI is unchanged.
+- **`scripts/bookkit.ts` dispatches.** Its commands moved, unchanged, into one module per command group under `scripts/lib/commands/`; the header of `bookkit.ts` lists them. No command, flag, or line of output changed. A project scaffolded by `create-bookkit` gets the new files.
+- **`bookkit.css` lists partials.** Its rules moved, unchanged, into 23 files under `styles/partials/`, one per reader surface. `bookkit.css` imports them in cascade order and is still the package export; the built CSS is byte for byte what it was. Biome lints CSS one file at a time, so five `noDescendingSpecificity` warnings between rules that now sit in different partials no longer show.
+- **`check:architecture` rejects a module listed twice.** The module map in `docs/architecture.md` had ten rows twice and passed. The repeats are gone.
+- **`.ignore`.** ripgrep, and the editors and agents built on it, skip `CHANGELOG.md`, `bun.lock`, `corpus-judgments.json`, `scratch/`, and `docs/assets/` unless the file is named. Biome and every check still read them.
+
 ## 2026-11-07 — Modernization: draft-time corpus governance and tooling configuration
 
 - **Draft-time corpus hints in chapter checks (serving bet B1).** `chapterDraft` and `bookkit check <chapter.mdx>` now inspect draft prose against mechanisms defined across the shared corpus (`corpus.json` `books`). When draft prose touches or mentions existing mechanisms that are not yet bound, it surfaces actionable guidance: binding the slug locally if already present in the book, or sharing it from a sibling book with `bun run bookkit sync <slug> --to <book>`. The hints are surfaced directly in CLI output and in `--json` payloads for MCP clients and editors, preventing concept duplication at write time.

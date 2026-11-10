@@ -1,0 +1,249 @@
+/* --- Reading Progress Bar --- */
+@media (prefers-reduced-motion: no-preference) {
+	@supports (animation-timeline: scroll()) {
+		@keyframes grow-reading-progress {
+			from {
+				transform: scaleX(0);
+			}
+			to {
+				transform: scaleX(1);
+			}
+		}
+		.reading-progress-bar {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 2px;
+			background: var(--color-rubric);
+			transform-origin: 0 50%;
+			z-index: 100;
+			animation: grow-reading-progress auto linear;
+			animation-timeline: scroll();
+		}
+	}
+}
+
+.reading-progress-bar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 2px;
+	background: var(--color-rubric);
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	z-index: 100;
+	pointer-events: none;
+}
+
+/* --- Code & Pre Polish --- */
+code {
+	font-family: var(--font-apparatus);
+	font-size: 0.84em;
+	padding: 0.1em 0.3em;
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+	color: var(--color-ink);
+}
+
+pre {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	padding: var(--space-4);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+	overflow-x: auto;
+	line-height: 1.5;
+	margin: var(--space-5) 0;
+	position: relative;
+}
+
+pre code {
+	background: transparent;
+	border: none;
+	padding: 0;
+	font-size: inherit;
+	color: inherit;
+}
+
+/* --- Heading Anchor Links --- */
+.heading-anchor {
+	opacity: 0;
+	text-decoration: none;
+	color: var(--color-muted);
+	margin-left: 0.35em;
+	font-weight: 400;
+	transition:
+		opacity var(--timing-snappy) ease,
+		color var(--timing-snappy) ease;
+	font-size: 0.8em;
+	vertical-align: middle;
+	cursor: pointer;
+}
+
+:is(h1, h2, h3, h4):hover .heading-anchor,
+.heading-anchor:focus-visible {
+	opacity: 1;
+	color: var(--color-accent);
+}
+
+/* --- Chapter Layout: Right Rail TOC on Desktop, Collapsible on Mobile --- */
+/* Two-column chapter pages widen the reading column for the side rail. */
+.site-main:has(.chapter-shell) {
+	max-width: min(66rem, 100%);
+	padding-inline: clamp(1rem, 4vw, 2rem);
+}
+
+.chapter-shell {
+	display: grid;
+	grid-template-columns: minmax(0, 38rem) minmax(12rem, 15rem);
+	justify-content: space-between;
+	gap: var(--space-8);
+	align-items: start;
+}
+
+/* The row gap keeps wrapped links 24px apart (WCAG 2.2 target size). */
+.chapter-mechanisms {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-2) var(--space-3);
+	margin: var(--space-3) 0 var(--space-6);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+/* "Read first" sits directly above the mechanisms, as one block. */
+.chapter-prerequisites:has(+ .chapter-mechanisms) {
+	margin-bottom: 0;
+}
+
+.chapter-mechanisms__label {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.chapter-content {
+	padding: 0;
+}
+
+.chapter-content > :first-child {
+	margin-top: 0;
+}
+
+.next-steps__branches {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+	gap: var(--space-3);
+}
+
+.chapter-meta-panel {
+	position: sticky;
+	top: calc(4.5rem + env(safe-area-inset-top));
+	display: grid;
+	gap: var(--space-3);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+.chapter-meta-panel h2 {
+	margin: 0;
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	font-weight: 400;
+	color: var(--color-muted);
+}
+
+.chapter-step-list {
+	margin: 0 0 var(--space-5);
+	padding-left: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.15rem;
+	font-size: var(--text-apparatus);
+}
+
+.chapter-step-list a {
+	color: var(--color-muted);
+	text-decoration: none;
+	display: flex;
+	gap: 0.5rem;
+	align-items: baseline;
+	padding: 0.2rem 0 0.2rem 0.6rem;
+	border-left: 1px solid var(--color-border);
+	transition:
+		color var(--timing-snappy) ease,
+		border-color var(--timing-snappy) ease;
+}
+
+.chapter-step-list a:hover {
+	color: var(--color-ink);
+}
+
+.chapter-step-list a.is-active {
+	color: var(--color-ink);
+	border-left: 2px solid var(--color-rubric);
+	padding-left: calc(0.6rem - 1px);
+}
+
+.chapter-toc-mobile {
+	border-block: 1px solid var(--color-border);
+	padding: var(--space-2) 0;
+	margin-bottom: var(--space-5);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+.chapter-toc-mobile summary {
+	cursor: pointer;
+	color: var(--color-muted);
+	user-select: none;
+}
+
+.chapter-toc-mobile[open] summary {
+	margin-bottom: var(--space-3);
+}
+
+/* --- Symmetric Two-Way Chapter Pagination --- */
+.chapter-pagination {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-5);
+	margin: var(--space-8) 0 var(--space-6);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--color-rule);
+}
+
+.chapter-pagination__card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	text-decoration: none;
+}
+
+.chapter-pagination__card:hover .chapter-pagination__title {
+	color: var(--color-rubric);
+}
+
+.chapter-pagination__card--prev {
+	text-align: left;
+}
+
+.chapter-pagination__card--next {
+	text-align: right;
+}
+
+.chapter-pagination__label {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.chapter-pagination__title {
+	font-size: var(--text-lg);
+	line-height: var(--leading-snug);
+	color: var(--color-ink);
+	text-wrap: balance;
+}

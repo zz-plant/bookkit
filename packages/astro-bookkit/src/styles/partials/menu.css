@@ -1,0 +1,255 @@
+.site-nav__more {
+	position: relative;
+}
+
+.site-nav__more-toggle {
+	list-style: none;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.site-nav__more-toggle::-webkit-details-marker {
+	display: none;
+}
+
+.site-nav__toggle-icon {
+	font-size: 0.85em;
+	opacity: 0.75;
+	transform-origin: center;
+	transition:
+		transform var(--timing-snappy) ease,
+		opacity var(--timing-snappy) ease;
+}
+
+.site-nav__more.is-open > .site-nav__more-toggle .site-nav__toggle-icon,
+.site-settings[open] > .site-settings__toggle .site-nav__toggle-icon,
+.reader-settings[open] > .reader-settings__toggle .site-nav__toggle-icon {
+	transform: rotate(-180deg);
+	opacity: 1;
+}
+
+.site-nav__overflow[hidden] {
+	display: none !important;
+}
+
+/* One menu at every width: a dropdown under the toggle on desktop, a sheet above the bottom bar on phones. */
+.site-nav__more.is-open .site-nav__overflow {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	background: var(--color-paper);
+	border: 1px solid var(--color-rule);
+	z-index: 95;
+}
+
+.site-nav__overflow > button,
+.site-nav__overflow summary {
+	justify-self: start;
+	text-align: left;
+}
+
+.site-nav__group-label {
+	margin: 0;
+	color: var(--color-muted);
+	font-size: var(--text-apparatus);
+}
+
+.site-nav__group {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.site-nav__separator {
+	border: 0;
+	border-top: 1px solid var(--color-border);
+	margin: 0;
+}
+
+/* The read sections, two to a row so the menu stays short on a phone. */
+.site-nav__group--sections {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	column-gap: var(--space-4);
+}
+
+.site-nav__group--sections .site-nav__group-label {
+	grid-column: 1 / -1;
+}
+
+/* Keyboard shortcuts need a keyboard; a touch-only device has no use for the panel. */
+@media (hover: none) and (pointer: coarse) {
+	.site-nav__overflow .kbd-toggle {
+		display: none;
+	}
+}
+
+@media (min-width: 721px) {
+	.site-nav__more.is-open .site-nav__overflow {
+		position: absolute;
+		top: calc(100% + var(--space-3));
+		right: 0;
+		width: 19rem;
+	}
+}
+
+@media (max-width: 720px) {
+	.site-nav__more.is-open .site-nav__overflow {
+		position: fixed;
+		bottom: calc(3rem + env(safe-area-inset-bottom));
+		left: 0;
+		right: 0;
+		max-height: 80vh;
+		overflow-y: auto;
+		margin: 0;
+		padding: var(--space-4) var(--space-5);
+		border-width: 1px 0 0;
+		animation: slide-up-drawer var(--timing-snappy) ease-out;
+	}
+
+	@keyframes slide-up-drawer {
+		from {
+			transform: translateY(100%);
+		}
+		to {
+			transform: translateY(0);
+		}
+	}
+}
+
+.site-settings {
+	position: relative;
+}
+
+.site-settings__toggle {
+	list-style: none;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	cursor: pointer;
+}
+
+.site-settings__toggle::-webkit-details-marker {
+	display: none;
+}
+
+.site-settings__panel {
+	display: none;
+}
+
+.site-settings[open] .site-settings__panel {
+	display: grid;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+}
+
+.reader-settings {
+	position: relative;
+}
+
+.reader-settings__toggle {
+	list-style: none;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.reader-settings__toggle::-webkit-details-marker {
+	display: none;
+}
+
+.reader-settings__panel {
+	margin-top: var(--space-2);
+	display: grid;
+	gap: var(--space-3);
+}
+
+.reader-settings__hint {
+	margin: 0;
+	color: var(--color-muted);
+	font-size: var(--text-apparatus);
+}
+
+.reader-settings__group {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.reader-settings__label {
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.reader-settings__options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+}
+
+.reader-settings__group select {
+	width: 100%;
+	border: 1px solid var(--color-rule);
+	border-radius: var(--radius-control);
+	background: var(--color-paper);
+	padding: 0.4rem 0.5rem;
+	font: inherit;
+}
+
+.reader-settings__options button.is-active {
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-decoration-color: var(--color-rubric);
+	text-decoration-thickness: 2px;
+}
+
+.mobile-cta {
+	display: none;
+}
+
+.version-switcher {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+.version-switcher__label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.version-switcher__select {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-pill);
+	padding: 4px 12px;
+	background: var(--color-surface);
+	font-size: var(--text-sm);
+}
+
+.version-switcher__archive {
+	font-size: var(--text-sm);
+	letter-spacing: 0.03em;
+}
+
+.language-switcher {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+.language-switcher__label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.language-switcher__select {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-pill);
+	padding: 4px 12px;
+	background: var(--color-surface);
+	font-size: var(--text-sm);
+}

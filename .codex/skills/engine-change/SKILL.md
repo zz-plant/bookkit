@@ -12,8 +12,10 @@ Use for changes in engine internals, including:
 - `packages/astro-bookkit/src/frames/**`
 - `packages/astro-bookkit/src/schemas/**`
 - `packages/astro-bookkit/src/validators/**`
-- `packages/astro-bookkit/src/compiler/**`
+- `packages/astro-bookkit/src/book/**` (runtime assembly, reading graph, ordering)
 - `packages/astro-bookkit/src/mcp/**`
+
+The module map in `docs/architecture.md` names every engine directory, what it owns, and its import tier.
 
 ## Allowed file paths
 

@@ -128,7 +128,7 @@ Every book binds content into the same fixed sections. Adding a section is an en
 
 ## Engine module map
 
-Tiers are enforced: **a module may only import from a strictly lower tier.** Same-tier imports are legal only between modules inside a declared cycle. `check:architecture` computes the real import graph — value imports only, since type-only edges vanish at build time — and fails on any violation.
+Tiers are enforced: **a module may only import from a strictly lower tier**, so two modules on one tier never import each other. `check:architecture` computes the real import graph — value imports only, since type-only edges vanish at build time — and fails on any violation.
 
 <!-- architecture:modules:start -->
 
@@ -136,18 +136,8 @@ Tiers are enforced: **a module may only import from a strictly lower tier.** Sam
 | --- | --- | --- |
 | `utils/` | 0 | small shared helpers with no engine dependencies, including the one frontmatter parser, the one Markdown parser (blocks, inline text, raw HTML, and the ids the site gives headings) that the exports, the search index, and the frame check share, the "did you mean" for a mistyped name, request limits, the author-token check for API routes, the book's data folder where those routes keep what readers send, the one rule for which links a book keeps, the one allowlist of the raw HTML its content may hold, and the check that keeps a test's scratch workspace from resolving to the repository around it |
 | `schemas/` | 0 | Zod frontmatter schemas — the record contract for every content section |
-| `styles/` | 0 | `bookkit.css`, the shipped stylesheet |
+| `styles/` | 0 | `bookkit.css`, the shipped stylesheet: an ordered list of `@import`s whose order is the cascade, and `partials/`, the rules it imports, one file per reader surface |
 | `embeddings/` | 0 | embedding generation for semantic search, and the in-browser model runtime it and `rerank/` load (transformers.js, with ONNX Runtime's WebAssembly served from the book's site) |
-| `markdown/` | 1 | page facts read from MDX source (the opening paragraph, the word count); the Markdown-tree step that keeps unsafe links and raw HTML out of the site's pages; the deprecated heading-id rehype plugin |
-| `rerank/` | 1 | result reranking for search |
-| `qa/` | 1 | AI question-answering providers behind the reader Q&A feature, and the limits on what a reader may send them |
-| `analytics/` | 1 | reader analytics events and the append-only log |
-| `feedback/` | 1 | reader feedback capture |
-| `preview/` | 1 | preview links and their access state |
-| `releases/` | 1 | release notes, versions, RSS, email, webhooks |
-| `exports/` | 1 | PDF and EPUB generation |
-| `localization/` | 1 | locale resolution and translation notices |
-| `suggestions/` | 1 | deterministic analyzers — overlap (per book and across a corpus of books), concept triage, example audit, prerequisites, runbook coverage |
 | `frames/` | 0 | frame registry, definitions, and built-in frames (intervention, field-guide, runbook) with duplicate-step validation |
 | `markdown/` | 1 | page facts read from MDX source (the opening paragraph, the word count); the Markdown-tree step that keeps unsafe links and raw HTML out of the site's pages; the deprecated heading-id rehype plugin |
 | `rerank/` | 1 | result reranking for search |
@@ -221,6 +211,6 @@ This file is checked, not trusted:
 bun run check:architecture
 ```
 
-It verifies that the module map lists every engine module and only real ones, that every documented tier holds against the real import graph, that the declared cycles are exactly the cycles that exist, and that the workspace and content tables match the tree. It runs in CI alongside the other gates.
+It verifies that the module map lists every engine module once and only real ones, that every documented tier holds against the real import graph, that the declared cycles are exactly the cycles that exist, and that the workspace and content tables match the tree. It runs in CI alongside the other gates.
 
 If you add, rename, remove, or re-layer a module, this document is part of that change.

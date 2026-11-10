@@ -12,7 +12,7 @@ fi
 cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}"
 
 if ! command -v bun >/dev/null 2>&1; then
-	echo "session-start: bun is not on PATH; install Bun 1.3+ (see mise.toml), then run bun install." >&2
+	echo "session-start: bun is not on PATH; install the Bun version mise.toml pins, then run bun install." >&2
 	exit 0
 fi
 

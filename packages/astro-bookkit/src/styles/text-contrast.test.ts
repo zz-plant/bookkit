@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 /**
  * Text in bookkit.css meets WCAG AA (4.5:1) in both themes: words are set in
@@ -8,10 +8,24 @@ import { join } from "node:path";
  * separators, list markers), where it is too light for words.
  */
 
-const css = readFileSync(join(import.meta.dir, "bookkit.css"), "utf8").replace(
-	/\/\*[\s\S]*?\*\//g,
-	"",
-);
+/** Each `@import` that named a file that is not there. */
+const unresolved: string[] = [];
+
+/**
+ * A stylesheet without its comments, each `@import` replaced by the file it
+ * names: bookkit.css is a list of partials, and the rules are in them.
+ */
+const resolveStylesheet = (file: string): string =>
+	readFileSync(file, "utf8")
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/@import\s+["']([^"']+)["'];/g, (_, specifier: string) => {
+			const target = join(dirname(file), specifier);
+			if (existsSync(target)) return resolveStylesheet(target);
+			unresolved.push(specifier);
+			return "";
+		});
+
+const css = resolveStylesheet(join(import.meta.dir, "bookkit.css"));
 
 const block = (selector: string): string => {
 	const start = css.indexOf(`${selector} {`);
@@ -56,6 +70,13 @@ const themes = {
 };
 
 describe("text contrast in bookkit.css", () => {
+	it("checks the rules bookkit.css imports, not its list of imports", () => {
+		expect(unresolved, "@imports that name no file").toEqual([]);
+		expect(css, "an @import left unresolved").not.toContain("@import");
+		// The stylesheet holds about 500 rule blocks; a few dozen means partials went unread.
+		expect(css.match(/\{/g)?.length ?? 0).toBeGreaterThan(300);
+	});
+
 	it("keeps --color-muted at 4.5:1 or more on paper and on the muted surface, in both themes", () => {
 		const muted = strength("--color-muted");
 		const surface = strength("--color-surface-muted");

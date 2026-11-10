@@ -17,6 +17,7 @@
  * | TODOS.md                             | todos                                               |
  * | package.json, bun.lock, tsconfig, biome.json, CI | everything in the first column above    |
  * | --all (CI runs exactly this)         | every gate, plus mechanisms across books and concepts |
+ * | --quick (while iterating)            | the same gates, with tests narrowed to the change (see quickTestTargets) |
  */
 
 export type Gate = {
@@ -94,17 +95,46 @@ const validateGate = (book: string, why: string): Gate => ({
 export const WORKSPACE_ONLY_GATES = ["biome", "test", "architecture"];
 
 /**
+ * The tests `--quick` runs instead of the whole suite: the engine's own tests
+ * when engine code changed (a few seconds), the generator's when it changed,
+ * and for a script, the test file beside it. The tests under `scripts/` that
+ * build books are nine tenths of the suite's time, so they wait for the full
+ * run. `null`: the change cannot be narrowed (workspace config), so run it all.
+ */
+export const quickTestTargets = (
+	changed: string[],
+	exists: (path: string) => boolean,
+): string[] | null => {
+	if (changed.some((file) => ROOT_CONFIG.test(file))) return null;
+	const targets = new Set<string>();
+	for (const file of changed) {
+		if (ENGINE.test(file)) targets.add("./packages/astro-bookkit");
+		else if (CREATE_BOOKKIT.test(file))
+			targets.add("./packages/create-bookkit");
+		else if (SCRIPTS.test(file) && file.endsWith(".ts")) {
+			const test = file.endsWith(".test.ts")
+				? file
+				: file.replace(/\.ts$/, ".test.ts");
+			if (exists(test)) targets.add(`./${test}`);
+		}
+	}
+	return [...targets].sort();
+};
+
+/**
  * `changed`: repo-relative paths, deleted ones included. `null` plans every
  * gate CI runs. `exists` filters deleted files out of formatter arguments.
  * `project` plans for a standalone project rather than this workspace.
+ * `quick` narrows the tests gate to the change; every other gate is the same.
  */
 export const planGates = (
 	changed: string[] | null,
 	books: string[],
 	exists: (path: string) => boolean = () => true,
 	profile: "workspace" | "project" = "workspace",
+	options: { quick?: boolean } = {},
 ): Gate[] =>
-	planWorkspaceGates(changed, books, exists).filter(
+	planWorkspaceGates(changed, books, exists, options.quick === true).filter(
 		(gate) =>
 			profile === "workspace" || !WORKSPACE_ONLY_GATES.includes(gate.id),
 	);
@@ -113,6 +143,7 @@ const planWorkspaceGates = (
 	changed: string[] | null,
 	books: string[],
 	exists: (path: string) => boolean,
+	quick: boolean,
 ): Gate[] => {
 	if (changed === null) {
 		return [
@@ -223,12 +254,22 @@ const planWorkspaceGates = (
 	}
 
 	if (engine || any(SCRIPTS) || any(CREATE_BOOKKIT)) {
-		add({
-			id: "test",
-			label: "tests",
-			why: "code with unit tests",
-			commands: [bun("test")],
-		});
+		const targets = quick ? quickTestTargets(changed, exists) : null;
+		if (targets === null) {
+			add({
+				id: "test",
+				label: "tests",
+				why: "code with unit tests",
+				commands: [bun("test")],
+			});
+		} else if (targets.length > 0) {
+			add({
+				id: "test",
+				label: "tests (near the change)",
+				why: "quick: the full suite still runs before a commit",
+				commands: [["bun", "test", "--parallel", ...targets]],
+			});
+		}
 	}
 
 	const changedBooks = [...new Set([...contentBooks, ...appCode])];

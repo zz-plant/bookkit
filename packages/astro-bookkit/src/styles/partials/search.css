@@ -1,0 +1,137 @@
+.search-panel,
+.qa-panel,
+.keyboard-help {
+	position: fixed;
+	inset: 0;
+	background: var(--color-scrim);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: var(--space-7) var(--space-3);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.2s ease;
+	z-index: 20;
+}
+
+.search-panel.is-open,
+.qa-panel.is-open,
+.keyboard-help.is-open {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.search-panel__content,
+.qa-panel__content,
+.keyboard-help__content {
+	background: var(--color-surface);
+	border-radius: var(--radius-card);
+	border: 1px solid var(--color-border);
+	box-shadow: var(--shadow-soft);
+	padding: var(--space-5);
+	width: min(900px, 100%);
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.search-panel__header,
+.qa-panel__header,
+.keyboard-help__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: var(--space-4);
+}
+
+.search-panel__field input {
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	font-size: var(--text-md);
+	border-radius: var(--radius-control);
+	border: 1px solid var(--color-border);
+}
+
+.search-panel__field input:focus-visible,
+.qa-panel__field textarea:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+
+.search-panel__meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: var(--space-3);
+}
+
+.search-panel__quick-actions {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	padding: var(--space-3);
+	display: grid;
+	gap: var(--space-2);
+}
+
+.search-panel__quick-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-2);
+}
+
+@media (max-width: 720px) {
+	.search-panel__quick-list {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* One list in score order: the listbox holds its options directly. */
+.search-panel__results {
+	margin-top: var(--space-4);
+	display: grid;
+	gap: var(--space-3);
+}
+
+.search-panel__item {
+	display: grid;
+	gap: var(--space-1);
+	padding: var(--space-3);
+	border-radius: var(--radius-card);
+	border: 1px solid var(--color-border);
+}
+
+.search-panel__item:hover {
+	border-color: var(--color-accent);
+}
+
+.search-panel__item:focus-visible {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+
+/* The lighter tint keeps the muted snippet over 4.5:1. */
+.search-panel__item[aria-selected="true"] {
+	border-color: var(--color-accent);
+	background: var(--color-surface-muted);
+}
+
+.search-panel__item-title {
+	font-weight: 600;
+}
+
+.search-panel__item-snippet,
+.search-panel__item-meta {
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+/* The section a result is from, in the apparatus face the header's section label uses. */
+.search-panel__item-section {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-ink);
+}
+
+.search-panel__item mark {
+	background: var(--color-accent-soft);
+	color: var(--color-accent-strong);
+}

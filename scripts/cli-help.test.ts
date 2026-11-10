@@ -211,7 +211,12 @@ describe("--help", () => {
 				.filter((name) => name !== "help")
 				.sort(),
 		);
-		const createNew = source.slice(source.indexOf("function createNew("));
+		// `new` dispatches on its kinds in createNew.
+		const newSource = readFileSync(
+			join(REPO, "scripts", "lib", "commands", "new.ts"),
+			"utf8",
+		);
+		const createNew = newSource.slice(newSource.indexOf("function createNew("));
 		const kinds = [
 			...createNew
 				.slice(0, createNew.indexOf("\n}\n"))

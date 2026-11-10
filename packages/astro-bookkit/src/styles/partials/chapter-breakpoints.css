@@ -1,0 +1,24 @@
+@media (max-width: 900px) {
+	.chapter-shell {
+		grid-template-columns: 1fr;
+		gap: var(--space-4);
+	}
+
+	.chapter-meta-panel {
+		display: none; /* Replaced by .chapter-toc-mobile on smaller viewports */
+	}
+
+	.chapter-pagination {
+		grid-template-columns: 1fr;
+	}
+
+	.chapter-pagination__card--next {
+		text-align: left;
+	}
+}
+
+@media (min-width: 901px) {
+	.chapter-toc-mobile {
+		display: none;
+	}
+}

@@ -209,6 +209,23 @@ export const unknownFlagError = (
 	return undefined;
 };
 
+/** The value after a flag (`--frame runbook`), if given. */
+export function flagValue(list: string[], name: string): string | undefined {
+	const index = list.indexOf(name);
+	const value = index >= 0 ? list[index + 1] : undefined;
+	return value && !value.startsWith("--") ? value : undefined;
+}
+
+/** Positional arguments, skipping the values of the named flags. */
+export function positionals(list: string[], valued: string[]): string[] {
+	const values = new Set(
+		valued.map((name) => list.indexOf(name) + 1).filter((index) => index > 0),
+	);
+	return list.filter(
+		(arg, index) => !arg.startsWith("--") && !values.has(index),
+	);
+}
+
 /** `parseScriptArgs` without the printing and exiting, for tests. */
 export const readScriptArgs = <
 	S extends Record<string, ArgKind>,

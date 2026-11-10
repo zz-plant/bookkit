@@ -20,10 +20,14 @@ exitOnHelp({
 	summary:
 		"Runs the checks a change needs, judged by the files it touches: changes\nsince origin/main, committed or not. Content checks report only\nfindings in the files you changed.",
 	usage: [
-		"bun run verify [--all] [--base <ref>] [--skip <gate>] [--list] [--json]",
+		"bun run verify [--all | --quick] [--base <ref>] [--skip <gate>] [--list] [--json]",
 	],
 	options: [
 		["--all", "Every gate CI runs; needs no git history"],
+		[
+			"--quick",
+			"While iterating: only the tests beside the change, not the whole suite",
+		],
 		["--base <ref>", "Compare against another ref"],
 		["--skip <gate>", "Leave one gate out, by id (--list --json shows ids)"],
 		["--list", "Show the plan; run nothing"],
@@ -33,6 +37,7 @@ exitOnHelp({
 	examples: [
 		"bun run verify",
 		"bun run verify -- --all",
+		"bun run verify -- --quick",
 		"bun run verify -- --list",
 	],
 });
@@ -43,6 +48,13 @@ if (!existsSync(join(root, "node_modules"))) {
 	process.exit(1);
 }
 const all = process.argv.includes("--all");
+const quick = process.argv.includes("--quick");
+if (all && quick) {
+	console.error(
+		"--all runs every gate and --quick narrows the tests to a change. Pass one of them.",
+	);
+	process.exit(1);
+}
 const listOnly = process.argv.includes("--list");
 const asJson = process.argv.includes("--json");
 
@@ -97,12 +109,20 @@ const skipped = new Set(
 		process.argv[index - 1] === "--skip" ? [arg] : [],
 	),
 );
-const gates = planGates(
-	all ? null : changed,
-	listBookDirs(),
-	(file) => existsSync(join(root, file)),
-	isStandaloneProject(root) ? "project" : "workspace",
-).filter((gate) => !skipped.has(gate.id));
+const plan = (options: { quick: boolean }) =>
+	planGates(
+		all ? null : changed,
+		listBookDirs(),
+		(file) => existsSync(join(root, file)),
+		isStandaloneProject(root) ? "project" : "workspace",
+		options,
+	).filter((gate) => !skipped.has(gate.id));
+const gates = plan({ quick });
+/** Set when --quick left tests out, so a pass is never read as the full gate. */
+const quickNote =
+	quick && plan({ quick: false }).some((gate) => gate.id === "test")
+		? "Quick run: only the tests beside the change ran. Run bun run verify before you commit."
+		: undefined;
 
 const describeScope = () =>
 	all
@@ -266,6 +286,8 @@ if (asJson) {
 				base,
 				changed,
 				ok: failed.length === 0,
+				quick,
+				note: quickNote,
 				gates: results.map(({ id, label, ok, seconds, findings, output }) => ({
 					id,
 					label,
@@ -286,6 +308,7 @@ if (asJson) {
 			? `\nAll ${results.length} checks passed.`
 			: `\n${failed.length} of ${results.length} checks failed: ${failed.map(failedLabel).join(", ")}.`,
 	);
+	if (quickNote) console.log(quickNote);
 }
 
 process.exit(failed.length === 0 ? 0 : 1);

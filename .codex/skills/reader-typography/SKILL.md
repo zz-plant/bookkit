@@ -31,7 +31,7 @@ The common thread: **decide every default, give each typeface a job, and let the
 
 **Two voices.** The book is set in **Newsreader** (Production Type, OFL; optical sizes 6–72, so headings get the display cut and body text gets the text cut automatically). The **apparatus** — everything the compiler adds around the book: navigation, breadcrumbs, mechanism slugs and contract labels (`This is`, `Predictions`), status, file sizes, versions, filters — is set in **Fragment Mono** (Wei Huang, OFL). The split mirrors Bookkit's own model: author prose versus compiled structure. Readers can tell at a glance which is which.
 
-**One paper, one ink, one rubric.** Tokens in `bookkit.css`:
+**One paper, one ink, one rubric.** Tokens in `styles/partials/tokens.css` (`bookkit.css` lists the partials, one per reader surface, in cascade order):
 
 | Token | Use |
 | --- | --- |

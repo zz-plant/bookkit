@@ -1,0 +1,136 @@
+.analytics-section {
+	display: grid;
+	gap: var(--space-5);
+}
+
+.analytics-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+	padding: var(--space-3);
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+}
+
+.analytics-filter {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	font-size: var(--text-sm);
+}
+
+.analytics-filter input,
+.analytics-filter select {
+	padding: var(--space-2);
+	border-radius: 0;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+}
+
+.analytics-grid {
+	display: grid;
+	gap: var(--space-4);
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.analytics-card {
+	padding: var(--space-3) 0;
+	border-top: 1px solid var(--color-border);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-surface);
+}
+
+.metric-value {
+	font-size: var(--text-2xl);
+	font-weight: 700;
+}
+
+.metric-subtext {
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+.sparkline {
+	width: 100%;
+	height: 30px;
+}
+
+.sparkline-axis {
+	stroke: color-mix(in srgb, var(--color-border) 85%, #000000 15%);
+	stroke-width: 1;
+}
+
+.sparkline polyline {
+	fill: none;
+	stroke: var(--color-muted);
+	stroke-width: 1.5;
+}
+
+.analytics-table-wrap {
+	overflow-x: auto;
+}
+
+.analytics-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+	background: var(--color-surface);
+}
+
+.analytics-table__caption {
+	text-align: left;
+	margin-bottom: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+.analytics-table th,
+.analytics-table td {
+	padding: var(--space-2);
+	border-bottom: 1px solid
+		color-mix(in srgb, var(--color-border) 95%, transparent);
+}
+
+.analytics-table thead th {
+	font-size: var(--text-sm);
+	letter-spacing: 0.03em;
+	color: var(--color-muted);
+}
+
+.analytics-table__label {
+	text-align: left;
+	font-weight: 500;
+}
+
+.analytics-table__metric {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.analytics-table--summary .analytics-table__spark-col {
+	width: 120px;
+	padding-left: var(--space-1);
+	padding-right: var(--space-1);
+}
+
+.analytics-table--summary .metric-subtext {
+	font-size: var(--text-sm);
+}
+
+.analytics-table__metric.is-emphasis {
+	color: var(--color-accent-strong);
+	font-weight: 600;
+}
+
+.analytics-empty {
+	padding: var(--space-4);
+	border-radius: var(--radius-card);
+	border: 1px dashed var(--color-border);
+	text-align: center;
+	color: var(--color-muted);
+}
+
+.analytics-notes ul {
+	padding-left: var(--space-4);
+}

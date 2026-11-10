@@ -1,0 +1,60 @@
+/* --- Print Styles --- */
+@media print {
+	.skip-link,
+	.site-header,
+	.mobile-cta,
+	.reading-progress-bar,
+	.search-panel,
+	.qa-panel,
+	.keyboard-help,
+	.feedback-widget,
+	.reader-settings,
+	.site-settings,
+	.back-link,
+	.chapter-meta-panel,
+	.chapter-toc-mobile,
+	.chapter-pagination,
+	.next-steps,
+	.list-tools,
+	[data-mobile-cta] {
+		display: none !important;
+	}
+
+	body {
+		background: #ffffff !important;
+		color: #000000 !important;
+		font-size: 11pt !important;
+		line-height: 1.5 !important;
+	}
+
+	.page {
+		min-height: auto !important;
+	}
+
+	.site-main {
+		max-width: 100% !important;
+		padding: 0 !important;
+		margin: 0 !important;
+	}
+
+	article,
+	section,
+	.card,
+	.step-card,
+	.situation-list__item,
+	.fact-list__row {
+		break-inside: avoid;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		break-after: avoid;
+	}
+
+	a {
+		text-decoration: none !important;
+		color: #000000 !important;
+	}
+}

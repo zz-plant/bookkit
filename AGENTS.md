@@ -137,7 +137,9 @@ For risky changes, include:
 
 ## Agent execution checklist
 
-Before starting work, name the bet in `docs/bets.md` it serves. If it serves none, it is maintenance: keep it small and do not open new audit, PRD, or critique docs for it.
+Before starting work, name the bet it serves. `bun run bookkit bets` prints the active bet and its measurement in a few lines; `docs/bets.md` holds the contract, so read it when the work changes a bet. If the work serves none, it is maintenance: keep it small and do not open new audit, PRD, or critique docs for it.
+
+While iterating, run `bun run verify -- --quick`: the same checks, with only the tests beside your change.
 
 Before finalizing work:
 
@@ -154,3 +156,18 @@ Before finalizing work:
 
 - Engine: `packages/astro-bookkit/*`
 - Book apps: `apps/<book>/*`
+
+Where a change goes, and the quickest check for it while iterating:
+
+| Change | Where | Quickest check |
+| --- | --- | --- |
+| Engine module | `packages/astro-bookkit/src/<module>/` (the module map in `docs/architecture.md` says what each owns) | `bun test packages/astro-bookkit/src/<module>` |
+| Reader UI | engine `components/`, `layouts/`, `routes/`; styles in `styles/partials/`, one file per surface, indexed in `styles/bookkit.css` | `bun run verify -- --quick`, then `bun run check:a11y` |
+| CLI command | `scripts/lib/commands/`, one module per command group, indexed in `scripts/bookkit.ts`; help text in `scripts/lib/bookkit-commands.ts` | `bun run verify -- --quick`, then the `scripts/*.test.ts` that runs the command |
+| Check or gate | `scripts/check-*.ts`, `scripts/verify.ts`, `scripts/lib/verify-plan.ts` | `bun run verify -- --quick` (runs the test beside the file, where one exists) |
+| Book content | `apps/<book>/src/content/book/<section>/` | `bun run bookkit check <file.mdx>` |
+| Book config or page | `apps/<book>/src/book.config.ts`, `apps/<book>/src/pages/` | `bun run verify` |
+| Book-app wrapper | `packages/astro-bookkit/templates/book-app/`, then `bun run sync:shims` | `bun run check:shims` |
+| Project generator | `packages/create-bookkit/` | `bun test packages/create-bookkit` |
+
+`CHANGELOG.md` is newest first: add an entry under its header without reading the rest. `.ignore` keeps it, `bun.lock`, `scratch/`, and `corpus-judgments.json` out of ripgrep results; name a file to search it.

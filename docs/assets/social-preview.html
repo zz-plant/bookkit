@@ -1,0 +1,166 @@
+<!doctype html>
+<!--
+  The repository's GitHub social preview (Settings → General → Social
+  preview). Rendered to social-preview.png at 1280×640 by social-preview.ts,
+  which adds the books' typefaces (Newsreader, Fragment Mono) from the
+  engine's @fontsource dependencies. Everything but the background stays
+  inside the frame: the runbook card keeps 64px from every edge.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Bookkit social preview</title>
+		<style>
+			:root {
+				--paper: #f7f4ed;
+				--ink: #1d1b17;
+				--rubric: #a3301c;
+				--muted: color-mix(in srgb, var(--ink) 64%, var(--paper));
+				--rule: color-mix(in srgb, var(--ink) 28%, var(--paper));
+				--border: color-mix(in srgb, var(--ink) 16%, var(--paper));
+				--text: "Newsreader Variable", Georgia, serif;
+				--apparatus: "Fragment Mono", ui-monospace, monospace;
+			}
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+			html,
+			body {
+				width: 1280px;
+				height: 640px;
+				overflow: hidden;
+				background: var(--paper);
+				color: var(--ink);
+				font-family: var(--text);
+			}
+			.frame {
+				position: relative;
+				width: 1280px;
+				height: 640px;
+			}
+			.intro {
+				position: absolute;
+				left: 88px;
+				top: 64px;
+				bottom: 64px;
+				width: 540px;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+			}
+			.repo {
+				font-family: var(--apparatus);
+				font-size: 28px;
+				color: var(--muted);
+			}
+			.wordmark {
+				font-size: 144px;
+				font-weight: 500;
+				line-height: 1;
+				letter-spacing: -0.02em;
+				margin: 18px 0 0 -5px;
+			}
+			.claim {
+				font-size: 54px;
+				line-height: 1.08;
+				margin-top: 44px;
+			}
+			.stack {
+				font-family: var(--apparatus);
+				font-size: 24px;
+				color: var(--muted);
+				margin-top: 56px;
+			}
+			.card {
+				position: absolute;
+				left: 712px;
+				right: 64px;
+				top: 64px;
+				bottom: 64px;
+				border: 2px solid var(--rule);
+				border-radius: 2px;
+				background: var(--paper);
+				overflow: hidden;
+			}
+			.card-head {
+				font-style: italic;
+				font-size: 24px;
+				padding: 14px 26px 13px;
+				border-bottom: 1px solid var(--border);
+			}
+			.card-body {
+				padding: 22px 26px 0;
+			}
+			.kind {
+				font-family: var(--apparatus);
+				font-size: 18px;
+				color: var(--muted);
+			}
+			.card h2 {
+				font-size: 50px;
+				font-weight: 500;
+				line-height: 1.05;
+				margin-top: 8px;
+			}
+			.meta {
+				font-size: 25px;
+				margin-top: 8px;
+			}
+			.meta span {
+				text-decoration: underline;
+				text-decoration-color: var(--rule);
+				text-underline-offset: 4px;
+			}
+			.card h3 {
+				font-size: 28px;
+				font-weight: 600;
+				margin-top: 30px;
+			}
+			.steps {
+				list-style: none;
+				margin-top: 10px;
+			}
+			.steps li {
+				display: flex;
+				gap: 16px;
+				font-size: 22px;
+				line-height: 1.25;
+				padding: 14px 0;
+				border-top: 1px solid var(--border);
+			}
+			.steps b {
+				font-family: var(--apparatus);
+				font-weight: 400;
+				font-size: 19px;
+				color: var(--rubric);
+				padding-top: 3px;
+			}
+		</style>
+	</head>
+	<body>
+		<main class="frame">
+			<section class="intro">
+				<p class="repo">zz-plant/bookkit</p>
+				<h1 class="wordmark">Bookkit</h1>
+				<p class="claim">AI may propose;<br />the compiler decides.</p>
+				<p class="stack">A book compiler · Astro + Bun · CC0</p>
+			</section>
+			<section class="card" data-contained>
+				<p class="card-head">On-Call Runbook</p>
+				<div class="card-body">
+					<p class="kind">Toolkit action</p>
+					<h2>Classify severity</h2>
+					<p class="meta">10 minutes · for <span>Incident Triage</span></p>
+					<h3>Steps</h3>
+					<ol class="steps">
+						<li><b>1</b>Read the alert and state the affected surface.</li>
+						<li><b>2</b>Classify severity against the published scale.</li>
+						<li><b>3</b>Name a single owner in the incident thread.</li>
+					</ol>
+				</div>
+			</section>
+		</main>
+	</body>
+</html>

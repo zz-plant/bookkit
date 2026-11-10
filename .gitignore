@@ -39,3 +39,7 @@ opencode.json
 # Scratch books that tests build inside the repo
 .test-workspaces/
 .test-builds/
+
+# Wrangler local secrets
+.dev.vars*
+!.dev.vars.example

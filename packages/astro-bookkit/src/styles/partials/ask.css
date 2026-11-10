@@ -100,6 +100,30 @@
 	background: var(--color-bg);
 }
 
+/* Who wrote the answer, said above it, in the site's voice either way. */
+.qa-panel__provenance {
+	margin: 0 0 var(--space-2);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.qa-panel__answer-text {
+	margin: 0;
+}
+
+/*
+ * A model's sentences are not the author's, so they do not get the book's
+ * face: they are set like everything else the site adds. The measure is
+ * capped because a monospace line as wide as the panel passes 90 characters.
+ */
+.qa-panel__answer[data-qa-written-by="model"] .qa-panel__answer-text {
+	max-width: 68ch;
+	font-family: var(--font-apparatus);
+	font-size: var(--text-sm);
+	line-height: 1.6;
+}
+
 .qa-panel[data-qa-display-mode="citations-first"] .qa-panel__citations {
 	order: 1;
 }

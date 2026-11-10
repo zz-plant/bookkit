@@ -274,25 +274,55 @@ export const initializeQaController = ({
 		return link;
 	};
 
+	/**
+	 * Puts an answer in the panel under a line that says who wrote it, so the
+	 * reader knows before reading. The stylesheet reads `data-qa-written-by`:
+	 * the book's own words keep the book's face, and a model's are set in the
+	 * apparatus face, like everything else the site adds around the book.
+	 */
+	const showAnswer = (
+		writtenBy: "book" | "model",
+		provenance: string,
+		text: string,
+	) => {
+		if (!answer) return;
+		const label = document.createElement("p");
+		label.className = "qa-panel__provenance";
+		label.textContent = provenance;
+		const paragraph = document.createElement("p");
+		paragraph.className = "qa-panel__answer-text";
+		paragraph.textContent = text;
+		answer.dataset.qaWrittenBy = writtenBy;
+		answer.replaceChildren(label, paragraph);
+	};
+
+	/** A message where an answer would be: no one wrote one. */
+	const showNoAnswer = (message: string, className?: string) => {
+		if (!answer) return;
+		const paragraph = document.createElement("p");
+		if (className) paragraph.className = className;
+		paragraph.textContent = message;
+		delete answer.dataset.qaWrittenBy;
+		answer.replaceChildren(paragraph);
+	};
+
 	const renderAnswer = (entries: RankedSearchResult[], tokens: string[]) => {
 		if (!answer || !citations) return;
-		answer.replaceChildren();
 		citations.replaceChildren();
 
-		if (!entries.length) {
-			const emptyState = document.createElement("p");
-			emptyState.textContent =
-				"No answer found. Try rephrasing or using fewer words.";
-			answer.appendChild(emptyState);
+		const best = entries[0];
+		if (!best) {
+			showNoAnswer("No answer found. Try rephrasing or using fewer words.");
 			return;
 		}
 
-		const answerParagraph = document.createElement("p");
-		answerParagraph.textContent = entries[0]?.snippet ?? "No answer found.";
-		const metaParagraph = document.createElement("p");
-		metaParagraph.className = "meta";
-		metaParagraph.textContent = `Answer assembled from ${entries.length} cited passage${entries.length === 1 ? "" : "s"}.`;
-		answer.append(answerParagraph, metaParagraph);
+		showAnswer(
+			"book",
+			entries.length === 1
+				? "The book’s own words, from the one passage that matches."
+				: `The book’s own words, from the best match of ${entries.length} passages.`,
+			best.snippet,
+		);
 
 		const heading = document.createElement("h3");
 		heading.textContent = "Sources";
@@ -322,15 +352,16 @@ export const initializeQaController = ({
 		tokens: string[],
 	) => {
 		if (!answer || !citations) return;
-		answer.replaceChildren();
 		citations.replaceChildren();
 
-		const answerParagraph = document.createElement("p");
-		answerParagraph.textContent = data.answer;
-		const metaParagraph = document.createElement("p");
-		metaParagraph.className = "meta";
-		metaParagraph.textContent = `Answer synthesized from ${data.citations.length} cited passage${data.citations.length === 1 ? "" : "s"}.`;
-		answer.append(answerParagraph, metaParagraph);
+		const count = data.citations.length;
+		showAnswer(
+			"model",
+			count
+				? `Written by a model from ${count} passage${count === 1 ? "" : "s"} of this book, listed under Sources.`
+				: "Written by a model. No passage of this book is listed for it.",
+			data.answer,
+		);
 
 		const heading = document.createElement("h3");
 		heading.textContent = "Sources";
@@ -420,12 +451,7 @@ export const initializeQaController = ({
 		const { normalizedQuery, tokens, results } = runResult;
 		if (!normalizedQuery) {
 			updateStatus("Ask a question to see answers.");
-			if (answer) {
-				const idle = document.createElement("p");
-				idle.className = "meta";
-				idle.textContent = "No answer yet.";
-				answer.replaceChildren(idle);
-			}
+			showNoAnswer("No answer yet.", "meta");
 			citations?.replaceChildren();
 			return;
 		}
@@ -461,7 +487,8 @@ export const initializeQaController = ({
 
 		// 1. Try API endpoint
 		if (apiEndpoint && candidateResults.length > 0) {
-			updateStatus("Synthesizing answer…");
+			// Said before the server answers: it may have no model to write with.
+			updateStatus("Asking this site to write an answer…");
 			synthesized = await synthesizeWithApi(
 				normalizedQuery,
 				candidateResults,
@@ -489,12 +516,7 @@ export const initializeQaController = ({
 			return;
 		}
 
-		// 3. Fallback to local search snippets
-		updateStatus(
-			apiEndpoint
-				? "AI synthesis unavailable. Showing local results."
-				: "Showing local results.",
-		);
+		// 3. Otherwise show the passages themselves
 		const topResults = candidateResults.slice(0, 3);
 		renderAnswer(topResults, tokens);
 		updateStatus(

@@ -4,6 +4,15 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-10 — Ask says who wrote the answer
+
+- **A model's answer no longer looks like the book.** A passage quoted from the book and an answer written by the server's model were the same paragraph in the book's typeface, told apart by one word in a grey line under it ("assembled" or "synthesized"). A model's answer is now set in the apparatus face (Fragment Mono, at a 68-character measure); the book's own words keep Newsreader.
+- **The line that says who wrote it comes first.** Above the answer: "The book’s own words, from the best match of 3 passages." or "Written by a model from 3 passages of this book, listed under Sources." The answer box carries `data-qa-written-by` (`book` or `model`), and no value while it holds no answer.
+- **The panel's opening line covers both.** "Answers are drawn only from this book and cite the sections they come from." is "Answers come only from this book’s passages. Each says whether it is the book’s own words or a model’s, and lists the passages it used."
+- **The waiting status says what is happening.** "Synthesizing answer…" is "Asking this site to write an answer…", which is also true of a server with no key. The status set when the server wrote nothing ("AI synthesis unavailable. Showing local results.") is removed: the passage count replaced it before it could be read.
+
+No config field, schema, or endpoint changed.
+
 ## 2026-11-10 — Stubs drafted by writer models, a winner chosen by judge models
 
 - **`bookkit draft [book] <chapter>`** drafts a stub chapter in three steps. Writer commands (`--writer`, or `BOOKKIT_DRAFT_COMMAND`, one per line) each write a candidate from one brief: the stub, the book's claim, its mechanisms' contracts, a drafted chapter for length and voice, and `--notes`. The compiler checks each candidate as the chapter it would replace. Judge commands (`--judge`, or `BOOKKIT_JUDGE_COMMAND`) rank the candidates that pass, blind to who wrote which, and reject any that break the brief. `--stubs` does this for every stub of a book.
@@ -13,8 +22,10 @@ This file holds the current month, newest first. Earlier months are in `docs/cha
 - **Writers are asked one at a time**, each command's candidates together, and stopped after 300 s (`--parallel`, `--timeout`): asked all at once, three of four local writers waited out their time limit behind each other. A command's terminal codes and spinner frames are removed from what it printed.
 - **`bookkit judge` runs its judge commands through the same runner** (`scripts/lib/model-command.ts`); its behavior and files are unchanged. `new chapter --after` also takes a file name without `.mdx`.
 - `bookkit status` names the command for the next stub. Requests live in `.bookkit/drafting/`, which git ignores.
+- **A command stopped at its time limit stops what it started.** Stopping only the shell left a command such as `ollama run … | tee` running, and its reply waited until that program ended on its own; on Linux this was true even of a lone program. On Windows only `cmd` is stopped, as before.
 
 No schema, validator, or engine module changed. A chapter written by `draft apply` counts as drafted in `bookkit bets`, which cannot tell it from one the author wrote ([bets](./docs/bets.md)).
+
 ## 2026-11-10 — The bet's scope where the tools can read it
 
 - **`corpus.json` records what the active bet excludes.** `bet` gains `title`, `focusBook`, and `isNot`: each exclusion's name and the path prefixes that work lives under (for B1: reader UI, new frames, MCP work). `since` and `killBy` are unchanged, and a `bet` without the new fields reads as before.

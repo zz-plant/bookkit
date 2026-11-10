@@ -58,6 +58,42 @@ const shell = (command: string): string[] =>
 		? ["cmd", "/d", "/s", "/c", command]
 		: ["sh", "-c", command];
 
+/** The processes `pid` started, and theirs, deepest first. */
+const descendants = (pid: number): number[] => {
+	let found: string;
+	try {
+		found = Bun.spawnSync(["pgrep", "-P", String(pid)]).stdout.toString();
+	} catch {
+		return []; // no pgrep: only the shell is stopped
+	}
+	return found
+		.split("\n")
+		.map(Number)
+		.filter((child) => child > 0)
+		.flatMap((child) => [...descendants(child), child]);
+};
+
+/**
+ * Stops a command and everything it started. Stopping only the shell leaves
+ * the program it runs (`sleep 20; true`, `ollama run … | tee`, and on Linux
+ * often a lone `sleep 20`) still running, still holding the output pipe
+ * open, so the reply is not read until that program ends on its own. The
+ * processes stay in bookkit's process group, so Ctrl-C still reaches them.
+ * On Windows only cmd is stopped, as before.
+ */
+const stop = (child: { pid: number; kill: () => void }) => {
+	if (process.platform !== "win32") {
+		for (const pid of descendants(child.pid)) {
+			try {
+				process.kill(pid, "SIGTERM");
+			} catch {
+				// it ended between the listing and the signal
+			}
+		}
+	}
+	child.kill();
+};
+
 /**
  * Output without what a terminal would have drawn: cursor and colour codes,
  * and the frames of a spinner. A command-line tool that shows progress
@@ -111,7 +147,7 @@ export const askCommand = async (
 		let timedOut = false;
 		const timer = setTimeout(() => {
 			timedOut = true;
-			child.kill();
+			stop(child);
 		}, timeoutMs);
 		const [stdout, stderr, code] = await Promise.all([
 			new Response(child.stdout).text(),

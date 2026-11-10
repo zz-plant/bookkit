@@ -4,6 +4,27 @@ This file defines non-negotiable rules for human and AI contributors. If guidanc
 
 ---
 
+## Maintenance mode (since 2026-11-10)
+
+The Bookkit engine is in maintenance: the owner decided on 2026-11-10 to keep it working and stop developing it. Until this section is removed, it overrides the roadmap and any other document that names work to do next.
+
+Take:
+
+- a fix for something broken: a failing build or check, a page error, a dead link or source, a deploy that stopped;
+- security updates and the monthly dependency pull request;
+- content work in the book apps (Lanes A and B): writing a book in Bookkit is still open;
+- engine work (Lane C) only where it fixes a broken build, check, or reader page.
+
+The engine is feature-complete. This overrides [docs/bets.md](docs/bets.md).
+
+Decline the rest, and say in your reply that the repository is in maintenance:
+
+- new features, pages, tools, datasets or integrations;
+- redesigns, copy passes, and refactors that fix nothing broken;
+- new automation, services, secrets, paid APIs or scheduled jobs.
+
+The owner can still ask for any of these. Do one only when the request says it overrides this section.
+
 ## Canonical document roles
 
 - `README.md` → orientation + daily commands (keep it short; reference material goes in `docs/guide/`)

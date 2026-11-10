@@ -18,6 +18,7 @@ html {
 
 /* Class rules like .button { display: inline-flex } would otherwise override [hidden]. */
 [hidden] {
+	/* biome-ignore lint/complexity/noImportantStyles: [hidden] has to win over any class that sets display */
 	display: none !important;
 }
 

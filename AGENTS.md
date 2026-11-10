@@ -12,7 +12,7 @@ This file defines non-negotiable rules for human and AI contributors. If guidanc
 - `CONTRIBUTING.md` → contribution workflow + lanes
 - `AGENTS.md` → hard invariants + risk boundaries
 - `docs/bets.md` → what gets worked on next and why (anchor, active bets, parked work)
-- `CHANGELOG.md` → dated behavior changes and migration notes
+- `CHANGELOG.md` → dated behavior changes and migration notes (earlier months in `docs/changelog/`)
 - app/package READMEs → local orientation only
 
 Prefer linking over policy duplication.
@@ -163,11 +163,11 @@ Where a change goes, and the quickest check for it while iterating:
 | --- | --- | --- |
 | Engine module | `packages/astro-bookkit/src/<module>/` (the module map in `docs/architecture.md` says what each owns) | `bun test packages/astro-bookkit/src/<module>` |
 | Reader UI | engine `components/`, `layouts/`, `routes/`; styles in `styles/partials/`, one file per surface, indexed in `styles/bookkit.css` | `bun run verify -- --quick`, then `bun run check:a11y` |
-| CLI command | `scripts/lib/commands/`, one module per command group, indexed in `scripts/bookkit.ts`; help text in `scripts/lib/bookkit-commands.ts` | `bun run verify -- --quick`, then the `scripts/*.test.ts` that runs the command |
+| CLI command | `scripts/lib/commands/`, one module per command group, indexed in `scripts/bookkit.ts`; help text in `scripts/lib/bookkit-commands.ts` | `bun run verify -- --quick` (the test beside the module; `new.ts` and `diagnose.ts` have none yet) |
 | Check or gate | `scripts/check-*.ts`, `scripts/verify.ts`, `scripts/lib/verify-plan.ts` | `bun run verify -- --quick` (runs the test beside the file, where one exists) |
 | Book content | `apps/<book>/src/content/book/<section>/` | `bun run bookkit check <file.mdx>` |
 | Book config or page | `apps/<book>/src/book.config.ts`, `apps/<book>/src/pages/` | `bun run verify` |
 | Book-app wrapper | `packages/astro-bookkit/templates/book-app/`, then `bun run sync:shims` | `bun run check:shims` |
 | Project generator | `packages/create-bookkit/` | `bun test packages/create-bookkit` |
 
-`CHANGELOG.md` is newest first: add an entry under its header without reading the rest. `.ignore` keeps it, `bun.lock`, `scratch/`, and `corpus-judgments.json` out of ripgrep results; name a file to search it.
+`CHANGELOG.md` holds the current month, newest first: add an entry under its header. `.ignore` keeps it, `docs/changelog/`, `bun.lock`, `scratch/`, and `corpus-judgments.json` out of ripgrep results; name a file to search it.

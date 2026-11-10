@@ -1,35 +1,3 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, dirname, join, relative } from "node:path";
-import { defaultFrames } from "../frames/defaults";
-import type { FrameDefinition } from "../frames/types";
-import { isReleasedStatus, isStatus, STATUSES } from "../schemas/status";
-import { didYouMean } from "../utils/did-you-mean";
-import { parseFrontmatter } from "../utils/frontmatter";
-import { detectCycles, type GraphNode } from "../utils/graph";
-import {
-	CONTENT_SECTIONS,
-	type ContentFinding,
-	type ContentSection,
-	checkContentItem,
-	maskCode,
-	mechanismSlugsFrom,
-	nearest,
-	type RetiredSlug,
-	retiredSlugsFromCorpus,
-	SECTION_DIRECTORIES,
-} from "./content-check";
-import { frameStepsInPage } from "./frame";
-import {
-	extractBookStatusFromSource,
-	extractConfigMechanismSlugsFromSource,
-	extractFrameConfigFromSource,
-	extractMechanismCountTargetFromSource,
-	extractMechanismUrgencySlugsFromSource,
-	extractSiteSettingsFromSource,
-} from "./frame-config";
-import type { NormalizedErrorPayload } from "./normalized-error";
-import { checkReleaseNote } from "./release-note";
-
 /**
  * Validates a whole book from disk. `bun run validate`, `bookkit check`,
  * `bookkit publish`, `bookkit deploy`, the MCP `validate_book` tool, and the
@@ -41,20 +9,72 @@ import { checkReleaseNote } from "./release-note";
  * slugs used twice, an action and an example per mechanism, its release
  * notes, its config's starter text and site, and the rules its status sets:
  * a published or stable book is checked with release rules (`releaseMode`).
+ *
+ * The rules are in book-validator/, one file per family:
+ *
+ *   sources.ts       shared: BookFinding, each section's files, the config's
+ *                    path, status and frame, route slugs, retired slugs
+ *   frame-rules.ts   the frame the config declares, and the steps the
+ *                    chapters must cover (FRAME_*)
+ *   record-rules.ts  images, prerequisite order and cycles, duplicate slugs,
+ *                    an action and an example per mechanism, release notes
+ *   config-rules.ts  mechanismsIndex.urgency and mechanisms slugs, the
+ *                    mechanism count target, starter text, the release site
+ *   (this file)      checkBookContent, which runs them in the order findings
+ *                    are reported (BOOK_STATUS_INVALID, DIRECTORY_MISSING,
+ *                    and BOOK_EMPTY are its own), and validateBookInMemory
  */
 
-export type BookFinding = Omit<ContentFinding, "code"> & {
-	/**
-	 * Content codes, plus DIRECTORY_MISSING, FRAME_STEP_MISSING, FRAME_UNKNOWN,
-	 * FRAME_STEP_UNKNOWN, FRAME_STEP_REQUIRED, DUPLICATE_SLUG,
-	 * BOOK_STATUS_INVALID, BOOK_EMPTY, IMAGE_MISSING, MECHANISM_NO_ACTION,
-	 * MECHANISM_NO_EXAMPLE, RELEASE_NOTE_*, CONFIG_PLACEHOLDER,
-	 * RELEASE_NOT_INDEXABLE, and RELEASE_SITE_URL.
-	 */
-	code: string;
-	/** Absolute path, when the finding is about one file. */
-	file?: string;
-};
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { isReleasedStatus, isStatus, STATUSES } from "../schemas/status";
+import { parseFrontmatter } from "../utils/frontmatter";
+import {
+	configFindings,
+	configMechanismFindings,
+	constraintTargetFindings,
+	urgencyFindings,
+} from "./book-validator/config-rules";
+import { bookFrame, frameFinding } from "./book-validator/frame-rules";
+import {
+	coverageFindings,
+	duplicateSlugFindings,
+	missingImageFindings,
+	prerequisiteCycleFindings,
+	prerequisiteOrderFindings,
+	releaseNoteFindings,
+} from "./book-validator/record-rules";
+import {
+	type BookFinding,
+	bookConfigPath,
+	bookContentDir,
+	type ParsedSource,
+	readBookSources,
+	readRetiredSlugs,
+	routeSlugsOf,
+} from "./book-validator/sources";
+import {
+	CONTENT_SECTIONS,
+	type ContentSection,
+	checkContentItem,
+	mechanismSlugsFrom,
+	SECTION_DIRECTORIES,
+} from "./content-check";
+import {
+	extractBookStatusFromSource,
+	extractFrameConfigFromSource,
+} from "./frame-config";
+import type { NormalizedErrorPayload } from "./normalized-error";
+
+export type { BookFinding } from "./book-validator/sources";
+export {
+	bookContentDir,
+	readBookFrame,
+	readBookSources,
+	readBookStatus,
+	readRetiredSlugs,
+	routeSlugsOf,
+} from "./book-validator/sources";
 
 export type CheckBookOptions = {
 	workspaceRoot?: string;
@@ -76,674 +96,6 @@ export type BookCheckResult = {
 	/** Whether release rules applied. */
 	releaseMode: boolean;
 	findings: BookFinding[];
-};
-
-export const bookContentDir = (workspaceRoot: string, book: string): string =>
-	join(workspaceRoot, "apps", book, "src", "content", "book");
-
-/**
- * Content files under a folder, in path order: the order the build's
- * import.meta.glob index sorts them, so the first of two files sharing a slug
- * is the one the site serves.
- */
-const listFiles = (dir: string): string[] => {
-	if (!existsSync(dir)) return [];
-	const files: string[] = [];
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const full = join(dir, entry.name);
-		if (entry.isDirectory()) files.push(...listFiles(full));
-		else if (entry.isFile() && /\.mdx?$/.test(entry.name)) files.push(full);
-	}
-	return files.sort((a, b) => a.localeCompare(b));
-};
-
-/** Each section's files and their sources. */
-export const readBookSources = (
-	workspaceRoot: string,
-	book: string,
-): Record<ContentSection, Array<{ file: string; source: string }>> => {
-	const root = bookContentDir(workspaceRoot, book);
-	return Object.fromEntries(
-		CONTENT_SECTIONS.map((section) => [
-			section,
-			listFiles(join(root, SECTION_DIRECTORIES[section])).map((file) => ({
-				file,
-				source: readFileSync(file, "utf8"),
-			})),
-		]),
-	) as Record<ContentSection, Array<{ file: string; source: string }>>;
-};
-
-/** Merges recorded in the workspace's corpus.json; empty when it is absent or unreadable. */
-const bookConfigPath = (workspaceRoot: string, book: string) =>
-	join(workspaceRoot, "apps", book, "src", "book.config.ts");
-
-/** The `status` written in apps/<book>/src/book.config.ts, if any. */
-export const readBookStatus = (
-	workspaceRoot: string,
-	book: string,
-): string | undefined => {
-	const path = bookConfigPath(workspaceRoot, book);
-	return existsSync(path)
-		? extractBookStatusFromSource(readFileSync(path, "utf8"))
-		: undefined;
-};
-
-/** The frame slug set in apps/<book>/src/book.config.ts, if any. */
-export const readBookFrame = (
-	workspaceRoot: string,
-	book: string,
-): string | undefined => {
-	const path = bookConfigPath(workspaceRoot, book);
-	return existsSync(path)
-		? extractFrameConfigFromSource(readFileSync(path, "utf8"))?.slug
-		: undefined;
-};
-
-/** Every slug the book's read routes serve, per section. */
-export const routeSlugsOf = (
-	sources: Record<ContentSection, Array<{ file: string; source: string }>>,
-): Record<ContentSection, Set<string>> =>
-	Object.fromEntries(
-		CONTENT_SECTIONS.map((section) => [
-			section,
-			new Set(
-				sources[section].flatMap(({ file, source }) => {
-					const frontmatter = parseFrontmatter(source);
-					return frontmatter.status === "ok"
-						? [routeSlug(file, frontmatter.data)]
-						: [];
-				}),
-			),
-		]),
-	) as Record<ContentSection, Set<string>>;
-
-export const readRetiredSlugs = (
-	workspaceRoot: string,
-): Map<string, RetiredSlug> => {
-	const path = join(workspaceRoot, "corpus.json");
-	if (!existsSync(path)) return new Map();
-	try {
-		return retiredSlugsFromCorpus(JSON.parse(readFileSync(path, "utf8")));
-	} catch {
-		// check:corpus reports an unreadable corpus.json.
-		return new Map();
-	}
-};
-
-/** The frame a book follows, and the steps its framing chapter must carry. */
-type BookFrame = { frame: FrameDefinition; steps: string[] };
-
-const FRAME_SLUGS = defaultFrames.map((frame) => frame.slug);
-
-/**
- * The frame book.config.ts declares (`slug`, or `override` from the caller)
- * and the steps the book's framing chapter must carry: `frame.steps`, which
- * may add a frame's optional steps but not leave out a required one. Without
- * a `frame`, a book follows the intervention frame. A slug no frame has, a
- * step its frame does not have, and a required step left out are errors in
- * book.config.ts; with an unknown slug the chapters are not checked against
- * any frame.
- */
-const bookFrame = (
-	declared: { slug: string; steps?: string[] } | null,
-	override: string | undefined,
-	configPath: string,
-): { frame?: BookFrame; findings: BookFinding[] } => {
-	const slug = override ?? declared?.slug ?? "intervention";
-	const frame = defaultFrames.find((candidate) => candidate.slug === slug);
-	if (!frame) {
-		return {
-			findings: [
-				{
-					level: "error",
-					code: "FRAME_UNKNOWN",
-					field: "frame.slug",
-					file: override ? undefined : configPath,
-					message: `Frame "${slug}" is not one of Bookkit's frames, so the chapters were not checked against one.${didYouMean(slug, FRAME_SLUGS)}`,
-					fix: `${override ? "Use" : "Set frame.slug in book.config.ts to"} one of: ${FRAME_SLUGS.join(", ")}.`,
-				},
-			],
-		};
-	}
-	const ids = frame.steps.map((step) => step.id);
-	const required = frame.steps
-		.filter((step) => step.required)
-		.map((step) => step.id);
-	// An override names another frame; the config's steps belong to its own.
-	const listed = override === undefined ? declared?.steps : undefined;
-	if (!listed) return { frame: { frame, steps: required }, findings: [] };
-	const findings: BookFinding[] = [];
-	for (const id of listed.filter((step) => !ids.includes(step))) {
-		findings.push({
-			level: "error",
-			code: "FRAME_STEP_UNKNOWN",
-			field: "frame.steps",
-			file: configPath,
-			message: `frame.steps names "${id}", which is not a step of the ${frame.slug} frame.${didYouMean(id, ids)}`,
-			fix: `List the ${frame.slug} frame's steps in frame.steps: ${ids.join(", ")}.`,
-		});
-	}
-	for (const id of required.filter((step) => !listed.includes(step))) {
-		findings.push({
-			level: "error",
-			code: "FRAME_STEP_REQUIRED",
-			field: "frame.steps",
-			file: configPath,
-			message: `frame.steps leaves out "${id}", which the ${frame.slug} frame requires`,
-			fix: `Add "${id}" to frame.steps in book.config.ts. A book can add a frame's optional steps but cannot drop a required one.`,
-		});
-	}
-	return {
-		frame: {
-			frame,
-			steps: ids.filter((id) => required.includes(id) || listed.includes(id)),
-		},
-		findings,
-	};
-};
-
-/**
- * The frame steps the book does not cover: in its framing chapter
- * (00-overview.mdx) when it has one, else in its chapters taken together (an
- * imported book has no overview). A step is covered by a heading whose whole
- * text slugs to it (`frameStepsInPage`).
- */
-const frameFinding = (
-	workspaceRoot: string,
-	book: string,
-	{ frame, steps }: BookFrame,
-	chapters: readonly ParsedSource[],
-): BookFinding | null => {
-	const overview = join(
-		bookContentDir(workspaceRoot, book),
-		"chapters",
-		"00-overview.mdx",
-	);
-	const hasOverview = existsSync(overview);
-	if (!hasOverview && chapters.length === 0) return null;
-	const sources = hasOverview
-		? [readFileSync(overview, "utf8")]
-		: chapters.map((chapter) => chapter.source);
-	const present = new Set(
-		sources.flatMap((source) =>
-			frameStepsInPage(frame, parseFrontmatter(source).body),
-		),
-	);
-	const missingSteps = steps.filter((id) => !present.has(id));
-	if (missingSteps.length === 0) return null;
-	const example =
-		frame.steps.find((step) => step.id === missingSteps[0])?.label ??
-		missingSteps[0];
-	return hasOverview
-		? {
-				level: "warning",
-				code: "FRAME_STEP_MISSING",
-				message: `Framing chapter (00-overview.mdx) for frame "${frame.slug}" is missing required step(s): ${missingSteps.join(", ")}`,
-				fix: `Add a heading for each missing step to chapters/00-overview.mdx, its whole text the step's name (e.g. "## ${example}"); the ${frame.slug} frame requires them in that chapter.`,
-			}
-		: {
-				level: "warning",
-				code: "FRAME_STEP_MISSING",
-				message: `No chapter covers the "${frame.slug}" frame's step(s): ${missingSteps.join(", ")}`,
-				fix: `Give the chapter that covers each a heading whose whole text is the step's name (e.g. "## ${example}"), or add a chapters/00-overview.mdx that walks through every step. If the book is another kind, set frame in book.config.ts.`,
-			};
-};
-
-// `![alt](src)` and `<img src="…">`: the images a record shows.
-const IMAGE_SOURCES =
-	/!\[[^\]\n]*\]\(\s*<?([^\s)>]+)|<img\b[^>]*?\ssrc\s*=\s*["']?([^"'\s>]+)/gi;
-
-/**
- * Images a record shows that are not in the book: a path under the book's
- * `public/` folder (`/images/x.png`), or one relative to the record, that
- * names no file. The site shows a broken image and the PDF its alt text.
- * Addresses on the web are not checked.
- */
-const missingImageFindings = (
-	workspaceRoot: string,
-	book: string,
-	file: string,
-	source: string,
-	releaseMode: boolean,
-): BookFinding[] => {
-	const publicDir = join(workspaceRoot, "apps", book, "public");
-	const masked = maskCode(source);
-	const findings: BookFinding[] = [];
-	for (const match of masked.matchAll(IMAGE_SOURCES)) {
-		const src = (match[1] ?? match[2] ?? "").trim();
-		if (!src || /^([a-z][a-z0-9+.-]*:|\/\/|#|\{)/i.test(src)) continue;
-		let path = src.split(/[?#]/)[0];
-		try {
-			path = decodeURIComponent(path);
-		} catch {
-			// Keep the path as written.
-		}
-		const target = path.startsWith("/")
-			? join(publicDir, path)
-			: join(dirname(file), path);
-		if (existsSync(target)) continue;
-		const line = source.slice(0, match.index ?? 0).split("\n").length;
-		findings.push({
-			level: releaseMode ? "error" : "warning",
-			code: "IMAGE_MISSING",
-			file,
-			message: `Shows the image ${src} on line ${line}, but there is no file at ${relative(workspaceRoot, target)}`,
-			fix: path.startsWith("/")
-				? `Put the image at ${relative(workspaceRoot, target)} (a path that starts with / is read from the book's public/ folder), or fix the path.`
-				: "A relative path is read from the record's own folder; fix the path, or put the image under the book's public/ folder and write /images/<name>.",
-		});
-	}
-	return findings;
-};
-
-/** The slug a record's page is served at: its `slug`, else its file name. */
-const routeSlug = (file: string, data: Record<string, unknown>): string =>
-	typeof data.slug === "string" || typeof data.slug === "number"
-		? String(data.slug)
-		: basename(file).replace(/\.mdx?$/, "");
-
-type ParsedSource = {
-	file: string;
-	source: string;
-	data: Record<string, unknown> | null;
-};
-
-/**
- * Chapters that list a prerequisite readers reach only later. Readers meet
- * chapters in reading order (an explicit `order`, else file order, as the
- * read pages and exports list them), so the prerequisite graph and that
- * order must agree.
- */
-const prerequisiteOrderFindings = (
-	chapters: readonly ParsedSource[],
-): BookFinding[] => {
-	const orderOf = (data: Record<string, unknown> | null) =>
-		typeof data?.order === "number" ? data.order : Number.POSITIVE_INFINITY;
-	const reading = chapters
-		.filter((chapter) => chapter.data)
-		.map((chapter, index) => ({ chapter, index }))
-		.sort(
-			(a, b) =>
-				orderOf(a.chapter.data) - orderOf(b.chapter.data) ||
-				(a.chapter.file < b.chapter.file ? -1 : 1),
-		)
-		.map(({ chapter }) => chapter);
-	const position = new Map(
-		reading.map((chapter, index) => [
-			routeSlug(chapter.file, chapter.data ?? {}),
-			index,
-		]),
-	);
-	return reading.flatMap((chapter, index) => {
-		const slug = routeSlug(chapter.file, chapter.data ?? {});
-		const prerequisites = Array.isArray(chapter.data?.prerequisites)
-			? chapter.data.prerequisites.filter(
-					(item): item is string => typeof item === "string",
-				)
-			: [];
-		return prerequisites
-			.filter((prerequisite) => (position.get(prerequisite) ?? -1) > index)
-			.map((prerequisite) => ({
-				level: "warning" as const,
-				code: "PREREQUISITE_ORDER",
-				field: "prerequisites",
-				file: chapter.file,
-				message: `Chapter "${slug}" lists prerequisite "${prerequisite}", which readers reach only after it`,
-				fix: `Move "${prerequisite}" before "${slug}" (by file name, or with \`order:\`), or remove the prerequisite.`,
-			}));
-	});
-};
-
-const prerequisiteCycleFindings = (
-	chapters: readonly ParsedSource[],
-): BookFinding[] => {
-	const nodes: GraphNode[] = chapters.map((chapter) => ({
-		slug: routeSlug(chapter.file, chapter.data ?? {}),
-		title:
-			typeof chapter.data?.title === "string"
-				? chapter.data.title
-				: routeSlug(chapter.file, chapter.data ?? {}),
-		prerequisites: Array.isArray(chapter.data?.prerequisites)
-			? chapter.data.prerequisites.filter(
-					(item): item is string => typeof item === "string",
-				)
-			: [],
-	}));
-	const cycleResult = detectCycles(nodes);
-	if (!cycleResult.hasCycle) return [];
-	const chapterBySlug = new Map(
-		chapters.map((c) => [routeSlug(c.file, c.data ?? {}), c]),
-	);
-	return cycleResult.cycles.map((cycle) => {
-		const startSlug = cycle[0];
-		const file = chapterBySlug.get(startSlug)?.file ?? chapters[0]?.file;
-		const cycleDesc = cycle.join(" -> ");
-		return {
-			level: "error",
-			code: "PREREQUISITE_CYCLE",
-			field: "prerequisites",
-			file,
-			message: `Prerequisite cycle detected in chapters: ${cycleDesc}`,
-			fix: `Break the cycle by removing or relaxing prerequisites in one of: ${cycle.slice(0, -1).join(", ")}.`,
-		};
-	});
-};
-
-/**
- * Two records of a section served at the same slug (in the same locale): the
- * site builds one page for it and drops the other, while the PDF and EPUB
- * include every chapter.
- */
-const duplicateSlugFindings = (
-	root: string,
-	section: ContentSection,
-	parsed: ParsedSource[],
-): BookFinding[] => {
-	const first = new Map<string, string>();
-	const findings: BookFinding[] = [];
-	for (const { file, data } of parsed) {
-		if (!data) continue;
-		const slug = routeSlug(file, data);
-		const locale = typeof data.locale === "string" ? data.locale : "";
-		const key = `${slug}\u0000${locale.toLowerCase()}`;
-		const earlier = first.get(key);
-		if (!earlier) {
-			first.set(key, file);
-			continue;
-		}
-		findings.push({
-			level: "error",
-			code: "DUPLICATE_SLUG",
-			field: "slug",
-			file,
-			message: `${section === "glossary" ? "Glossary entry" : `${section[0].toUpperCase()}${section.slice(1)}`} slug "${slug}" is also used by ${relative(root, earlier)}; the site serves one page per slug, so one of them would not be published${section === "chapter" ? " (the PDF and EPUB would include both)" : ""}`,
-			fix: "Give each its own slug (and update anything that links to the one you rename), or delete the duplicate.",
-		});
-	}
-	return findings;
-};
-
-/**
- * Slugs in `mechanismsIndex.urgency` that name no mechanism of the book. The
- * index would ignore them, so a typo or a merged mechanism silently loses its
- * place: an error once release rules apply, a warning before.
- */
-const urgencyFindings = (
-	configSource: string,
-	configPath: string,
-	mechanismSlugs: ReadonlySet<string>,
-	retiredSlugs: ReadonlyMap<string, RetiredSlug>,
-	releaseMode: boolean,
-): BookFinding[] =>
-	extractMechanismUrgencySlugsFromSource(configSource)
-		.filter((slug) => !mechanismSlugs.has(slug))
-		.map((slug) => {
-			const retired = retiredSlugs.get(slug);
-			const close = nearest(slug, [...mechanismSlugs]);
-			return {
-				level: releaseMode ? "error" : "warning",
-				code: "UNKNOWN_MECHANISM",
-				field: "mechanismsIndex.urgency",
-				file: configPath,
-				message: `mechanismsIndex.urgency names "${slug}", which is not a mechanism in this book, so the mechanisms index ignores it`,
-				fix:
-					retired && mechanismSlugs.has(retired.into)
-						? `${slug} was merged into ${retired.into}${retired.date ? ` on ${retired.date}` : ""}: rename the key to "${retired.into}", or remove it.`
-						: close.length > 0
-							? `Did you mean ${close.map((candidate) => `"${candidate}"`).join(" or ")}? Rename the key to that mechanism's slug, or remove it.`
-							: `Use the slug of one of this book's mechanisms (src/content/book/mechanisms/), or remove the key.`,
-			};
-		});
-
-/**
- * Slugs in `book.config.ts` `mechanisms: [ { slug: "..." } ]` that name no
- * mechanism of the book, or mechanisms in the content folder that are omitted
- * from the declaration. An error in releaseMode, a warning in draft.
- */
-const configMechanismFindings = (
-	configSource: string,
-	configPath: string,
-	mechanismSlugs: ReadonlySet<string>,
-	retiredSlugs: ReadonlyMap<string, RetiredSlug>,
-	releaseMode: boolean,
-): BookFinding[] => {
-	const declaredSlugs = extractConfigMechanismSlugsFromSource(configSource);
-	if (!declaredSlugs) return [];
-	const declaredSet = new Set(declaredSlugs);
-	const findings: BookFinding[] = [];
-	for (const slug of declaredSlugs) {
-		if (!mechanismSlugs.has(slug)) {
-			const retired = retiredSlugs.get(slug);
-			const close = nearest(slug, [...mechanismSlugs]);
-			findings.push({
-				level: releaseMode ? "error" : "warning",
-				code: "UNKNOWN_MECHANISM",
-				field: "mechanisms",
-				file: configPath,
-				message: `book.config.ts mechanisms commits to "${slug}", which is not a mechanism in this book (src/content/book/mechanisms/)`,
-				fix:
-					retired && mechanismSlugs.has(retired.into)
-						? `${slug} was merged into ${retired.into}${retired.date ? ` on ${retired.date}` : ""}: update the entry to "${retired.into}".`
-						: close.length > 0
-							? `Did you mean ${close.map((candidate) => `"${candidate}"`).join(" or ")}? Update the slug or add mechanisms/${slug}.mdx.`
-							: `Add mechanisms/${slug}.mdx, or remove the entry from book.config.ts mechanisms.`,
-			});
-		}
-	}
-	if (declaredSlugs.length > 0) {
-		for (const mechSlug of mechanismSlugs) {
-			if (!declaredSet.has(mechSlug)) {
-				findings.push({
-					level: releaseMode ? "error" : "warning",
-					code: "UNLISTED_MECHANISM",
-					field: "mechanisms",
-					file: configPath,
-					message: `Mechanism "${mechSlug}" exists in src/content/book/mechanisms/ but is not declared in book.config.ts mechanisms`,
-					fix: `Add an entry for "${mechSlug}" with its focus sentence to book.config.ts mechanisms, or remove mechanisms/${mechSlug}.mdx.`,
-				});
-			}
-		}
-	}
-	return findings;
-};
-
-/**
- * Checks constraints.mechanismCountTarget: [min, max] if declared in book.config.ts.
- */
-const constraintTargetFindings = (
-	configSource: string,
-	configPath: string,
-	mechanismCount: number,
-): BookFinding[] => {
-	const target = extractMechanismCountTargetFromSource(configSource);
-	if (!target) return [];
-	const [min, max] = target;
-	if (mechanismCount < min || mechanismCount > max) {
-		return [
-			{
-				level: "warning",
-				code: "MECHANISM_COUNT_TARGET",
-				field: "constraints.mechanismCountTarget",
-				file: configPath,
-				message: `Book has ${mechanismCount} mechanism(s), outside constraints.mechanismCountTarget [${min}, ${max}]`,
-				fix: `Add or consolidate mechanisms, or adjust constraints.mechanismCountTarget in book.config.ts.`,
-			},
-		];
-	}
-	return [];
-};
-
-/**
- * A mechanism with no toolkit action leaves a reader who meets it nothing to
- * do about it; one with no example, no case to recognize it by. A warning in
- * a draft, which may still be writing them; an error once release rules apply.
- */
-const coverageFindings = (
-	book: string,
-	parsed: Record<ContentSection, ParsedSource[]>,
-	releaseMode: boolean,
-): BookFinding[] => {
-	const bound = (section: ContentSection) =>
-		new Set(
-			parsed[section].flatMap(({ data }) =>
-				typeof data?.mechanism === "string" && data.mechanism.trim()
-					? [data.mechanism.trim()]
-					: [],
-			),
-		);
-	const tools = bound("tool");
-	const examples = bound("example");
-	const level = releaseMode ? "error" : "warning";
-	return parsed.mechanism.flatMap(({ file, data }): BookFinding[] => {
-		// A mechanism without a slug is already an error of its own.
-		const slug = typeof data?.slug === "string" ? data.slug.trim() : "";
-		if (!slug) return [];
-		return [
-			...(tools.has(slug)
-				? []
-				: [
-						{
-							level,
-							code: "MECHANISM_NO_ACTION",
-							field: "slug",
-							file,
-							message: `Mechanism "${slug}" has no toolkit action, so a reader who meets it has nothing to do about it`,
-							fix: `Add one: bun run bookkit new tool ${book} ${slug} "<name>"`,
-						} as const,
-					]),
-			...(examples.has(slug)
-				? []
-				: [
-						{
-							level,
-							code: "MECHANISM_NO_EXAMPLE",
-							field: "slug",
-							file,
-							message: `Mechanism "${slug}" has no example, so a reader has no case to recognize it by`,
-							fix: `Add one: bun run bookkit new example ${book} ${slug} <domain> "<title>"`,
-						} as const,
-					]),
-		];
-	});
-};
-
-/** The book's release notes, as the release notes page would read them. */
-const releaseNoteFindings = (root: string): BookFinding[] =>
-	listFiles(join(root, "releases")).flatMap((file) =>
-		checkReleaseNote(readFileSync(file, "utf8")).map((finding) => ({
-			...finding,
-			file,
-		})),
-	);
-
-/**
- * The placeholder prose a new book's book.config.ts starts with, read from
- * the engine's starter template, so an edited template needs no change here.
- * Not site.url: https://<slug>.book may be the domain the author means to buy,
- * and deploy already says when the Worker does not serve it.
- */
-const STARTER_FIELDS = [
-	{
-		field: "objectives.readerStart",
-		key: "readerStart",
-		shown: "shows on the About this book page (/read/overview)",
-		meaning: "who the reader is before the first page",
-	},
-	{
-		field: "objectives.readerEnd",
-		key: "readerEnd",
-		shown: "shows on the About this book page (/read/overview)",
-		meaning: "what the reader can do after the last page",
-	},
-	{
-		field: "objectives.transformation",
-		key: "transformation",
-		shown: "shows on the About this book page (/read/overview)",
-		meaning: "the change between the two, in one sentence",
-	},
-	{
-		field: "frame.intent",
-		key: "intent",
-		meaning: "what the book moves the reader through",
-	},
-	{
-		field: "causalStance",
-		key: "causalStance",
-		shown: "shows on the About this book page (/read/overview)",
-		meaning: "the book's core claim about what causes the problem it covers",
-	},
-] as const;
-
-const starterPlaceholders = (workspaceRoot: string) => {
-	const template = join(
-		workspaceRoot,
-		"packages",
-		"astro-bookkit",
-		"templates",
-		"starter",
-		"src",
-		"book.config.ts",
-	);
-	if (!existsSync(template)) return [];
-	const source = readFileSync(template, "utf8");
-	return STARTER_FIELDS.flatMap((field) => {
-		const value = source.match(
-			new RegExp(`\\b${field.key}:\\s*("(?:[^"\\\\]|\\\\.)*")`),
-		)?.[1];
-		return value ? [{ ...field, text: value }] : [];
-	});
-};
-
-/**
- * What book.config.ts shows readers that is not the author's: starter text
- * (a warning in a draft, an error under release rules) and, under release
- * rules, a site kept out of search or without its public address.
- */
-const configFindings = (
-	workspaceRoot: string,
-	configSource: string,
-	configPath: string,
-	status: string | undefined,
-	releaseMode: boolean,
-): BookFinding[] => {
-	const findings: BookFinding[] = [];
-	for (const placeholder of starterPlaceholders(workspaceRoot)) {
-		if (!configSource.includes(placeholder.text)) continue;
-		findings.push({
-			level: releaseMode ? "error" : "warning",
-			code: "CONFIG_PLACEHOLDER",
-			field: placeholder.field,
-			file: configPath,
-			message: `book.config.ts still has the starter text for ${placeholder.field}${"shown" in placeholder ? `, which ${placeholder.shown}` : ""}`,
-			fix: `Replace it with ${placeholder.meaning}.`,
-		});
-	}
-	if (!releaseMode) return findings;
-	const released = isReleasedStatus(status) ? status : "published";
-	const site = extractSiteSettingsFromSource(configSource);
-	if (site?.indexable === false) {
-		findings.push({
-			level: "error",
-			code: "RELEASE_NOT_INDEXABLE",
-			field: "site.indexable",
-			file: configPath,
-			message: `site.indexable is false, but a ${released} book is meant to be found`,
-			fix: 'Remove indexable: false (or set it to true), or set status: "draft" until the book should be found.',
-		});
-	}
-	const url = site?.url?.trim();
-	if (!url || /localhost|127\.0\.0\.1|\.local(?=[:/]|$)/i.test(url)) {
-		findings.push({
-			level: "error",
-			code: "RELEASE_SITE_URL",
-			field: "site.url",
-			file: configPath,
-			message: `${url ? `site.url is a local address (${url})` : "There is no site.url written as a string"}, so canonical links, the sitemap, and link previews would not point at the published site`,
-			fix: 'Set site.url to the public address readers will use, as a string inside site: { ... }, e.g. url: "https://example.com".',
-		});
-	}
-	return findings;
 };
 
 export const checkBookContent = (

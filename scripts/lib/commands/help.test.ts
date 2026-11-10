@@ -11,8 +11,8 @@ import {
 } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { BOOKKIT_COMMANDS } from "./lib/bookkit-commands";
-import { runChildAsync } from "./lib/child-process.fixture";
+import { BOOKKIT_COMMANDS } from "../bookkit-commands";
+import { runChildAsync } from "../child-process.fixture";
 
 /**
  * `-h` and `--help` for every package script (the workspace's, and a book
@@ -24,7 +24,7 @@ import { runChildAsync } from "./lib/child-process.fixture";
  * act changes nothing here.
  */
 
-const REPO = join(import.meta.dir, "..");
+const REPO = join(import.meta.dir, "..", "..", "..");
 const BOOK = "on-call";
 /** Long enough for bun to start under a loaded test run; a server never exits. */
 const DEADLINE_MS = 30_000;

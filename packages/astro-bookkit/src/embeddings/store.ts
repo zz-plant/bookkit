@@ -20,7 +20,6 @@ export const createEmbeddingStore = (): EmbeddingStore => {
 	let state: EmbeddingStore["state"] = "idle";
 	let engine: Awaited<ReturnType<typeof createEmbeddingEngine>> = null;
 	let entryEmbeddings = new Map<string, EmbeddingVector>();
-	let entriesById = new Map<string, SearchEntry>();
 	const queryCache = new Map<string, EmbeddingVector>();
 
 	return {
@@ -38,8 +37,6 @@ export const createEmbeddingStore = (): EmbeddingStore => {
 				return;
 			}
 
-			entriesById = new Map(entries.map((e) => [e.id, e]));
-
 			try {
 				onProgress?.("Computing passage embeddings…");
 				entryEmbeddings = await engine.encodeEntries(entries);
@@ -53,16 +50,13 @@ export const createEmbeddingStore = (): EmbeddingStore => {
 		async rank(query, k = 20) {
 			if (!engine || state !== "ready") return [];
 
-			let queryVector = queryCache.get(query);
-			if (!queryVector) {
-				const vectors = await engine.encode([query]);
-				queryVector = vectors[0];
-				queryCache.set(query, queryVector);
-			}
+			const cached = queryCache.get(query);
+			const queryVector = cached ?? (await engine.encode([query]))[0];
+			if (!cached) queryCache.set(query, queryVector);
 
 			const scored = topKByScore(
 				Array.from(entryEmbeddings.entries()),
-				([, vector]) => cosineSimilarity(queryVector!, vector),
+				([, vector]) => cosineSimilarity(queryVector, vector),
 				k,
 			);
 

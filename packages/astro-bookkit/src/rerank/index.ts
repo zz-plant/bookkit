@@ -55,10 +55,9 @@ export const createRerankEngine = async (
 				const scores: number[] = [];
 
 				for (const batch of batches) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const outputs: any[] = (await classifier(
-						batch as string[][],
-					)) as any[];
+					const outputs = (await classifier(batch as string[][])) as {
+						score?: number;
+					}[];
 					for (const output of outputs) {
 						scores.push(output.score ?? 0);
 					}

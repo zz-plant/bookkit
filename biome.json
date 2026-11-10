@@ -31,6 +31,16 @@
 			}
 		},
 		{
+			"includes": ["**/*.css"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noDescendingSpecificity": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**/*.astro"],
 			"assist": {
 				"actions": {

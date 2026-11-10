@@ -1,8 +1,13 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "../_lib";
 import { runChild, waitForChildren } from "./child-process.fixture";
-import { planGates, REPRESENTATIVE_BOOK } from "./verify-plan";
+import {
+	planGates,
+	REPRESENTATIVE_BOOK,
+	withVerificationMatrix,
+} from "./verify-plan";
 
 waitForChildren();
 
@@ -154,6 +159,16 @@ describe("planGates", () => {
 			"concepts",
 			"build:all",
 		]);
+	});
+});
+
+describe("the verification matrix", () => {
+	it("in CONTRIBUTING.md is the one the plan renders", () => {
+		const doc = readFileSync(join(repoRoot(), "CONTRIBUTING.md"), "utf8");
+		expect(
+			withVerificationMatrix(doc),
+			"Run: bun run verify -- --matrix --write",
+		).toBe(doc);
 	});
 });
 

@@ -6,8 +6,8 @@ import { DEFAULT_DEV_PORT } from "./dev-server";
  * The `bookkit` commands: each one's name, the other names it answers to,
  * and the help `bookkit <command> --help` prints. scripts/bookkit.ts
  * dispatches on these names, so a command missing here has no help and no
- * suggestion when mistyped; scripts/cli-help.test.ts runs `--help` for
- * every entry.
+ * suggestion when mistyped; scripts/lib/commands/help.test.ts runs `--help`
+ * for every entry.
  */
 export type BookkitCommand = {
 	name: string;

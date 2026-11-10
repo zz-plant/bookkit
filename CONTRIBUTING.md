@@ -10,7 +10,7 @@ For commands see [`README.md`](./README.md), and for what each check enforces, [
 
 1. Install dependencies: `bun install` (this also installs the pre-commit hook).
 2. Make a focused change.
-3. Run `bun run verify`. It reads what changed since `origin/main` and runs the checks those paths need (table below), reporting content findings only for the files you touched. `--all` runs every gate. The gates live in one list, `scripts/lib/verify-plan.ts`; CI runs `verify --all` and the other jobs under [CI](#ci). `--list` shows the plan; `--json` is for agents; `--quick` is for iterating: the same checks with only the tests beside the change, so run it without the flag before you commit. On GitHub Actions, findings with a file also annotate the PR.
+3. Run `bun run verify`. It reads what changed since `origin/main` and runs the checks those paths need (table below), reporting content findings only for the files you touched. `--all` runs every gate and counts each check's warnings (`--warnings` lists them). The gates live in one list, `scripts/lib/verify-plan.ts`; CI runs `verify --all` and the other jobs under [CI](#ci). `--list` shows the plan; `--json` is for agents; `--quick` is for iterating: the same checks with only the tests beside the change, so run it without the flag before you commit. On GitHub Actions, findings with a file also annotate the PR.
 4. Release rules follow each book's `status`, so `verify` already applies them to a published or stable book. `bun run validate:release` is an alias of `bun run validate`, and `check:upgrade` runs a subset of `verify --all`.
 5. If you changed the reader UI (`components/`, `layouts/`, `styles/`, or a page template), run `bun run check:a11y`. It builds every book and runs axe-core over each page type in light and dark, at desktop and phone widths, failing on serious or critical violations. It needs Playwright's Chromium once: `bunx playwright install chromium`. If you changed search, the reading keys, the Ask panel, or a script that shows text the book did not write (what readers send, the address, what the browser stores), also run `bun run test:browser`, which drives search and the reading keys by keyboard, checks that such text shows as text, and checks that Ask asks before the reader's browser downloads its models. CI runs both in their own job.
 
@@ -108,20 +108,28 @@ Requirements:
 
 ## Verification matrix
 
-`bun run verify` runs the right set for you; the mapping lives in `scripts/lib/verify-plan.ts`:
+`bun run verify` runs the right set for you. The table is rendered from the plan in `scripts/lib/verify-plan.ts`, so edit the plan and run `bun run verify -- --matrix --write`; a test fails when the two differ.
 
-| Changed path | Checks |
+<!-- verify:matrix:start -->
+
+| Changed path | Checks, as `verify` names them |
 | --- | --- |
-| any formattable file | Biome format, import order, lint (changed files only) |
-| `packages/astro-bookkit/**` | types, tests, shims, architecture doc, build `on-call` |
-| `packages/create-bookkit/**`, `scripts/**` | types (`.ts` only), tests |
-| `apps/<book>/src/content/**` | validate that book, separation, named concepts (warnings only), build that book |
-| a mechanism file, `corpus.json`, `corpus-judgments.json` | mechanisms across books (wording, and judges' verdicts) |
-| `apps/<book>/**` (config, content, pages) | types, shims, validate, build that book |
-| `docs/architecture.md` | architecture doc |
-| `TODOS.md` | todos |
-| `package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**` | as for engine code |
-| `--all` (what CI runs) | every row above for every book, plus mechanisms across books and named concepts |
+| `packages/astro-bookkit/**` | `format + lint`, `types`, `tests`, `shims`, `architecture doc`, `build on-call` |
+| `packages/create-bookkit/**` | `format + lint`, `types (.ts only)`, `tests` |
+| `scripts/**` | `format + lint`, `types (.ts only)`, `tests` |
+| `apps/<book>/src/content/**` | `validate <book>`, `separation`, `named concepts`, `build <book>` |
+| a mechanism file | `validate <book>`, `separation`, `named concepts`, `mechanisms across books`, `build <book>` |
+| `corpus.json`, `corpus-judgments.json` | `format + lint`, `mechanisms across books` |
+| `apps/<book>/**` outside content (config, pages) | `format + lint`, `types`, `validate <book>`, `shims`, `build <book>` |
+| `docs/architecture.md` | `architecture doc` |
+| `TODOS.md` | `todos` |
+| `package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**` | `format + lint`, `types`, `tests`, `shims`, `architecture doc`, `build on-call` |
+| other prose (`README.md`, `docs/**`) | nothing |
+| `--all` (what CI runs) | `format + lint`, `types`, `tests`, `separation`, `architecture doc`, `todos`, `shims`, `validate <book>`, `mechanisms across books`, `named concepts`, `build every book` |
+
+<!-- verify:matrix:end -->
+
+`named concepts` reports warnings only. `--quick` runs each row with its `tests` narrowed to the change.
 
 By lane, beyond `verify`:
 

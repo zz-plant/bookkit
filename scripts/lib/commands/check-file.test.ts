@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { repoRoot } from "./_lib";
-import { runChild, waitForChildren } from "./lib/child-process.fixture";
+import { repoRoot } from "../../_lib";
+import { runChild, waitForChildren } from "../child-process.fixture";
 
 /**
  * `bookkit check <file>`: the file inside its book, then the MDX compiler the

@@ -9,9 +9,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { parseFrontmatter } from "../packages/astro-bookkit/src/utils/frontmatter";
-import { repoRoot } from "./_lib";
-import { runChild, waitForChildren } from "./lib/child-process.fixture";
+import { parseFrontmatter } from "../../../packages/astro-bookkit/src/utils/frontmatter";
+import { repoRoot } from "../../_lib";
+import { runChild, waitForChildren } from "../child-process.fixture";
 
 /**
  * Structure edits an author used to make by hand: a mechanism renamed in

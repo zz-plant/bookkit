@@ -123,7 +123,7 @@ const resolveRequestHost = (requestUrl?: string): string | undefined => {
 	if (!requestUrl) return undefined;
 	try {
 		return new URL(requestUrl).host;
-	} catch (error) {
+	} catch {
 		return undefined;
 	}
 };

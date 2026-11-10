@@ -84,7 +84,6 @@ export const normalizeInput = (formData: FormData): StudioValues => {
 export const buildConfig = ({
 	bookKey,
 	bookTitle,
-	audience,
 	locales,
 	siteUrl,
 	domains,

@@ -1,13 +1,31 @@
+/**
+ * The PDF export. This file draws the pages: `createPdfExport` holds the
+ * page and the height it is writing at, and the functions in it that draw
+ * read and move both, so they stay in the one function. In order, it has:
+ * the fonts and the page; lines, list markers, and wrapped text; links and
+ * inline text (`flowPieces`); headings, images, code, tables, and notes;
+ * blocks (`drawBlocks`) and entries (`drawEntry`); then the title page,
+ * the contents page, named destinations, link areas, and page numbers.
+ *
+ * What does not need the page is in files of its own:
+ *
+ * - pdf-text.ts: which characters the PDF can draw (`encodePdfText`), and
+ *   the error when a book has text no font draws.
+ * - pdf-fonts.ts: the fonts of each face, and which one draws a character.
+ * - pdf-layout.ts: lines of mixed text wrapped to a width, code lines, and
+ *   table columns.
+ * - pdf-navigation.ts: the outline (bookmarks), and the strings that name
+ *   destinations and link addresses.
+ */
+
 import {
 	type Color,
 	LineCapStyle,
 	PDFDocument,
-	PDFHexString,
 	type PDFImage,
 	PDFName,
 	type PDFObject,
 	type PDFPage,
-	type PDFRef,
 	rgb,
 } from "pdf-lib";
 import { HAS_SCHEME, isSafeLink } from "../utils/links";
@@ -39,10 +57,8 @@ import {
 	parseExportDate,
 } from "./metadata";
 import {
-	BUILT_IN_PDF_SCRIPTS,
 	createPdfFontChain,
 	fontRuns,
-	isWinAnsi,
 	type PdfFontChain,
 	type PdfFontFile,
 	type PdfFontStyle,
@@ -57,157 +73,19 @@ import {
 	widthOfPieces,
 	wrapWords,
 } from "./pdf-layout";
+import {
+	addOutline,
+	countEntries,
+	flattenOutline,
+	type Mark,
+	type OutlineNode,
+	pdfNameString,
+	pdfUriString,
+} from "./pdf-navigation";
+import { encodePdfText, unsupportedTextError } from "./pdf-text";
 import type { ExportBundle, ExportEntry, ExportRenderOptions } from "./types";
 
-/**
- * Symbols written in ASCII rather than drawn from another font, so prose
- * keeps one typeface: arrows, comparison signs, check marks, and dashes.
- */
-const SYMBOLS: Readonly<Record<string, string>> = {
-	"→": "->",
-	"←": "<-",
-	"↔": "<->",
-	"↑": "^",
-	"↓": "v",
-	"⇒": "=>",
-	"⇐": "<=",
-	"⇔": "<=>",
-	"≤": "<=",
-	"≥": ">=",
-	"≠": "!=",
-	"≈": "~",
-	"−": "-",
-	"∞": "inf",
-	"✓": "[x]",
-	"✔": "[x]",
-	"☑": "[x]",
-	"✗": "[ ]",
-	"✘": "[ ]",
-	"☐": "[ ]",
-	"‐": "-",
-	"‑": "-",
-	"‒": "-",
-	"―": "--",
-	"′": "'",
-	"″": '"',
-	ﬁ: "fi",
-	ﬂ: "fl",
-	"​": "",
-	"﻿": "",
-};
-
-/** Latin letters with no decomposition to a base letter, for when no font has them. */
-const LETTERS: Readonly<Record<string, string>> = {
-	Ł: "L",
-	ł: "l",
-	Đ: "D",
-	đ: "d",
-	Ħ: "H",
-	ħ: "h",
-	ı: "i",
-	Ŧ: "T",
-	ŧ: "t",
-};
-
-const PICTOGRAPHIC = /\p{Extended_Pictographic}|\p{Emoji_Component}/u;
-
-/**
- * Text the PDF can draw. Windows-1252 text is kept (Helvetica draws it),
- * symbols with an ASCII form are written that way, and a character another
- * font has (`covers`) is kept. After that, letters lose diacritics no font
- * has and emoji are dropped; anything else becomes "?" and is reported to
- * `onUnsupported`.
- */
-export const encodePdfText = (
-	text: string,
-	covers: (char: string) => boolean = () => false,
-	onUnsupported?: (char: string) => void,
-): string => {
-	let out = "";
-	for (const char of text.normalize("NFC")) {
-		if (isWinAnsi(char)) {
-			out += char;
-			continue;
-		}
-		const symbol = SYMBOLS[char];
-		if (symbol !== undefined) {
-			out += symbol;
-			continue;
-		}
-		if (/\s/.test(char)) {
-			out += " ";
-			continue;
-		}
-		if (covers(char)) {
-			out += char;
-			continue;
-		}
-		const letter = LETTERS[char];
-		if (letter !== undefined) {
-			out += letter;
-			continue;
-		}
-		// Letters with unsupported diacritics keep their base letter.
-		const base = char.normalize("NFD")[0];
-		if (base && base !== char && isWinAnsi(base)) {
-			out += base;
-			continue;
-		}
-		// Emoji are decorative in prose; anything else unrepresentable is marked.
-		if (PICTOGRAPHIC.test(char)) continue;
-		onUnsupported?.(char);
-		out += "?";
-	}
-	return out;
-};
-
-/** Text Helvetica alone can draw: `encodePdfText` with no other fonts. */
-export const toWinAnsiText = (
-	text: string,
-	onUnsupported?: (char: string) => void,
-): string => encodePdfText(text, undefined, onUnsupported);
-
-const codePoint = (char: string) =>
-	`U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0")}`;
-
-const unsupportedTextError = (
-	title: string,
-	found: Map<string, Set<string>>,
-	hasBookFonts: boolean,
-	unshaped: ReadonlySet<string>,
-): Error => {
-	const listed = (chars: Iterable<string>) => {
-		const all = [...chars];
-		const sample = all.slice(0, 5);
-		const more = all.length - sample.length;
-		return `${sample.map((char) => `${char} (${codePoint(char)})`).join(", ")}${more > 0 ? `, and ${more} more` : ""}`;
-	};
-	const lines = [...found].map(
-		([where, chars]) => `  - ${where}: ${listed(chars)}`,
-	);
-	const all = new Set([...found.values()].flatMap((chars) => [...chars]));
-	const missing = [...all].filter((char) => !unshaped.has(char));
-	const shapeless = [...all].filter((char) => unshaped.has(char));
-	const notes: string[] = [];
-	if (missing.length > 0) {
-		notes.push(
-			`${shapeless.length > 0 ? `No font has ${listed(missing)}. ` : ""}The built-in fonts cover ${BUILT_IN_PDF_SCRIPTS} text${hasBookFonts ? ", and the font in exports.pdfFont does not have these either" : ""}. To build the PDF, set exports.pdfFont in book.config.ts to a TrueType or OpenType font file that has them (for Chinese, Japanese, or Korean, a Noto Sans CJK font), or set exports.pdf to false to publish the book without a PDF.`,
-		);
-	}
-	if (shapeless.length > 0) {
-		notes.push(
-			`The font in exports.pdfFont has ${listed(shapeless)}, but the PDF cannot lay out their script: it needs syllable shaping that the PDF's font engine does not do. Set exports.pdf to false in book.config.ts to publish the book without a PDF.`,
-		);
-	}
-	return new Error(
-		[
-			`PDF export of "${title}" stopped: none of its fonts can draw these characters:`,
-			...lines,
-			...notes,
-			"The EPUB export is not affected.",
-		].join("\n"),
-	);
-};
+export { encodePdfText, toWinAnsiText } from "./pdf-text";
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
@@ -245,9 +123,6 @@ type TextStyle = {
 	fill?: Color;
 };
 
-/** Where an outline entry or contents line points: a page and the top of its heading. */
-type Mark = { pageIndex: number; top: number };
-
 /** Where on the page blocks are drawn, and the text style they start from. */
 type Frame = {
 	x: number;
@@ -277,90 +152,6 @@ const faceStyle = ({ bold, italic, mono }: Face): PdfFontStyle =>
 const BOLD_ELEMENTS = new Set(["b", "strong"]);
 const ITALIC_ELEMENTS = new Set(["i", "em", "cite", "dfn", "var"]);
 const MONO_ELEMENTS = new Set(["code", "kbd", "samp"]);
-
-/** A name as a PDF string, written the same way in the name tree and in each link: ASCII as is, else UTF-16 with a byte-order mark. */
-const pdfNameString = (name: string): PDFHexString => {
-	const bytes = /^[\x20-\x7e]*$/.test(name)
-		? Array.from(name, (char) => char.charCodeAt(0))
-		: [
-				0xfe,
-				0xff,
-				...Array.from({ length: name.length }, (_, index) => {
-					const unit = name.charCodeAt(index);
-					return [unit >> 8, unit & 0xff];
-				}).flat(),
-			];
-	return PDFHexString.of(
-		bytes.map((byte) => byte.toString(16).padStart(2, "0")).join(""),
-	);
-};
-
-/** A URI as the PDF stores it: 7-bit ASCII, anything else percent-encoded. */
-const pdfUriString = (uri: string): PDFHexString =>
-	pdfNameString(
-		uri.replace(/[^\x21-\x7e]/gu, (char) => encodeURIComponent(char)),
-	);
-type OutlineNode = { title: string; mark: Mark; children: OutlineNode[] };
-
-const flattenOutline = (
-	nodes: OutlineNode[],
-	depth = 0,
-): Array<{ node: OutlineNode; depth: number }> =>
-	nodes.flatMap((node) => [
-		{ node, depth },
-		...flattenOutline(node.children, depth + 1),
-	]);
-
-const countEntries = (entries: ExportEntry[]): number =>
-	entries.reduce(
-		(total, entry) => total + 1 + countEntries(entry.children ?? []),
-		0,
-	);
-
-/** The document outline (bookmarks), opened by default so the reader sees the book's structure. */
-const addOutline = (pdfDoc: PDFDocument, nodes: OutlineNode[]) => {
-	const { context } = pdfDoc;
-	const pages = pdfDoc.getPages();
-	const destination = (mark: Mark) =>
-		context.obj([pages[mark.pageIndex].ref, "XYZ", null, mark.top, null]);
-	const addLevel = (items: OutlineNode[], parent: PDFRef) => {
-		const refs = items.map(() => context.nextRef());
-		let visible = 0;
-		items.forEach((item, index) => {
-			const fields: Record<string, PDFObject | string | number> = {
-				Title: PDFHexString.fromText(item.title),
-				Parent: parent,
-				Dest: destination(item.mark),
-			};
-			if (index > 0) fields.Prev = refs[index - 1];
-			if (index < refs.length - 1) fields.Next = refs[index + 1];
-			if (item.children.length > 0) {
-				const children = addLevel(item.children, refs[index]);
-				fields.First = children.first;
-				fields.Last = children.last;
-				fields.Count = children.visible;
-				visible += children.visible;
-			}
-			visible += 1;
-			context.assign(refs[index], context.obj(fields));
-		});
-		return { first: refs[0], last: refs[refs.length - 1], visible };
-	};
-	const root = context.nextRef();
-	const top = addLevel(nodes, root);
-	context.assign(
-		root,
-		context.obj({
-			Type: "Outlines",
-			First: top.first,
-			Last: top.last,
-			Count: top.visible,
-		}),
-	);
-	pdfDoc.catalog.set(PDFName.of("Outlines"), root);
-	pdfDoc.catalog.set(PDFName.of("PageMode"), PDFName.of("UseOutlines"));
-	return destination;
-};
 
 const IMAGE_FORMAT_NAMES: Record<string, string> = {
 	"image/gif": "a GIF",

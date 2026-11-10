@@ -30,6 +30,7 @@
 }
 
 .site-nav__overflow[hidden] {
+	/* biome-ignore lint/complexity/noImportantStyles: [hidden] has to win over any class that sets display */
 	display: none !important;
 }
 

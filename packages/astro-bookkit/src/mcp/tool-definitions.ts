@@ -24,11 +24,24 @@ export const TOOL_NAME_SET: ReadonlySet<string> = new Set<string>(TOOL_NAMES);
 export const isToolName = (value: unknown): value is ToolName =>
 	typeof value === "string" && TOOL_NAME_SET.has(value);
 
+/**
+ * Agents load tools/list into every session, so descriptions here are terse:
+ * a tool says what it does and when to pick it; a parameter says only what
+ * its name and type do not (format, where the value comes from, the effect of
+ * omitting it), and has no description when they say it all.
+ */
+
+/** The `book` argument the content tools share. */
+const BOOK = {
+	type: "string",
+	description: "Book slug. Default: the served book.",
+} as const;
+
 export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.create_book",
 		description:
-			"Scaffold a new book app in apps/<book> from the engine's starter template (bun run new:book).",
+			"Scaffold a new book app in apps/<book> from the engine's starter template, then run bun install (bun run new:book).",
 		safety: "requires_guard",
 		expectedRuntime: "<=30s",
 		expectedRuntimeClass: "moderate",
@@ -52,16 +65,16 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				book: {
 					type: "string",
 					description:
-						'Required slug for the new book (for example, field-notes). A title such as "Field Notes" is made a slug, and becomes the title unless title is given.',
+						"Slug, e.g. field-notes. A name such as Field Notes is made a slug and becomes the title unless title is given.",
 				},
 				title: {
 					type: "string",
-					description: "Optional display title for the generated book config.",
+					description: "Default: made from book.",
 				},
 				frame: {
 					type: "string",
 					description:
-						"Optional frame: intervention (default), explainer, field-guide, or runbook.",
+						"intervention (default), explainer, field-guide, or runbook.",
 				},
 			},
 			required: ["book"],
@@ -71,7 +84,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.read_book",
 		description:
-			"Read a book's content. Without slug: an index of records (section, slug, title, lines). With slug, or full: true, the text as well.",
+			"Read a book's content: without slug, an index of records (section, slug, title, lines); with slug, that record and its text; with full: true, the text of every record listed.",
 		safety: "read_only",
 		expectedRuntime: "<1s",
 		expectedRuntimeClass: "instant",
@@ -85,26 +98,13 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {
-				section: {
-					type: "string",
-					enum: SECTION_NAMES,
-					description:
-						"Optional content section filter, singular or plural (chapter or chapters).",
-				},
-				slug: {
-					type: "string",
-					description: "Optional slug: returns that record with its text.",
-				},
+				section: { type: "string", enum: SECTION_NAMES },
+				slug: { type: "string" },
 				full: {
 					type: "boolean",
-					description:
-						"true returns the text of every record listed, not only the index. Large for a whole book; filter by section first.",
+					description: "Large for a whole book: filter by section first.",
 				},
-				book: {
-					type: "string",
-					description:
-						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book.",
-				},
+				book: BOOK,
 			},
 			additionalProperties: false,
 		},
@@ -148,13 +148,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		failureClassTaxonomy: ["configuration", "timeout", "unknown"],
 		inputSchema: {
 			type: "object",
-			properties: {
-				book: {
-					type: "string",
-					description:
-						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book.",
-				},
-			},
+			properties: { book: BOOK },
 			additionalProperties: false,
 		},
 	},
@@ -194,16 +188,8 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {
-				section: {
-					type: "string",
-					enum: ["mechanisms", "mechanism"],
-					description: "Optional. Currently only mechanisms are supported.",
-				},
-				book: {
-					type: "string",
-					description:
-						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book.",
-				},
+				section: { type: "string", enum: ["mechanisms", "mechanism"] },
+				book: BOOK,
 			},
 			additionalProperties: false,
 		},
@@ -211,7 +197,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.validate_book",
 		description:
-			"Validate a book with the checks bun run validate runs, in process. The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, missing runbook fields, a mechanism without an action or example, starter text in book.config.ts, and a missing or local site.url are errors); a draft or in-review book does not. Each finding has a code, the field, a fix, and its file.",
+			"Validate a whole book with the checks bun run validate runs; each finding has a code, field, fix, and file. The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, and other unfinished work are errors).",
 		safety: "read_only",
 		expectedRuntime: "<=10m",
 		expectedRuntimeClass: "long",
@@ -232,15 +218,11 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {
-				book: {
-					type: "string",
-					description:
-						"Optional book slug. Defaults to the current endpoint book when omitted.",
-				},
+				book: BOOK,
 				releaseMode: {
 					type: "boolean",
 					description:
-						"true applies release rules to a draft or in-review book too, to see what publishing it would need. Omitted or false: the book's status decides.",
+						"true applies release rules whatever the book's status, to see what publishing it would need.",
 				},
 			},
 			additionalProperties: false,
@@ -249,7 +231,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.compile_book",
 		description:
-			"Validate and build a book (bun run compile:book). The book's status in book.config.ts sets the rules: a published or stable book gets release rules (draft records, broken links, unknown prerequisites, missing runbook fields, a mechanism without an action or example, starter text in book.config.ts, and a missing or local site.url are errors); a draft or in-review book does not. Validation errors stop the compile.",
+			"Validate as bookkit.validate_book does (a published or stable book gets release rules), then build the book (bun run compile:book). Validation errors stop the compile.",
 		safety: "mutating",
 		expectedRuntime: "<=2m",
 		expectedRuntimeClass: "moderate",
@@ -269,12 +251,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		],
 		inputSchema: {
 			type: "object",
-			properties: {
-				book: {
-					type: "string",
-					description: "Optional book slug. Defaults to current endpoint book.",
-				},
-			},
+			properties: { book: BOOK },
 			additionalProperties: false,
 		},
 	},
@@ -301,12 +278,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		],
 		inputSchema: {
 			type: "object",
-			properties: {
-				book: {
-					type: "string",
-					description: "Optional book slug. Defaults to current endpoint book.",
-				},
-			},
+			properties: { book: BOOK },
 			additionalProperties: false,
 		},
 	},
@@ -337,7 +309,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.check_corpus",
 		description:
-			"Compare mechanisms across the corpus books (corpus.json): clusters of overlapping mechanisms, shared slugs whose contracts drifted, and stale rulings. Use before naming or editing a mechanism. semantic: true also compares meaning, but only when the embedding model (~520 MB) is already downloaded or the server's environment sets BOOKKIT_DOWNLOAD_MODEL=1; otherwise the result compares wording only and its summary says so.",
+			"Compare mechanisms across the corpus books (corpus.json): clusters of overlapping mechanisms, shared slugs whose contracts drifted, and stale rulings. Use before naming or editing a mechanism.",
 		safety: "read_only",
 		expectedRuntime:
 			"<30s (semantic with BOOKKIT_DOWNLOAD_MODEL=1: the first run downloads a ~520 MB model)",
@@ -362,7 +334,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				semantic: {
 					type: "boolean",
 					description:
-						"Compare meaning with the local embedding model as well as wording. Runs only if the model is already downloaded or BOOKKIT_DOWNLOAD_MODEL=1 is set where the server runs; otherwise falls back to wording and says so. Default false (wording only, fast).",
+						"true also compares meaning, which needs the local embedding model: already downloaded, or BOOKKIT_DOWNLOAD_MODEL=1 set in the server's environment to allow the ~520 MB download. Otherwise wording alone is compared and the summary says so.",
 				},
 			},
 			additionalProperties: false,
@@ -371,7 +343,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.find_similar_mechanisms",
 		description:
-			"Before coining a mechanism, list existing ones in any book that it may duplicate, and whether its slug already exists. Bind an existing slug when one fits. Pass semantic: true to rank by meaning, which finds the same idea in different words.",
+			"Before coining a mechanism, list existing ones in any book that it may duplicate, and whether its slug already exists. Bind an existing slug when one fits.",
 		safety: "read_only",
 		expectedRuntime:
 			"<5s by wording; ~10s by meaning (with BOOKKIT_DOWNLOAD_MODEL=1, the first run downloads a ~520 MB model)",
@@ -386,19 +358,15 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {
-				title: {
-					type: "string",
-					description: "Proposed mechanism title.",
-				},
+				title: { type: "string" },
 				definition: {
 					type: "string",
-					description:
-						"Optional one-sentence definition; it joins the comparison.",
+					description: "One sentence; it joins the comparison.",
 				},
 				semantic: {
 					type: "boolean",
 					description:
-						"Rank by meaning with the local embedding model. Runs only if the model is already downloaded or BOOKKIT_DOWNLOAD_MODEL=1 is set where the server runs; otherwise ranks by wording, and result.note says why. Default false.",
+						"true ranks by meaning, finding the same idea in different words. It needs the local embedding model: already downloaded, or BOOKKIT_DOWNLOAD_MODEL=1 set in the server's environment to allow the ~520 MB download. Otherwise ranking is by wording and result.note says why.",
 				},
 			},
 			required: ["title"],
@@ -408,7 +376,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.get_content_contract",
 		description:
-			"What a content file must contain to compile, per section (mechanism, tool, example, chapter, glossary): each field, whether its absence is an error or a warning, what to write in it, the frontmatter's JSON Schema, and a template that compiles. Read it before drafting a file.",
+			"What a content file must contain to compile, per section: each field, whether its absence is an error or a warning, what to write in it, the frontmatter's JSON Schema, and a template that compiles. Read it before drafting a file.",
 		safety: "read_only",
 		expectedRuntime: "<1s",
 		expectedRuntimeClass: "instant",
@@ -424,8 +392,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				section: {
 					type: "string",
 					enum: SECTION_NAMES,
-					description:
-						"One section, singular or plural (chapter or chapters); omit for all five.",
+					description: "Omit for all five sections.",
 				},
 			},
 			additionalProperties: false,
@@ -434,7 +401,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	{
 		name: "bookkit.check_content",
 		description:
-			"Compile one candidate content file without writing it: the checks bun run validate runs, against the book (mechanism references, prerequisites and /read/ links, its frame and status) and the MDX compiler its build uses. Each finding has a code, the field, and a fix. Draft, check until ok, then write the file (bookkit.write_content writes it for you); the compiler decides, not the draft.",
+			"Compile one candidate content file without writing it: the checks bun run validate runs, against the book (mechanism references, prerequisites and /read/ links, its frame and status) and the MDX compiler its build uses; each finding has a code, field, and fix. Check until ok, then write the file (bookkit.write_content writes it for you).",
 		safety: "read_only",
 		expectedRuntime: "<5s",
 		expectedRuntimeClass: "short",
@@ -448,31 +415,22 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {
-				section: {
-					type: "string",
-					enum: SECTION_NAMES,
-					description:
-						"Which kind of file the source is, singular or plural (chapter or chapters).",
-				},
+				section: { type: "string", enum: SECTION_NAMES },
 				source: {
 					type: "string",
 					description: "The full file text, frontmatter included.",
 				},
-				book: {
-					type: "string",
-					description:
-						"Book the file is checked against (its mechanisms, slugs, frame, and status). Defaults to the served book.",
-				},
+				book: BOOK,
 				format: {
 					type: "string",
 					enum: ["mdx", "md"],
 					description:
-						"mdx (default) compiles the file as MDX; md is for a .md file, where HTML comments are allowed.",
+						"Default mdx. md is for a .md file, where HTML comments are allowed.",
 				},
 				releaseMode: {
 					type: "boolean",
 					description:
-						"true applies release rules whatever the book's status: a draft record is an error, and so are broken links and unknown prerequisites. Omitted or false: the book's status in book.config.ts decides (release rules for published or stable), and a record whose own status is published or stable is always held to them.",
+						"true applies release rules (a draft record, broken links, and unknown prerequisites are errors) whatever the book's status. Otherwise they apply when the book, or the record's own status, is published or stable.",
 				},
 			},
 			required: ["section", "source"],
@@ -497,30 +455,18 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		inputSchema: {
 			type: "object",
 			properties: {
-				section: {
-					type: "string",
-					enum: SECTION_NAMES,
-					description:
-						"Which kind of file the source is, singular or plural (chapter or chapters).",
-				},
+				section: { type: "string", enum: SECTION_NAMES },
 				source: {
 					type: "string",
 					description: "The full file text, frontmatter included.",
 				},
-				book: {
-					type: "string",
-					description:
-						"Another book in the workspace (bookkit.list_books lists them). Defaults to the served book. The file is written there.",
-				},
+				book: BOOK,
 				file: {
 					type: "string",
 					description:
-						"Optional file name inside the section folder (for example 05-intro.mdx). Omitted: chosen from the slug, a chapter numbered after the last.",
+						"A .mdx or .md path inside the section folder (e.g. 05-intro.mdx), instead of the one chosen from the slug.",
 				},
-				overwrite: {
-					type: "boolean",
-					description: "true replaces a file that already exists.",
-				},
+				overwrite: { type: "boolean" },
 				releaseMode: {
 					type: "boolean",
 					description: "As for bookkit.check_content.",

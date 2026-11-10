@@ -136,9 +136,10 @@ bun run bookkit rename mechanism <slug> <new-slug>      # in every book that sha
 bun run bookkit remove chapter|mechanism|tool <slug>    # the record, and the lists that name it
 bun run bookkit move tool <tool> --to <mechanism>       # bind an action to another mechanism
 bun run bookkit contract mechanism                      # the fields a section needs (also: contract release)
+bun run bookkit draft <chapter>                         # draft a stub with models: writers, the compiler's check, blind judges
 ```
 
-`new mechanism` first lists any mechanism in another book that covers the same idea, and asks before creating a duplicate.
+`new mechanism` first lists any mechanism in another book that covers the same idea, and asks before creating a duplicate. `draft` writes nothing to the book until `draft apply`; [Drafts](./docs/guide/ai.md#drafts) says what the writers are told and how the judges' ballots become a call.
 
 ### Check
 

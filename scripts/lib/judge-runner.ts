@@ -1,20 +1,12 @@
-import {
-	existsSync,
-	mkdtempSync,
-	readdirSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkAnswer, commandFile } from "./corpus-judgments";
+import { askCommand, commandFor, commandLabel } from "./model-command";
 
 /**
  * Asks the judges of a `bookkit judge` request with a command the author
- * chose: any program that reads a prompt on stdin and prints its reply, such
- * as an LLM's command-line tool. Each judge is its own run of the command, in
- * an empty folder of its own, so it sees its prompt and nothing else: not the
+ * chose (model-command.ts): each judge is its own run of the command, in an
+ * empty folder of its own, so it sees its prompt and nothing else: not the
  * key, not the other judges, not the repository. A reply that answers every
  * pair is saved as answer-<n>.json, where `bookkit judge record` reads it,
  * and the command beside it as judge-<n>/command.txt, so each vote records
@@ -25,26 +17,6 @@ import { checkAnswer, commandFile } from "./corpus-judgments";
 
 /** The environment variable that names the judge command. */
 export const JUDGE_COMMAND_ENV = "BOOKKIT_JUDGE_COMMAND";
-
-/**
- * The command as a vote records it: without leading NAME=value assignments,
- * which can hold keys. Anything else in the command is kept, in the
- * repository, so pass secrets through the environment.
- */
-export const commandLabel = (command: string): string =>
-	command
-		.trim()
-		.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S*)\s+)+/, "");
-
-/** The judge commands from --run (repeatable) or the environment, one per line. */
-export const splitCommands = (value: string | undefined): string[] =>
-	(value ?? "")
-		.split("\n")
-		.map((line) => line.trim())
-		.filter(Boolean);
-
-/** How long one judge may take before it is stopped. */
-const TIMEOUT_MS = 10 * 60 * 1000;
 
 export type JudgeResult = {
 	judge: number;
@@ -74,11 +46,6 @@ export const unansweredJudges = (
 		)
 		.sort((a, b) => a.judge - b.judge);
 
-const shell = (command: string): string[] =>
-	process.platform === "win32"
-		? ["cmd", "/d", "/s", "/c", command]
-		: ["sh", "-c", command];
-
 /** One judge: the prompt on stdin, the reply from stdout. */
 const askOne = async (
 	folder: string,
@@ -86,57 +53,38 @@ const askOne = async (
 	prompt: string,
 	command: string,
 ): Promise<JudgeResult> => {
-	const started = Date.now();
-	const seconds = () => Math.round((Date.now() - started) / 1000);
 	const label = commandLabel(command);
-	const text = readFileSync(prompt, "utf8");
-	// An empty folder, so a judge that can read files finds nothing to read.
-	const room = mkdtempSync(join(tmpdir(), "bookkit-judge-"));
-	try {
-		const roomPrompt = join(room, "prompt.md");
-		writeFileSync(roomPrompt, text);
-		const child = Bun.spawn(shell(command), {
-			cwd: room,
-			env: { ...process.env, BOOKKIT_JUDGE_PROMPT: roomPrompt },
-			stdin: new TextEncoder().encode(text),
-			stdout: "pipe",
-			stderr: "pipe",
-		});
-		const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
-		const [reply, errors, code] = await Promise.all([
-			new Response(child.stdout).text(),
-			new Response(child.stderr).text(),
-			child.exited,
-		]);
-		clearTimeout(timer);
-		const kept = join(folder, `judge-${judge}`, "reply.txt");
-		if (code !== 0) {
-			writeFileSync(kept, `${reply}${errors}`);
-			return {
-				judge,
-				command: label,
-				error: `the command exited with ${child.signalCode ?? code}${errors.trim() ? `: ${errors.trim().split("\n").pop()}` : ""} (output in ${kept})`,
-				seconds: seconds(),
-			};
-		}
-		const file = `answer-${judge}.json`;
-		const problem = checkAnswer(folder, reply, file);
-		if (problem) {
-			writeFileSync(kept, reply);
-			return {
-				judge,
-				command: label,
-				error: `${problem} (reply in ${kept})`,
-				seconds: seconds(),
-			};
-		}
-		const answer = join(folder, file);
-		writeFileSync(answer, reply.endsWith("\n") ? reply : `${reply}\n`);
-		writeFileSync(commandFile(folder, judge), `${label}\n`);
-		return { judge, command: label, answer, seconds: seconds() };
-	} finally {
-		rmSync(room, { recursive: true, force: true });
+	const asked = await askCommand(
+		command,
+		readFileSync(prompt, "utf8"),
+		"BOOKKIT_JUDGE_PROMPT",
+	);
+	const kept = join(folder, `judge-${judge}`, "reply.txt");
+	if (asked.error) {
+		writeFileSync(kept, asked.output);
+		return {
+			judge,
+			command: label,
+			error: `${asked.error} (output in ${kept})`,
+			seconds: asked.seconds,
+		};
 	}
+	const { reply, seconds } = asked;
+	const file = `answer-${judge}.json`;
+	const problem = checkAnswer(folder, reply, file);
+	if (problem) {
+		writeFileSync(kept, reply);
+		return {
+			judge,
+			command: label,
+			error: `${problem} (reply in ${kept})`,
+			seconds,
+		};
+	}
+	const answer = join(folder, file);
+	writeFileSync(answer, reply.endsWith("\n") ? reply : `${reply}\n`);
+	writeFileSync(commandFile(folder, judge), `${label}\n`);
+	return { judge, command: label, answer, seconds };
 };
 
 /**
@@ -150,7 +98,7 @@ export const runJudges = (
 	if (commands.length === 0) throw new Error("No judge command to run.");
 	return Promise.all(
 		unansweredJudges(folder).map(({ judge, prompt }) =>
-			askOne(folder, judge, prompt, commands[(judge - 1) % commands.length]),
+			askOne(folder, judge, prompt, commandFor(commands, judge)),
 		),
 	);
 };

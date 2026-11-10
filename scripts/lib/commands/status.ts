@@ -151,6 +151,15 @@ async function printStatus(book?: string) {
 					`bun run bookkit new chapter ${focusName} "<title>"`,
 					"start the next chapter",
 				],
+		...(stub
+			? [
+					[
+						"draft",
+						`bun run bookkit draft ${focusName} ${stub.replace(/\.mdx?$/, "")}`,
+						"or have models draft it: candidates from writer commands, a winner from judge commands",
+					] as [string, string, string],
+				]
+			: []),
 		[
 			"check",
 			`bun run bookkit check ${focusName}`,

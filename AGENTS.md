@@ -137,7 +137,7 @@ For risky changes, include:
 
 ## Agent execution checklist
 
-Before starting work, name the bet it serves. `bun run bookkit bets` prints the active bet and its measurement in a few lines; `docs/bets.md` holds the contract, so read it when the work changes a bet. If the work serves none, it is maintenance: keep it small and do not open new audit, PRD, or critique docs for it.
+Before starting work, name the bet it serves. `bun run bookkit bets` prints the active bet and its measurement in a few lines; `docs/bets.md` holds the contract, so read it when the work changes a bet. If the work serves none, it is maintenance: keep it small and do not open new audit, PRD, or critique docs for it. When `verify` notes that a change falls under work the bet excludes, go on only if the author asked for that work, and say so in the PR.
 
 While iterating, run `bun run verify -- --quick`: the same checks, with only the tests beside your change.
 

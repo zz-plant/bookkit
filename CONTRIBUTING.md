@@ -18,7 +18,7 @@ For commands see [`README.md`](./README.md), and for what each check enforces, [
 
 Use this sequence to reduce rework:
 
-1. **Name the bet** from [`docs/bets.md`](./docs/bets.md) this serves, or label the change maintenance.
+1. **Name the bet** from [`docs/bets.md`](./docs/bets.md) this serves, or label the change maintenance. `verify` prints a note when a change falls under work the active bet excludes (`bet.isNot` in `corpus.json`); it never fails the run.
 2. **Pick risk level** (low / medium / high).
 3. **Choose lane** (A/B/C below).
 4. **Decide test depth** using the matrix in [Verification matrix](#verification-matrix).

@@ -48,7 +48,6 @@
 		"check:separation": "bun run scripts/check-separation.ts",
 		"check:architecture": "bun run scripts/check-architecture.ts",
 		"stack:capabilities": "bun run scripts/stack-capabilities.ts",
-		"validate:release:seo": "bun run validate",
 		"setup:codex": "bash scripts/codex-setup.sh",
 		"check:todos": "bun run scripts/check-todos.ts",
 		"check:shims": "bun run scripts/check-shims.ts",

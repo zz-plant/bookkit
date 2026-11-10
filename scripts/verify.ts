@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
+import { betNote, readBet } from "./lib/bet-scope";
 import { exitOnHelp } from "./lib/cli";
 import { isStandaloneProject } from "./lib/project";
 import {
@@ -159,6 +160,9 @@ const quickNote =
 		? "Quick run: only the tests beside the change ran. Run bun run verify before you commit."
 		: undefined;
 
+/** Set when the change is work the active bet excludes (corpus.json's `bet`). */
+const scopeNote = betNote(changed, readBet(root), new Date());
+
 const describeScope = () =>
 	all
 		? "every gate"
@@ -166,13 +170,16 @@ const describeScope = () =>
 
 if (listOnly || gates.length === 0) {
 	if (asJson) {
-		console.log(JSON.stringify({ base, changed, gates }, null, 2));
+		console.log(
+			JSON.stringify({ base, changed, gates, bet: scopeNote }, null, 2),
+		);
 	} else {
 		console.log(`VERIFY  ${describeScope()}`);
 		if (gates.length === 0) console.log("  Nothing to check.");
 		for (const gate of gates) {
 			console.log(`  ${gate.label.padEnd(24)} ${gate.why}`);
 		}
+		if (scopeNote) console.log(`\n${scopeNote}`);
 	}
 	process.exit(0);
 }
@@ -331,6 +338,7 @@ if (asJson) {
 				ok: failed.length === 0,
 				quick,
 				note: quickNote,
+				bet: scopeNote,
 				gates: results.map(({ id, label, ok, seconds, findings, output }) => ({
 					id,
 					label,
@@ -352,6 +360,7 @@ if (asJson) {
 			: `\n${failed.length} of ${results.length} checks failed: ${failed.map(failedLabel).join(", ")}.`,
 	);
 	if (quickNote) console.log(quickNote);
+	if (scopeNote) console.log(scopeNote);
 }
 
 process.exit(failed.length === 0 ? 0 : 1);

@@ -22,6 +22,7 @@ No config field, schema, or endpoint changed.
 - **Writers are asked one at a time**, each command's candidates together, and stopped after 300 s (`--parallel`, `--timeout`): asked all at once, three of four local writers waited out their time limit behind each other. A command's terminal codes and spinner frames are removed from what it printed.
 - **`bookkit judge` runs its judge commands through the same runner** (`scripts/lib/model-command.ts`); its behavior and files are unchanged. `new chapter --after` also takes a file name without `.mdx`.
 - `bookkit status` names the command for the next stub. Requests live in `.bookkit/drafting/`, which git ignores.
+- **A command stopped at its time limit stops what it started.** Stopping only the shell left a command such as `ollama run … | tee` running, and its reply waited until that program ended on its own; on Linux this was true even of a lone program. On Windows only `cmd` is stopped, as before.
 
 No schema, validator, or engine module changed. A chapter written by `draft apply` counts as drafted in `bookkit bets`, which cannot tell it from one the author wrote ([bets](./docs/bets.md)).
 

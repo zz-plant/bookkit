@@ -81,11 +81,22 @@ describe("askCommand", () => {
 		expect(failed.output).toBe(`first\n${"x".repeat(400)}`);
 	});
 
-	it("stops a command at its time limit and says so", async () => {
-		const slow = await askCommand("sleep 20", "", "PROMPT_FILE", 1000);
-		expect(slow.error).toBe("it had not finished after 1 s and was stopped");
-		expect(slow.seconds).toBeLessThan(10);
-	});
+	// Each command runs a program the shell cannot hand itself over to, so
+	// stopping only the shell would leave it running and holding the pipe.
+	it.each([
+		["a list", "sleep 23.417; true"],
+		["a pipeline", "sleep 23.418 | cat"],
+	])(
+		"stops %s at its time limit, with everything it started, and says so",
+		async (_, command) => {
+			const slow = await askCommand(command, "", "PROMPT_FILE", 1000);
+			expect(slow.error).toBe("it had not finished after 1 s and was stopped");
+			expect(slow.seconds).toBeLessThan(4);
+			const sleep = command.split(/[;|]/)[0].trim();
+			const left = Bun.spawnSync(["pgrep", "-f", sleep]).stdout.toString();
+			expect(left.trim()).toBe("");
+		},
+	);
 });
 
 describe("inTurn", () => {

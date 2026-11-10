@@ -1,11 +1,12 @@
-# Weekly update PRs. CI's five jobs gate every one like any other PR.
+# Monthly update PRs (weekly until 2026-11-10, when the engine went into
+# maintenance; see AGENTS.md). CI's five jobs gate every one like any other PR.
 # Security updates (Settings → Code security) open separately and at once.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       actions:
         patterns: ["*"]
@@ -21,7 +22,7 @@ updates:
   - package-ecosystem: bun
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       astro:

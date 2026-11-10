@@ -1,0 +1,307 @@
+.list-link {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-3) 0;
+	border-top: 1px solid var(--color-border);
+	text-decoration: none;
+}
+
+.list-link:hover strong,
+.list-link:focus-visible strong {
+	color: var(--color-rubric);
+}
+
+.list-link strong {
+	font-size: var(--text-md);
+	font-weight: 500;
+	color: var(--color-ink);
+}
+
+.list-link__action {
+	margin-top: var(--space-1);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.list-link__meta-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.list-link__meta-row .eyebrow {
+	margin-bottom: 0;
+}
+
+.list-link__badges {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.list-link__badge {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.next-action-panel {
+	margin-bottom: var(--space-5);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	padding: var(--space-4);
+	box-shadow: var(--shadow-soft);
+}
+
+.next-action-panel h2 {
+	margin-top: 0;
+	margin-bottom: var(--space-2);
+}
+
+.next-action-panel__links {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+}
+
+.next-action-panel__link {
+	display: grid;
+	gap: 0.25rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	padding: 0.65rem 0.75rem;
+	text-decoration: none;
+	color: inherit;
+	background: var(--color-surface);
+}
+
+.next-action-panel__link:hover,
+.next-action-panel__link:focus-visible {
+	border-color: var(--color-accent);
+	background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+
+.next-action-panel--compact {
+	padding: var(--space-3);
+}
+
+.next-action-panel--compact .next-action-panel__links {
+	margin-top: var(--space-2);
+	grid-template-columns: 1fr;
+}
+
+.next-action-panel--compact .next-action-panel__link {
+	padding: 0.55rem 0.65rem;
+}
+
+.list-filter {
+	display: grid;
+	gap: var(--space-1);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+.list-tools {
+	display: grid;
+	gap: var(--space-3);
+	margin-bottom: var(--space-4);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.list-tools .list-summary {
+	margin: 0;
+}
+
+.list-density-toggle {
+	display: inline-flex;
+	gap: var(--space-2);
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.list-density-toggle__label {
+	color: var(--color-muted);
+}
+
+.list-density-toggle__button {
+	border: 0;
+	padding: 0.2rem 0;
+	background: none;
+	color: var(--color-muted);
+	font: inherit;
+	cursor: pointer;
+}
+
+.list-density-toggle__button[aria-pressed="true"] {
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-decoration-color: var(--color-rubric);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.35em;
+}
+
+.list-filter__label {
+	color: var(--color-muted);
+}
+
+.list-filter__input {
+	padding: var(--space-2) 0;
+	border: 0;
+	border-bottom: 1px solid var(--color-rule);
+	border-radius: 0;
+	background: none;
+	color: var(--color-ink);
+	font: inherit;
+}
+
+.list-filter__hint {
+	margin: 0;
+	color: var(--color-muted);
+}
+
+.list-filter__input:focus-visible {
+	outline: none;
+	border-bottom-color: var(--color-rubric);
+}
+
+.list-quick-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.list-quick-filters__label {
+	color: var(--color-muted);
+}
+
+.list-quick-filter {
+	border: 0;
+	background: none;
+	color: var(--color-muted);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	padding: 0.2rem 0;
+	margin-right: var(--space-2);
+	cursor: pointer;
+}
+
+.list-quick-filter:hover,
+.list-quick-filter[aria-pressed="true"] {
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-decoration-color: var(--color-rubric);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.35em;
+}
+
+.list-empty {
+	padding: var(--space-6);
+	text-align: center;
+	border: 1px dashed var(--color-border);
+	border-radius: var(--radius-card);
+	margin: var(--space-4) 0;
+}
+
+.list-empty p {
+	margin: 0;
+	color: var(--color-muted);
+}
+
+.list-empty .pill {
+	margin-top: var(--space-3);
+	cursor: pointer;
+}
+
+.list-empty .list-empty__command {
+	margin-top: var(--space-2);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+.index-tail {
+	display: grid;
+	gap: var(--space-3);
+	align-items: center;
+	margin-top: var(--space-5);
+}
+
+.index-tail h2 {
+	margin-bottom: var(--space-1);
+}
+
+.alpha-nav {
+	position: sticky;
+	top: calc(3.25rem + env(safe-area-inset-top));
+	z-index: 10;
+	display: flex;
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	align-items: center;
+	padding: var(--space-1) 0;
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-paper);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	-webkit-overflow-scrolling: touch;
+}
+
+.alpha-nav__label {
+	margin-right: var(--space-2);
+	color: var(--color-muted);
+	white-space: nowrap;
+}
+
+/* A letter alone is narrower than the 24px target WCAG 2.2 asks for (2.5.8). */
+.alpha-nav__link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.5rem;
+	min-height: 1.5rem;
+	color: var(--color-ink);
+	text-decoration: none;
+	flex-shrink: 0;
+}
+
+.alpha-nav__link:hover {
+	color: var(--color-rubric);
+}
+
+.alpha-group {
+	margin-bottom: var(--space-5);
+}
+
+.alpha-group__letter {
+	font-size: var(--text-lg);
+	font-weight: 500;
+	font-style: italic;
+	margin: var(--space-5) 0 var(--space-2);
+	color: var(--color-rubric);
+}
+
+.list-stack[data-list-density="compact"] .list-link {
+	gap: 0.15rem;
+	padding: 0.55rem 0.75rem;
+}
+
+.list-stack[data-list-density="compact"] .alpha-group {
+	margin-bottom: var(--space-3);
+}
+
+/* On phones, long meta text clamps to two lines; the full text stays one tap away on the item page. */
+@media (max-width: 720px) {
+	.list-link .meta {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+}

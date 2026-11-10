@@ -119,9 +119,8 @@ export const titleOf = (
  * read_book does), or "tools". Each tool accepts every form.
  */
 export const SECTION_NAMES: readonly string[] = [
-	...CONTENT_SECTIONS,
-	...CONTENT_TYPES,
-	"tools",
+	// A Set: glossary is its own plural, and an enum lists a value once.
+	...new Set([...CONTENT_SECTIONS, ...CONTENT_TYPES, "tools"]),
 ];
 
 /** A section name in any form, as the singular check_content takes. */

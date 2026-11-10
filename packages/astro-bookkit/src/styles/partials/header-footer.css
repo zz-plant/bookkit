@@ -1,0 +1,158 @@
+.page {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+.site-header,
+.site-footer {
+	padding: var(--space-3) clamp(var(--space-4), 4vw, var(--space-6));
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-paper);
+}
+
+.site-footer {
+	border-top: 1px solid var(--color-border);
+	border-bottom: none;
+	margin-top: auto;
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+	text-align: center;
+}
+
+/* Colophon: whose book this is and what it argues, for readers who arrive mid-book. */
+.site-footer__colophon {
+	display: grid;
+	gap: var(--space-2);
+	justify-items: center;
+	max-width: var(--reader-content-width);
+	margin: 0 auto;
+}
+
+.site-footer__title {
+	font-family: var(--font-text);
+	font-size: var(--text-md);
+	font-style: italic;
+	color: var(--color-ink);
+	text-wrap: balance;
+}
+
+.site-footer__byline {
+	font-family: var(--font-text);
+	font-size: var(--text-md);
+	color: var(--color-ink);
+}
+
+.site-footer__pitch {
+	font-family: var(--font-text);
+	font-size: var(--text-md);
+	line-height: 1.5;
+	color: var(--color-muted);
+	text-wrap: pretty;
+}
+
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 12;
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-4);
+}
+
+/* The running head: the short title, set like the top of a book page. */
+.site-brand {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+.site-brand a {
+	font-family: var(--font-text);
+	font-size: var(--text-md);
+	font-style: italic;
+	font-weight: 400;
+	text-decoration: none;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.site-brand__context,
+.preview-badge,
+.version-badge {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	font-weight: 400;
+	color: var(--color-muted);
+	white-space: nowrap;
+}
+
+.site-brand__context::before,
+.version-badge::before {
+	content: "/ ";
+	color: var(--color-faint);
+}
+
+.preview-badge {
+	color: var(--color-warning-strong);
+}
+
+.site-nav {
+	display: flex;
+	gap: var(--space-1) var(--space-5);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	align-items: baseline;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.site-nav a,
+.site-nav button {
+	font: inherit;
+	color: var(--color-muted);
+	background: none;
+	border: none;
+	padding: var(--space-1) 0;
+	cursor: pointer;
+	text-decoration: none;
+	transition: color var(--timing-snappy) ease;
+}
+
+.site-nav a:hover,
+.site-nav button:hover {
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-decoration-color: var(--color-rubric);
+}
+
+.site-nav a[aria-current],
+.site-nav__primary--active-route {
+	color: var(--color-ink);
+	text-decoration: underline;
+	text-decoration-color: var(--color-rubric);
+	text-decoration-thickness: 2px;
+}
+
+.site-nav__primary,
+.search-toggle,
+.site-nav__more-toggle,
+.mobile-cta button,
+.mobile-cta a {
+	white-space: nowrap;
+}
+
+/* The shortcut hint only means something where there is a keyboard. */
+.search-toggle span {
+	margin-left: 0.4em;
+}
+
+@media (hover: none) {
+	.search-toggle span {
+		display: none;
+	}
+}

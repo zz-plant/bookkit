@@ -1,0 +1,189 @@
+/* --- Reading Experience Enhancements --- */
+
+/* 1. In-Situ Preview Popover */
+.preview-popover {
+	position: absolute;
+	background: var(--color-surface);
+	color: var(--color-ink);
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-md, 8px);
+	box-shadow:
+		0 10px 25px -5px rgba(0, 0, 0, 0.15),
+		0 8px 10px -6px rgba(0, 0, 0, 0.1);
+	padding: 0.85rem 1rem;
+	z-index: 90;
+	pointer-events: none;
+	opacity: 0;
+	transform: translateY(4px);
+	transition:
+		opacity 0.15s ease,
+		transform 0.15s ease;
+}
+
+.preview-popover.is-visible {
+	opacity: 1;
+	transform: translateY(0);
+	pointer-events: auto;
+}
+
+.preview-popover__header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.35rem;
+}
+
+.preview-popover__badge {
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-weight: 600;
+	color: var(--color-rubric);
+	background: var(--color-surface-hover);
+	padding: 2px 6px;
+	border-radius: 4px;
+	border: 1px solid var(--color-line);
+}
+
+.preview-popover__title {
+	font-size: 0.95rem;
+	color: var(--color-ink);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.preview-popover__snippet {
+	font-size: 0.85rem;
+	color: var(--color-ink-muted);
+	margin: 0.25rem 0 0.4rem;
+	line-height: 1.45;
+}
+
+.preview-popover__footer {
+	font-size: 0.75rem;
+	color: var(--color-rubric);
+	font-weight: 500;
+}
+
+/* 2. Tools for this chapter card */
+.chapter-tools-card {
+	background: var(--color-surface-hover);
+	border: 1px solid var(--color-line);
+	border-left: 4px solid var(--color-rubric);
+	border-radius: var(--radius-md, 8px);
+	padding: 1rem;
+	margin-bottom: var(--space-4, 1.5rem);
+}
+
+.chapter-tools-card__header {
+	margin-bottom: 0.5rem;
+}
+
+.chapter-tools-card__title {
+	font-size: 1.05rem;
+	margin: 0.25rem 0;
+}
+
+.chapter-tools-card__desc {
+	font-size: 0.85rem;
+	color: var(--color-ink-muted);
+	line-height: 1.4;
+	margin-bottom: 0.75rem;
+}
+
+.chapter-tools-card__link {
+	display: block;
+	padding: 0.6rem 0.75rem;
+	background: var(--color-surface);
+	border: 1px solid var(--color-line);
+	border-radius: 6px;
+	text-decoration: none;
+	color: var(--color-ink);
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease;
+}
+
+.chapter-tools-card__link:hover {
+	border-color: var(--color-rubric);
+	background: var(--color-surface-hover);
+}
+
+.chapter-tools-card__badge {
+	display: block;
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-weight: 600;
+	color: var(--color-rubric);
+	margin-bottom: 2px;
+}
+
+.chapter-tools-card__label {
+	display: block;
+	font-size: 0.9rem;
+}
+
+/* 3. Mechanism Distinctions */
+.ruling-card {
+	background: var(--color-surface-hover);
+	border: 1px solid var(--color-line);
+	border-radius: var(--radius-md, 8px);
+	padding: 1rem 1.25rem;
+}
+
+.ruling-card__header {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	margin-bottom: 0.35rem;
+}
+
+.ruling-card__title {
+	font-size: 1.05rem;
+	color: var(--color-rubric);
+	text-decoration: none;
+}
+
+.ruling-card__title:hover {
+	text-decoration: underline;
+}
+
+.ruling-card__reason {
+	font-size: 0.92rem;
+	color: var(--color-ink);
+	line-height: 1.5;
+	margin: 0;
+}
+
+/* 4. Focus Mode */
+body.focus-mode .site-header,
+body.focus-mode .reading-progress-bar,
+body.focus-mode .chapter-meta-panel,
+body.focus-mode .site-footer {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.2s ease;
+}
+
+body.focus-mode .site-header:hover,
+body.focus-mode .reading-progress-bar:hover {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.focus-mode-indicator {
+	position: fixed;
+	top: 1rem;
+	left: 50%;
+	transform: translateX(-50%);
+	background: var(--color-ink);
+	color: var(--color-surface);
+	padding: 6px 16px;
+	border-radius: 20px;
+	font-size: 0.8rem;
+	z-index: 1000;
+	pointer-events: none;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}

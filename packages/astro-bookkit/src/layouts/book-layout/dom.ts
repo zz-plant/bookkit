@@ -1,6 +1,8 @@
 import { isSitePath } from "../../utils/links";
 
-export type ElementCtor<T extends Element> = abstract new (...args: any[]) => T;
+export type ElementCtor<T extends Element> = abstract new (
+	...args: never[]
+) => T;
 
 const isElementOfType = <T extends Element>(
 	value: Element | null,

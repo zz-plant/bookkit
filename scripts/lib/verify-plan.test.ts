@@ -1,8 +1,13 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "../_lib";
 import { runChild, waitForChildren } from "./child-process.fixture";
-import { planGates, REPRESENTATIVE_BOOK } from "./verify-plan";
+import {
+	planGates,
+	REPRESENTATIVE_BOOK,
+	withVerificationMatrix,
+} from "./verify-plan";
 
 waitForChildren();
 
@@ -93,6 +98,51 @@ describe("planGates", () => {
 		expect(ids(["apps/on-call/TODOS.md"])).toEqual(["todos"]);
 	});
 
+	it("narrows the tests to the change with quick, and nothing else", () => {
+		const quick = (changed: string[], exists = (_: string) => true) =>
+			planGates(changed, books, exists, "workspace", { quick: true });
+		const engine = quick(["packages/astro-bookkit/src/seo/book.ts"]);
+		expect(engine.map((gate) => gate.id)).toEqual(
+			ids(["packages/astro-bookkit/src/seo/book.ts"]),
+		);
+		expect(engine.find((gate) => gate.id === "test")?.commands).toEqual([
+			["bun", "test", "--parallel", "./packages/astro-bookkit"],
+		]);
+		expect(
+			quick(["scripts/lib/deploy.ts", "scripts/verify.test.ts"]).find(
+				(gate) => gate.id === "test",
+			)?.commands,
+		).toEqual([
+			[
+				"bun",
+				"test",
+				"--parallel",
+				"./scripts/lib/deploy.test.ts",
+				"./scripts/verify.test.ts",
+			],
+		]);
+	});
+
+	it("runs no tests with quick for a script that has no test beside it", () => {
+		const gates = planGates(
+			["scripts/bookkit.ts"],
+			books,
+			(file) => file !== "scripts/bookkit.test.ts",
+			"workspace",
+			{ quick: true },
+		);
+		expect(gates.map((gate) => gate.id)).toEqual(["biome", "types"]);
+	});
+
+	it("keeps the whole suite with quick when workspace config changed", () => {
+		const gates = planGates(["package.json"], books, () => true, "workspace", {
+			quick: true,
+		});
+		expect(gates.find((gate) => gate.id === "test")?.commands).toEqual([
+			["bun", "run", "test"],
+		]);
+	});
+
 	it("plans every CI gate with --all", () => {
 		expect(ids(null)).toEqual([
 			"biome",
@@ -109,6 +159,16 @@ describe("planGates", () => {
 			"concepts",
 			"build:all",
 		]);
+	});
+});
+
+describe("the verification matrix", () => {
+	it("in CONTRIBUTING.md is the one the plan renders", () => {
+		const doc = readFileSync(join(repoRoot(), "CONTRIBUTING.md"), "utf8");
+		expect(
+			withVerificationMatrix(doc),
+			"Run: bun run verify -- --matrix --write",
+		).toBe(doc);
 	});
 });
 

@@ -11,5 +11,5 @@ export const getOriginalUrl = (
 	}
 
 	const headerUrl = context.request.headers.get(ORIGINAL_URL_HEADER);
-	return headerUrl && headerUrl.length ? headerUrl : null;
+	return headerUrl?.length ? headerUrl : null;
 };

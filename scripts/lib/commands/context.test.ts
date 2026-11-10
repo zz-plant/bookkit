@@ -8,13 +8,14 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { repoRoot } from "./_lib";
-import { runChild, waitForChildren } from "./lib/child-process.fixture";
+import { dirname, join } from "node:path";
+import { repoRoot } from "../../_lib";
+import { runChild, waitForChildren } from "../child-process.fixture";
 
 /**
- * `bookkit` itself: what it prints with no command, and its exit code when a
- * command it runs never starts or is killed.
+ * What the commands share: `bookkit`'s exit code when a command it runs never
+ * starts or is killed, and the book a command acts on when none is named
+ * (the current book, or a project's only one).
  */
 
 waitForChildren();
@@ -24,35 +25,6 @@ const bookkit = (cwd: string, args: string[], env?: Record<string, string>) =>
 		[process.execPath, join(repoRoot(), "scripts", "bookkit.ts"), ...args],
 		{ cwd, env: { ...process.env, ...env } },
 	);
-
-describe("bookkit with no command", () => {
-	it("lists the books and the commands to write, check, preview, build, and deploy one", () => {
-		const result = bookkit(repoRoot(), []);
-		expect(result.status).toBe(0);
-		expect(result.output).toContain("BOOKKIT ·");
-		for (const verb of ["write", "check", "preview", "build", "deploy"]) {
-			expect(result.output).toMatch(new RegExp(`^ {2}${verb} +\\S`, "m"));
-		}
-		expect(result.output).toContain("bun run bookkit dev ");
-		expect(result.output).toContain("bun run bookkit deploy ");
-		// The maintainers' bet is not every author's business.
-		expect(result.output).not.toContain("B1");
-		expect(result.output).not.toContain("merged away");
-		// `status` prints the same, in forks and standalone projects alike.
-		const status = bookkit(repoRoot(), ["status"]);
-		expect(status.status).toBe(0);
-		expect(status.output).toBe(result.output);
-	});
-
-	it("keeps the bet report behind its own command", () => {
-		const result = bookkit(repoRoot(), ["bets"]);
-		expect(result.status).toBe(0);
-		expect(result.output).toMatch(/B1(:| ·)/);
-		expect(bookkit(repoRoot(), ["status", "--json"]).output).not.toContain(
-			'"b1"',
-		);
-	});
-});
 
 describe("bookkit exit codes", () => {
 	let workspace: string;
@@ -188,30 +160,50 @@ describe("bookkit new and check with a current book", () => {
 	});
 });
 
-describe("verify outside a git repository", () => {
+describe("one book", () => {
 	let workspace: string;
 
+	const CHAPTER =
+		"---\nslug: start\ntitle: Start\nsummary: Where it starts.\nstatus: draft\n---\n\nText.\n";
+
+	const FILES: Record<string, string> = {
+		"apps/solo/src/book.config.ts":
+			'export const bookConfig = {\n\tslug: "solo",\n\ttitle: "Solo",\n\tstatus: "draft",\n\tsite: { url: "https://solo.example" },\n\trecords: [{ status: "kept" }],\n};\n',
+		"apps/solo/src/content/book/chapters/01-start.mdx": CHAPTER,
+	};
+
+	const at = (path: string) => join(workspace, path);
+
 	beforeAll(() => {
-		workspace = mkdtempSync(join(tmpdir(), "bookkit-no-git-"));
-		mkdirSync(join(workspace, "apps", "a-book"), { recursive: true });
-		symlinkSync(
-			join(repoRoot(), "node_modules"),
-			join(workspace, "node_modules"),
-		);
+		workspace = mkdtempSync(join(tmpdir(), "bookkit-one-book-"));
+		symlinkSync(join(repoRoot(), "scripts"), join(workspace, "scripts"));
+		for (const section of [
+			"chapters",
+			"mechanisms",
+			"toolkit",
+			"examples",
+			"glossary",
+		]) {
+			mkdirSync(at(`apps/solo/src/content/book/${section}`), {
+				recursive: true,
+			});
+		}
+		for (const [path, text] of Object.entries(FILES)) {
+			mkdirSync(dirname(at(path)), { recursive: true });
+			writeFileSync(at(path), text);
+		}
 	});
 
 	afterAll(() => {
 		rmSync(workspace, { recursive: true, force: true });
 	});
 
-	it("says to run every gate with --all, since there is nothing to compare", () => {
-		const result = runChild(
-			[process.execPath, join(repoRoot(), "scripts", "verify.ts")],
-			{ cwd: workspace },
+	it("is the book a command acts on when none is named", () => {
+		const made = bookkit(workspace, ["new", "chapter", "Second thoughts"]);
+		expect(made.status).toBe(0);
+		expect(made.output).toContain(
+			"apps/solo/src/content/book/chapters/02-second-thoughts.mdx",
 		);
-		expect(result.status).toBe(1);
-		expect(result.output).toContain(
-			"is not in a git repository, so verify cannot tell which files changed. Run every gate instead: bun run verify -- --all",
-		);
+		rmSync(at("apps/solo/src/content/book/chapters/02-second-thoughts.mdx"));
 	});
 });

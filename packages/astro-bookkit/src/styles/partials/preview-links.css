@@ -1,0 +1,110 @@
+.preview-panel {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	padding: var(--space-6);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-soft);
+}
+
+.preview-links {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.preview-link {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	padding: var(--space-4);
+	background: var(--color-surface-muted);
+	display: grid;
+	gap: var(--space-3);
+}
+
+.preview-link__info {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.preview-link__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	color: var(--color-muted);
+	font-size: var(--text-sm);
+	align-items: center;
+}
+
+.preview-link__actions {
+	display: grid;
+	gap: var(--space-2);
+	grid-template-columns: 1fr auto;
+	align-items: center;
+}
+
+.preview-link__input {
+	border-radius: var(--radius-control);
+	border: 1px solid var(--color-border);
+	padding: 10px 12px;
+	font-size: var(--text-sm);
+	background: var(--color-surface);
+	color: var(--color-text);
+}
+
+.preview-link__masked {
+	font-family: var(--font-mono, ui-monospace, monospace);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+	white-space: nowrap;
+}
+
+.preview-link__copy {
+	border-radius: var(--radius-control);
+	border: 1px solid var(--color-border);
+	padding: 10px 16px;
+	font-size: var(--text-sm);
+	background: var(--color-surface);
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.preview-link__copy:hover {
+	background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.preview-status {
+	border-radius: var(--radius-control);
+	padding: 2px 10px;
+	font-size: var(--text-sm);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	border: 1px solid transparent;
+}
+
+.preview-status--active {
+	background: color-mix(in srgb, var(--color-success) 12%, transparent);
+	color: var(--color-success-strong);
+	border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+}
+
+.preview-status--expired,
+.preview-status--revoked {
+	background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+	color: var(--color-danger-strong);
+	border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+}
+
+.preview-usage {
+	font-weight: 600;
+	color: var(--color-text);
+}
+
+.preview-last {
+	color: var(--color-muted);
+}
+
+.preview-empty {
+	padding: var(--space-4);
+	border: 1px dashed var(--color-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+}

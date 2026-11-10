@@ -1,0 +1,149 @@
+.card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: var(--space-4);
+}
+
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: var(--space-4);
+}
+
+.stat-card {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-card);
+	padding: var(--space-4);
+	box-shadow: var(--shadow-soft);
+	display: grid;
+	gap: var(--space-2);
+	transition: border 0.2s ease;
+}
+
+a.stat-card {
+	color: inherit;
+}
+
+a.stat-card:hover {
+	border-color: color-mix(
+		in oklab,
+		var(--color-border),
+		var(--color-accent) 35%
+	);
+}
+
+.stat-value {
+	font-size: var(--text-2xl);
+	font-family: var(--font-serif);
+	line-height: var(--leading-tight);
+}
+
+.stat-label {
+	font-size: var(--text-sm);
+	letter-spacing: 0.02em;
+	color: var(--color-muted);
+}
+
+.stat-meta {
+	font-size: var(--text-sm);
+	color: var(--color-ink);
+	font-weight: 600;
+}
+
+.export-panel {
+	margin-bottom: var(--space-6);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+.export-panel__header {
+	display: grid;
+	gap: var(--space-1);
+	margin-bottom: var(--space-3);
+}
+
+.export-panel__list {
+	display: grid;
+}
+
+.export-panel__item {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-4);
+	padding: var(--space-2) 0;
+	border-top: 1px solid var(--color-border);
+	color: var(--color-ink);
+}
+
+.export-panel__item:hover {
+	color: var(--color-rubric);
+}
+
+.export-panel__label {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.export-panel__badge {
+	color: var(--color-ink);
+}
+
+.card {
+	border-top: 1px solid var(--color-rule);
+	padding: var(--space-3) 0 var(--space-2);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+a.card:hover strong,
+a.card:hover h3 {
+	color: var(--color-rubric);
+}
+
+.card--static {
+	cursor: default;
+}
+
+.card > :first-child {
+	margin-top: 0;
+}
+
+.card strong {
+	font-size: var(--text-lg);
+	font-weight: 500;
+}
+
+.card .meta {
+	font-size: 1rem;
+	line-height: 1.45;
+	color: var(--color-muted);
+}
+
+.meta {
+	font-size: 1rem;
+	line-height: 1.45;
+	color: var(--color-muted);
+}
+
+.eyebrow {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+	margin-bottom: var(--space-3);
+}
+
+.section-header {
+	margin-bottom: var(--space-6);
+	display: grid;
+	gap: var(--space-2);
+}
+
+.list-summary {
+	margin-top: calc(var(--space-4) * -0.5);
+	margin-bottom: var(--space-3);
+	color: var(--color-muted);
+	font-size: var(--text-sm);
+}

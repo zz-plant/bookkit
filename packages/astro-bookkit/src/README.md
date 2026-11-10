@@ -6,5 +6,5 @@ It is kept accurate by `bun run check:architecture`, which fails CI when a modul
 
 Two rules apply when working in this directory:
 
-- **Imports point strictly down a tier.** Same-tier imports are legal only inside the two declared cycles. Anything else fails the gate.
+- **Imports point strictly down a tier.** Two modules on one tier never import each other, and the engine has no import cycles. Anything else fails the gate.
 - **Prefer general mechanisms over book-specific exceptions.** The engine never learns a book's name; variation belongs in `book.config.ts` or in a new engine capability.

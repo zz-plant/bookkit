@@ -1,0 +1,9 @@
+# Search tools that read .ignore (ripgrep, and the agents and editors built on it)
+# skip these: large generated or archival files whose long lines crowd out code
+# in results. Name a file on the command line to search it anyway.
+CHANGELOG.md
+docs/changelog/
+bun.lock
+corpus-judgments.json
+scratch/
+docs/assets/

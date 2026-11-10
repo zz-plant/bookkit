@@ -1,0 +1,43 @@
+.kbd-close {
+	border: none;
+	background: var(--color-bg);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-pill);
+	cursor: pointer;
+}
+
+.kbd-hint kbd {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: var(--radius-control);
+	border: 1px solid var(--color-border);
+	background: var(--color-bg);
+	font-size: var(--text-sm);
+}
+
+.keyboard-help__list {
+	list-style: none;
+	padding: 0;
+	display: grid;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-4);
+}
+
+.keyboard-help__list li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-bottom: var(--space-2);
+	border-bottom: 1px solid var(--color-border);
+}
+
+.keyboard-help__note {
+	font-size: var(--text-sm);
+	color: var(--color-muted);
+}
+
+.viewport-highlight {
+	background: var(--color-accent-soft);
+	border-radius: var(--radius-control);
+	padding: var(--space-1) var(--space-2);
+}

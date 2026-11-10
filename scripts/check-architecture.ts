@@ -11,7 +11,7 @@ import type { GovernanceResult } from "./lib/governance-output";
  * put together. Prose drifts silently; this check makes the drift fail CI.
  *
  * It verifies five claims the document makes:
- *   1. the engine module map lists every module directory, and only real ones
+ *   1. the engine module map lists every module directory once, and only real ones
  *   2. no engine module directory is empty (a phantom module is a doc lie)
  *   3. imports only ever point down a tier, so the documented layering is real
  *   4. the declared import cycles match the cycles that actually exist
@@ -105,6 +105,12 @@ for (const line of moduleRegion.split(/\r?\n/)) {
 	const [first] = backtickedTokens(line);
 	if (!first?.endsWith("/")) continue;
 	const moduleName = first.slice(0, -1);
+	if (documentedModules.has(moduleName)) {
+		errors.push(
+			`Module map lists "${moduleName}/" more than once.\n` +
+				"Keep one row per module in docs/architecture.md and delete the others.",
+		);
+	}
 	documentedModules.add(moduleName);
 
 	const cells = line

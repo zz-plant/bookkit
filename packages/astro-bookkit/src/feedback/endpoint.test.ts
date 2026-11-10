@@ -5,7 +5,6 @@ import { join } from "node:path";
 
 import {
 	createFeedbackEndpoint,
-	FEEDBACK_EMOJI,
 	FEEDBACK_RESPONSES,
 	type FeedbackEvent,
 } from "./endpoint";

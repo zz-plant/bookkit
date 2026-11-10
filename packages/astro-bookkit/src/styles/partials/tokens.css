@@ -1,0 +1,158 @@
+:root {
+	color-scheme: light;
+	/*
+   * Two voices. The book is set in Newsreader, a text face with optical sizes
+   * (display cuts at heading sizes, text cuts at body sizes). The apparatus —
+   * everything the compiler adds around the book: navigation, breadcrumbs,
+   * slugs, status, file sizes — is set in Fragment Mono. See
+   * .codex/skills/reader-typography/SKILL.md for the reasoning.
+   */
+	--font-text:
+		"Newsreader Variable", "Newsreader", "Iowan Old Style", "Charter", Georgia,
+		serif;
+	--font-apparatus:
+		"Fragment Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	--font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-serif: var(--font-text);
+	--font-mono: var(--font-apparatus);
+	/* One paper, one ink, one rubric. Greys are ink at lower strength, never new hues. */
+	--color-paper: #f7f4ed;
+	/*
+	 * The scrim behind open dialogs: ink let down toward the page, never a
+	 * neutral grey or a blur.
+	 */
+	--color-scrim: color-mix(in srgb, var(--color-ink) 52%, transparent);
+	--color-ink: #1d1b17;
+	--color-rubric: #a3301c;
+	--color-text: var(--color-ink);
+	/*
+	 * Muted is the lightest grey for words: 4.99:1 on light paper, 6.41:1 on
+	 * dark, over the 4.5:1 WCAG AA asks of text. Faint (2.46:1 and 3.24:1) is
+	 * for marks only: underlines, separators, list markers.
+	 */
+	--color-muted: color-mix(in srgb, var(--color-ink) 64%, var(--color-paper));
+	--color-faint: color-mix(in srgb, var(--color-ink) 40%, var(--color-paper));
+	--color-bg: var(--color-paper);
+	--color-surface: var(--color-paper);
+	--color-surface-muted: color-mix(
+		in srgb,
+		var(--color-ink) 4%,
+		var(--color-paper)
+	);
+	--color-border: color-mix(in srgb, var(--color-ink) 16%, var(--color-paper));
+	--color-rule: color-mix(in srgb, var(--color-ink) 28%, var(--color-paper));
+	--color-accent: var(--color-ink);
+	--color-accent-strong: var(--color-ink);
+	--color-accent-soft: color-mix(in srgb, var(--color-ink) 7%, transparent);
+	--color-on-accent: var(--color-paper);
+	--color-success: #2f6b3f;
+	--color-success-strong: #24552f;
+	--color-danger: var(--color-rubric);
+	--color-danger-strong: #86270f;
+	--color-warning: #94620d;
+	--color-warning-strong: #6f4705;
+	--radius-card: 2px;
+	--radius-control: 2px;
+	--radius-pill: 2px;
+	--shadow-soft: none;
+	--shadow-card: none;
+	--shadow-float: none;
+	--shadow-hairline: none;
+	--timing-snappy: 120ms;
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--space-8: 4rem;
+	--space-9: 5rem;
+	--text-xs: 0.75rem;
+	--text-sm: 0.875rem;
+	--text-apparatus: 0.8125rem;
+	--text-md: 1.1875rem;
+	--text-lg: 1.375rem;
+	--text-xl: 1.625rem;
+	--text-2xl: 2rem;
+	--text-3xl: 2.625rem;
+	--text-4xl: clamp(2.375rem, 1.6rem + 3.2vw, 3.5rem);
+	--leading-tight: 1.08;
+	--leading-snug: 1.3;
+	--leading-body: 1.5;
+	--tracking-wide: 0.04em;
+	--reader-content-width: 42rem;
+	--reader-line-height: 1.5;
+	--reader-font-scale: 1;
+	--reader-font-family: var(--font-text);
+	font-family: var(--font-text);
+	font-kerning: normal;
+	font-optical-sizing: auto;
+	color: var(--color-ink);
+	background-color: var(--color-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		color-scheme: dark;
+		--color-paper: #171511;
+		--color-ink: #e9e3d6;
+		--color-rubric: #e07a63;
+		/* On dark paper the ink is light, so the scrim is let down thinner. */
+		--color-scrim: color-mix(in srgb, var(--color-ink) 32%, transparent);
+		--color-success: #7cb98c;
+		--color-success-strong: #9fd0ab;
+		--color-danger-strong: #f0a08c;
+		--color-warning: #d5a453;
+		--color-warning-strong: #e8c07d;
+	}
+}
+
+:root[data-theme="dark"] {
+	color-scheme: dark;
+	--color-paper: #171511;
+	--color-ink: #e9e3d6;
+	--color-rubric: #e07a63;
+	/* On dark paper the ink is light, so the scrim is let down thinner. */
+	--color-scrim: color-mix(in srgb, var(--color-ink) 32%, transparent);
+	--color-success: #7cb98c;
+	--color-success-strong: #9fd0ab;
+	--color-danger-strong: #f0a08c;
+	--color-warning: #d5a453;
+	--color-warning-strong: #e8c07d;
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--color-paper: #f7f4ed;
+	--color-ink: #1d1b17;
+	--color-rubric: #a3301c;
+}
+
+body[data-reader-density="compact"] {
+	--reader-content-width: 46rem;
+	--reader-line-height: 1.42;
+	--reader-font-scale: 0.95;
+}
+
+body[data-reader-density="comfortable"] {
+	--reader-content-width: 42rem;
+	--reader-line-height: 1.5;
+	--reader-font-scale: 1;
+}
+
+body[data-reader-density="relaxed"] {
+	--reader-content-width: 39rem;
+	--reader-line-height: 1.62;
+	--reader-font-scale: 1.08;
+}
+
+body[data-reader-font="sans"] {
+	--reader-font-family: var(--font-sans);
+}
+
+/* Readers can pick a sans for body text; the apparatus stays mono either way. */
+
+body[data-reader-font="serif"] {
+	--reader-font-family: var(--font-serif);
+}

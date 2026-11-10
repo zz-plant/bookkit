@@ -2,21 +2,10 @@
  * Which checks a change needs, judged by the paths it touches. Pure, so the
  * mapping can be tested; `scripts/verify.ts` runs the plan.
  *
- * The mapping is CONTRIBUTING.md's verification matrix made executable:
- *
- * | Changed path                         | Checks                                              |
- * | ------------------------------------ | --------------------------------------------------- |
- * | any formattable file                 | Biome format, import order, lint (changed files)    |
- * | packages/astro-bookkit/**            | types, tests, shims, architecture, build one book   |
- * | packages/create-bookkit/**           | types, tests                                        |
- * | scripts/**                           | types (.ts only), tests                             |
- * | apps/<book>/src/content/**           | validate that book, separation, concepts, build it  |
- * | apps/<book>/src/content/.../mechanisms, corpus.json, corpus-judgments.json | mechanisms across books |
- * | apps/<book>/** (config, pages, lib)  | types, shims, validate, build that book             |
- * | docs/architecture.md                 | architecture                                        |
- * | TODOS.md                             | todos                                               |
- * | package.json, bun.lock, tsconfig, biome.json, CI | everything in the first column above    |
- * | --all (CI runs exactly this)         | every gate, plus mechanisms across books and concepts |
+ * CONTRIBUTING.md's verification matrix is rendered from this file (see
+ * verificationMatrix below), so the table and the plan cannot disagree.
+ * `--all` plans every gate CI runs; `--quick` narrows the tests gate to the
+ * change (see quickTestTargets).
  */
 
 export type Gate = {
@@ -94,17 +83,46 @@ const validateGate = (book: string, why: string): Gate => ({
 export const WORKSPACE_ONLY_GATES = ["biome", "test", "architecture"];
 
 /**
+ * The tests `--quick` runs instead of the whole suite: the engine's own tests
+ * when engine code changed (a few seconds), the generator's when it changed,
+ * and for a script, the test file beside it. The tests under `scripts/` that
+ * build books are nine tenths of the suite's time, so they wait for the full
+ * run. `null`: the change cannot be narrowed (workspace config), so run it all.
+ */
+export const quickTestTargets = (
+	changed: string[],
+	exists: (path: string) => boolean,
+): string[] | null => {
+	if (changed.some((file) => ROOT_CONFIG.test(file))) return null;
+	const targets = new Set<string>();
+	for (const file of changed) {
+		if (ENGINE.test(file)) targets.add("./packages/astro-bookkit");
+		else if (CREATE_BOOKKIT.test(file))
+			targets.add("./packages/create-bookkit");
+		else if (SCRIPTS.test(file) && file.endsWith(".ts")) {
+			const test = file.endsWith(".test.ts")
+				? file
+				: file.replace(/\.ts$/, ".test.ts");
+			if (exists(test)) targets.add(`./${test}`);
+		}
+	}
+	return [...targets].sort();
+};
+
+/**
  * `changed`: repo-relative paths, deleted ones included. `null` plans every
  * gate CI runs. `exists` filters deleted files out of formatter arguments.
  * `project` plans for a standalone project rather than this workspace.
+ * `quick` narrows the tests gate to the change; every other gate is the same.
  */
 export const planGates = (
 	changed: string[] | null,
 	books: string[],
 	exists: (path: string) => boolean = () => true,
 	profile: "workspace" | "project" = "workspace",
+	options: { quick?: boolean } = {},
 ): Gate[] =>
-	planWorkspaceGates(changed, books, exists).filter(
+	planWorkspaceGates(changed, books, exists, options.quick === true).filter(
 		(gate) =>
 			profile === "workspace" || !WORKSPACE_ONLY_GATES.includes(gate.id),
 	);
@@ -113,6 +131,7 @@ const planWorkspaceGates = (
 	changed: string[] | null,
 	books: string[],
 	exists: (path: string) => boolean,
+	quick: boolean,
 ): Gate[] => {
 	if (changed === null) {
 		return [
@@ -223,12 +242,22 @@ const planWorkspaceGates = (
 	}
 
 	if (engine || any(SCRIPTS) || any(CREATE_BOOKKIT)) {
-		add({
-			id: "test",
-			label: "tests",
-			why: "code with unit tests",
-			commands: [bun("test")],
-		});
+		const targets = quick ? quickTestTargets(changed, exists) : null;
+		if (targets === null) {
+			add({
+				id: "test",
+				label: "tests",
+				why: "code with unit tests",
+				commands: [bun("test")],
+			});
+		} else if (targets.length > 0) {
+			add({
+				id: "test",
+				label: "tests (near the change)",
+				why: "quick: the full suite still runs before a commit",
+				commands: [["bun", "test", "--parallel", ...targets]],
+			});
+		}
 	}
 
 	const changedBooks = [...new Set([...contentBooks, ...appCode])];
@@ -300,4 +329,78 @@ const planWorkspaceGates = (
 	}
 
 	return [...gates.values()];
+};
+
+const MATRIX_BOOK = "<book>";
+
+/** One row per kind of change: how the table names it, and a path that stands for it. */
+const MATRIX_ROWS: { change: string; sample: string[] | null }[] = [
+	{
+		change: "`packages/astro-bookkit/**`",
+		sample: ["packages/astro-bookkit/src/seo/book.ts"],
+	},
+	{
+		change: "`packages/create-bookkit/**`",
+		sample: ["packages/create-bookkit/src/index.ts"],
+	},
+	{ change: "`scripts/**`", sample: ["scripts/verify.ts"] },
+	{
+		change: "`apps/<book>/src/content/**`",
+		sample: [`apps/${MATRIX_BOOK}/src/content/book/chapters/01-start.mdx`],
+	},
+	{
+		change: "a mechanism file",
+		sample: [`apps/${MATRIX_BOOK}/src/content/book/mechanisms/a-mechanism.mdx`],
+	},
+	{
+		change: "`corpus.json`, `corpus-judgments.json`",
+		sample: ["corpus.json"],
+	},
+	{
+		change: "`apps/<book>/**` outside content (config, pages)",
+		sample: [`apps/${MATRIX_BOOK}/src/book.config.ts`],
+	},
+	{ change: "`docs/architecture.md`", sample: ["docs/architecture.md"] },
+	{ change: "`TODOS.md`", sample: [`apps/${MATRIX_BOOK}/TODOS.md`] },
+	{
+		change:
+			"`package.json`, `bun.lock`, `tsconfig.base.json`, `biome.json`, `.github/**`",
+		sample: ["package.json"],
+	},
+	{ change: "other prose (`README.md`, `docs/**`)", sample: ["README.md"] },
+	{ change: "`--all` (what CI runs)", sample: null },
+];
+
+/**
+ * The verification matrix in CONTRIBUTING.md: for each kind of change, the
+ * gates planGates plans for it, named as verify prints them. Rendered, not
+ * written by hand: `bun run verify -- --matrix --write` rewrites the table,
+ * and a test fails when the document differs.
+ */
+export const verificationMatrix = (): string =>
+	[
+		"| Changed path | Checks, as `verify` names them |",
+		"| --- | --- |",
+		...MATRIX_ROWS.map(({ change, sample }) => {
+			const gates = planGates(
+				sample,
+				sample === null ? [MATRIX_BOOK] : [MATRIX_BOOK, REPRESENTATIVE_BOOK],
+			);
+			const checks =
+				gates.length > 0
+					? gates.map((gate) => `\`${gate.label}\``).join(", ")
+					: "nothing";
+			return `| ${change} | ${checks} |`;
+		}),
+	].join("\n");
+
+const MATRIX_START = "<!-- verify:matrix:start -->";
+const MATRIX_END = "<!-- verify:matrix:end -->";
+
+/** `doc` with its matrix region rendered afresh; `null` when it has no such region. */
+export const withVerificationMatrix = (doc: string): string | null => {
+	const start = doc.indexOf(MATRIX_START);
+	const end = doc.indexOf(MATRIX_END);
+	if (start === -1 || end < start) return null;
+	return `${doc.slice(0, start)}${MATRIX_START}\n\n${verificationMatrix()}\n\n${doc.slice(end)}`;
 };

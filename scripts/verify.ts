@@ -1,11 +1,16 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { exitOnHelp } from "./lib/cli";
 import { isStandaloneProject } from "./lib/project";
-import { type Gate, planGates } from "./lib/verify-plan";
+import {
+	type Gate,
+	planGates,
+	verificationMatrix,
+	withVerificationMatrix,
+} from "./lib/verify-plan";
 import { failedWorkspaces } from "./lib/workspace-output";
 
 /**
@@ -20,19 +25,30 @@ exitOnHelp({
 	summary:
 		"Runs the checks a change needs, judged by the files it touches: changes\nsince origin/main, committed or not. Content checks report only\nfindings in the files you changed.",
 	usage: [
-		"bun run verify [--all] [--base <ref>] [--skip <gate>] [--list] [--json]",
+		"bun run verify [--all [--warnings] | --quick] [--base <ref>] [--skip <gate>] [--list] [--json]",
+		"bun run verify --matrix [--write]",
 	],
 	options: [
 		["--all", "Every gate CI runs; needs no git history"],
+		["--warnings", "With --all: list each warning, not a count per check"],
+		[
+			"--quick",
+			"While iterating: only the tests beside the change, not the whole suite",
+		],
 		["--base <ref>", "Compare against another ref"],
 		["--skip <gate>", "Leave one gate out, by id (--list --json shows ids)"],
 		["--list", "Show the plan; run nothing"],
 		["--json", "One JSON summary on stdout"],
+		[
+			"--matrix",
+			"Print the path-to-checks table; --write puts it in CONTRIBUTING.md",
+		],
 	],
 	notes: "Exits 1 if any check fails.",
 	examples: [
 		"bun run verify",
 		"bun run verify -- --all",
+		"bun run verify -- --quick",
 		"bun run verify -- --list",
 	],
 });
@@ -42,8 +58,39 @@ if (!existsSync(join(root, "node_modules"))) {
 	console.error("node_modules is missing. Run bun install first.");
 	process.exit(1);
 }
+if (process.argv.includes("--matrix")) {
+	if (!process.argv.includes("--write")) {
+		console.log(verificationMatrix());
+		process.exit(0);
+	}
+	const docPath = join(root, "CONTRIBUTING.md");
+	const doc = existsSync(docPath) ? readFileSync(docPath, "utf8") : null;
+	const next = doc === null ? null : withVerificationMatrix(doc);
+	if (next === null) {
+		console.error(
+			"CONTRIBUTING.md has no <!-- verify:matrix:start --> … <!-- verify:matrix:end --> region to hold the table.",
+		);
+		process.exit(1);
+	}
+	if (next !== doc) writeFileSync(docPath, next);
+	console.log(
+		next === doc
+			? "CONTRIBUTING.md already holds the current table."
+			: "CONTRIBUTING.md: verification matrix rewritten.",
+	);
+	process.exit(0);
+}
+
 const all = process.argv.includes("--all");
+const quick = process.argv.includes("--quick");
+if (all && quick) {
+	console.error(
+		"--all runs every gate and --quick narrows the tests to a change. Pass one of them.",
+	);
+	process.exit(1);
+}
 const listOnly = process.argv.includes("--list");
+const listWarnings = process.argv.includes("--warnings");
 const asJson = process.argv.includes("--json");
 
 const git = (args: string[]): string[] => {
@@ -97,12 +144,20 @@ const skipped = new Set(
 		process.argv[index - 1] === "--skip" ? [arg] : [],
 	),
 );
-const gates = planGates(
-	all ? null : changed,
-	listBookDirs(),
-	(file) => existsSync(join(root, file)),
-	isStandaloneProject(root) ? "project" : "workspace",
-).filter((gate) => !skipped.has(gate.id));
+const plan = (options: { quick: boolean }) =>
+	planGates(
+		all ? null : changed,
+		listBookDirs(),
+		(file) => existsSync(join(root, file)),
+		isStandaloneProject(root) ? "project" : "workspace",
+		options,
+	).filter((gate) => !skipped.has(gate.id));
+const gates = plan({ quick });
+/** Set when --quick left tests out, so a pass is never read as the full gate. */
+const quickNote =
+	quick && plan({ quick: false }).some((gate) => gate.id === "test")
+		? "Quick run: only the tests beside the change ran. Run bun run verify before you commit."
+		: undefined;
 
 const describeScope = () =>
 	all
@@ -247,6 +302,14 @@ for (const gate of gates) {
 					? `${finding.message}: ${join(root, finding.file)}`
 					: finding.message,
 			);
+		// Every gate means every book's standing warnings, the same ones on each
+		// run. A count keeps a passing run short; --warnings lists them.
+		if (level === "warning" && all && !listWarnings && messages.length > 0) {
+			console.log(
+				`      ${messages.length} warning${messages.length === 1 ? "" : "s"} (--warnings lists them)`,
+			);
+			continue;
+		}
 		for (const line of groupFindingsByFile(messages)) {
 			console.log(`      ${level}: ${line}`);
 		}
@@ -266,6 +329,8 @@ if (asJson) {
 				base,
 				changed,
 				ok: failed.length === 0,
+				quick,
+				note: quickNote,
 				gates: results.map(({ id, label, ok, seconds, findings, output }) => ({
 					id,
 					label,
@@ -286,6 +351,7 @@ if (asJson) {
 			? `\nAll ${results.length} checks passed.`
 			: `\n${failed.length} of ${results.length} checks failed: ${failed.map(failedLabel).join(", ")}.`,
 	);
+	if (quickNote) console.log(quickNote);
 }
 
 process.exit(failed.length === 0 ? 0 : 1);

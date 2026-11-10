@@ -225,6 +225,7 @@ describe("ci.yml", () => {
 		// wraps both run as JavaScript under Bun, as they do here.
 		writeFileSync(
 			join(scratch, "wrangler-real"),
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: the template literal belongs to the script this writes
 			'#!/usr/bin/env node\nconsole.log(`real wrangler: ${process.argv.slice(2).join(" ")}`);\n',
 		);
 		chmodSync(join(scratch, "wrangler"), 0o755);

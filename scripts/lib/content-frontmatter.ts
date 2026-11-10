@@ -58,11 +58,3 @@ export function arrayValue(value: FrontmatterValue): string[] {
 		.filter((item): item is string => typeof item === "string")
 		.map((item) => item.trim());
 }
-
-function coerceValue(value: string): FrontmatterValue {
-	const cleaned = value.replace(/^"|"$/g, "").replace(/^'|'$/g, "");
-	if (cleaned === "true") return true;
-	if (cleaned === "false") return false;
-	if (cleaned !== "" && !Number.isNaN(Number(cleaned))) return Number(cleaned);
-	return cleaned;
-}

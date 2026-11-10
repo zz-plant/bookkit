@@ -1,0 +1,114 @@
+.site-main {
+	max-width: var(--reader-content-width);
+	width: 100%;
+	margin: 0 auto;
+	padding: var(--space-7) var(--space-6) var(--space-8);
+}
+
+.site-main :where(p, li, blockquote, dd) {
+	font-family: var(--reader-font-family);
+	font-size: calc(var(--text-md) * var(--reader-font-scale));
+	line-height: var(--reader-line-height);
+	font-variant-numeric: oldstyle-nums proportional-nums;
+	text-wrap: pretty;
+	hanging-punctuation: first allow-end last;
+}
+
+/* Apparatus blocks keep the apparatus voice even when they contain paragraphs or list items. */
+.site-main
+	:where(
+		.breadcrumb,
+		.export-panel,
+		.chapter-meta-panel,
+		.chapter-mechanisms,
+		.chapter-toc-mobile,
+		.chapter-pagination,
+		.next-steps__links,
+		.eyebrow,
+		.list-tools,
+		.feedback-widget
+	)
+	:where(p, li, .meta) {
+	font-family: inherit;
+	font-size: inherit;
+	line-height: 1.45;
+	font-variant-numeric: normal;
+	color: inherit;
+}
+
+/* Lists hang their markers in the margin so the text edge stays straight. */
+.site-main :where(article, .content-block, .chapter-content) :where(ul) {
+	list-style-type: "\2013\00a0\00a0";
+	padding-left: 1.25em;
+}
+
+.site-main
+	:where(article, .content-block, .chapter-content)
+	:where(ul, ol)
+	> li::marker {
+	color: var(--color-faint);
+}
+
+.site-main :where(article, .content-block, .chapter-content) :where(li + li) {
+	margin-top: var(--space-1);
+}
+
+.site-main :where(blockquote) {
+	margin: var(--space-5) 0;
+	padding-left: var(--space-4);
+	border-left: 1px solid var(--color-rule);
+	font-style: italic;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	font-family: var(--font-text);
+	font-weight: 500;
+	line-height: var(--leading-tight);
+	letter-spacing: -0.005em;
+	margin-top: var(--space-6);
+	margin-bottom: var(--space-3);
+	text-wrap: balance;
+}
+
+h1 {
+	font-size: var(--text-4xl);
+	font-weight: 450;
+	letter-spacing: -0.015em;
+	margin-top: 0;
+}
+
+h2 {
+	font-size: var(--text-xl);
+}
+
+h3 {
+	font-size: var(--text-lg);
+}
+
+h4 {
+	font-size: var(--text-md);
+	font-style: italic;
+	font-weight: 400;
+}
+
+p {
+	margin-top: 0;
+	margin-bottom: var(--space-4);
+	color: var(--color-ink);
+}
+
+@media (max-width: 720px) {
+	.site-main :where(p, li) {
+		hyphens: auto;
+		hyphenate-limit-chars: 7 3 3;
+	}
+}
+
+.lede {
+	font-size: var(--text-lg);
+	line-height: var(--leading-snug);
+	color: var(--color-ink);
+}

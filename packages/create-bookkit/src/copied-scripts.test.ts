@@ -35,12 +35,15 @@ describe("vendoredScripts", () => {
 		// verify's gates, the bookkit CLI, and the MCP tools start these by path,
 		// not by import, so the walk from ENTRY_SCRIPTS cannot reach them.
 		const read = (path: string) => readFileSync(join(repoRoot, path), "utf8");
-		const handlers = "packages/astro-bookkit/src/mcp/tool-handlers";
+		const readAll = (dir: string) =>
+			readdirSync(join(repoRoot, dir))
+				.filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+				.map((name) => read(`${dir}/${name}`));
 		const sources = [
 			read("scripts/bookkit.ts"),
-			...readdirSync(join(repoRoot, handlers))
-				.filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-				.map((name) => read(`${handlers}/${name}`)),
+			// The CLI's commands, which bookkit.ts dispatches to.
+			...readAll("scripts/lib/commands"),
+			...readAll("packages/astro-bookkit/src/mcp/tool-handlers"),
 		];
 		const started = new Set([
 			...planGates(null, ["a-book"], () => true, "project").flatMap((gate) =>

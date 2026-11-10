@@ -209,8 +209,14 @@ function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
 		console.log(`\nB1: not measured (${b1.unavailable}).\n`);
 		return;
 	}
+	const days = (count: number) => `${count} day${count === 1 ? "" : "s"}`;
+	const clock = b1.daysPastKillBy
+		? ` · past killBy (${b1.killBy}) by ${days(b1.daysPastKillBy)}`
+		: b1.daysLeft !== undefined
+			? ` · ${days(b1.daysLeft)} to ${b1.killBy}`
+			: "";
 	console.log(
-		`\nB1 · one argument, three drafts · ${b1.verdict}${b1.daysLeft !== undefined ? ` · ${b1.daysLeft} days to ${b1.killBy}` : ""}`,
+		`\n${b1.bet}${b1.title ? ` · ${b1.title}` : ""} · ${b1.verdict}${clock}`,
 	);
 	console.log(`  ${b1.summary}`);
 	console.log(
@@ -219,6 +225,32 @@ function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
 	for (const chapter of b1.drafted) {
 		console.log(
 			`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : chapter.mechanisms.length ? " binds existing mechanisms only" : ` binds no mechanism (bun run bookkit map ${chapter.book})`}`,
+		);
+	}
+	const excluded = b1.engine.excluded.reduce((sum, e) => sum + e.lines, 0);
+	if (b1.engine.lines > 0 && excluded > 0) {
+		console.log(
+			`  Engine: ${b1.engine.lines} lines, ${Math.round((excluded / b1.engine.lines) * 100)}% in work this bet excludes (${b1.engine.excluded.map((e) => `${e.what} ${e.lines}`).join(", ")}).`,
+		);
+	}
+	if (b1.daysPastKillBy) {
+		console.log(
+			`\n  Next: the author rules on ${b1.bet} in docs/bets.md (extend, drop, or replace). Until then, work is maintenance: keep it small.`,
+		);
+	} else if (b1.verdict === "in progress" && b1.nextStubs.length > 0) {
+		console.log(
+			`\n  Next: write a stub in ${b1.focusBook} past its threshold.`,
+		);
+	}
+	if (b1.daysPastKillBy && b1.nextStubs.length > 0) {
+		console.log(`  Stubs its test waits on, in ${b1.focusBook}:`);
+	}
+	for (const stub of b1.nextStubs) {
+		console.log(`    ${stub.file} (${stub.words} of ${stub.threshold} words)`);
+	}
+	if (b1.nextStubs.length > 0) {
+		console.log(
+			`    bun run bookkit check <file> shows what a chapter still lacks.`,
 		);
 	}
 	console.log("");

@@ -5,6 +5,7 @@ import { listBookDirs, optionalArg, repoRoot } from "./_lib";
 import { type Finding, groupFindingsByFile } from "./lib/authoring";
 import { betNote, readBet } from "./lib/bet-scope";
 import { exitOnHelp } from "./lib/cli";
+import { conflictMarkersIn } from "./lib/conflict-markers";
 import { isStandaloneProject } from "./lib/project";
 import {
 	type Gate,
@@ -115,10 +116,14 @@ const resolveBase = (): string | null => {
 
 const base = resolveBase();
 const mergeBase = base ? git(["merge-base", "HEAD", base])[0] : undefined;
+// Mid-merge, the index holds the other side's changes too. Compared with
+// MERGE_HEAD it holds only what this branch and the resolution changed, so a
+// merge of main is not checked as if this change had written it.
+const merging = git(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"])[0];
 const changed = [
 	...new Set([
 		...(mergeBase ? git(["diff", "--name-only", mergeBase, "HEAD"]) : []),
-		...git(["diff", "--name-only", "--cached"]),
+		...git(["diff", "--name-only", "--cached", ...(merging ? [merging] : [])]),
 		...git(["diff", "--name-only"]),
 		...git(["ls-files", "--others", "--exclude-standard"]),
 	]),
@@ -135,6 +140,34 @@ if (!all && !base) {
 				? `No ref "${requested}" to compare against. Pass --base <ref> with a branch or commit that exists, or --all for every gate.`
 				: "No base to compare against (tried origin/main and main). Pass --base <ref>, or --all for every gate.",
 	);
+	process.exit(1);
+}
+
+// A leftover conflict marker passes every gate when it sits in prose or data.
+const TEXT =
+	/\.(md|mdx|json|jsonc|ya?ml|toml|ts|tsx|js|jsx|mjs|cjs|css|astro|sh|txt)$/;
+const markers = changed
+	.filter((file) => TEXT.test(file) && existsSync(join(root, file)))
+	.flatMap((file) =>
+		conflictMarkersIn(file, readFileSync(join(root, file), "utf8")),
+	);
+if (markers.length > 0 && !listOnly) {
+	const lines = markers.map(
+		({ file, line, text }) => `  ${file}:${line}  ${text}`,
+	);
+	if (asJson) {
+		console.log(
+			JSON.stringify(
+				{ base, changed, ok: false, conflictMarkers: markers },
+				null,
+				2,
+			),
+		);
+	} else {
+		console.error(
+			`VERIFY  conflict markers left in ${new Set(markers.map((m) => m.file)).size} file(s):\n${lines.join("\n")}\nResolve them, then run verify again.`,
+		);
+	}
 	process.exit(1);
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { missingBaselineReason } from "./b1-report";
+import { missingBaselineReason } from "./bet-report";
 
 describe("missingBaselineReason", () => {
 	it("gives a shallow clone the one command that restores the baseline", () => {

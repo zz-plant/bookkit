@@ -62,6 +62,35 @@ describe("outOfBet", () => {
 	});
 });
 
+describe("new books", () => {
+	const closed = { ...bet, knownBooks: ["running-hot"] };
+
+	it("flags a file in a book the bet did not know", () => {
+		expect(
+			outOfBet(
+				[
+					"apps/running-hot/src/book.config.ts",
+					"apps/match-to-july/src/book.config.ts",
+				],
+				closed,
+			),
+		).toEqual([
+			{ what: "new books", files: ["apps/match-to-july/src/book.config.ts"] },
+		]);
+	});
+
+	it("checks nothing when the bet lists no books", () => {
+		expect(outOfBet(["apps/anything/src/book.config.ts"], bet)).toEqual([]);
+	});
+
+	it("reads the test's numbers, defaulting to B1's", () => {
+		expect(bet.test).toEqual({ chapters: 3, maxNewMechanisms: 1 });
+		expect(
+			parseBet({ bet: { id: "B2", test: { chapters: 5 } } })?.test,
+		).toEqual({ chapters: 5, maxNewMechanisms: 1 });
+	});
+});
+
 describe("betNote", () => {
 	const styles = ["packages/astro-bookkit/src/styles/bookkit.css"];
 

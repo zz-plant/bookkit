@@ -12,8 +12,9 @@ import { loadBookConfigSummary, summarizeBook } from "./authoring";
 import { type Bet, daysPastKillBy, parseBet } from "./bet-scope";
 
 /**
- * Bet B1's test, measured (docs/bets.md): the next three chapters drafted
- * introduce at most one new mechanism between them. Compares the corpus books
+ * The active bet's test, measured (docs/bets.md): the next chapters drafted
+ * introduce at most a set number of new mechanisms between them (`bet.test`
+ * in corpus.json; B1 set three chapters and one mechanism). Compares the corpus books
  * now with the last commit before the bet started (`bet.since` in
  * corpus.json), using git history only; nothing is recorded by hand.
  */
@@ -39,7 +40,7 @@ export type EngineShare = {
 	excluded: { what: string; lines: number }[];
 };
 
-export type B1Report = {
+export type BetReport = {
 	bet: string;
 	title?: string;
 	since: string;
@@ -170,9 +171,9 @@ export const missingBaselineReason = (since: string, shallow: boolean) =>
 		? `this clone is shallow, so it has no commit before ${since}. Fetch the rest of its history once: git fetch --unshallow origin`
 		: `no commit before ${since} in this repository's history`;
 
-export const buildB1Report = async (
+export const buildBetReport = async (
 	now: Date = new Date(),
-): Promise<B1Report | { unavailable: string }> => {
+): Promise<BetReport | { unavailable: string }> => {
 	const corpusPath = join(repoRoot(), "corpus.json");
 	if (!existsSync(corpusPath)) return { unavailable: "no corpus.json" };
 	const corpus = JSON.parse(readFileSync(corpusPath, "utf8")) as {
@@ -241,14 +242,15 @@ export const buildB1Report = async (
 	}
 	drafted.sort((a, b) => a.changedAt.localeCompare(b.changedAt));
 
-	const firstThree = drafted.slice(0, 3);
+	const { chapters: wanted, maxNewMechanisms: allowed } = bet.test;
+	const counted = drafted.slice(0, wanted);
 	const introduced = new Set(
-		firstThree.flatMap((chapter) => chapter.newMechanisms),
+		counted.flatMap((chapter) => chapter.newMechanisms),
 	);
 	const verdict =
-		firstThree.length < 3
+		counted.length < wanted
 			? "in progress"
-			: introduced.size <= 1
+			: introduced.size <= allowed
 				? "passing"
 				: "failing";
 	const killBy = bet.killBy;
@@ -260,8 +262,8 @@ export const buildB1Report = async (
 		: undefined;
 	const summary =
 		verdict === "in progress"
-			? `${drafted.length} of 3 chapters drafted since ${since}; they introduce ${introduced.size} new mechanism(s) so far (at most 1 allowed).`
-			: `The first 3 chapters drafted since ${since} introduce ${introduced.size} new mechanism(s) (at most 1 allowed).`;
+			? `${drafted.length} of ${wanted} chapters drafted since ${since}; they introduce ${introduced.size} new mechanism(s) so far (at most ${allowed} allowed).`
+			: `The first ${wanted} chapters drafted since ${since} introduce ${introduced.size} new mechanism(s) (at most ${allowed} allowed).`;
 
 	return {
 		bet: bet.id,

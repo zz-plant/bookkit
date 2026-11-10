@@ -4,7 +4,8 @@ import { extractPageFacts } from "../../../packages/astro-bookkit/src/markdown/p
 import { shortBookTitle } from "../../../packages/astro-bookkit/src/seo/page-meta";
 import { repoRoot } from "../../_lib";
 import { summarizeBook } from "../authoring";
-import { buildB1Report } from "../b1-report";
+import { buildBetReport } from "../bet-report";
+import { readBet } from "../bet-scope";
 import { writeFocusBook } from "../cli";
 import { formatCoverageMap, loadCoverageMap } from "../coverage-map";
 import { args, books, focusBook, requireBook } from "./context";
@@ -52,9 +53,11 @@ export async function mapCommand() {
 export async function betsCommand() {
 	// The maintainers' own measure of the active bet (docs/bets.md), kept
 	// out of the default output, which is for any author.
-	const report = await buildB1Report();
+	const report = await buildBetReport();
 	if (args.includes("--json")) {
-		console.log(JSON.stringify({ b1: report }, null, 2));
+		// Keyed by the bet's id, lowercased: `b1` for B1, as before.
+		const key = (readBet(repoRoot())?.id ?? "bet").toLowerCase();
+		console.log(JSON.stringify({ [key]: report }, null, 2));
 	} else {
 		printBets(report);
 	}
@@ -194,52 +197,54 @@ async function printStatus(book?: string) {
 	);
 }
 
-/** Bet B1's test as measured from git history (docs/bets.md). */
-function printBets(b1: Awaited<ReturnType<typeof buildB1Report>>) {
-	if ("unavailable" in b1) {
-		console.log(`\nB1: not measured (${b1.unavailable}).\n`);
+/** The active bet's test as measured from git history (docs/bets.md). */
+function printBets(bet: Awaited<ReturnType<typeof buildBetReport>>) {
+	if ("unavailable" in bet) {
+		console.log(
+			`\n${readBet(repoRoot())?.id ?? "Bet"}: not measured (${bet.unavailable}).\n`,
+		);
 		return;
 	}
 	const days = (count: number) => `${count} day${count === 1 ? "" : "s"}`;
-	const clock = b1.daysPastKillBy
-		? ` · past killBy (${b1.killBy}) by ${days(b1.daysPastKillBy)}`
-		: b1.daysLeft !== undefined
-			? ` · ${days(b1.daysLeft)} to ${b1.killBy}`
+	const clock = bet.daysPastKillBy
+		? ` · past killBy (${bet.killBy}) by ${days(bet.daysPastKillBy)}`
+		: bet.daysLeft !== undefined
+			? ` · ${days(bet.daysLeft)} to ${bet.killBy}`
 			: "";
 	console.log(
-		`\n${b1.bet}${b1.title ? ` · ${b1.title}` : ""} · ${b1.verdict}${clock}`,
+		`\n${bet.bet}${bet.title ? ` · ${bet.title}` : ""} · ${bet.verdict}${clock}`,
 	);
-	console.log(`  ${b1.summary}`);
+	console.log(`  ${bet.summary}`);
 	console.log(
-		`  Mechanisms across the corpus books: ${b1.mechanisms.before} at the start, ${b1.mechanisms.now} now${b1.mechanisms.added.length ? `; new: ${b1.mechanisms.added.join(", ")}` : ""}${b1.mechanisms.retired.length ? `; merged away: ${b1.mechanisms.retired.join(", ")}` : ""}.`,
+		`  Mechanisms across the corpus books: ${bet.mechanisms.before} at the start, ${bet.mechanisms.now} now${bet.mechanisms.added.length ? `; new: ${bet.mechanisms.added.join(", ")}` : ""}${bet.mechanisms.retired.length ? `; merged away: ${bet.mechanisms.retired.join(", ")}` : ""}.`,
 	);
-	for (const chapter of b1.drafted) {
+	for (const chapter of bet.drafted) {
 		console.log(
 			`  ✎ ${chapter.file} (${chapter.words} words)${chapter.newMechanisms.length ? ` introduces ${chapter.newMechanisms.join(", ")}` : chapter.mechanisms.length ? " binds existing mechanisms only" : ` binds no mechanism (bun run bookkit map ${chapter.book})`}`,
 		);
 	}
-	const excluded = b1.engine.excluded.reduce((sum, e) => sum + e.lines, 0);
-	if (b1.engine.lines > 0 && excluded > 0) {
+	const excluded = bet.engine.excluded.reduce((sum, e) => sum + e.lines, 0);
+	if (bet.engine.lines > 0 && excluded > 0) {
 		console.log(
-			`  Engine: ${b1.engine.lines} lines, ${Math.round((excluded / b1.engine.lines) * 100)}% in work this bet excludes (${b1.engine.excluded.map((e) => `${e.what} ${e.lines}`).join(", ")}).`,
+			`  Engine: ${bet.engine.lines} lines, ${Math.round((excluded / bet.engine.lines) * 100)}% in work this bet excludes (${bet.engine.excluded.map((e) => `${e.what} ${e.lines}`).join(", ")}).`,
 		);
 	}
-	if (b1.daysPastKillBy) {
+	if (bet.daysPastKillBy) {
 		console.log(
-			`\n  Next: the author rules on ${b1.bet} in docs/bets.md (extend, drop, or replace). Until then, work is maintenance: keep it small.`,
+			`\n  Next: the author rules on ${bet.bet} in docs/bets.md (extend, drop, or replace). Until then, work is maintenance: keep it small.`,
 		);
-	} else if (b1.verdict === "in progress" && b1.nextStubs.length > 0) {
+	} else if (bet.verdict === "in progress" && bet.nextStubs.length > 0) {
 		console.log(
-			`\n  Next: write a stub in ${b1.focusBook} past its threshold.`,
+			`\n  Next: write a stub in ${bet.focusBook} past its threshold.`,
 		);
 	}
-	if (b1.daysPastKillBy && b1.nextStubs.length > 0) {
-		console.log(`  Stubs its test waits on, in ${b1.focusBook}:`);
+	if (bet.daysPastKillBy && bet.nextStubs.length > 0) {
+		console.log(`  Stubs its test waits on, in ${bet.focusBook}:`);
 	}
-	for (const stub of b1.nextStubs) {
+	for (const stub of bet.nextStubs) {
 		console.log(`    ${stub.file} (${stub.words} of ${stub.threshold} words)`);
 	}
-	if (b1.nextStubs.length > 0) {
+	if (bet.nextStubs.length > 0) {
 		console.log(
 			`    bun run bookkit check <file> shows what a chapter still lacks.`,
 		);

@@ -6,6 +6,14 @@
 		"since": "2026-10-07",
 		"killBy": "2026-11-04",
 		"focusBook": "running-hot",
+		"test": { "chapters": 3, "maxNewMechanisms": 1 },
+		"knownBooks": [
+			"bad-people",
+			"running-hot",
+			"crumple-zone",
+			"on-call",
+			"match-to-july"
+		],
 		"isNot": [
 			{
 				"what": "reader UI",

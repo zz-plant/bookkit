@@ -11,6 +11,11 @@ This file holds the current month, newest first. Earlier months are in `docs/cha
 - **`bookkit bets` names the next step.** It now shows days past `killBy` instead of a negative count, the focus book's stubs with their words against the stub threshold, and the share of engine lines under excluded paths. `--json` adds `title`, `daysPastKillBy`, `focusBook`, `nextStubs`, and `engine`.
 - **Closed debt rows moved.** The twelve `Done` rows of `docs/tech-debt-register.md` are, unchanged, in `docs/changelog/tech-debt-closed.md`; the register lists open debt only.
 - **`validate:release:seo` is gone.** It ran `bun run validate` and nothing named it. Use `bun run validate`.
+- **`verify` fails on leftover conflict markers.** Before any gate, it reads the changed text files for lines that open with a merge's `<`, `>`, or `|` marker and exits 1 naming each file and line. A marker in Markdown or JSON passed every gate before. `=======` alone is not counted: it is also a Markdown heading underline.
+- **`verify` during a merge checks this branch's side.** With a merge in progress it compares the index with `MERGE_HEAD`, so the other side's files are not planned as if the change had written them (a merge of `main` planned 18 checks where the branch needed 7).
+- **`CHANGELOG.md` merges by union.** `.gitattributes` sets `merge=union` on it, so two branches that each add an entry at the top merge locally with both kept and no markers. GitHub's own mergeability check ignores merge drivers, so a PR can still show a conflict there until `main` is merged in locally.
+- **The bet report is no longer B1's alone.** `scripts/lib/b1-report.ts` is `bet-report.ts`. The test's numbers come from `bet.test` in `corpus.json` (`chapters`, `maxNewMechanisms`; 3 and 1 when unset), and `bookkit bets --json` keys the report by the bet's id in lower case, which is still `b1` today.
+- **A new book counts as out of bet.** `bet.knownBooks` lists the books that exist; a change under `apps/<book>/` for any other book is noted as "new books". Leave the field out to turn the check off.
 
 ## 2026-11-10 — Reader pages say what a reader needs, in a reader's words
 

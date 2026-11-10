@@ -21,6 +21,10 @@ export type Bet = {
 	killBy?: string;
 	/** The book whose stubs are the next chapters to write. */
 	focusBook?: string;
+	/** The books that existed when the bet excluded new ones; unset: not checked. */
+	knownBooks?: string[];
+	/** The test: this many chapters drafted, binding at most this many new mechanisms. */
+	test: { chapters: number; maxNewMechanisms: number };
 	isNot: BetExclusion[];
 };
 
@@ -44,8 +48,19 @@ export const parseBet = (corpus: unknown): Bet | null => {
 				return what && paths.length > 0 ? [{ what, paths }] : [];
 			})
 		: [];
+	const test = (raw.test ?? {}) as Record<string, unknown>;
+	const count = (value: unknown, fallback: number) =>
+		typeof value === "number" && Number.isInteger(value) && value >= 0
+			? value
+			: fallback;
+	const knownBooks = strings(raw.knownBooks);
 	return {
 		id,
+		knownBooks: knownBooks.length > 0 ? knownBooks : undefined,
+		test: {
+			chapters: count(test.chapters, 3),
+			maxNewMechanisms: count(test.maxNewMechanisms, 1),
+		},
 		title: text(raw.title),
 		since: text(raw.since),
 		killBy: text(raw.killBy),
@@ -75,13 +90,24 @@ export const daysPastKillBy = (bet: Bet, now: Date): number =>
 export type OutOfBet = { what: string; files: string[] };
 
 /** The changed files that fall under work the bet excludes, by exclusion. */
-export const outOfBet = (changed: string[], bet: Bet): OutOfBet[] =>
-	bet.isNot.flatMap(({ what, paths }) => {
+export const outOfBet = (changed: string[], bet: Bet): OutOfBet[] => {
+	const byPath = bet.isNot.flatMap(({ what, paths }) => {
 		const files = changed.filter((file) =>
 			paths.some((prefix) => file.startsWith(prefix)),
 		);
 		return files.length > 0 ? [{ what, files }] : [];
 	});
+	const known = bet.knownBooks;
+	const inNewBook = known
+		? changed.filter((file) => {
+				const book = file.match(/^apps\/([^/]+)\//)?.[1];
+				return book !== undefined && !known.includes(book);
+			})
+		: [];
+	return inNewBook.length > 0
+		? [...byPath, { what: "new books", files: inNewBook }]
+		: byPath;
+};
 
 /**
  * What `verify` says about a change and the bet. Never fails a run: the

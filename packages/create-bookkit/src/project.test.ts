@@ -86,6 +86,25 @@ describe("createProject", () => {
 		expect(stamp.scripts).toEqual(source.scripts);
 	});
 
+	it("carries no Markdown link to a file the project does not have", () => {
+		// The project holds one book and the engine, not the repository's docs/,
+		// so a link written relative to the repository is dead once copied here.
+		createProject(source, dir, { book: "garden", title: "Garden" });
+		const dead: string[] = [];
+		for (const file of listFilesRecursive(dir)) {
+			if (!file.endsWith(".md") || file.includes("node_modules")) continue;
+			const text = read(file).replace(/```[\s\S]*?```/g, "");
+			for (const [, target] of text.matchAll(/\]\(([^)\s#]+)[^)]*\)/g)) {
+				if (/^[a-z][a-z+.-]*:/i.test(target) || target.startsWith("/"))
+					continue;
+				if (!existsSync(join(dir, file, "..", target))) {
+					dead.push(`${file} → ${target}`);
+				}
+			}
+		}
+		expect(dead).toEqual([]);
+	});
+
 	it("lists what it would overwrite; files it does not own are no conflict", () => {
 		write("scripts/deploy-prod.sh", "#!/bin/sh\n");
 		write("packages/mylib/index.ts", "export {};\n");

@@ -1,6 +1,6 @@
 # Engine source map
 
-The module map lives in [`docs/architecture.md`](../../../docs/architecture.md) — one table naming every directory here, what it owns, and its import tier.
+The module map lives in [`docs/architecture.md`](https://github.com/zz-plant/bookkit/blob/main/docs/architecture.md) — one table naming every directory here, what it owns, and its import tier.
 
 It is kept accurate by `bun run check:architecture`, which fails CI when a module is added, renamed, removed, or re-layered without the document being updated. That is why the map is not duplicated here: a second copy is a copy that drifts.
 

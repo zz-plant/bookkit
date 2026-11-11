@@ -111,7 +111,7 @@ This separation means engine upgrades (new export formats, AI features, MCP tool
 
 ## Quick start
 
-The package is not published to npm. Start a book in this workspace with `bun run bookkit new book <slug>`, or a standalone project with the engine copied in with `bun run create-bookkit <folder>` from a clone (see [`packages/create-bookkit/README.md`](../create-bookkit/README.md)). Either way the book app's `astro.config.mjs` adds the `bookkit()` integration from `@bookkit/astro-bookkit/integration`, and `src/book.config.ts` is typed `as const satisfies BookConfig`.
+The package is not published to npm. Start a book in this workspace with `bun run bookkit new book <slug>`, or a standalone project with the engine copied in with `bun run create-bookkit <folder>` from a clone (see [`packages/create-bookkit/README.md`](https://github.com/zz-plant/bookkit/blob/main/packages/create-bookkit/README.md)). Either way the book app's `astro.config.mjs` adds the `bookkit()` integration from `@bookkit/astro-bookkit/integration`, and `src/book.config.ts` is typed `as const satisfies BookConfig`.
 
 Content goes in `src/content/book/` as MDX files with typed frontmatter. Run `bun run bookkit dev` to iterate and `bun run bookkit check` to check structure; the root [`README.md`](../../README.md) covers every command.
 

@@ -4,6 +4,11 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-11 — No dead links in a project made by create-bookkit
+
+- **A new book's README links to the guide on GitHub.** Its link to "A book's own pages" was `../../docs/guide/concepts.md`, which resolves inside this repository and nowhere in a project `create-bookkit` makes, since that project holds one book and the engine but not `docs/`. The engine's own README (to `packages/create-bookkit/README.md`) and `src/README.md` (to `docs/architecture.md`) had the same problem in the copy a project vendors. All three now link to the file on GitHub, and a create-bookkit test fails on any relative Markdown link to a file the project does not have.
+- **Migration:** none. A book made earlier keeps its README, which is the author's; change the link by hand if it matters.
+
 ## 2026-11-10 — Social preview no longer cropped
 
 - **`docs/assets/social-preview.png` is redrawn at 1280×640.** The On-Call Runbook panel on its right ran off the right and bottom edges and cut its steps short. It is now a whole card, 64px from every edge, with three steps that fit.

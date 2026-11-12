@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../BaseLayout.astro";
+import ActionsByTrigger from "../../components/ActionsByTrigger.astro";
 import RelatedBooks from "../../components/RelatedBooks.astro";
 import DraftBookNote from "../../components/DraftBookNote.astro";
 import ResumeReading from "../../components/ResumeReading.astro";
@@ -8,7 +9,9 @@ import {
 	resolveLocalizedContent,
 } from "../../localization";
 import { bookEntryPoints, bookConfig } from "../runtime";
+import { frameFrontDoor } from "../../frames/defaults";
 import {
+	actionsByTrigger,
 	type BookConfig,
 	chapterLinksInReadingOrder,
 	formatTranslationCompleteness,
@@ -61,34 +64,51 @@ const toolkit = resolveLocalizedContent(toolkitIndex, { locale: localeKey });
 const glossary = resolveLocalizedContent(glossaryIndex, { locale: localeKey });
 const examples = resolveLocalizedContent(exampleIndex, { locale: localeKey });
 const metaDescription = config.site.defaultMeta?.description;
+// A frame whose front door is `actions` (runbook) leads with every action
+// under the situation that calls for it. With no action yet, it falls back to
+// the reading front door.
+const actions =
+	frameFrontDoor(config.frame?.slug) === "actions"
+		? actionsByTrigger(
+				toolkit.entries,
+				mechanisms.entries,
+				(config.mechanisms ?? []).map((mechanism) => mechanism.slug),
+			)
+		: [];
+const leadsWithActions = actions.length > 0;
 // A section with nothing in it yet is not worth a link from the front door.
 const stats = [
 	{
 		label: "Chapters",
+		one: "chapter",
 		href: readRoutes.chapters,
 		count: chapters.entries.length,
 		completeness: chapters.completeness,
 	},
 	{
 		label: "Mechanisms",
+		one: "mechanism",
 		href: readRoutes.mechanisms,
 		count: mechanisms.entries.length,
 		completeness: mechanisms.completeness,
 	},
 	{
 		label: "Toolkit actions",
+		one: "toolkit action",
 		href: readRoutes.toolkit,
 		count: toolkit.entries.length,
 		completeness: toolkit.completeness,
 	},
 	{
 		label: "Glossary terms",
+		one: "glossary term",
 		href: readRoutes.glossary,
 		count: glossary.entries.length,
 		completeness: glossary.completeness,
 	},
 	{
 		label: "Examples",
+		one: "example",
 		href: readRoutes.examples,
 		count: examples.entries.length,
 		completeness: examples.completeness,
@@ -125,37 +145,56 @@ const startLinks = [
     <DraftBookNote status={config.status} />
   </div>
 
-  <section class="content-block">
-    <h2>Where to start</h2>
-    <div class="card-grid" data-funnel-group="home-start">
-      {startLinks.map((link, index) => (
-        <a
-          class="card"
-          href={link.href}
-          data-funnel-step={`home_quickstart_step_${index + 1}`}
-        >
-          <h3>{link.title}</h3>
-          <p class="meta">{link.description}</p>
-        </a>
-      ))}
-    </div>
-  </section>
-
-  {stats.length > 0 && (
+  {leadsWithActions ? (
+    <Fragment>
+      <section class="content-block">
+        <h2>What’s happening</h2>
+        <ActionsByTrigger actions={actions} matcherHref={readRoutes.triage} />
+      </section>
+      <section class="content-block">
+        <h2>Read the book</h2>
+        <div class="stack" data-funnel-group="home-start">
+          {startLinks.map((link, index) => (
+            <a
+              class="list-link"
+              href={link.href}
+              data-funnel-step={`home_quickstart_step_${index + 1}`}
+            >
+              <strong>{link.title}</strong>
+              <span class="meta">{link.description}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    </Fragment>
+  ) : (
     <section class="content-block">
-      <h2>What’s inside</h2>
-      <div class="stats-grid">
-        {stats.map((stat) => (
-          <a class="stat-card" href={stat.href}>
-            <div class="stat-value">{stat.count}</div>
-            <div class="stat-label">{stat.label}</div>
-            {formatTranslationCompleteness(stat.completeness) && (
-              <div class="stat-meta">{formatTranslationCompleteness(stat.completeness)}</div>
-            )}
+      <h2>Where to start</h2>
+      <div class="card-grid" data-funnel-group="home-start">
+        {startLinks.map((link, index) => (
+          <a
+            class="card"
+            href={link.href}
+            data-funnel-step={`home_quickstart_step_${index + 1}`}
+          >
+            <h3>{link.title}</h3>
+            <p class="meta">{link.description}</p>
           </a>
         ))}
       </div>
     </section>
+  )}
+
+  {!leadsWithActions && stats.length > 0 && (
+    <nav class="inside-line content-block" aria-label="What’s inside">
+      {stats.map((stat) => (
+        <a href={stat.href}>
+          {stat.count} {stat.count === 1 ? stat.one : stat.label.toLowerCase()}
+          {formatTranslationCompleteness(stat.completeness) &&
+            ` (${formatTranslationCompleteness(stat.completeness)})`}
+        </a>
+      ))}
+    </nav>
   )}
 
   <RelatedBooks books={config.relatedBooks} />

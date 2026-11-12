@@ -65,17 +65,30 @@
 }
 
 .search-panel__quick-actions {
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-control);
-	padding: var(--space-3);
 	display: grid;
 	gap: var(--space-2);
+	margin-top: var(--space-4);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+}
+
+.search-panel__quick-actions strong {
+	font-weight: 400;
+	color: var(--color-muted);
 }
 
 .search-panel__quick-list {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: var(--space-2);
+	gap: 0 var(--space-4);
+}
+
+.search-panel__quick-list a {
+	padding-block: var(--space-2);
+}
+
+.search-panel__empty {
+	margin-top: var(--space-4);
 }
 
 @media (max-width: 720px) {
@@ -84,23 +97,64 @@
 	}
 }
 
-/* One list in score order: the listbox holds its options directly. */
+/*
+ * The native clear button of a search field is browser blue. Draw it in ink:
+ * a cross cut from a square of the muted colour.
+ */
+.search-panel__field input::-webkit-search-cancel-button {
+	appearance: none;
+	width: 1rem;
+	height: 1rem;
+	cursor: pointer;
+	background: var(--color-muted);
+	clip-path: polygon(
+		12% 0,
+		50% 38%,
+		88% 0,
+		100% 12%,
+		62% 50%,
+		100% 88%,
+		88% 100%,
+		50% 62%,
+		12% 100%,
+		0 88%,
+		38% 50%,
+		0 12%
+	);
+}
+
+/* A keyboard's key names mean nothing on a touch screen: say Close, and drop the shortcut hint. */
+.kbd-close__word {
+	display: none;
+}
+
+@media (pointer: coarse) {
+	.kbd-close__key,
+	.search-panel .kbd-hint {
+		display: none;
+	}
+
+	.kbd-close__word {
+		display: inline;
+	}
+}
+
+/* One list in score order: the listbox holds its options directly, as ruled rows. */
 .search-panel__results {
 	margin-top: var(--space-4);
 	display: grid;
-	gap: var(--space-3);
 }
 
 .search-panel__item {
 	display: grid;
 	gap: var(--space-1);
-	padding: var(--space-3);
-	border-radius: var(--radius-card);
-	border: 1px solid var(--color-border);
+	padding: var(--space-3) var(--space-2);
+	border-top: 1px solid var(--color-border);
+	text-decoration: none;
 }
 
-.search-panel__item:hover {
-	border-color: var(--color-accent);
+.search-panel__item:hover .search-panel__item-title {
+	color: var(--color-rubric);
 }
 
 .search-panel__item:focus-visible {
@@ -110,7 +164,6 @@
 
 /* The lighter tint keeps the muted snippet over 4.5:1. */
 .search-panel__item[aria-selected="true"] {
-	border-color: var(--color-accent);
 	background: var(--color-surface-muted);
 }
 

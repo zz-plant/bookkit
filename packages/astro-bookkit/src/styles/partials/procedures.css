@@ -15,26 +15,52 @@
 	border-top: 1px solid var(--color-border);
 }
 
-.step-card:has(.step-checkbox) {
+/*
+ * With the checklist script, the row is one label: a tap anywhere ticks the
+ * step. A ticked step keeps its text at full ink, because a reader mid-incident
+ * re-reads what they have done; the tick and a quieter number mark it done.
+ */
+.step-card--checkable {
+	display: block;
+	padding: 0;
+}
+
+.step-card__label {
+	display: grid;
 	grid-template-columns: auto 2.5ch 1fr;
+	gap: var(--space-3);
+	align-items: start;
+	padding: var(--space-3) 0;
+	cursor: pointer;
 }
 
 .step-checkbox {
-	margin-top: 0.35rem;
+	margin: 0.3rem 0 0;
 	cursor: pointer;
 	accent-color: var(--color-accent);
-	width: 1.1rem;
-	height: 1.1rem;
-}
-
-.step-card--completed .step-card__text {
-	text-decoration: line-through var(--color-muted);
-	opacity: 0.65;
-	transition: opacity var(--timing-snappy) ease;
+	width: 1.25rem;
+	height: 1.25rem;
 }
 
 .step-card--completed .step-card__number {
-	opacity: 0.5;
+	color: var(--color-muted);
+}
+
+.step-list__status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-4);
+	margin: var(--space-3) 0 0;
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--color-border);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.step-list__status[hidden] {
+	display: none;
 }
 
 .toolkit-steps-header {
@@ -61,11 +87,20 @@
 	color: var(--color-muted);
 	background: transparent;
 	border: 1px solid var(--color-border);
-	border-radius: var(--radius-sm, 3px);
-	padding: 0.2rem 0.55rem;
+	border-radius: var(--radius-control);
+	padding: 0.35rem 0.7rem;
 	cursor: pointer;
-	transition: all var(--timing-snappy) ease;
+	transition:
+		color var(--timing-snappy) ease,
+		border-color var(--timing-snappy) ease;
 	line-height: 1.4;
+}
+
+/* On a touch screen the buttons are thumb-sized. */
+@media (pointer: coarse) {
+	.toolkit-btn {
+		min-height: 2.75rem;
+	}
 }
 
 .toolkit-btn:hover {

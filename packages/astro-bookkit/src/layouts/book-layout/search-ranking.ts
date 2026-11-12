@@ -12,32 +12,50 @@ export const buildRankedResults = (
 		signals?: Record<string, number>;
 		semanticScores?: Record<string, number>;
 		semanticWeight?: number;
+		/**
+		 * A content type (`toolkit`) whose pages go first among results that
+		 * score about the same: in a book that opens on its actions, a reader
+		 * searching mid-incident wants the action before the chapter about it.
+		 */
+		leadType?: string;
 	},
 ) => {
 	const normalizedQuery = query.trim().toLowerCase();
 	if (!normalizedQuery) {
-		return { tokens: [], results: [] as RankedSearchResult[] };
+		return {
+			tokens: [],
+			results: [] as RankedSearchResult[],
+			partial: false,
+		};
 	}
 
 	const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
 	const semanticWeight = options?.semanticWeight ?? 0.4;
 
-	const results = index
-		.map((entry) => ({
-			...entry,
-			searchText:
-				`${entry.title} ${entry.snippet} ${entry.context} ${entry.text ?? ""}`.toLowerCase(),
-		}))
-		.filter((entry) => {
-			// Include entry if it matches any keyword OR has a semantic score
-			const keywordMatch = tokens.every((token) =>
+	const searchable = index.map((entry) => ({
+		...entry,
+		searchText:
+			`${entry.title} ${entry.snippet} ${entry.context} ${entry.text ?? ""}`.toLowerCase(),
+	}));
+	const matching = (need: "every" | "some") =>
+		searchable.filter((entry) => {
+			// Include entry if it matches the keywords OR has a semantic score
+			const keywordMatch = tokens[need]((token) =>
 				entry.searchText.includes(token),
 			);
 			const semanticMatch = (options?.semanticScores?.[entry.id] ?? 0) > 0.3;
 			return keywordMatch || semanticMatch;
-		})
+		});
+	// No page has every word of a longer query ("database down"): fall back to
+	// pages with any of them, and say so, rather than show nothing.
+	const exact = matching("every");
+	const partial = exact.length === 0 && tokens.length > 1;
+	const matched = partial ? matching("some") : exact;
+
+	const results = matched
 		.map((entry) => {
 			const keywordScore = tokens.reduce((total, token) => {
+				if (!entry.searchText.includes(token)) return total;
 				const titleBoost = entry.title.toLowerCase().includes(token) ? 4 : 0;
 				const contextBoost = entry.context.toLowerCase().includes(token)
 					? 2
@@ -60,12 +78,16 @@ export const buildRankedResults = (
 				normalizedKeyword * (1 - semanticWeight) +
 				semanticScore * semanticWeight +
 				signalBoost * 0.5;
+			const leadBoost =
+				options?.leadType && entry.type === options.leadType && !entry.section
+					? 0.1
+					: 0;
 
-			return { ...entry, score: blendedScore };
+			return { ...entry, score: blendedScore + leadBoost };
 		})
 		.sort((a, b) => b.score - a.score);
 
-	return { tokens, results };
+	return { tokens, results, partial };
 };
 
 /**

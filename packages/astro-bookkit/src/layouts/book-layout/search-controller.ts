@@ -98,7 +98,9 @@ export const initializeSearchController = ({
 		results.replaceChildren();
 
 		if (!entries.length) {
+			// Nothing matched: keep the "Go to" links, so the panel is not a dead end.
 			empty?.removeAttribute("hidden");
+			quickActions?.removeAttribute("hidden");
 			setActiveResult(-1);
 			return;
 		}
@@ -143,10 +145,17 @@ export const initializeSearchController = ({
 
 	const runSearch = async (value: string) => {
 		query = value;
-		const runResult = await queryEngine.run(value);
+		const runResult = await queryEngine.run(value, {
+			leadType: document.body.dataset.searchLeadsWith || undefined,
+		});
 		if (runResult.status === "stale") return;
 
-		const { normalizedQuery, tokens, results: rankedResults } = runResult;
+		const {
+			normalizedQuery,
+			tokens,
+			results: rankedResults,
+			partial,
+		} = runResult;
 		if (!normalizedQuery) {
 			results?.replaceChildren();
 			setActiveResult(-1);
@@ -158,8 +167,11 @@ export const initializeSearchController = ({
 
 		quickActions?.setAttribute("hidden", "true");
 		renderResults(rankedResults, tokens);
+		const count = `${rankedResults.length} result${rankedResults.length === 1 ? "" : "s"}`;
 		updateStatus(
-			`${rankedResults.length} result${rankedResults.length === 1 ? "" : "s"}`,
+			partial && rankedResults.length
+				? `No page has all of these words. ${count} with some of them.`
+				: count,
 		);
 
 		if (normalizedQuery.length >= 2) {

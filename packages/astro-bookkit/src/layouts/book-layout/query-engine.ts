@@ -8,6 +8,8 @@ export type QueryRunResult =
 			normalizedQuery: string;
 			tokens: string[];
 			results: RankedSearchResult[];
+			/** No page had every word, so these have any of them. */
+			partial: boolean;
 	  };
 
 type QueryEngineOptions = {
@@ -31,6 +33,7 @@ export const createQueryEngine = ({
 		options?: {
 			signals?: Record<string, number>;
 			semanticScores?: Record<string, number>;
+			leadType?: string;
 		},
 	): Promise<QueryRunResult> => {
 		const token = ++runToken;
@@ -46,12 +49,14 @@ export const createQueryEngine = ({
 				normalizedQuery,
 				tokens: [],
 				results: [],
+				partial: false,
 			};
 		}
 
 		const rankedResults = buildRankedResults(index, normalizedQuery, {
 			signals: options?.signals,
 			semanticScores: options?.semanticScores,
+			leadType: options?.leadType,
 		});
 
 		if (token !== runToken) {
@@ -63,6 +68,7 @@ export const createQueryEngine = ({
 			normalizedQuery,
 			tokens: rankedResults.tokens,
 			results: rankedResults.results,
+			partial: rankedResults.partial,
 		};
 	};
 

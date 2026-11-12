@@ -217,16 +217,10 @@ const chapterEyebrow = [
     <aside class="chapter-meta-panel">
       {chapterActions.length > 0 && (
         <section class="chapter-tools-card" aria-label="Tools for this chapter">
-          <div class="chapter-tools-card__header">
-            <h2 class="chapter-tools-card__title">Tools for this chapter</h2>
-          </div>
-          <p class="chapter-tools-card__desc">
-            Actions of ten minutes or less for the mechanisms in this chapter.
-          </p>
+          <h2 class="chapter-tools-card__title">Tools for this chapter</h2>
           <div class="stack">
             {chapterActions.map((action) => (
               <a class="chapter-tools-card__link" href={action.href}>
-                <span class="chapter-tools-card__badge">Action</span>
                 <strong class="chapter-tools-card__label">{action.label}</strong>
                 {action.meta && <span class="meta">{action.meta}</span>}
               </a>

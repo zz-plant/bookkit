@@ -182,18 +182,20 @@ describe("one list of results", () => {
 	it("lists every result in one listbox in score order, each naming its section", async (browser) => {
 		// "rollback" matches a chapter, a mechanism, and an action by
 		// title. Grouped by section, the action came twelfth, after every
-		// chapter section that mentions a rollback.
+		// chapter section that mentions a rollback. In a runbook book, whose
+		// front door is its actions, the action goes ahead of the chapter and
+		// mechanism that score the same.
 		await search(browser, "rollback");
 		const paths = await optionPaths();
 		expect(paths.slice(0, 3)).toEqual([
+			"/read/toolkit/identify-rollback-candidate",
 			"/read/chapters/rollback-first",
 			"/read/mechanisms/rollback-first-change",
-			"/read/toolkit/identify-rollback-candidate",
 		]);
 		expect((await sections()).slice(0, 3)).toEqual([
+			"Toolkit",
 			"Chapters",
 			"Mechanisms",
-			"Toolkit",
 		]);
 		// The listbox owns its options directly: no groups, no headings.
 		expect(

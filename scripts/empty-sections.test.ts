@@ -70,10 +70,11 @@ describe("a book with empty sections", () => {
 		expect(card("chapters")).not.toContain("None yet.");
 
 		const home = page("");
-		const inside = home.slice(home.indexOf("<h2>What’s inside</h2>"));
-		expect(inside).toContain('<div class="stat-label">Chapters</div>');
-		expect(inside).not.toContain("Toolkit actions");
-		expect(inside).not.toContain("Glossary terms");
+		const insideStart = home.indexOf('aria-label="What’s inside"');
+		const inside = home.slice(insideStart, home.indexOf("</nav>", insideStart));
+		expect(inside).toMatch(/\d+ chapters?\b/);
+		expect(inside).not.toMatch(/toolkit action/i);
+		expect(inside).not.toMatch(/glossary term/i);
 	});
 
 	it("leaves Core mechanisms off About this book until book.config.ts lists one", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	actionLinksForMechanisms,
+	actionsByTrigger,
 	chapterLinksForMechanism,
 	chapterReadingOrder,
 	chaptersEnabledByLinks,
@@ -173,5 +174,59 @@ describe("distinctionsForMechanism", () => {
 			},
 		]);
 		expect(distinctionsForMechanism("unrelated", rulings)).toEqual([]);
+	});
+});
+
+describe("actionsByTrigger", () => {
+	const toolkit = [
+		entry("page-owner", {
+			name: "Page the owner",
+			mechanism: "escalation",
+			trigger: " Nobody owns the incident. ",
+		}),
+		entry("long-triage", {
+			name: "Review the scale",
+			mechanism: "triage",
+			timeboxMinutes: 8,
+		}),
+		entry("classify", {
+			name: "Classify severity",
+			mechanism: "triage",
+			timeboxMinutes: 5,
+			trigger: "An alert fires.",
+		}),
+		entry("stray", { name: "Annotate", mechanism: "unlisted" }),
+	];
+	const mechanisms = [entry("triage", { title: "Incident Triage" })];
+
+	it("follows the book's mechanism order, shortest first, with unlisted mechanisms last", () => {
+		expect(
+			actionsByTrigger(toolkit, mechanisms, ["triage", "escalation"]).map(
+				(action) => action.slug,
+			),
+		).toEqual(["classify", "long-triage", "page-owner", "stray"]);
+	});
+
+	it("gives each action its situation, time, and mechanism title", () => {
+		const [classify, review, page] = actionsByTrigger(toolkit, mechanisms, [
+			"triage",
+			"escalation",
+		]);
+		expect(classify).toEqual({
+			slug: "classify",
+			href: "/read/toolkit/classify",
+			label: "Classify severity",
+			trigger: "An alert fires.",
+			minutes: 5,
+			mechanism: "Incident Triage",
+		});
+		// No trigger: the row shows the action alone.
+		expect(review.trigger).toBeUndefined();
+		// Trimmed; a mechanism with no page keeps its slug; 10 minutes by default.
+		expect(page).toMatchObject({
+			trigger: "Nobody owns the incident.",
+			mechanism: "escalation",
+			minutes: 10,
+		});
 	});
 });

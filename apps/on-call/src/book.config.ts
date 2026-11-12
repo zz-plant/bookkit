@@ -101,7 +101,7 @@ export const bookConfig = {
 		mechanismsCard: {
 			title: "Find the pattern",
 			description:
-				"Mid-incident? Match what you’re seeing to a pattern and its first safe action.",
+				"The incident patterns behind these actions, and how to recognize each one.",
 		},
 	},
 	readHub: {

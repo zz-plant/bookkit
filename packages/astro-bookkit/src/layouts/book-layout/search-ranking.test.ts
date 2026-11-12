@@ -127,3 +127,56 @@ describe("results from several sections", () => {
 		expect(results[0]?.id).toBe("toolkit-classify-alert-severity-intro");
 	});
 });
+
+describe("search ranking: a query no page fully matches", () => {
+	it("falls back to pages with any of the words, and says so", () => {
+		const { results, partial } = buildRankedResults(entries, "transfer zebra");
+		expect(partial).toBe(true);
+		expect(results.map((entry) => entry.id)).toContain(
+			"glossary-transfer-intro",
+		);
+	});
+
+	it("stays empty when no word matches, and for a single word", () => {
+		expect(buildRankedResults(entries, "zebra quagga")).toMatchObject({
+			results: [],
+			partial: true,
+		});
+		expect(buildRankedResults(entries, "zebra")).toMatchObject({
+			results: [],
+			partial: false,
+		});
+	});
+});
+
+describe("search ranking: a book that opens on its actions", () => {
+	const chapter: SearchEntry = {
+		id: "chapters-rollback",
+		type: "chapters",
+		label: "Chapters",
+		order: 1,
+		title: "Rollback first",
+		snippet: "Why a rollback comes before a fix.",
+		url: "/read/chapters/rollback-first",
+		context: "Rollback first",
+	};
+	const action: SearchEntry = {
+		id: "toolkit-rollback",
+		type: "toolkit",
+		label: "Toolkit",
+		order: 2,
+		title: "Rollback candidate",
+		snippet: "Name the rollback before the deploy.",
+		url: "/read/toolkit/rollback-candidate",
+		context: "Rollback candidate",
+	};
+
+	it("puts the action ahead of a chapter that scores the same", () => {
+		const ids = (leadType?: string) =>
+			buildRankedResults([chapter, action], "rollback", {
+				leadType,
+			}).results.map((entry) => entry.id);
+		expect(ids()).toEqual(["chapters-rollback", "toolkit-rollback"]);
+		expect(ids("toolkit")).toEqual(["toolkit-rollback", "chapters-rollback"]);
+	});
+});

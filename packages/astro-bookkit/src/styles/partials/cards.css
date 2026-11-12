@@ -4,51 +4,22 @@
 	gap: var(--space-4);
 }
 
-.stats-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: var(--space-4);
+/* The home page's section counts: one line in the apparatus voice, each count a link. */
+.inside-line {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-5);
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
 }
 
-.stat-card {
-	background: var(--color-surface);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-card);
-	padding: var(--space-4);
-	box-shadow: var(--shadow-soft);
-	display: grid;
-	gap: var(--space-2);
-	transition: border 0.2s ease;
-}
-
-a.stat-card {
-	color: inherit;
-}
-
-a.stat-card:hover {
-	border-color: color-mix(
-		in oklab,
-		var(--color-border),
-		var(--color-accent) 35%
-	);
-}
-
-.stat-value {
-	font-size: var(--text-2xl);
-	font-family: var(--font-serif);
-	line-height: var(--leading-tight);
-}
-
-.stat-label {
-	font-size: var(--text-sm);
-	letter-spacing: 0.02em;
+.inside-line a {
+	padding-block: var(--space-2);
 	color: var(--color-muted);
 }
 
-.stat-meta {
-	font-size: var(--text-sm);
-	color: var(--color-ink);
-	font-weight: 600;
+.inside-line a:hover {
+	color: var(--color-rubric);
 }
 
 .export-panel {

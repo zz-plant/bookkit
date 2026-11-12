@@ -1,16 +1,30 @@
 ---
 import BaseLayout from "../../../BaseLayout.astro";
+import ActionsByTrigger from "../../../../components/ActionsByTrigger.astro";
 import ContentIndexList from "../../../../components/ContentIndexList.astro";
-import { createLocalizedContentList } from "../../../../localization";
+import {
+	buildLocalizedContentIndex,
+	createLocalizedContentList,
+	resolveLocalizedContent,
+} from "../../../../localization";
 import { bookEntryPoints, bookConfig } from "../../../runtime";
 import { bookPageTitle } from "../../../../seo/page-meta";
-import { buildTranslationLede, readItemPath } from "../../../../book";
+import { frameFrontDoor } from "../../../../frames/defaults";
+import {
+	actionsByTrigger,
+	type BookConfig,
+	buildTranslationLede,
+	readItemPath,
+	readRoutes,
+} from "../../../../book";
 import { toolkitDisplayName } from "../../../../schemas";
 
+const config: BookConfig = bookConfig;
 const modules = bookEntryPoints.contentModules.toolkit;
+const locale = Astro.locals?.locale;
 const { items: toolItems, completeness } = createLocalizedContentList(modules, {
 	defaultLocale: "en",
-	locale: Astro.locals?.locale,
+	locale,
 	mapEntry: ({ slug, module, isFallback }) => {
 		const { frontmatter } = module;
 		const name = toolkitDisplayName(frontmatter);
@@ -27,20 +41,49 @@ const { items: toolItems, completeness } = createLocalizedContentList(modules, {
 	},
 	sort: (a, b) => a.title.localeCompare(b.title),
 });
+// A frame whose front door is `actions` (runbook) lists each action under the
+// situation that calls for it, in the author's order, as its home page does.
+const leadsWithActions = frameFrontDoor(config.frame?.slug) === "actions";
+const actions = leadsWithActions
+	? actionsByTrigger(
+			resolveLocalizedContent(
+				buildLocalizedContentIndex(modules, { defaultLocale: "en" }),
+				{ locale },
+			).entries,
+			resolveLocalizedContent(
+				buildLocalizedContentIndex(bookEntryPoints.contentModules.mechanisms, {
+					defaultLocale: "en",
+				}),
+				{ locale },
+			).entries,
+			(config.mechanisms ?? []).map((mechanism) => mechanism.slug),
+		)
+	: [];
 const localizedLede = buildTranslationLede(
-	"Actions you can take in ten minutes or less.",
+	actions.length > 0
+		? "Actions you can take in ten minutes or less, each under the situation that calls for it."
+		: "Actions you can take in ten minutes or less.",
 	completeness,
 );
 ---
 <BaseLayout title={bookPageTitle("Toolkit", bookConfig.title)}>
-  <ContentIndexList
-    title="Toolkit"
-    lede={localizedLede}
-    items={toolItems}
-    filterMode="always"
-    filterPlaceholder="Filter by name or mechanism"
-    alphaMode="always"
-    emptyMessage="No toolkit actions yet."
-    emptyCommand={`bun run bookkit new tool ${bookConfig.slug} <mechanism> "<name>"`}
-  />
+  {actions.length > 0 ? (
+    <Fragment>
+      <a class="back-link" href={readRoutes.root}>← Reading hub</a>
+      <div class="section-header">
+        <h1>Toolkit</h1>
+        <p class="lede">{localizedLede}</p>
+      </div>
+      <ActionsByTrigger actions={actions} matcherHref={readRoutes.triage} />
+    </Fragment>
+  ) : (
+    <ContentIndexList
+      title="Toolkit"
+      lede={localizedLede}
+      items={toolItems}
+      filterPlaceholder="Filter by name or mechanism"
+      emptyMessage="No toolkit actions yet."
+      emptyCommand={`bun run bookkit new tool ${bookConfig.slug} <mechanism> "<name>"`}
+    />
+  )}
 </BaseLayout>

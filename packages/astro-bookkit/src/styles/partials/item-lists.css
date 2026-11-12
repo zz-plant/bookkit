@@ -18,6 +18,76 @@
 	color: var(--color-ink);
 }
 
+/*
+ * The `actions` front door: each action under the situation that calls for
+ * it. The situation is the author's sentence, in the book's voice and the
+ * largest thing in the row, because it is what a reader mid-incident scans
+ * for. Rules and space, no boxes; the whole row is the link.
+ */
+.trigger-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.trigger-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	padding: var(--space-4) 0;
+	border-top: 1px solid var(--color-border);
+	text-decoration: none;
+}
+
+.trigger-row__when {
+	font-size: var(--text-lg);
+	line-height: var(--leading-snug);
+	color: var(--color-ink);
+	text-wrap: pretty;
+}
+
+.trigger-row__do {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-1) var(--space-4);
+}
+
+.trigger-row__name {
+	font-size: var(--text-md);
+	font-weight: 500;
+	color: var(--color-ink);
+}
+
+.trigger-row:hover .trigger-row__name,
+.trigger-row:focus-visible .trigger-row__name {
+	color: var(--color-rubric);
+}
+
+.trigger-row__meta,
+.trigger-list__else {
+	font-family: var(--font-apparatus);
+	font-size: var(--text-apparatus);
+	color: var(--color-muted);
+}
+
+.trigger-list__else {
+	margin: var(--space-3) 0 0;
+}
+
+/* Padding, not size: a taller target for a thumb without moving the line. */
+.trigger-list__else a {
+	display: inline-block;
+	padding-block: var(--space-2);
+}
+
+@media (max-width: 720px) {
+	.trigger-row__when {
+		font-size: var(--text-md);
+	}
+}
+
 .list-link__action {
 	margin-top: var(--space-1);
 	font-family: var(--font-apparatus);
@@ -48,13 +118,13 @@
 	color: var(--color-muted);
 }
 
+/*
+ * "Keep going" at the end of a page, and the matcher's results: a heading over
+ * ruled rows, the same shape as an index. No box around the section and none
+ * around its links.
+ */
 .next-action-panel {
-	margin-bottom: var(--space-5);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-card);
-	background: var(--color-surface);
-	padding: var(--space-4);
-	box-shadow: var(--shadow-soft);
+	margin-bottom: var(--space-6);
 }
 
 .next-action-panel h2 {
@@ -64,39 +134,30 @@
 
 .next-action-panel__links {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-	gap: var(--space-2);
 	margin-top: var(--space-3);
+	border-bottom: 1px solid var(--color-border);
 }
 
 .next-action-panel__link {
-	display: grid;
-	gap: 0.25rem;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-control);
-	padding: 0.65rem 0.75rem;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-1) var(--space-4);
+	padding: var(--space-3) 0;
+	border-top: 1px solid var(--color-border);
 	text-decoration: none;
 	color: inherit;
-	background: var(--color-surface);
 }
 
-.next-action-panel__link:hover,
-.next-action-panel__link:focus-visible {
-	border-color: var(--color-accent);
-	background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+.next-action-panel__link strong {
+	font-size: var(--text-md);
+	font-weight: 500;
+	color: var(--color-ink);
 }
 
-.next-action-panel--compact {
-	padding: var(--space-3);
-}
-
-.next-action-panel--compact .next-action-panel__links {
-	margin-top: var(--space-2);
-	grid-template-columns: 1fr;
-}
-
-.next-action-panel--compact .next-action-panel__link {
-	padding: 0.55rem 0.65rem;
+.next-action-panel__link:hover strong,
+.next-action-panel__link:focus-visible strong {
+	color: var(--color-rubric);
 }
 
 .list-filter {

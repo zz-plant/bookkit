@@ -21,6 +21,7 @@ const {
 	bookTitle = "Book",
 	bookVersion = "draft",
 	bookKey = "book",
+	searchLeadsWith,
 	hasServerRuntime = false,
 	analyticsEndpoint = "/api/analytics.json",
 	exportAnalyticsEndpoint = "/api/export-analytics.json",
@@ -168,6 +169,7 @@ const qaEnabled = hasServerRuntime && aiQaEnabled;
   <body
     data-book-version={renderState.version.resolvedVersion ?? bookVersion}
     data-analytics-key={bookKey}
+    data-search-leads-with={searchLeadsWith}
     data-analytics-endpoint={endpoints.analyticsEndpoint}
     data-export-analytics-endpoint={endpoints.exportAnalyticsEndpoint}
     data-preview-analytics-endpoint={endpoints.previewAnalyticsEndpoint}

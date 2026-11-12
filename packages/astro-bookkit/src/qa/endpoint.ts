@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { APIRoute } from "astro";
 import type { SearchEntry } from "../search";
 import {
@@ -9,12 +10,26 @@ import {
 } from "../utils/http";
 
 export type AiQaProviderConfig = {
+	/**
+	 * The wire format: Anthropic's Messages API through its SDK, or an
+	 * OpenAI-compatible chat completions endpoint. Default: "anthropic" for
+	 * ANTHROPIC_API_KEY or a `claude-` model, else "openai".
+	 */
+	api?: "anthropic" | "openai";
+	/** For "anthropic", the API's base URL (default: the SDK's). */
 	apiUrl?: string;
 	apiKeyEnvVar?: string;
 	model?: string;
 	maxTokens?: number;
+	/** Ignored by "anthropic": current Claude models reject sampling settings. */
 	temperature?: number;
 	systemPrompt?: string;
+	/**
+	 * For "anthropic": how much the model thinks before it answers (default
+	 * "low", for a short grounded answer within the time limit); `false`
+	 * leaves it out, for a model that does not take it.
+	 */
+	effort?: "low" | "medium" | "high" | "xhigh" | "max" | false;
 };
 
 export type QaRequest = {
@@ -44,6 +59,34 @@ const DEFAULT_SYSTEM_PROMPT =
 
 const LLM_TIMEOUT_MS = 10_000;
 
+/** Claude's default for reader answers; `model` in the provider config picks another. */
+export const DEFAULT_CLAUDE_MODEL = "claude-opus-5-5";
+/**
+ * Room for the model's thinking as well as the answer: a Claude model's
+ * thinking counts toward max_tokens, and a cut-off answer is worse than a
+ * long one. The system prompt asks for a concise answer.
+ */
+const DEFAULT_CLAUDE_MAX_TOKENS = 4096;
+/** A thinking model answers more slowly than the chat models above. */
+const CLAUDE_TIMEOUT_MS = 20_000;
+/**
+ * Models that take Anthropic's server-side fallback: when one declines a
+ * request, the API answers it with another model in the same call.
+ */
+const SERVER_FALLBACK_MODELS = new Set([
+	"claude-opus-5-5",
+	"claude-opus-5",
+	"claude-sonnet-5-5",
+	"claude-fable-5-2",
+	"claude-fable-5-1",
+]);
+
+export const isAnthropicProvider = (provider: AiQaProviderConfig): boolean =>
+	provider.api !== undefined
+		? provider.api === "anthropic"
+		: provider.apiKeyEnvVar === "ANTHROPIC_API_KEY" ||
+			(provider.model?.startsWith("claude-") ?? false);
+
 const entrySlug = (entry: SearchEntry): string => {
 	const segment = entry.url.split("#")[0]?.split("/").pop() ?? "";
 	return segment.replace(/\.(md|mdx)$/, "");
@@ -65,6 +108,12 @@ export const filterEntriesToReadingWindow = (
 };
 
 const WELL_KNOWN_PROVIDERS: readonly AiQaProviderConfig[] = [
+	{
+		api: "anthropic",
+		apiKeyEnvVar: "ANTHROPIC_API_KEY",
+		model: DEFAULT_CLAUDE_MODEL,
+		maxTokens: DEFAULT_CLAUDE_MAX_TOKENS,
+	},
 	{
 		apiKeyEnvVar: "OPENAI_API_KEY",
 		apiUrl: DEFAULT_API_URL,
@@ -108,22 +157,8 @@ const resolveProviders = (options: {
 	return detected.length > 0 ? detected : null;
 };
 
-const callLlm = async (
-	provider: AiQaProviderConfig,
-	body: QaRequest,
-): Promise<QaResponse | null> => {
-	const apiUrl = provider.apiUrl ?? DEFAULT_API_URL;
-	const apiKeyEnvVar = provider.apiKeyEnvVar ?? "OPENAI_API_KEY";
-	const apiKey =
-		typeof process !== "undefined" ? process.env[apiKeyEnvVar] : undefined;
-
-	if (!apiKey) return null;
-
-	const model = provider.model ?? DEFAULT_MODEL;
-	const maxTokens = provider.maxTokens ?? DEFAULT_MAX_TOKENS;
-	const temperature = provider.temperature ?? DEFAULT_TEMPERATURE;
-	const systemPrompt = provider.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-
+/** What every provider is asked: the system prompt and the question with its passages. */
+const promptFor = (provider: AiQaProviderConfig, body: QaRequest) => {
 	const windowedEntries = filterEntriesToReadingWindow(
 		body.entries,
 		body.unlocked,
@@ -135,21 +170,96 @@ const callLlm = async (
 		)
 		.join("\n\n");
 
-	let systemPromptText = systemPrompt;
+	let system = provider.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
 	if (body.unlocked && body.unlocked.length > 0) {
-		systemPromptText += ` The reader has only reached the following content: ${body.unlocked.join(", ")}. Use only passages from that content.`;
+		system += ` The reader has only reached the following content: ${body.unlocked.join(", ")}. Use only passages from that content.`;
 	}
 
-	let userPrompt = `Question: ${body.question}\n\nBook passages:\n${context}`;
-
+	let user = `Question: ${body.question}\n\nBook passages:\n${context}`;
 	if (body.history && body.history.length > 0) {
 		const historyText = body.history
 			.map(
 				(turn, i) => `Q${i + 1}: ${turn.question}\nA${i + 1}: ${turn.answer}`,
 			)
 			.join("\n\n");
-		userPrompt = `Conversation so far:\n${historyText}\n\n${userPrompt}`;
+		user = `Conversation so far:\n${historyText}\n\n${user}`;
 	}
+	return {
+		system,
+		user,
+		citations: windowedEntries.map((entry) => ({
+			id: entry.id,
+			title: entry.title,
+			url: entry.url,
+		})),
+	};
+};
+
+const apiKeyOf = (envVar: string): string | undefined =>
+	typeof process !== "undefined" ? process.env[envVar] : undefined;
+
+/**
+ * One answer from Claude through Anthropic's SDK, or null so the next
+ * provider is tried: no key, a timeout, an API error, a refusal, or an
+ * empty reply. Thinking is always on in current Claude models, so effort
+ * (default "low") is the control, and sampling settings are not sent.
+ */
+const callAnthropic = async (
+	provider: AiQaProviderConfig,
+	body: QaRequest,
+): Promise<QaResponse | null> => {
+	const apiKey = apiKeyOf(provider.apiKeyEnvVar ?? "ANTHROPIC_API_KEY");
+	if (!apiKey) return null;
+	const model = provider.model ?? DEFAULT_CLAUDE_MODEL;
+	const { system, user, citations } = promptFor(provider, body);
+	const effort = provider.effort ?? "low";
+	const client = new Anthropic({
+		apiKey,
+		...(provider.apiUrl ? { baseURL: provider.apiUrl } : {}),
+		timeout: CLAUDE_TIMEOUT_MS,
+		// The reader is waiting, and the next provider is a retry of its own.
+		maxRetries: 0,
+	});
+	try {
+		const response = await client.beta.messages.create({
+			model,
+			max_tokens: provider.maxTokens ?? DEFAULT_CLAUDE_MAX_TOKENS,
+			system,
+			messages: [{ role: "user", content: user }],
+			...(effort === false ? {} : { output_config: { effort } }),
+			...(SERVER_FALLBACK_MODELS.has(model)
+				? {
+						betas: ["server-side-fallback-2026-07-01"],
+						fallbacks: "default" as const,
+					}
+				: {}),
+		});
+		// A refusal from every model in the chain: no answer to show.
+		if (response.stop_reason === "refusal") return null;
+		const answer = response.content
+			.flatMap((block) => (block.type === "text" ? [block.text] : []))
+			.join("")
+			.trim();
+		return answer ? { answer, citations } : null;
+	} catch (error) {
+		if (error instanceof Anthropic.APIError) return null;
+		throw error;
+	}
+};
+
+/** One answer from an OpenAI-compatible chat completions endpoint, or null. */
+const callOpenAiCompatible = async (
+	provider: AiQaProviderConfig,
+	body: QaRequest,
+): Promise<QaResponse | null> => {
+	const apiUrl = provider.apiUrl ?? DEFAULT_API_URL;
+	const apiKey = apiKeyOf(provider.apiKeyEnvVar ?? "OPENAI_API_KEY");
+	if (!apiKey) return null;
+
+	const model = provider.model ?? DEFAULT_MODEL;
+	const maxTokens = provider.maxTokens ?? DEFAULT_MAX_TOKENS;
+	const temperature = provider.temperature ?? DEFAULT_TEMPERATURE;
+	const { system, user, citations } = promptFor(provider, body);
 
 	try {
 		const controller = new AbortController();
@@ -164,8 +274,8 @@ const callLlm = async (
 			body: JSON.stringify({
 				model,
 				messages: [
-					{ role: "system", content: systemPromptText },
-					{ role: "user", content: userPrompt },
+					{ role: "system", content: system },
+					{ role: "user", content: user },
 				],
 				max_tokens: maxTokens,
 				temperature,
@@ -183,17 +293,19 @@ const callLlm = async (
 		const answer = data.choices?.[0]?.message?.content?.trim() ?? "";
 		if (!answer) return null;
 
-		const citations = windowedEntries.map((entry) => ({
-			id: entry.id,
-			title: entry.title,
-			url: entry.url,
-		}));
-
 		return { answer, citations };
 	} catch {
 		return null;
 	}
 };
+
+const callLlm = (
+	provider: AiQaProviderConfig,
+	body: QaRequest,
+): Promise<QaResponse | null> =>
+	isAnthropicProvider(provider)
+		? callAnthropic(provider, body)
+		: callOpenAiCompatible(provider, body);
 
 /**
  * Each call costs the author money, and the passages come from the reader's
@@ -324,7 +436,7 @@ export const createQaApiHandlers = (options: {
 				jsonResponse(
 					{
 						error:
-							"Q&A provider not configured. Set OPENAI_API_KEY or GROQ_API_KEY, or configure features.aiQaProvider in book.config.ts.",
+							"Q&A provider not configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY, or configure features.aiQaProvider in book.config.ts.",
 					},
 					503,
 				),

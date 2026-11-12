@@ -49,7 +49,7 @@ The server reads its environment:
 | `BOOKKIT_AUTHOR_TOKEN` | Required. 32 or more random characters (`openssl rand -hex 32`), sent as `Authorization: Bearer <token>`. It gates the release webhook and email routes (under `bookkit dev` too), the analytics, feedback, and preview-analytics reads, and MCP `tools/call`; the reads and tool calls are open under `bookkit dev`. Without it these answer 500 and the server log says why; a wrong token gets 401. |
 | `BOOKKIT_DATA_DIR` | Where the server keeps what readers send; see [Where data lives](./concepts.md#where-data-lives). |
 | `BOOKKIT_RELEASE_WEBHOOKS`, `BOOKKIT_RELEASE_EMAIL_TARGETS` | Delivery targets for release notifications, as JSON arrays or comma-separated URLs ([`releases/README.md`](../../packages/astro-bookkit/src/releases/README.md)). |
-| `OPENAI_API_KEY`, `GROQ_API_KEY` | The Ask panel's answers: OpenAI (`gpt-4o-mini`) first, Groq (`llama-3.1-8b-instant`) as the fallback. With neither, `/api/qa.json` answers 503. |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY` | The Ask panel's answers, from the first provider that answers: Claude (`claude-opus-5-5`, through `@anthropic-ai/sdk`), then OpenAI (`gpt-4o-mini`), then Groq (`llama-3.1-8b-instant`). A refusal, an API error, or a timeout (20 s for Claude, 10 s for the others) moves on to the next. With none set, `/api/qa.json` answers 503. Set `features.aiQaProvider` in `book.config.ts` to choose one: `{ model: "claude-haiku-5-5" }` for a cheaper Claude, `effort` for how much it thinks (default `"low"`). |
 
 ```sh
 curl -X POST -H "Authorization: Bearer $BOOKKIT_AUTHOR_TOKEN" https://<site>/api/release-webhook.json

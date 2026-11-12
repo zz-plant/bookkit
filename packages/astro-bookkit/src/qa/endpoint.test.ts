@@ -213,3 +213,137 @@ describe("POST /api/qa.json", () => {
 		);
 	});
 });
+
+describe("Claude through Anthropic's SDK", () => {
+	const saved: Record<string, string | undefined> = {};
+	const keys = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"];
+	let sent: Array<{
+		url: string;
+		headers: Headers;
+		body: Record<string, unknown>;
+	}>;
+	let replies: Response[];
+	let model: ReturnType<typeof spyOn>;
+
+	const claudeReply = (content: unknown[], stop_reason = "end_turn") =>
+		Response.json({
+			id: "msg_test",
+			type: "message",
+			role: "assistant",
+			model: "claude-opus-5-5",
+			content,
+			stop_reason,
+			stop_sequence: null,
+			usage: { input_tokens: 10, output_tokens: 5 },
+		});
+
+	beforeEach(() => {
+		for (const key of keys) saved[key] = process.env[key];
+		process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+		delete process.env.OPENAI_API_KEY;
+		delete process.env.GROQ_API_KEY;
+		sent = [];
+		replies = [];
+		model = spyOn(globalThis, "fetch").mockImplementation((async (
+			input: RequestInfo | URL,
+			init?: RequestInit,
+		) => {
+			const request = new Request(input, init);
+			sent.push({
+				url: request.url,
+				headers: request.headers,
+				body: JSON.parse(await request.text()),
+			});
+			return replies.shift() ?? Response.json({}, { status: 500 });
+		}) as typeof fetch);
+	});
+	afterEach(() => {
+		for (const key of keys) {
+			if (saved[key] === undefined) delete process.env[key];
+			else process.env[key] = saved[key];
+		}
+		model.mockRestore();
+	});
+
+	type Context = Parameters<ReturnType<typeof createQaApiHandlers>["POST"]>[0];
+	const ask = (route: ReturnType<typeof createQaApiHandlers>) =>
+		Promise.resolve(
+			route.POST({
+				request: new Request("https://book.example/api/qa.json", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						question: "What is a handoff?",
+						entries: [entry("intro")],
+					}),
+				}),
+				clientAddress: "203.0.113.9",
+			} as unknown as Context),
+		);
+
+	it("answers with Claude when ANTHROPIC_API_KEY is set, before the other providers", async () => {
+		process.env.OPENAI_API_KEY = "sk-openai-test";
+		replies.push(
+			claudeReply([
+				{ type: "thinking", thinking: "", signature: "x" },
+				{ type: "text", text: "A handoff moves the work." },
+			]),
+		);
+		const response = await ask(createQaApiHandlers({}));
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			answer: "A handoff moves the work.",
+		});
+		expect(sent).toHaveLength(1);
+		const [request] = sent;
+		expect(request.url).toBe("https://api.anthropic.com/v1/messages");
+		expect(request.headers.get("authorization")).toBe("Bearer sk-ant-test");
+		expect(request.headers.get("anthropic-beta")).toContain(
+			"server-side-fallback-2026-07-01",
+		);
+		expect(request.body).toMatchObject({
+			model: "claude-opus-5-5",
+			max_tokens: 4096,
+			output_config: { effort: "low" },
+			fallbacks: "default",
+		});
+		expect(request.body.temperature).toBeUndefined();
+		expect(String(request.body.system)).toContain(
+			"ONLY the provided book passages",
+		);
+	});
+
+	it("moves on to the next provider when Claude refuses or the API fails", async () => {
+		process.env.OPENAI_API_KEY = "sk-openai-test";
+		replies.push(
+			claudeReply([], "refusal"),
+			Response.json({ choices: [{ message: { content: "From OpenAI." } }] }),
+		);
+		const refused = await ask(createQaApiHandlers({}));
+		expect(await refused.json()).toMatchObject({ answer: "From OpenAI." });
+
+		replies.push(
+			Response.json({ error: { type: "api_error" } }, { status: 500 }),
+			Response.json({ choices: [{ message: { content: "Again OpenAI." } }] }),
+		);
+		const failed = await ask(createQaApiHandlers({}));
+		expect(await failed.json()).toMatchObject({ answer: "Again OpenAI." });
+	});
+
+	it("takes the author's model, and sends no fallback or effort a model does not take", async () => {
+		replies.push(claudeReply([{ type: "text", text: "Short." }]));
+		const response = await ask(
+			createQaApiHandlers({
+				provider: { model: "claude-haiku-5-5", effort: false, maxTokens: 1024 },
+			}),
+		);
+		expect(await response.json()).toMatchObject({ answer: "Short." });
+		expect(sent[0].url).toBe("https://api.anthropic.com/v1/messages");
+		expect(sent[0].body).toMatchObject({
+			model: "claude-haiku-5-5",
+			max_tokens: 1024,
+		});
+		expect(sent[0].body.fallbacks).toBeUndefined();
+		expect(sent[0].body.output_config).toBeUndefined();
+	});
+});

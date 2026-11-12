@@ -4,6 +4,15 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-12 — Claude answers the Ask panel
+
+The owner overrode maintenance mode for this change (AGENTS.md).
+
+- **`ANTHROPIC_API_KEY` adds Claude to `/api/qa.json`, ahead of OpenAI and Groq.** It goes through Anthropic's SDK (`@anthropic-ai/sdk`, a new engine dependency) with `claude-opus-5-5`, `effort: "low"`, room for 4,096 tokens since its thinking counts toward them, and a 20-second limit. On models that take it, the request asks for Anthropic's server-side fallback, so a model that declines is answered by another in the same call. A refusal, an API error, or a timeout moves on to the next provider, as before.
+- **`AiQaProviderConfig` takes `api` (`"anthropic"` or `"openai"`) and `effort`.** `api` defaults to `"anthropic"` for `ANTHROPIC_API_KEY` or a `claude-` model; `temperature` is not sent to Claude, whose current models reject it. `effort: false` leaves effort out, for a model that does not take it.
+- **Cost:** each answer is billed to the author's Anthropic account at the model's rate; the endpoint's limits (10 questions a minute per reader, 60 overall per server) cap it. Set `features.aiQaProvider: { model: "claude-haiku-5-5" }` for a cheaper model.
+- **Migration:** none. A server that sets only `OPENAI_API_KEY` or `GROQ_API_KEY` answers as before; one that also sets `ANTHROPIC_API_KEY` now answers with Claude first.
+
 ## 2026-11-12 — `bookkit finish`: drafts taken the last mile
 
 The owner overrode maintenance mode for this work (AGENTS.md).

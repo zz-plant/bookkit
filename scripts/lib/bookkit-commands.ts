@@ -501,6 +501,107 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		},
 	},
 	{
+		name: "define",
+		help: {
+			summary:
+				"Has a writer model draft a mechanism's empty fields (its definition, is,\nisNot, predictions, and tests) from the sentences of the book that use\nit. Shows the proposal; --apply writes it into the empty fields, only\nwhen it passes the check and reads like no mechanism in any book.",
+			usage: [
+				'bun run bookkit define [book] <mechanism> [--writer "<command>"] [--apply] [--no-run]',
+			],
+			options: [
+				BOOK,
+				["<mechanism>", "The mechanism's slug: one with no definition yet"],
+				[
+					'--writer "<command>"',
+					"A command that reads a prompt on stdin and prints the\nreply; or set BOOKKIT_DRAFT_COMMAND",
+				],
+				[
+					"--apply",
+					"Write the proposal last shown (or, with none, a new one)\ninto the empty fields; a field you wrote is never replaced",
+				],
+				["--no-run", "Write the prompt only"],
+			],
+			notes:
+				"The prompt, the reply, and the proposal are in .bookkit/defining/,\nwhich git ignores. A definition that scores 0.5 or more by wording\nagainst another mechanism is not written: merge the two, or write the\nboundary yourself and ask judges (bookkit judge).",
+			examples: [
+				"bun run bookkit propose my-book --apply mechanisms",
+				'bun run bookkit define my-book context-debt --writer "ollama run <model> --think=false"',
+				"bun run bookkit define my-book context-debt --apply",
+			],
+		},
+	},
+	{
+		name: "finish",
+		help: {
+			summary:
+				"Takes model-drafted chapters the last mile. Each round reviews the chapter,\nhands the findings and the check's warnings to writer models as a revision,\nand has blind judges choose between the revisions and the chapter as it was.\nIt stops when a review finds nothing, no revision beats the chapter, the\nfindings stop falling, or after --rounds. It never rewrites a chapter you\nedited since draft apply, unless --include-edited.",
+			usage: [
+				'bun run bookkit finish [book] [chapter] [--rounds <n>] [--writer "<command>"] [--judge "<command>"] [--include-edited]',
+			],
+			options: [
+				BOOK,
+				[
+					"[chapter]",
+					"One chapter (default: every chapter that still holds a\ndraft as draft apply wrote it)",
+				],
+				["--rounds <n>", "Revisions at most per chapter (default: 3)"],
+				[
+					'--writer "<command>"',
+					"The writers; or set BOOKKIT_DRAFT_COMMAND (one per line)",
+				],
+				[
+					'--judge "<command>"',
+					"The reviewers and judges; or set BOOKKIT_JUDGE_COMMAND",
+				],
+				["--reviewers <n>", "Reviewers each round (default: 1)"],
+				["--judges <n>", "Judges each round (default: 3)"],
+				["--candidates <n>", "Revisions each round (default: 2)"],
+				["--parallel <n>", "Writers asked at once (default: 1)"],
+				["--timeout <seconds>", "How long one writer may take (default: 300)"],
+				[
+					"--include-edited",
+					"Also revise chapters you have edited, or wrote yourself",
+				],
+			],
+			notes:
+				"Each round is a review under .bookkit/reviewing/ and a request under\n.bookkit/drafting/, so bookkit draft results counts its writers and judges.\nThe last line per chapter gives its findings by round (11 → 6 → 2).",
+			examples: [
+				'bun run bookkit finish running-hot --writer "ollama run <model> --think=false" --judge "claude -p"',
+				"bun run bookkit finish running-hot the-hot-potato --rounds 2",
+			],
+		},
+	},
+	{
+		name: "review",
+		help: {
+			summary:
+				"Has judge models read a written chapter against the rules a draft is\nheld to and the contracts of the mechanisms it binds, and say what they\nwould change. For a chapter you wrote, or edited after a draft. It is\nadvice: it never edits the chapter, and bookkit check decides whether\nthe chapter passes.",
+			usage: [
+				'bun run bookkit review [book] <chapter|file.mdx> [--judges <n>] [--judge "<command>"] [--no-run] [--json]',
+			],
+			options: [
+				BOOK,
+				[
+					"<chapter|file.mdx>",
+					"The chapter: its slug, file name, number, or path",
+				],
+				["--judges <n>", "Reviewers to ask, each on its own (default: 1)"],
+				[
+					'--judge "<command>"',
+					"A command that reads a prompt on stdin and prints the\nreply; or set BOOKKIT_JUDGE_COMMAND. Given more than\nonce, the reviewers are asked in turn",
+				],
+				["--no-run", "Write the prompt only"],
+				["--json", "Every reviewer's findings, as JSON"],
+			],
+			notes:
+				"Each review is a folder under .bookkit/reviewing/, which git ignores:\nthe prompt, each reviewer's reply, and review.json.",
+			examples: [
+				'bun run bookkit review running-hot the-hot-potato --judge "claude -p"',
+				"bun run bookkit review apps/running-hot/src/content/book/chapters/14-justice-is-who-pays-for-stability.mdx --judges 3",
+			],
+		},
+	},
+	{
 		name: "draft",
 		help: {
 			summary:
@@ -510,6 +611,7 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				"bun run bookkit draft [book] --stubs [the same options]",
 				"bun run bookkit draft resume [folder] [--apply]",
 				"bun run bookkit draft apply [folder] [--pick <candidate>]",
+				"bun run bookkit draft revise [folder] [--candidates <n>] [--apply]",
 				"bun run bookkit draft results",
 			],
 			options: [
@@ -552,6 +654,10 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				[
 					"apply [folder]",
 					"Write the winner into the chapter (default: the newest\nrequest with a call); --pick <candidate> names another",
+				],
+				[
+					"revise [folder]",
+					"Have the writers make the changes the judges named in\nthe winner (default: the newest request with one), then\njudge the revisions against it; --candidates sets how\nmany (default: 2)",
 				],
 				["results", "Each writer's and each judge's record so far"],
 			],

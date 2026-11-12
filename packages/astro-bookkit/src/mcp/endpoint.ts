@@ -106,6 +106,8 @@ export const createBookMcpEndpoint = (
 						"bookkit.list_books",
 						"bookkit.list_content",
 						"bookkit.list_skills",
+						"bookkit.status",
+						"bookkit.bets",
 					],
 					content: [
 						"bookkit.read_book",

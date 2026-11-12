@@ -46,18 +46,16 @@ import {
 } from "./book-validator/record-rules";
 import {
 	type BookFinding,
+	bookCheckContext,
 	bookConfigPath,
 	bookContentDir,
 	type ParsedSource,
 	readBookSources,
-	readRetiredSlugs,
-	routeSlugsOf,
 } from "./book-validator/sources";
 import {
 	CONTENT_SECTIONS,
 	type ContentSection,
 	checkContentItem,
-	mechanismSlugsFrom,
 	SECTION_DIRECTORIES,
 } from "./content-check";
 import {
@@ -68,7 +66,10 @@ import type { NormalizedErrorPayload } from "./normalized-error";
 
 export type { BookFinding } from "./book-validator/sources";
 export {
+	type BookSources,
+	bookCheckContext,
 	bookContentDir,
+	candidateCheckContext,
 	readBookFrame,
 	readBookSources,
 	readBookStatus,
@@ -158,18 +159,19 @@ export const checkBookContent = (
 			}),
 		]),
 	) as Record<ContentSection, ParsedSource[]>;
-	const slugs = routeSlugsOf(sources);
-	const mechanismSlugs = mechanismSlugsFrom(
-		sources.mechanism.map(({ source }) => source),
-	);
-	const retiredSlugs = readRetiredSlugs(workspaceRoot);
+	const { context } = bookCheckContext({
+		sources,
+		workspaceRoot,
+		book,
+		releaseMode,
+	});
+	const { mechanismSlugs } = context;
+	const retiredSlugs = context.retiredSlugs ?? new Map();
 	for (const section of CONTENT_SECTIONS) {
 		for (const { file, source } of sources[section]) {
+			// The frame as validated above, which --frame may override.
 			const result = checkContentItem(section, source, {
-				mechanismSlugs,
-				slugs,
-				retiredSlugs,
-				releaseMode,
+				...context,
 				frame: frameSlug,
 				format: file.endsWith(".md") ? "md" : "mdx",
 			});

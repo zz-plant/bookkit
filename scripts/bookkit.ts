@@ -11,6 +11,9 @@
  *   check-file.ts  check <file>
  *   judge.ts       similar, judge, rule
  *   draft.ts       draft
+ *   review.ts      review
+ *   define.ts      define
+ *   finish.ts      finish
  *   merge.ts       merge, sync
  *   structure.ts   remove, move, rename
  *   publish.ts     dev, build, export, publish
@@ -36,12 +39,14 @@ import {
 	runScript,
 	withBookFlag,
 } from "./lib/commands/context";
+import { define } from "./lib/commands/define";
 import {
 	probeCommand,
 	redteamCommand,
 	triageCommand,
 } from "./lib/commands/diagnose";
 import { draft } from "./lib/commands/draft";
+import { finish } from "./lib/commands/finish";
 import { printHelp, printHelpFor } from "./lib/commands/help";
 import { judge, rule, similarCommand } from "./lib/commands/judge";
 import { merge, sync } from "./lib/commands/merge";
@@ -52,6 +57,7 @@ import {
 	exportCommand,
 	publish,
 } from "./lib/commands/publish";
+import { review } from "./lib/commands/review";
 import {
 	betsCommand,
 	listCommand,
@@ -137,6 +143,21 @@ switch (findCommand(command)?.name ?? command) {
 
 	case "draft": {
 		process.exit(await draft(args.slice(1)));
+		break;
+	}
+
+	case "define": {
+		process.exit(await define(args.slice(1)));
+		break;
+	}
+
+	case "finish": {
+		process.exit(await finish(args.slice(1)));
+		break;
+	}
+
+	case "review": {
+		process.exit(await review(args.slice(1)));
 		break;
 	}
 

@@ -1,3 +1,4 @@
+import { getPrompt, PROMPT_DEFINITIONS } from "./prompts";
 import {
 	buildResourceChunk,
 	listPagedResources,
@@ -117,6 +118,7 @@ export const handleRequest = async (
 								listPagination: true,
 							},
 							tools: { listChanged: false, metadata: true },
+							prompts: { listChanged: false },
 						},
 					},
 				};
@@ -190,6 +192,23 @@ export const handleRequest = async (
 			}
 			case "ping":
 				return { jsonrpc: "2.0" as const, id, result: {} };
+			case "prompts/list":
+				return {
+					jsonrpc: "2.0" as const,
+					id,
+					result: { prompts: PROMPT_DEFINITIONS },
+				};
+			case "prompts/get": {
+				const params = request.params as
+					| { name?: string; arguments?: Record<string, unknown> }
+					| undefined;
+				if (!params?.name)
+					return createInvalidParamsError(id, "Missing prompt name.");
+				const prompt = getPrompt(options, params.name, params.arguments);
+				if ("error" in prompt)
+					return createInvalidParamsError(id, prompt.error);
+				return { jsonrpc: "2.0" as const, id, result: prompt };
+			}
 			case "tools/list":
 				return {
 					jsonrpc: "2.0" as const,

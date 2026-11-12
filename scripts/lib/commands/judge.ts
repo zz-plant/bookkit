@@ -24,7 +24,7 @@ import {
 	unansweredJudges,
 } from "../judge-runner";
 import { loadBookContent } from "../load-book";
-import { commandsFrom } from "../model-command";
+import { commandsFrom, freshPath } from "../model-command";
 import { args, books, runScript } from "./context";
 
 /**
@@ -231,10 +231,7 @@ export async function judge(rest: string[]): Promise<number> {
 	};
 	const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
 	const name = slug ?? (rulings ? "rulings" : "corpus");
-	let folder = join(judgingDir(), `${name}-${stamp}`);
-	for (let n = 2; existsSync(folder); n += 1) {
-		folder = join(judgingDir(), `${name}-${stamp}-${n}`);
-	}
+	const folder = freshPath(join(judgingDir(), `${name}-${stamp}`));
 	const commands = judgeCommands(rest);
 	const status = runScript("check-corpus.ts", [
 		"--judge-prompt",

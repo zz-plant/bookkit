@@ -76,7 +76,7 @@ flowchart LR
     N --> X["exit code → CI gate"]
 ```
 
-The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` wraps the validators and the workspace reader behind JSON-RPC so an agent gets the identical answers the CLI gives. Cross-book mechanism identity is governed against `corpus.json` and `corpus-judgments.json`, ensuring stable slugs across books.
+The MCP endpoint is a third surface over the *same* governance pipeline: `mcp/` wraps the validators and the workspace reader behind JSON-RPC so an agent gets the identical answers the CLI gives. Some of its tools (`status`, `bets`, `check_corpus`, `compile_book`, and others) run the workspace's CLI as a subprocess (`bun scripts/…` or a package script) instead of importing it: a dependency on `scripts/` that the module map's import rule cannot see. `packages/create-bookkit`'s tests keep it whole: every script a tool starts by path is vendored into a new project, and every package script it runs is in that project's `package.json`. A file check has one context, `bookCheckContext` in `validators/`, which `validate`, `check_content`, a draft's gate, and `bookkit define` all use. Cross-book mechanism identity is governed against `corpus.json` and `corpus-judgments.json`, ensuring stable slugs across books.
 
 **Where a change goes:** rendering, routing, or reader UI → render pipeline. Rules, checks, suggestions, or anything CI should fail on → governance pipeline. A new *record field* usually touches both — the schema (`schemas/`) and the CLI record parser (`scripts/lib/load-book.ts`).
 

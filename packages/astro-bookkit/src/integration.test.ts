@@ -1,14 +1,21 @@
 import { describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
 	BOOK_MODULE_ID,
 	type BookkitIntegrationOptions,
 	bookkit,
 	bookModule,
+	collidingPages,
 	ONNX_RUNTIME_WASM_BUILD,
 	onnxRuntimeWasmOnly,
 	optionalDependencies,
@@ -316,6 +323,27 @@ describe("onnxRuntimeWasmOnly", () => {
 		]) {
 			expect(await plugin.resolveId.call(context, source, "/a.ts")).toBeNull();
 		}
+	});
+});
+
+describe("collidingPages", () => {
+	it("finds pages Astro would serve at one URL, a .md ending included", () => {
+		expect(
+			collidingPages([
+				"read/chapters/[slug].astro",
+				"read/chapters/[slug].md.ts",
+				"llms.txt.ts",
+			]),
+		).toEqual([["read/chapters/[slug].astro", "read/chapters/[slug].md.ts"]]);
+	});
+
+	it("finds none among the engine's own pages", () => {
+		const dir = fileURLToPath(new URL("./routes/pages/", import.meta.url));
+		const pages = readdirSync(dir, { recursive: true })
+			.map((entry) => String(entry).replaceAll("\\", "/"))
+			.filter((file) => /\.(astro|ts)$/.test(file));
+		expect(pages.length).toBeGreaterThan(10);
+		expect(collidingPages(pages)).toEqual([]);
 	});
 });
 

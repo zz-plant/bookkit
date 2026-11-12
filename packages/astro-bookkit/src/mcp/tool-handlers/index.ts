@@ -13,6 +13,7 @@ import { handleListContent } from "./list_content";
 import { handleListMechanisms } from "./list_mechanisms";
 import { handleListSkills } from "./list_skills";
 import { handleReadBook } from "./read_book";
+import { handleBets, handleStatus } from "./status";
 import type { ToolHandlerMap } from "./types";
 import { handleValidateBook } from "./validate_book";
 import { handleWriteContent } from "./write_content";
@@ -33,6 +34,8 @@ const TOOL_HANDLERS: ToolHandlerMap = {
 	"bookkit.get_content_contract": handleGetContentContract,
 	"bookkit.check_content": handleCheckContent,
 	"bookkit.write_content": handleWriteContent,
+	"bookkit.status": handleStatus,
+	"bookkit.bets": handleBets,
 };
 
 export const runTool = async (

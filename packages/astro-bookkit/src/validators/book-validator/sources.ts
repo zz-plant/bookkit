@@ -6,11 +6,14 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { isReleasedStatus } from "../../schemas/status";
 import { parseFrontmatter } from "../../utils/frontmatter";
 import {
 	CONTENT_SECTIONS,
+	type ContentCheckContext,
 	type ContentFinding,
 	type ContentSection,
+	mechanismSlugsFrom,
 	type RetiredSlug,
 	retiredSlugsFromCorpus,
 	SECTION_DIRECTORIES,
@@ -140,3 +143,64 @@ export type ParsedSource = {
 	source: string;
 	data: Record<string, unknown> | null;
 };
+
+export type BookCheckContext = Omit<
+	ContentCheckContext,
+	"format" | "mechanismSlugs" | "slugs" | "releaseMode"
+> & {
+	mechanismSlugs: Set<string>;
+	slugs: Record<ContentSection, Set<string>>;
+	releaseMode: boolean;
+};
+
+export type BookSources = Record<
+	ContentSection,
+	Array<{ file: string; source: string }>
+>;
+
+/**
+ * What a file of a book is checked with besides its own text: the book's
+ * mechanisms and route slugs, the slugs a merge retired, its frame, and
+ * whether release rules apply. `validate` checks each of the book's files
+ * with it, and `bookkit check <file>`, a draft's gate, `bookkit define`, and
+ * MCP `check_content` check a file not yet written with it, so a candidate
+ * meets the rules the book's own files do. Without a workspace (a served
+ * book's MCP), only what the sources say is known.
+ */
+export const bookCheckContext = (input: {
+	sources: BookSources;
+	workspaceRoot?: string;
+	book?: string;
+	/** true forces release rules; otherwise the book's status decides. */
+	releaseMode?: boolean;
+}): { context: BookCheckContext; status?: string } => {
+	const { sources, workspaceRoot, book } = input;
+	const status =
+		workspaceRoot && book ? readBookStatus(workspaceRoot, book) : undefined;
+	return {
+		status,
+		context: {
+			mechanismSlugs: mechanismSlugsFrom(
+				sources.mechanism.map(({ source }) => source),
+			),
+			slugs: routeSlugsOf(sources),
+			retiredSlugs: workspaceRoot ? readRetiredSlugs(workspaceRoot) : undefined,
+			releaseMode: input.releaseMode === true || isReleasedStatus(status),
+			frame:
+				workspaceRoot && book ? readBookFrame(workspaceRoot, book) : undefined,
+		},
+	};
+};
+
+/** The context a new or changed file of a workspace book is checked with, read from disk. */
+export const candidateCheckContext = (
+	workspaceRoot: string,
+	book: string,
+	releaseMode?: boolean,
+) =>
+	bookCheckContext({
+		sources: readBookSources(workspaceRoot, book),
+		workspaceRoot,
+		book,
+		releaseMode,
+	});

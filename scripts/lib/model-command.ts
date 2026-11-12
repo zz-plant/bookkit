@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -195,4 +195,35 @@ export const inTurn = async <T>(
 		Array.from({ length: Math.max(1, Math.min(limit, tasks.length)) }, worker),
 	);
 	return results;
+};
+
+/**
+ * The JSON object (or array) in a model's reply, or undefined when there is
+ * none: the text from its first `{` to its last `}` (`[` and `]` for an
+ * array), since models wrap JSON in prose and code fences. Every reader of a
+ * model's reply (ballots, reviews, definitions, judges' answers) starts here.
+ */
+export const jsonInReply = (
+	text: string,
+	shape: "object" | "array" = "object",
+): unknown => {
+	const [open, close] = shape === "object" ? ["{", "}"] : ["[", "]"];
+	const start = text.indexOf(open);
+	const end = text.lastIndexOf(close);
+	if (start < 0 || end < start) return undefined;
+	try {
+		const parsed: unknown = JSON.parse(text.slice(start, end + 1));
+		const isArray = Array.isArray(parsed);
+		if (typeof parsed !== "object" || parsed === null) return undefined;
+		return (shape === "array") === isArray ? parsed : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+/** `base`, else `base-2`, `base-3`, and on: the first path that does not exist yet. */
+export const freshPath = (base: string): string => {
+	let path = base;
+	for (let n = 2; existsSync(path); n += 1) path = `${base}-${n}`;
+	return path;
 };

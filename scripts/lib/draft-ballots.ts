@@ -1,4 +1,5 @@
 import { DRAFT_RULES } from "./draft-brief";
+import { jsonInReply } from "./model-command";
 
 /**
  * `bookkit draft`, second half: what a judge is asked about the candidates
@@ -24,6 +25,12 @@ export type Ballot = {
 	reject: Array<{ id: string; why: string }>;
 	/** Why the first beats the second, in the judge's words. */
 	why: string;
+	/**
+	 * What the author would still change in the judge's first choice, one
+	 * change per item; what `bookkit draft revise` asks the writers for.
+	 * Empty when the judge named none, or on a ballot from before it was asked.
+	 */
+	fixes: string[];
 };
 
 /** The judge's prompt: the brief, the candidates, and the form of the ballot. */
@@ -46,11 +53,12 @@ Then give:
 - ranking: every draft id, best first. The best is the one the author would have to change least before putting their name to it.
 - reject: the drafts that should not be used at all, each with one sentence saying which rule it breaks and where. Reject a draft that argues something the stub does not claim, redefines or renames a mechanism, coins a concept, or states a fact the brief does not supply. Decide each rejection as if that draft were the only one: a draft is not usable because the others are worse. An empty list is a fine answer; so is rejecting every draft.
 - why: one sentence on why your first choice beats your second.
+- fixes: what the author would still have to change in your first choice before putting their name to it, one change per item, each one sentence that says where. Name only changes the rules above call for. An empty list is a fine answer.
 
 Be strict, not polite. Length is not quality: do not prefer a draft for being longer.
 
 Your final message must be ONLY a JSON object of this form, with draft ids in place of the words in angle brackets:
-{"ranking":["<best>","<next>"],"reject":[{"id":"<a rejected draft>","why":"States a statistic the brief does not supply, in its second section."}],"why":"<best> covers every planned section; <next> skips the last."}
+{"ranking":["<best>","<next>"],"reject":[{"id":"<a rejected draft>","why":"States a statistic the brief does not supply, in its second section."}],"why":"<best> covers every planned section; <next> skips the last.","fixes":["Use the mechanism's title, not its slug, in the second section."]}
 No prose before or after the JSON.
 
 # The brief the writers got
@@ -70,15 +78,10 @@ export const readBallot = (
 	text: string,
 	ids: readonly string[],
 ): Ballot | { error: string } => {
-	const start = text.indexOf("{");
-	const end = text.lastIndexOf("}");
-	let parsed: { ranking?: unknown; reject?: unknown; why?: unknown };
-	try {
-		parsed = JSON.parse(text.slice(start, end + 1));
-		if (typeof parsed !== "object" || parsed === null) throw new Error();
-	} catch {
-		return { error: "the reply holds no JSON object" };
-	}
+	const parsed = jsonInReply(text) as
+		| { ranking?: unknown; reject?: unknown; why?: unknown; fixes?: unknown }
+		| undefined;
+	if (!parsed) return { error: "the reply holds no JSON object" };
 	const ranking = Array.isArray(parsed.ranking)
 		? parsed.ranking.map(String)
 		: [];
@@ -107,6 +110,11 @@ export const readBallot = (
 		ranking,
 		reject,
 		why: typeof parsed.why === "string" ? parsed.why : "",
+		fixes: Array.isArray(parsed.fixes)
+			? parsed.fixes.filter(
+					(fix): fix is string => typeof fix === "string" && fix.trim() !== "",
+				)
+			: [],
 	};
 };
 

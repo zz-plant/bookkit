@@ -1,17 +1,10 @@
 import { join } from "node:path";
-import { isReleasedStatus } from "../../schemas/status";
-import {
-	readBookFrame,
-	readBookStatus,
-	readRetiredSlugs,
-	routeSlugsOf,
-} from "../../validators/book-validator";
+import { bookCheckContext } from "../../validators/book-validator";
 import {
 	CONTENT_SECTIONS,
 	type ContentFinding,
 	type ContentSection,
 	checkContentItem,
-	mechanismSlugsFrom,
 	SECTION_DIRECTORIES,
 } from "../../validators/content-check";
 import type { CompileFinding } from "../../validators/mdx-compile";
@@ -94,33 +87,17 @@ export const handleCheckContent: ToolHandler = async ({ options, args }) => {
 	const picked = bookArg(options, args);
 	if (!picked.ok) return picked.response;
 	const book = picked.book;
-	const sources = bookSources(options, book);
-	const mechanismSlugs = mechanismSlugsFrom(
-		sources.mechanism.map(({ source }) => source),
-	);
-	// The same rules validate applies: the book's status (unless releaseMode
-	// forces release rules) and its frame.
-	const bookStatus =
-		book && options.workspaceRoot
-			? readBookStatus(options.workspaceRoot, book)
-			: undefined;
-	const frame =
-		book && options.workspaceRoot
-			? readBookFrame(options.workspaceRoot, book)
-			: undefined;
-	const releaseRules =
-		args?.releaseMode === true || isReleasedStatus(bookStatus);
-	const format = args?.format === "md" ? "md" : "mdx";
-	const result = checkContentItem(section, source, {
-		mechanismSlugs: mechanismSlugs.size > 0 ? mechanismSlugs : undefined,
-		slugs: routeSlugsOf(sources),
-		retiredSlugs: options.workspaceRoot
-			? readRetiredSlugs(options.workspaceRoot)
-			: undefined,
-		releaseMode: releaseRules,
-		frame,
-		format,
+	// The same context validate gives the book's own files: its status
+	// (unless releaseMode forces release rules) and its frame.
+	const { context, status: bookStatus } = bookCheckContext({
+		sources: bookSources(options, book),
+		workspaceRoot: options.workspaceRoot,
+		book,
+		releaseMode: args?.releaseMode === true,
 	});
+	const releaseRules = context.releaseMode;
+	const format = args?.format === "md" ? "md" : "mdx";
+	const result = checkContentItem(section, source, { ...context, format });
 	// Then the compiler the build uses, unless an HTML comment already
 	// explains why it would fail. Only where the book's files are.
 	const findings: Array<ContentFinding | CompileFinding> = [...result.findings];
@@ -160,12 +137,12 @@ export const handleCheckContent: ToolHandler = async ({ options, args }) => {
 			book,
 			section,
 			bookStatus: bookStatus ?? null,
-			frame: frame ?? null,
+			frame: context.frame ?? null,
 			releaseRules,
 			ok,
 			findings,
 			similar,
-			mechanismSlugs: [...mechanismSlugs].sort(),
+			mechanismSlugs: [...context.mechanismSlugs].sort(),
 		},
 	};
 };

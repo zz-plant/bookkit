@@ -88,6 +88,7 @@ console.log(
 			.filter((draft) => reject && draft.text.includes(reject))
 			.map((draft) => ({ id: draft.id, why: reject + " states a fact the brief does not supply." })),
 		why: prefer + " keeps to the claim.",
+		fixes: [prefer + " should end on a check the reader can run."],
 	}),
 );
 `;
@@ -153,6 +154,10 @@ beforeAll(() => {
 		join(workspace, "bravo.mdx"),
 		// Wrapped as a chat model wraps a file.
 		`Here is the chapter.\n\n\`\`\`mdx\n${draftFile("BRAVO", `${kept}mechanisms:\n  - slow-walk\nsummary: "A stall is chosen."\n`)}\`\`\`\n`,
+	);
+	writeFileSync(
+		join(workspace, "charlie.mdx"),
+		draftFile("CHARLIE", `${kept}mechanisms:\n  - slow-walk\n`),
 	);
 	writeFileSync(
 		join(workspace, "short.mdx"),
@@ -273,6 +278,62 @@ describe("bookkit draft", () => {
 		);
 		expect(results.output).toMatch(
 			/3 ballot\(s\): first choice was the winner in 3 of 3/,
+		);
+	});
+
+	it("revise redrafts the winner from the judges' fixes, judged against it as it was, over the chapter it was applied to", () => {
+		const drafted = bookkit(
+			"draft",
+			"tiny",
+			"the-stall",
+			"--candidates",
+			"2",
+			...flags("--writer", [writer("alpha.mdx"), writer("bravo.mdx")]),
+			...flags("--judge", [judge("ALPHA")]),
+			"--judges",
+			"1",
+			"--apply",
+		);
+		expect(drafted.status).toBe(0);
+		expect(drafted.output).toContain("Winner: candidate 1");
+		const first = request();
+		const revised = bookkit(
+			"draft",
+			"revise",
+			"--candidates",
+			"1",
+			...flags("--writer", [writer("charlie.mdx")]),
+			...flags("--judge", [judge("CHARLIE")]),
+		);
+		expect(revised.status).toBe(0);
+		expect(revised.output).toContain(
+			"  - ALPHA should end on a check the reader can run.",
+		);
+		const folder = `${first}-revised`;
+		const brief = readFileSync(join(folder, "brief.md"), "utf8");
+		expect(brief).toContain("## Revise this draft");
+		expect(brief).toContain("ALPHA is the word this draft is known by.");
+		// Candidate 1 is the winner as it was, so a revision has to beat it.
+		expect(readFileSync(join(folder, "candidate-1.mdx"), "utf8")).toBe(
+			readFileSync(join(first, "candidate-1.mdx"), "utf8"),
+		);
+		expect(
+			JSON.parse(readFileSync(join(folder, "request.json"), "utf8")),
+		).toMatchObject({
+			candidates: 2,
+			judges: 1,
+			revises: first.split("/").pop(),
+		});
+		expect(revised.output).toContain("Winner: candidate 2");
+		const applied = bookkit("draft", "apply", folder);
+		expect(applied.status).toBe(0);
+		expect(readFileSync(stubPath(), "utf8")).toContain("CHARLIE");
+		// The author's own edits are not the judges' draft to revise.
+		writeFileSync(stubPath(), `${readFileSync(stubPath(), "utf8")}\nMine.\n`);
+		const refused = bookkit("draft", "revise", folder, "--no-run");
+		expect(refused.status).toBe(1);
+		expect(refused.output).toContain(
+			"has changed since candidate 2 was chosen",
 		);
 	});
 

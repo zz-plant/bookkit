@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
 	askCommand,
 	commandFor,
 	commandsFrom,
+	freshPath,
 	inTurn,
+	jsonInReply,
 	plainOutput,
 } from "./model-command";
 
@@ -117,5 +122,31 @@ describe("inTurn", () => {
 		expect(await inTurn(tasks, 1)).toEqual([1, 2, 3, 4]);
 		expect(most).toBe(1);
 		expect(await inTurn([], 3)).toEqual([]);
+	});
+});
+
+describe("jsonInReply", () => {
+	it("takes the object or array out of prose and fences, and nothing else", () => {
+		expect(jsonInReply('Sure:\n```json\n{"a":1}\n```\nDone.')).toEqual({
+			a: 1,
+		});
+		expect(jsonInReply('Here: [{"id":"P1"}] ok', "array")).toEqual([
+			{ id: "P1" },
+		]);
+		expect(jsonInReply("[1]")).toBeUndefined();
+		expect(jsonInReply('{"a":1}', "array")).toBeUndefined();
+		expect(jsonInReply("no json here")).toBeUndefined();
+		expect(jsonInReply("{broken")).toBeUndefined();
+	});
+});
+
+describe("freshPath", () => {
+	it("adds -2, -3, and on to the base, never to the last try", () => {
+		const base = mkdtempSync(join(tmpdir(), "bookkit-fresh-"));
+		expect(freshPath(base)).toBe(`${base}-2`);
+		mkdirSync(`${base}-2`);
+		expect(freshPath(base)).toBe(`${base}-3`);
+		rmSync(base, { recursive: true, force: true });
+		rmSync(`${base}-2`, { recursive: true, force: true });
 	});
 });

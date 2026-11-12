@@ -17,6 +17,8 @@ export const TOOL_NAMES = [
 	"bookkit.get_content_contract",
 	"bookkit.check_content",
 	"bookkit.write_content",
+	"bookkit.status",
+	"bookkit.bets",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -473,6 +475,44 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 				},
 			},
 			required: ["section", "source"],
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.status",
+		description:
+			"Every book's chapters, stub chapters, mechanisms, and tools; and for one book which chapters bind which mechanisms. Use to pick the next chapter to write or the mechanism no chapter uses.",
+		safety: "read_only",
+		expectedRuntime: "<10s",
+		expectedRuntimeClass: "short",
+		sideEffectLevel: "local-read/compute",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-safe-retry",
+		retryGuidance: "Safe to retry.",
+		retryPolicyGuidance: "Retry once on transient command failure.",
+		failureClassTaxonomy: ["configuration", "transient-command", "unknown"],
+		inputSchema: {
+			type: "object",
+			properties: { book: BOOK },
+			additionalProperties: false,
+		},
+	},
+	{
+		name: "bookkit.bets",
+		description:
+			"The maintainers' active bet (docs/bets.md) and how it measures, from git. Call before engine work: work that serves no bet is maintenance.",
+		safety: "read_only",
+		expectedRuntime: "<10s",
+		expectedRuntimeClass: "short",
+		sideEffectLevel: "local-read/compute",
+		idempotent: true,
+		idempotencyGuarantee: "idempotent-safe-retry",
+		retryGuidance: "Safe to retry.",
+		retryPolicyGuidance: "Retry once on transient command failure.",
+		failureClassTaxonomy: ["configuration", "transient-command", "unknown"],
+		inputSchema: {
+			type: "object",
+			properties: {},
 			additionalProperties: false,
 		},
 	},

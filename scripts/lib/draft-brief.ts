@@ -1,7 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { extractPageFacts } from "../../packages/astro-bookkit/src/markdown/pageFacts";
-import { isReleasedStatus } from "../../packages/astro-bookkit/src/schemas/status";
 import {
 	DEFAULT_MIN_INDEXABLE_WORDS,
 	isThinPage,
@@ -10,17 +9,8 @@ import {
 	formatFrontmatter,
 	parseFrontmatter,
 } from "../../packages/astro-bookkit/src/utils/frontmatter";
-import {
-	readBookFrame,
-	readBookSources,
-	readBookStatus,
-	readRetiredSlugs,
-	routeSlugsOf,
-} from "../../packages/astro-bookkit/src/validators/book-validator";
-import {
-	checkContentItem,
-	mechanismSlugsFrom,
-} from "../../packages/astro-bookkit/src/validators/content-check";
+import { candidateCheckContext } from "../../packages/astro-bookkit/src/validators/book-validator";
+import { checkContentItem } from "../../packages/astro-bookkit/src/validators/content-check";
 import { repoRoot } from "../_lib";
 import { loadBookConfig } from "./authoring";
 import { compileFinding, compileMdx } from "./compile-mdx";
@@ -80,7 +70,8 @@ const list = (label: string, items: string[]): string =>
 		? `${label}:\n${items.map((item) => `- ${item}`).join("\n")}\n`
 		: "";
 
-const contract = (mechanism: Mechanism): string =>
+/** A mechanism's whole contract, as a writer or reviewer reads it. */
+export const mechanismContract = (mechanism: Mechanism): string =>
 	`### ${mechanism.title} (\`${mechanism.slug}\`)\n\nDefinition: ${mechanism.definition}\n${list("It is", mechanism.is)}${list("It is not", mechanism.isNot)}${list("Tests", mechanism.tests)}`;
 
 /** The rules a draft is written to, and judged by (draft-ballots.ts). */
@@ -134,7 +125,7 @@ ${DRAFT_RULES.length + 1}. About ${input.targetWords} words of prose${input.mini
 ${DRAFT_RULES.length + 2}. Keep the frontmatter's slug, title, status, and prerequisites as they are. Under \`mechanisms:\`, list the slug of each mechanism the chapter relies on, and only slugs from this brief. You may add a one-sentence \`summary:\`.
 ${DRAFT_RULES.length + 3}. Markdown only: \`##\` headings, paragraphs, lists, **bold**. No HTML, no comments, no JSX, no images, no links, no curly braces.`,
 		input.bound.length > 0
-			? `## Mechanisms this chapter binds\n\n${input.bound.map(contract).join("\n")}`
+			? `## Mechanisms this chapter binds\n\n${input.bound.map(mechanismContract).join("\n")}`
 			: "",
 		input.others.length > 0
 			? `## The book's other mechanisms\n\nBind one by its slug if the chapter relies on it.\n\n${input.others.map((m) => `- \`${m.slug}\` — ${m.title}: ${m.definition}`).join("\n")}`
@@ -151,6 +142,31 @@ ${DRAFT_RULES.length + 3}. Markdown only: \`##\` headings, paragraphs, lists, **
 	];
 	return `${sections.filter(Boolean).join("\n\n")}\n`;
 };
+
+/**
+ * A revision's brief: the brief the first writers got, then the draft the
+ * judges chose and what they said it still needs. The writer returns the
+ * whole chapter again, so a revision is checked and judged as a draft is.
+ */
+export const revisionBrief = (
+	brief: string,
+	draft: string,
+	notes: readonly string[],
+): string =>
+	`${brief.trimEnd()}
+
+## Revise this draft
+
+Judges chose the draft below over the others, and named what it still needs. Make each change they name, and change nothing else. Every rule above still holds. Your reply is the whole chapter file, as before.
+
+What to change:
+
+${notes.map((note) => `- ${note}`).join("\n")}
+
+<draft>
+${draft.trim()}
+</draft>
+`;
 
 const median = (values: number[]): number | undefined => {
 	if (values.length === 0) return undefined;
@@ -398,17 +414,11 @@ export const gateCandidate = async (
 	minimumWords: number,
 ): Promise<GateResult> => {
 	const root = repoRoot();
-	const sources = readBookSources(root, book);
-	const mechanismSlugs = mechanismSlugsFrom(
-		sources.mechanism.map((mechanism) => mechanism.source),
+	const result = checkContentItem(
+		"chapter",
+		source,
+		candidateCheckContext(root, book).context,
 	);
-	const result = checkContentItem("chapter", source, {
-		mechanismSlugs,
-		slugs: routeSlugsOf(sources),
-		retiredSlugs: readRetiredSlugs(root),
-		releaseMode: isReleasedStatus(readBookStatus(root, book)),
-		frame: readBookFrame(root, book),
-	});
 	const findings: GateFinding[] = result.findings.map(
 		({ level, code, message, fix }) => ({ level, code, message, fix }),
 	);

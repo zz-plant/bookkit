@@ -10,6 +10,7 @@ const ballot = (ranking: string[], reject: string[] = []): Ballot => ({
 	ranking,
 	reject: reject.map((id) => ({ id, why: `${id} breaks a rule` })),
 	why: "",
+	fixes: [],
 });
 
 describe("readBallot", () => {
@@ -25,7 +26,17 @@ describe("readBallot", () => {
 			ranking: ["D2", "D1", "D3"],
 			reject: [{ id: "D3", why: "Cites a study." }],
 			why: "D2 keeps to the claim.",
+			fixes: [],
 		});
+	});
+
+	it("keeps the fixes a judge names in its first choice, and drops empty ones", () => {
+		expect(
+			readBallot(
+				'{"ranking":["D1","D2","D3"],"fixes":["Use the title, not the slug.",""," ",3]}',
+				ids,
+			),
+		).toMatchObject({ fixes: ["Use the title, not the slug."] });
 	});
 
 	it("reads a rejection given as a bare id, and a ballot with none", () => {
@@ -35,6 +46,7 @@ describe("readBallot", () => {
 			ranking: ["D1", "D2", "D3"],
 			reject: [{ id: "D2", why: "" }],
 			why: "",
+			fixes: [],
 		});
 		expect(readBallot('{"ranking":["D1","D2","D3"]}', ids)).toMatchObject({
 			reject: [],

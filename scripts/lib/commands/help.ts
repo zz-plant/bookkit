@@ -59,6 +59,9 @@ Write
                                             a mechanism's slug in every book of its corpus, with every
                                             reference to it; corpus.json records the old one
   propose [book] [--apply all|…]            draft mechanisms, tools, edges, and config from a book's text
+  define [book] <mechanism> [--writer "<command>"] [--apply]
+                                            a writer drafts a mechanism's empty definition from the book's
+                                            sentences; written only if it overlaps no other mechanism
   draft [book] <chapter> [--writer "<command>"] [--judge "<command>"] [--notes <path>] [--apply]
                                             draft a stub with models: writer commands (--writer, or
                                             BOOKKIT_DRAFT_COMMAND) each write a candidate, the compiler
@@ -67,7 +70,14 @@ Write
                                             --stubs drafts every stub of the book
   draft apply [folder] [--pick <n>]         write the winner into the chapter (default: the newest call)
   draft resume [folder]                     ask the writers and judges that have not answered
+  draft revise [folder]                     the winner redrafted from what the judges said it still
+                                            needs, judged against it as it was
   draft results                             each writer's and each judge's record so far
+  finish [book] [chapter] [--rounds <n>]  review, revise, and judge drafted chapters until a reviewer
+                                            has nothing left to say; never rewrites a chapter you edited
+  review [book] <chapter> [--judge "<command>"]
+                                            judge models read a written chapter against the draft rules
+                                            and its mechanisms' contracts, and say what they would change
   remove chapter|mechanism|tool [book] <slug> [--dry-run]
                                             the record, and the prerequisites and mechanisms: entries
                                             that name it; a mechanism's tools and examples need
@@ -136,6 +146,13 @@ Preview and publish
                                             none; --dry-run skips the engine's tests (--full runs them);
                                             no book: the current one, or all; --all for every book
                                             (bun run bookkit deploy --help for every option)
+
+Diagnose
+  triage "<symptom>" [book] [--semantic]    match an incident to the book's mechanisms, ask the question
+                                            that tells the top two apart, and give a ten-minute action
+  redteam <tool> [book]                     test a tool's steps against an institution that stalls, and
+                                            draft what its failureLooksLike and legitimateDemand miss
+  probe <slugA> <slugB> [book]              edge cases between two mechanisms, to sharpen the boundary
 
 Other
   list                                      list the books

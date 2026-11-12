@@ -12,7 +12,7 @@ import {
 import { availableParallelism, tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { BOOKKIT_COMMANDS } from "../bookkit-commands";
-import { runChildAsync } from "../child-process.fixture";
+import { runChild, runChildAsync } from "../child-process.fixture";
 
 /**
  * `-h` and `--help` for every package script (the workspace's, and a book
@@ -196,6 +196,27 @@ describe("--help", () => {
 	it("is answered by every package script and bookkit command, with usage and examples, changing nothing", () => {
 		expect(results.length).toBeGreaterThan(100);
 		expect(results.filter((result) => result.problems.length > 0)).toEqual([]);
+	});
+
+	it("lists every command in the summary bookkit help prints", () => {
+		const summary = runChild(
+			[process.execPath, join(REPO, "scripts", "bookkit.ts"), "help"],
+			{ cwd: REPO },
+		).output;
+		// Each line's command, and its first two words (`new book`).
+		const listed = new Set(
+			[...summary.matchAll(/^ {2}([a-z][\w-]*)(?: ([a-z]+))?/gm)].flatMap(
+				(match) => [match[1], `${match[1]} ${match[2]}`],
+			),
+		);
+		// `new-book` is listed as `new book`, its spoken form.
+		const missing = BOOKKIT_COMMANDS.map((command) => command.name).filter(
+			(name) =>
+				name !== "help" &&
+				!listed.has(name) &&
+				!listed.has(name.replace("-", " ")),
+		);
+		expect(missing).toEqual([]);
 	});
 
 	it("covers every command bookkit dispatches", () => {

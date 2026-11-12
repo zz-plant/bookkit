@@ -7,7 +7,7 @@ import {
 	statSync,
 	writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { repoRoot } from "../_lib";
 import {
 	type Ballot,
@@ -21,6 +21,7 @@ import {
 	extractDraft,
 	type GateResult,
 	gateCandidate,
+	revisionBrief,
 } from "./draft-brief";
 import { askCommand, commandFor, commandLabel, inTurn } from "./model-command";
 
@@ -41,6 +42,10 @@ import { askCommand, commandFor, commandLabel, inTurn } from "./model-command";
  *   ballot-<n>.json     judge n's ranking and rejections
  *   result.json         the call, and who wrote and judged what
  *
+ * A revision (`draft revise`) is a request of the same shape whose brief adds
+ * the winner of an earlier one and the judges' notes on it. Its candidate 1
+ * is that winner, unrevised, so a revision has to beat the draft it revises.
+ *
  * Nothing here touches the book until applyCandidate.
  */
 
@@ -58,6 +63,8 @@ export type DraftRequest = {
 	minimumWords: number;
 	targetWords: number;
 	created: string;
+	/** The request folder (its name) whose winner this one revises. */
+	revises?: string;
 };
 
 export const draftingDir = (): string =>
@@ -482,6 +489,121 @@ export const applyCandidate = async (
 		);
 	}
 	return { file, words: gate.words };
+};
+
+/**
+ * What the judges who chose the winner still want changed in it: each one's
+ * fixes, or, on a ballot from before judges were asked for fixes, its reason.
+ * Draft ids mean nothing to a writer who sees one draft, so they are named.
+ */
+export const revisionNotes = (result: DraftResult): string[] => {
+	if (result.decision.call !== "winner") return [];
+	const { winner } = result.decision;
+	const out = new Set(result.decision.rejected.map(({ id }) => id));
+	const named = (text: string) =>
+		text.replace(/\bD\d+\b/g, (id) =>
+			id === winner ? "this draft" : "another draft",
+		);
+	const notes = result.judges.flatMap(({ ballot }) => {
+		if (ballot.ranking.find((id) => !out.has(id)) !== winner) return [];
+		const fixes = ballot.fixes ?? [];
+		return fixes.length > 0 ? fixes : ballot.why ? [ballot.why] : [];
+	});
+	return [...new Set(notes.map(named))];
+};
+
+/**
+ * Starts a revision of a request's winner in `into`: the brief with the
+ * winner and the notes, the winner as candidate 1, and room for `revisions`
+ * more. The chapter may still be the stub or already hold the winner (once
+ * applied); a revision applies over whichever it is. Refuses once the author
+ * has changed the chapter: their edits are not the judges' draft.
+ */
+export const startRevision = (
+	folder: string,
+	into: string,
+	request: DraftRequest,
+	winner: number,
+	notes: readonly string[],
+	{ revisions, judges }: { revisions: number; judges: number },
+): { error: string } | undefined => {
+	const winning = read(candidatePath(folder, winner));
+	const file = join(repoRoot(), request.chapter);
+	const chapter = existsSync(file) ? read(file) : "";
+	if (chapter !== read(join(folder, "stub.mdx")) && chapter !== winning) {
+		return {
+			error: `${request.chapter} has changed since candidate ${winner} was chosen, so there is no draft of the judges' to revise. Your edits are yours: check them with bun run bookkit review ${request.chapter}.`,
+		};
+	}
+	const command = commandOf(folder, "writer", winner);
+	startChapterRevision(
+		into,
+		{ ...request, revises: basename(folder) },
+		read(join(folder, "brief.md")),
+		chapter,
+		winning,
+		notes,
+		{ revisions, judges, unrevised: command ?? "saved by hand" },
+	);
+	return undefined;
+};
+
+/**
+ * A revision request in `into`: the brief with `draft` and the notes on it,
+ * `draft` itself as candidate 1, unrevised, and room for `revisions` more.
+ * `chapter` is the file as it stands, which apply checks has not changed.
+ * `draft revise` starts one from a winner and the judges' fixes, and
+ * `bookkit finish` from the chapter and a review's findings.
+ */
+export const startChapterRevision = (
+	into: string,
+	request: DraftRequest,
+	brief: string,
+	chapter: string,
+	draft: string,
+	notes: readonly string[],
+	{
+		revisions,
+		judges,
+		unrevised,
+	}: { revisions: number; judges: number; unrevised: string },
+): void => {
+	startRequest(
+		into,
+		{
+			...request,
+			candidates: revisions + 1,
+			judges,
+			created: new Date().toISOString(),
+		},
+		revisionBrief(brief, draft, notes),
+		chapter,
+	);
+	writeFileSync(candidatePath(into, 1), draft);
+	writeFileSync(
+		side(into, "writer", 1, "command.txt"),
+		`unrevised: ${unrevised}\n`,
+	);
+};
+
+/**
+ * The request whose applied candidate the chapter still holds, word for
+ * word: the chapter is a model's draft, not yet edited by its author. None
+ * once the author has changed it, or when no draft was ever applied to it.
+ */
+export const draftHeldBy = (chapterFile: string): string | undefined => {
+	if (!existsSync(chapterFile)) return undefined;
+	const current = read(chapterFile);
+	const file = relative(repoRoot(), chapterFile);
+	return requestFolders().find((folder) => {
+		const result = readResult(folder);
+		return (
+			result?.applied !== undefined &&
+			result.chapter === file &&
+			existsSync(candidatePath(folder, result.applied)) &&
+			read(candidatePath(folder, result.applied)) === current
+		);
+	});
 };
 
 export type WriterTally = {

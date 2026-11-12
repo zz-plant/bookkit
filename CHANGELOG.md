@@ -4,6 +4,38 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-12 — `bookkit finish`: drafts taken the last mile
+
+The owner overrode maintenance mode for this work (AGENTS.md).
+
+- **`bookkit finish [book] [chapter]`** loops review, revision, and a blind judgment until a reviewer has nothing left to change in a drafted chapter, no revision beats the chapter, the findings stop falling, or `--rounds` runs out. It revises only chapters that still hold a draft exactly as `draft apply` wrote it, unless `--include-edited`. Each round's notes are the review's findings, the content check's warnings, and the labels `check:concepts` finds in the chapter. When it stops, it keeps the version with the fewest of them (the latest of a tie), so a round the judges liked and the reviewer did not is undone. A writer or judge that fails is asked once more before the chapter stops.
+- **Shared pieces:** `runReview` (commands/review.ts) and `startChapterRevision` (draft-run.ts) are what `review`, `draft revise`, and `finish` use; `draftHeldBy` tells a model's draft from an author's edit.
+- **Migration:** none.
+
+## 2026-11-12 — One check context, routes Astro would merge, shared model replies
+
+The owner overrode maintenance mode for these refactors (AGENTS.md).
+
+- **One context for checking a file.** `bookCheckContext` (and `candidateCheckContext` for a file of a workspace book) in `validators/` gives a file the book's mechanisms, route slugs, retired slugs, frame, and release rule. `validate`, MCP `check_content`, a draft's gate, and `bookkit define` used to build it four times; they now share it, so a rule that needs more context reaches all four. One change in behavior: `check_content` on a book with no mechanisms now reports a reference to an unknown mechanism, as `validate` already did, instead of skipping the check.
+- **Pages that would serve one URL are an error.** Astro drops a `.md`, `.mdx`, `.astro`, `.js`, or `.ts` ending from a route's last part, so `read/chapters/[slug].md.ts` served the same URL as `read/chapters/[slug].astro` and one of them was silently dropped. `routePatternOf` now reads patterns the way Astro does, and `bookkit()` stops the build or dev server, naming both files, when two engine pages or two of a book's own pages collide. A book page that collides with an engine page still replaces it, as before.
+- **Model replies are read in one place.** `jsonInReply` (in `scripts/lib/model-command.ts`) finds the JSON in a reply for judges' ballots, reviews, definitions, and corpus judgments, and `freshPath` names a new request folder. `bookkit review` no longer names a second review in the same minute `…-2-3`.
+- **`bookkit help` lists `triage`, `redteam`, and `probe`**, under Diagnose, and a test fails when a command is missing from it.
+- **`/llms.txt` says why it lists nothing:** the book is a draft, or its `site.indexable` is false, as it is outside a production build in most books.
+- **`docs/architecture.md`** records that some MCP tools run the workspace CLI as a subprocess, a dependency the import rule cannot see, and which tests keep it whole.
+- **Migration:** none, unless a book's `src/pages/` has two pages that serve one URL; rename one.
+
+## 2026-11-12 — Revisions, reviews, definitions, and the book for models
+
+The owner overrode maintenance mode for this work (AGENTS.md).
+
+- **`bookkit draft revise [folder]`** has the writers make the changes the judges named in a winning draft, then judges the revisions against the winner as it was. Judges are now asked for `fixes` in each ballot: what the author would still change in their first choice. A ballot without them is read as before, with no fixes.
+- **`bookkit review [book] <chapter>`** has judge models read a written chapter against the draft rules and its mechanisms' contracts, and print each finding with its fix. It writes only under `.bookkit/reviewing/`.
+- **`bookkit define [book] <mechanism>`** has a writer draft a mechanism's empty definition, `is`, `isNot`, predictions, and tests from the book's sentences that use it. `--apply` writes the proposal shown into the empty fields only, and refuses one that fails the check or scores 0.5 or more by wording against another mechanism.
+- **MCP:** two tools, `bookkit.status` and `bookkit.bets`, and three prompts, `bookkit.apply_mechanism`, `bookkit.run_tool`, and `bookkit.draft_chapter`. `initialize` reports `capabilities.prompts`.
+- **`/llms.txt` and `/md/<section>/<slug>.md`** on every built book: an index for language models and a Markdown copy of each entry, following the site's rule for crawlers (nothing for a book that is not indexable; no stub chapters).
+- **Session start** prints the maintenance notice and `bookkit bets` in every Claude Code session, not only cloud ones, which still install the workspace first.
+- **Migration:** none. A request folder made before this change revises from its judges' reasons, since its ballots have no fixes. A book's own page at `src/pages/llms.txt.ts` or `src/pages/md/[...path].ts` replaces the engine's.
+||||||| dd62bcc
 ## 2026-11-12 — A runbook opens on its actions
 
 At the owner's request, which overrides maintenance mode for this change.

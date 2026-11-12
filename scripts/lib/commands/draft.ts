@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { countWords } from "../../../packages/astro-bookkit/src/markdown/pageFacts";
 import { repoRoot } from "../../_lib";
@@ -25,16 +25,18 @@ import {
 	readRequest,
 	readResult,
 	requestFolders,
+	revisionNotes,
 	runDraftJudges,
 	runWriters,
 	startRequest,
+	startRevision,
 	tallyResults,
 	WRITER_COMMAND_ENV,
 	writeJudgeRequest,
 } from "../draft-run";
 import { resolveFromCaller } from "../folder-report";
 import { JUDGE_COMMAND_ENV } from "../judge-runner";
-import { commandsFrom } from "../model-command";
+import { commandsFrom, freshPath } from "../model-command";
 import { books, takeBook } from "./context";
 
 /**
@@ -63,7 +65,7 @@ const WRITER_TIMEOUT_SECONDS = 300;
 const USAGE =
 	'bun run bookkit draft [book] <chapter> [--candidates <n>] [--judges <n>] [--writer "<command>"] [--judge "<command>"] [--notes <path>] [--apply]';
 
-type Commands = {
+export type Commands = {
 	writers: string[];
 	judges: string[];
 	apply: boolean;
@@ -206,7 +208,7 @@ const judgeHint = (folder: string, missing: number[]): string =>
  * missing, the check on every candidate, judges for the ballots still
  * missing, then the call, and the winner into the chapter when asked.
  */
-async function continueRequest(
+export async function continueRequest(
 	folder: string,
 	{ writers, judges, apply, parallel, timeoutSeconds }: Commands,
 ): Promise<number> {
@@ -305,6 +307,11 @@ async function continueRequest(
 	console.log(
 		`Write it into the chapter: bun run bookkit draft apply ${shown(folder)}`,
 	);
+	if (revisionNotes(result).length > 0) {
+		console.log(
+			`Or have the writers make the changes the judges named first: bun run bookkit draft revise ${shown(folder)}`,
+		);
+	}
 	return 0;
 }
 
@@ -341,10 +348,7 @@ async function draftChapter(
 	const brief = draftBrief(input);
 	const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
 	const name = `${chapter.book}-${basename(chapter.file).replace(/\.mdx?$/, "")}-${stamp}`;
-	let folder = join(draftingDir(), name);
-	for (let n = 2; existsSync(folder); n += 1) {
-		folder = join(draftingDir(), `${name}-${n}`);
-	}
+	const folder = freshPath(join(draftingDir(), name));
 	const file = relative(repoRoot(), chapter.file);
 	startRequest(
 		folder,
@@ -423,6 +427,68 @@ async function applyCommand(rest: string[]): Promise<number> {
 	return applyAndReport(folder, request, candidate);
 }
 
+/**
+ * bookkit draft revise [folder]: the winner of a request, redrafted by the
+ * writers from what the judges who chose it said it still needs, then
+ * checked and judged against the winner as it was.
+ */
+async function reviseCommand(
+	rest: string[],
+	commands: Commands,
+): Promise<number> {
+	const folder = requestFolder(
+		rest,
+		(candidate) => readResult(candidate)?.winner !== undefined,
+	);
+	if (!folder) {
+		console.error(
+			requestFolders().length === 0
+				? NO_REQUEST
+				: "No request has a winner to revise. Finish one first: bun run bookkit draft resume.",
+		);
+		return 1;
+	}
+	const request = readRequest(folder);
+	if ("error" in request) {
+		console.error(request.error);
+		return 1;
+	}
+	const result = readResult(folder);
+	if (result?.winner === undefined) {
+		console.error(
+			`${shown(folder)} has no winner to revise${result?.decision.call === "split" ? ": the judges split" : ""}.`,
+		);
+		return 1;
+	}
+	const notes = revisionNotes(result);
+	if (notes.length === 0) {
+		console.log(
+			`The judges who chose candidate ${result.winner} named nothing it still needs, so there is nothing to revise. Write it into the chapter: bun run bookkit draft apply ${shown(folder)}`,
+		);
+		return 0;
+	}
+	const revisions = count(rest, "--candidates", 2);
+	const judges = count(rest, "--judges", request.judges);
+	if (revisions === undefined || judges === undefined) return 1;
+	const into = freshPath(`${folder}-revised`);
+	const started = startRevision(folder, into, request, result.winner, notes, {
+		revisions,
+		judges,
+	});
+	if (started) {
+		console.error(started.error);
+		return 1;
+	}
+	console.log(
+		`\nRevising candidate ${result.winner} of ${shown(folder)} (${request.chapter}). What the judges who chose it said it still needs:`,
+	);
+	for (const note of notes) console.log(`  - ${note}`);
+	console.log(
+		`  brief: ${shown(join(into, "brief.md"))}; candidate 1 is the draft as it was, so a revision has to beat it.`,
+	);
+	return continueRequest(into, commands);
+}
+
 function resultsCommand(): number {
 	const results = requestFolders().flatMap((folder) => {
 		const result = readResult(folder);
@@ -459,6 +525,7 @@ function resultsCommand(): number {
  * --stubs: one for each stub of the book, in reading order. bookkit draft
  * resume [folder]: asks whoever has not answered and makes the call. bookkit
  * draft apply [folder]: writes the winner into the chapter. bookkit draft
+ * revise [folder]: redrafts the winner from the judges' notes. bookkit draft
  * results: each writer's and judge's record so far.
  */
 export async function draft(rest: string[]): Promise<number> {
@@ -466,6 +533,7 @@ export async function draft(rest: string[]): Promise<number> {
 	if (rest[0] === "apply") return applyCommand(rest);
 	const commands = commandsOf(rest);
 	if (!commands) return 1;
+	if (rest[0] === "revise") return reviseCommand(rest, commands);
 	if (rest[0] === "resume") {
 		const folder = requestFolder(rest);
 		if (!folder) {

@@ -18,6 +18,7 @@ import {
 	type PairCall,
 	type PairJudgment,
 } from "../../packages/astro-bookkit/src/suggestions";
+import { jsonInReply } from "./model-command";
 
 /**
  * corpus-judgments.json: judges' verdicts on pairs of mechanisms, for
@@ -397,15 +398,8 @@ const votesIn = (
 	command?: string,
 ): Array<{ entry: KeyEntry; vote: RecordedVote }> | { error: string } => {
 	const byId = new Map(key.map((entry) => [entry.id, entry]));
-	const start = text.indexOf("[");
-	const end = text.lastIndexOf("]");
-	let answers: Answer[];
-	try {
-		answers = JSON.parse(text.slice(start, end + 1)) as Answer[];
-		if (!Array.isArray(answers)) throw new Error("not an array");
-	} catch {
-		return { error: `${file} holds no JSON array of answers.` };
-	}
+	const answers = jsonInReply(text, "array") as Answer[] | undefined;
+	if (!answers) return { error: `${file} holds no JSON array of answers.` };
 	const votes: Array<{ entry: KeyEntry; vote: RecordedVote }> = [];
 	for (const answer of answers) {
 		const entry = byId.get(String(answer.id));

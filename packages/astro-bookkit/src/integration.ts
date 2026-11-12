@@ -178,15 +178,36 @@ const listPages = (dir: URL): string[] => {
 };
 
 /**
+ * Endings Astro drops from the last part of a route's pattern, as it does
+ * from a page's file name (its `parseRoute`): `[slug].md`, injected, serves
+ * `[slug]`.
+ */
+const ROUTE_FILE_ENDING = /\.(astro|md|mdx|markdown|js|ts)$/;
+
+/**
  * The URL a page file serves, the way Astro names file routes:
  * `read/chapters/index.astro` is `/read/chapters`, `sitemap.xml.ts` is
- * `/sitemap.xml`.
+ * `/sitemap.xml`, and `read/chapters/[slug].md.ts` is `/read/chapters/[slug]`,
+ * since Astro drops the `.md` it is left with.
  */
 export const routePatternOf = (file: string): string =>
-	`/${file.replace(PAGE_EXTENSION, "").replace(/(^|\/)index$/, "")}`.replace(
-		/(.)\/$/,
-		"$1",
-	);
+	`/${file
+		.replace(PAGE_EXTENSION, "")
+		.replace(ROUTE_FILE_ENDING, "")
+		.replace(/(^|\/)index$/, "")}`.replace(/(.)\/$/, "$1");
+
+/**
+ * Page files that serve the same URL. Astro would keep one of them and
+ * drop the rest without a word, so the integration refuses them instead.
+ */
+export const collidingPages = (files: readonly string[]): string[][] => {
+	const byPattern = new Map<string, string[]>();
+	for (const file of files) {
+		const pattern = routePatternOf(file);
+		byPattern.set(pattern, [...(byPattern.get(pattern) ?? []), file]);
+	}
+	return [...byPattern.values()].filter((group) => group.length > 1);
+};
 
 /**
  * Astro integration for Bookkit book applications.
@@ -243,9 +264,20 @@ export function bookkit(
 					fileURLToPath(config.root),
 					fileURLToPath(new URL("pages/api/", config.srcDir)),
 				).replaceAll("\\", "/")}/`;
-				const bookPages = new Set(
-					listPages(new URL("pages/", config.srcDir)).map(routePatternOf),
-				);
+				const ownPages = listPages(new URL("pages/", config.srcDir));
+				const engineCollisions = collidingPages(listPages(ENGINE_PAGES_DIR));
+				const ownCollisions = collidingPages(ownPages);
+				for (const [where, groups] of [
+					["@bookkit/astro-bookkit/src/routes/pages/", engineCollisions],
+					["src/pages/", ownCollisions],
+				] as const) {
+					if (groups.length > 0) {
+						throw new Error(
+							`These pages in ${where} serve the same URL, so all but one would be dropped: ${groups.map((group) => `${group.join(" and ")} (${routePatternOf(group[0])})`).join("; ")}. Astro drops a .md, .mdx, .astro, .js, or .ts ending from a route's last part, so name each page for a URL of its own.`,
+						);
+					}
+				}
+				const bookPages = new Set(ownPages.map(routePatternOf));
 				for (const page of listPages(ENGINE_PAGES_DIR)) {
 					const pattern = routePatternOf(page);
 					if (bookPages.has(pattern)) continue;

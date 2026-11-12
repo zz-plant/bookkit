@@ -1,11 +1,56 @@
 ---
-slug: "03-you-can-design-harm-out"
-status: "draft"
-title: "You Can Design Harm Out"
+slug: 03-you-can-design-harm-out
+status: draft
+title: You Can Design Harm Out
 mechanisms:
   - cowardice-of-inference
+  - crumple-zone
+  - refusability-gap
+summary: Harm follows predictably from design choices and can be designed out.
 ---
 
-Principles do not stop machines. Design encodes ethics.
+## The Structure of Harm
 
-Draws on the essays *You Can Design Harm Out*, *The Cowardice of Inference*, and *Toothless Ethics*.
+We treat harm as a bug. We call it a glitch, a side effect, or an edge case. This is a lie. Harm follows predictably from design choices.
+
+When a system keeps running, someone pays. The institution preserves output by routing shocks into people instead of containing them. The person absorbs the shock a buffer should take. This is the **crumple zone**. Shocks are routed into waiting, paperwork, and stress because buffers and slack are underbuilt while throughput targets stay the same. The human body is treated as the cheapest available infrastructure.
+
+We can design this out. Not by hoping for better people. By changing the structure.
+
+Run these checks on any system you use:
+
+*   If the same demand spike hit with staffed backup, explicit rollback, and clear ownership, would the same people still absorb it?
+*   Track where delays accumulate. If lag clusters at human interfaces rather than machine constraints, the load is being routed into people.
+*   Ask what happens when the people absorbing the load reach capacity. If they break before the system does, they are the crumple zone.
+
+## The Cowardice of Inference
+
+Institutions know what is broken. They identify the problem with precision. They write reports on it. They form committees. They do nothing.
+
+This is **The Cowardice of Inference**. It is not that they do not know. It is that they lack the courage to act. The diagnosis-to-action gap is maintained by incentive structures.
+
+To act is to admit fault. To admit fault is to lose power. So the institution chooses inaction. It calls it prudence. It is bad faith.
+
+What does the institution know is wrong that it has not acted on? Which incentive keeps it from acting? The gap between knowing and acting is why buffers and refusal points must be built in as structural requirements and not left to institutional will.
+
+## Design Encodes Ethics
+
+Ethics is not a policy. It is a constraint.
+
+When you design a system, you choose who bears the cost of failure. A system with no refusal point and no buffer sends cost to people whatever any one designer intends. You are not neutral. You are making a structural choice.
+
+To design harm out, you must remove the option to externalize cost. Use this checklist:
+
+*   Who absorbs a failure today?
+*   What buffer would take it instead?
+*   Does a refusal point exist, and if so, who can use it and what does it cost them?
+
+## The Refusability Gap
+
+The ability to say no is treated as optional. It should be a structural requirement.
+
+Leaving out refusal points is a political choice. Where refusal is not designed in, coercion is. Coercion is a design choice. It is not an accident. It can be designed out.
+
+Designers must bear the burden of proving their system is not coercive. Identify a system you participate in involuntarily. Where do you lack the ability to say no? What would a refusable version look like, one where participation is genuinely optional?
+
+Building refusal costs something. It reduces efficiency. It requires explicit exit paths and no lock-in. This is a trade-off between extraction and agency.

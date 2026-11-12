@@ -35,6 +35,29 @@ The owner overrode maintenance mode for this work (AGENTS.md).
 - **`/llms.txt` and `/md/<section>/<slug>.md`** on every built book: an index for language models and a Markdown copy of each entry, following the site's rule for crawlers (nothing for a book that is not indexable; no stub chapters).
 - **Session start** prints the maintenance notice and `bookkit bets` in every Claude Code session, not only cloud ones, which still install the workspace first.
 - **Migration:** none. A request folder made before this change revises from its judges' reasons, since its ballots have no fixes. A book's own page at `src/pages/llms.txt.ts` or `src/pages/md/[...path].ts` replaces the engine's.
+||||||| dd62bcc
+## 2026-11-12 — A runbook opens on its actions
+
+At the owner's request, which overrides maintenance mode for this change.
+
+- **A frame now sets the book's front door.** `FrameDefinition` takes `frontDoor: "reading" | "actions"` (left out, `reading`), and `frameFrontDoor(slug)` reads it. The built-in `runbook` frame is `actions`; `intervention`, `explainer`, and `field-guide` are unchanged.
+- **Before:** every book's home page opened with three "Where to start" cards and a row of section counts, and a runbook reader reached an action through the mechanisms index or the toolkit index, which listed actions alphabetically by name with the mechanism's slug.
+- **After, in a runbook book:** the home page and `/read/toolkit` list each action under the situation that calls for it (its `trigger`), with its time and its mechanism's title, in the order of `mechanisms` in `book.config.ts` and shortest first within a mechanism. A link under the list opens "Match what’s happening". "Where to start" follows as a ruled list titled "Read the book", and the section counts are gone from that home page. A runbook with no action yet keeps the old home page.
+- **Short lists lose their tools.** The toolkit, glossary, and examples indexes showed a filter and a "Jump to letter" row at any length. They now follow the other indexes: a filter above 6 items, letters above 10.
+- **On-Call Runbook:** the home page's mechanisms link no longer says "Mid-incident?", since the list above it does that job.
+- **Migration:** none. A frame registered with `registerFrame` keeps the reading front door unless it sets `frontDoor`. A runbook action without `trigger` still lists, by name; `trigger` stays optional.
+
+## 2026-11-12 — Checklists, page endings, search, and the default text size
+
+At the owner's request, which overrides maintenance mode for this change. It follows a critique of the reader site; nothing here changes a schema, a check, or `book.config.ts`.
+
+- **A checklist step is one tap target.** The whole row of an action's step is its label, so a tap anywhere ticks it, and the checkbox is named by the step's number and text (it was "Step 1"). A ticked step keeps its text at full ink; it was struck through at 65% opacity. Under the list, "2 of 4 steps done." counts the ticks, with Reset beside it and away from Copy. On a touch screen both buttons are 44px tall.
+- **No boxes at the end of a page.** "Keep going" on action and glossary pages, the results of "Match what’s happening", a release note, a mechanism's rulings, and "Tools for this chapter" are ruled rows; each was a bordered box, two of them with boxed links inside. "Tools for this chapter" loses its 4px accent border, its "Action" label, and a description that repeated its title. `NextActionPanel` no longer takes `variant`.
+- **Home page counts are one line.** "What’s inside" was a row of boxed counts; it is one line of links ("16 chapters", "7 mechanisms"), singular for a count of one.
+- **Three colour names that did not exist.** `reading-enhancements.css` used `--color-line`, `--color-surface-hover`, and `--color-ink-muted`, which no stylesheet defines, so the link preview popover had no border. They are `--color-border`, `--color-surface-muted`, and `--color-muted`.
+- **Search does not dead-end.** A query no page fully matches falls back to pages with any of its words and says so ("No page has all of these words. 1 result with some of them."). With no match at all, the "Go to" links stay. In a runbook book an action goes ahead of a chapter or mechanism that scores about the same (`leadType` in `buildRankedResults`, set from the frame's front door). Results are ruled rows. The field's clear button is drawn in ink, not browser blue. On a touch screen the panel's close button says "Close", not "Esc", and the ⌘K hint is hidden.
+- **Text is comfortable at every width, and a default is not saved.** A first visit under 720px set the density to compact (17.1px, leading 1.42) and saved it, so the same reader later got compact text on a desktop too. The default is comfortable everywhere (18px on a phone, 19px on a desktop, leading 1.5), and density and typeface are saved only when the reader picks one.
+- **Migration:** none for a book. A reader whose browser already saved "compact" keeps it, since a saved default cannot be told from a choice; Menu → Appearance changes it.
 
 ## 2026-11-11 — No dead links in a project made by create-bookkit
 

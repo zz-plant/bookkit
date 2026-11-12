@@ -1,6 +1,7 @@
 ---
 import BookLayout from "../layouts/BookLayout.astro";
 import { createBookLayoutState } from "../book";
+import { frameFrontDoor } from "../frames/defaults";
 import {
 	bookConfig,
 	bookEntryPoints,
@@ -41,6 +42,7 @@ const {
   bookTitle={bookTitle}
   bookVersion={resolvedVersion}
   bookKey={bookKey}
+  searchLeadsWith={frameFrontDoor(bookConfig.frame?.slug) === "actions" ? "toolkit" : undefined}
   hasServerRuntime={hasServerRuntime}
   aiQaEnabled={aiQaEnabled}
   aiQaProvider={aiQaProvider}

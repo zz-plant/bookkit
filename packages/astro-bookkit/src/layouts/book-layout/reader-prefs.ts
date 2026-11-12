@@ -68,20 +68,21 @@ export const initializeReaderPrefs = ({
 	const savePreferences = (prefs: ReaderPreferences) =>
 		writeStoredJson(storage, storageKey, prefs);
 
-	const setDensity = (density: string) => {
+	// `remember` is false when a default is applied on load: only a choice the
+	// reader made is saved, so a default can change later and a first visit on
+	// a narrow window does not fix the text size for every later one.
+	const setDensity = (density: string, remember = true) => {
 		if (!validDensities.includes(density as (typeof validDensities)[number]))
 			return;
 		document.body.dataset.readerDensity = density;
-		const prefs = loadPreferences();
-		savePreferences({ ...prefs, density });
+		if (remember) savePreferences({ ...loadPreferences(), density });
 		updateButtonState(densityButtons, density);
 	};
 
-	const setFont = (font: string) => {
+	const setFont = (font: string, remember = true) => {
 		if (!validFonts.includes(font as (typeof validFonts)[number])) return;
 		document.body.dataset.readerFont = font;
-		const prefs = loadPreferences();
-		savePreferences({ ...prefs, font });
+		if (remember) savePreferences({ ...loadPreferences(), font });
 		updateButtonState(fontButtons, font);
 	};
 
@@ -99,13 +100,9 @@ export const initializeReaderPrefs = ({
 
 	const initialize = () => {
 		const prefs = loadPreferences();
-		setDensity(
-			prefs.density ??
-				(window.matchMedia("(max-width: 720px)").matches
-					? "compact"
-					: "comfortable"),
-		);
-		setFont(prefs.font ?? "serif");
+		// Comfortable at every width: 19px on a desktop, 18px on a phone.
+		setDensity(prefs.density ?? "comfortable", false);
+		setFont(prefs.font ?? "serif", false);
 		if (prefs.theme) {
 			setTheme(prefs.theme);
 		} else {

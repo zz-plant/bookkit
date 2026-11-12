@@ -1,0 +1,36 @@
+---
+import type { ActionByTrigger } from "../book";
+
+/**
+ * The `actions` front door's list: each action under the situation that calls
+ * for it, in the author's order. The situation is the author's sentence, so it
+ * is set in the book's voice; the time and mechanism are the compiler's.
+ */
+type Props = {
+	actions: readonly ActionByTrigger[];
+	/** Where a reader goes when no situation fits: the page that matches a description to an action. */
+	matcherHref?: string;
+};
+
+const { actions, matcherHref } = Astro.props;
+---
+<ul class="trigger-list">
+  {actions.map((action) => (
+    <li>
+      <a class="trigger-row" href={action.href}>
+        {action.trigger && <span class="trigger-row__when">{action.trigger}</span>}
+        <span class="trigger-row__do">
+          <span class="trigger-row__name"><span aria-hidden="true">→ </span>{action.label}</span>
+          <span class="trigger-row__meta">
+            {action.minutes} min{action.mechanism ? ` · ${action.mechanism}` : ""}
+          </span>
+        </span>
+      </a>
+    </li>
+  ))}
+</ul>
+{matcherHref && (
+  <p class="trigger-list__else">
+    None of these? <a href={matcherHref}>Describe what’s happening</a> to find the closest one.
+  </p>
+)}

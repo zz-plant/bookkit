@@ -134,7 +134,40 @@ export const initializeToolkitChecklists = (
 			if (raw) savedIndices = JSON.parse(raw);
 		} catch {}
 
-		let resetBtn: HTMLButtonElement | null = null;
+		// Under the list: how many steps are ticked, and Reset beside that count,
+		// away from Copy so a thumb aiming at one does not clear the other.
+		const status = document.createElement("p");
+		status.className = "step-list__status";
+		status.hidden = true;
+		const statusText = document.createElement("span");
+		statusText.setAttribute("role", "status");
+		const resetBtn = document.createElement("button");
+		resetBtn.type = "button";
+		resetBtn.className = "toolkit-btn";
+		resetBtn.textContent = "Reset";
+		resetBtn.title = "Clear checked steps";
+		status.append(statusText, resetBtn);
+		list.after(status);
+
+		const showProgress = (done: number) => {
+			status.hidden = done === 0;
+			statusText.textContent =
+				done === cards.length
+					? `All ${cards.length} steps done.`
+					: `${done} of ${cards.length} steps done.`;
+		};
+
+		resetBtn.addEventListener("click", () => {
+			cards.forEach((card) => {
+				const cb = card.querySelector<HTMLInputElement>(".step-checkbox");
+				if (cb) cb.checked = false;
+				card.classList.remove("step-card--completed");
+			});
+			try {
+				localStorage.removeItem(storageKey);
+			} catch {}
+			showProgress(0);
+		});
 
 		if (
 			heading &&
@@ -169,33 +202,13 @@ export const initializeToolkitChecklists = (
 				});
 				const markdown = `### ${title}\n\n${lines.join("\n")}\n`;
 				navigator.clipboard?.writeText(markdown).catch(() => {});
-				copyBtn.textContent = "✓ Copied!";
+				copyBtn.textContent = "Copied";
 				setTimeout(() => {
 					copyBtn.textContent = "Copy checklist";
 				}, 2000);
 			});
 
-			resetBtn = document.createElement("button");
-			resetBtn.type = "button";
-			resetBtn.className = "toolkit-btn";
-			resetBtn.textContent = "Reset";
-			resetBtn.title = "Clear checked steps";
-			resetBtn.hidden = !savedIndices.length;
-
-			resetBtn.addEventListener("click", () => {
-				cards.forEach((card) => {
-					const cb = card.querySelector<HTMLInputElement>(".step-checkbox");
-					if (cb) cb.checked = false;
-					card.classList.remove("step-card--completed");
-				});
-				try {
-					localStorage.removeItem(storageKey);
-				} catch {}
-				if (resetBtn) resetBtn.hidden = true;
-			});
-
 			actionsBar.appendChild(copyBtn);
-			actionsBar.appendChild(resetBtn);
 			headerWrap.appendChild(actionsBar);
 		}
 
@@ -206,10 +219,15 @@ export const initializeToolkitChecklists = (
 
 			textNode.classList.add("step-card__text");
 
+			// The whole row is the label: a tap anywhere on the step ticks it, and
+			// the checkbox is named by the step's number and text.
+			const label = document.createElement("label");
+			label.className = "step-card__label";
+			card.classList.add("step-card--checkable");
+
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
 			checkbox.className = "step-checkbox";
-			checkbox.setAttribute("aria-label", `Step ${idx + 1}`);
 
 			if (savedIndices.includes(idx)) {
 				checkbox.checked = true;
@@ -232,11 +250,14 @@ export const initializeToolkitChecklists = (
 				try {
 					localStorage.setItem(storageKey, JSON.stringify(currentChecked));
 				} catch {}
-				if (resetBtn) resetBtn.hidden = !currentChecked.length;
+				showProgress(currentChecked.length);
 			});
 
-			card.insertBefore(checkbox, numberSpan);
+			label.append(checkbox, numberSpan, textNode);
+			card.append(label);
 		});
+
+		showProgress(savedIndices.filter((index) => index < cards.length).length);
 	});
 };
 

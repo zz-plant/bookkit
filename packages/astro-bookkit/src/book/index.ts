@@ -26,6 +26,7 @@ export type {
 	RelatedBook,
 } from "./config";
 export type {
+	ActionByTrigger,
 	CrossLink,
 	CrossLinkEntry,
 	DistinctRuling,
@@ -33,6 +34,7 @@ export type {
 } from "./cross-links";
 export {
 	actionLinksForMechanisms,
+	actionsByTrigger,
 	chapterLinksForMechanism,
 	chapterLinksInReadingOrder,
 	chapterReadingOrder,

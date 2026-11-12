@@ -187,9 +187,17 @@ export type {
 	FeedbackEvent,
 } from "./feedback/endpoint";
 export { createFeedbackEndpoint } from "./feedback/endpoint";
-export { defaultFrames, registerDefaultFrames } from "./frames/defaults";
+export {
+	defaultFrames,
+	frameFrontDoor,
+	registerDefaultFrames,
+} from "./frames/defaults";
 export { getFrame, listFrames, registerFrame } from "./frames/registry";
-export type { FrameDefinition, FrameStep } from "./frames/types";
+export type {
+	FrameDefinition,
+	FrameFrontDoor,
+	FrameStep,
+} from "./frames/types";
 export {
 	type BookkitIntegrationOptions,
 	bookkit,

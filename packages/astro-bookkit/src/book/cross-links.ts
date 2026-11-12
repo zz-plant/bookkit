@@ -37,6 +37,7 @@ type ToolkitFrontmatter = {
 	title?: string;
 	mechanism?: string;
 	timeboxMinutes?: number;
+	trigger?: string;
 };
 type GlossaryFrontmatter = { term?: string; mechanisms?: unknown };
 type ExampleFrontmatter = {
@@ -171,6 +172,62 @@ export const actionLinksForMechanisms = (
 				meta: `${entry.module.frontmatter?.timeboxMinutes ?? 10} min`,
 			})),
 	);
+
+/** An action as the `actions` front door lists it: the situation, then what to do. */
+export type ActionByTrigger = {
+	slug: string;
+	href: string;
+	/** The action's name. */
+	label: string;
+	/** The action's `trigger`, when it has one: the situation that calls for it. */
+	trigger?: string;
+	minutes: number;
+	/** The mechanism the action applies, by title when the book has its page. */
+	mechanism?: string;
+};
+
+/**
+ * Every action with the situation that calls for it, in the author's order:
+ * the order `mechanismOrder` gives its mechanism (the `mechanisms` list in
+ * book.config.ts), shortest first within a mechanism, and actions of a
+ * mechanism the list leaves out last, by name.
+ */
+export const actionsByTrigger = (
+	toolkit: readonly CrossLinkEntry<ToolkitFrontmatter>[],
+	mechanisms: readonly CrossLinkEntry<MechanismFrontmatter>[],
+	mechanismOrder: readonly string[],
+): ActionByTrigger[] => {
+	const rank = (slug: string | undefined) => {
+		const index = slug ? mechanismOrder.indexOf(slug) : -1;
+		return index === -1 ? mechanismOrder.length : index;
+	};
+	return toolkit
+		.map((entry) => {
+			const frontmatter = entry.module.frontmatter ?? {};
+			const trigger = frontmatter.trigger?.trim();
+			return {
+				slug: entry.slug,
+				href: readItemPath("toolkit", entry.slug),
+				label: toolkitDisplayName(frontmatter),
+				...(trigger ? { trigger } : {}),
+				minutes: frontmatter.timeboxMinutes ?? 10,
+				mechanismSlug: frontmatter.mechanism,
+			};
+		})
+		.sort(
+			(a, b) =>
+				rank(a.mechanismSlug) - rank(b.mechanismSlug) ||
+				a.minutes - b.minutes ||
+				a.label.localeCompare(b.label),
+		)
+		.map(({ mechanismSlug, ...action }) => {
+			const mechanism = mechanismSlug
+				? (mechanisms.find((entry) => entry.slug === mechanismSlug)?.module
+						.frontmatter?.title ?? mechanismSlug)
+				: undefined;
+			return mechanism ? { ...action, mechanism } : action;
+		});
+};
 
 /** The examples of `mechanism`, in index order. */
 export const exampleLinksForMechanisms = (

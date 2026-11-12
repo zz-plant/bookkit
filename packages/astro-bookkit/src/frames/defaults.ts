@@ -1,5 +1,5 @@
 import { getFrame, registerFrame } from "./registry";
-import type { FrameDefinition } from "./types";
+import type { FrameDefinition, FrameFrontDoor } from "./types";
 
 // Rationale: codify the frame steps described in the repository docs so validation can enforce them.
 export const defaultFrames: FrameDefinition[] = [
@@ -36,6 +36,9 @@ export const defaultFrames: FrameDefinition[] = [
 		// procedure, when to run it, the steps, when to escalate, and how to verify it works.
 		slug: "runbook",
 		name: "Runbook",
+		// Rationale: a runbook's reader may arrive mid-incident, so its front door
+		// lists the actions by trigger instead of asking where to start reading.
+		frontDoor: "actions",
 		steps: [
 			{ id: "ownership", label: "Ownership", required: true },
 			{ id: "trigger", label: "Trigger", required: true },
@@ -52,6 +55,7 @@ const framesMatch = (
 ): boolean =>
 	existing.slug === incoming.slug &&
 	existing.name === incoming.name &&
+	(existing.frontDoor ?? "reading") === (incoming.frontDoor ?? "reading") &&
 	existing.steps.length === incoming.steps.length &&
 	existing.steps.every((step, index) => {
 		const incomingStep = incoming.steps[index];
@@ -77,4 +81,15 @@ export const registerDefaultFrames = (): FrameDefinition[] => {
 		registerFrame(frame);
 	});
 	return defaultFrames;
+};
+
+/**
+ * The front door of the frame with this slug: a registered frame's, else a
+ * built-in's, else `reading`.
+ */
+export const frameFrontDoor = (slug: string | undefined): FrameFrontDoor => {
+	if (!slug) return "reading";
+	const frame =
+		getFrame(slug) ?? defaultFrames.find((entry) => entry.slug === slug);
+	return frame?.frontDoor ?? "reading";
 };

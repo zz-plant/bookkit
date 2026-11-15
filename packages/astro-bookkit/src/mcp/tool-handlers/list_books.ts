@@ -2,6 +2,19 @@ import { runWorkspaceCommand } from "../command-runner";
 import type { ToolHandler } from "./types";
 
 export const handleListBooks: ToolHandler = async ({ options }) => {
+	if (options.folderMode && !options.workspaceRoot) {
+		return {
+			ok: true,
+			summary: `Serving standalone folder ${options.folderMode.dir} (no workspace books).`,
+			payload: {
+				books: [],
+				count: 0,
+				folder: options.folderMode.dir,
+				frame: options.folderMode.frame,
+			},
+		};
+	}
+
 	const command = await runWorkspaceCommand(options.workspaceRoot, [
 		"run",
 		"list:books",

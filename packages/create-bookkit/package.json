@@ -1,6 +1,5 @@
 {
 	"name": "create-bookkit",
-	"private": true,
 	"version": "0.1.0",
 	"description": "Scaffold a recompilable book project: structured content, enforceable frames, graph-based ordering, and compiler-gated agent workflows.",
 	"type": "module",
@@ -23,7 +22,8 @@
 		"create-bookkit": "./src/index.ts"
 	},
 	"files": [
-		"src"
+		"src",
+		"README.md"
 	],
 	"engines": {
 		"bun": ">=1.4.3"

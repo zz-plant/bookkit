@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { listBookDirs, repoRoot } from "./_lib";
@@ -25,7 +26,7 @@ const args = parseScriptArgs(
 	{
 		summary: "Imports a folder of Markdown notes into a book's chapters.",
 		usage: [
-			`${command} --dir <folder> [--dry-run] [--force] [--include-readme]`,
+			`${command} --dir <folder> [--dry-run] [--force] [--include-readme] [--classify] [--propose]`,
 		],
 		options: [
 			[
@@ -45,6 +46,14 @@ const args = parseScriptArgs(
 				"--include-readme",
 				"Import README and index files as chapters (skipped by\ndefault)",
 			],
+			[
+				"--classify",
+				"Route notes tagged or filed under mechanisms, toolkit,\nglossary, or examples into those sections",
+			],
+			[
+				"--propose",
+				"Run propose-book --write after importing so recurring\nconcepts become draft mechanisms and tools",
+			],
 		],
 		examples: [example(listBookDirs()[0] ?? "my-book")],
 	},
@@ -54,6 +63,8 @@ const args = parseScriptArgs(
 		"dry-run": "boolean",
 		force: "boolean",
 		"include-readme": "boolean",
+		classify: "boolean",
+		propose: "boolean",
 	},
 	["book", "dir"],
 );
@@ -62,6 +73,8 @@ const { book, dir: sourceArg } = args;
 const dryRun = args["dry-run"] === true;
 const force = args.force === true;
 const includeReadme = args["include-readme"] === true;
+const classify = args.classify === true;
+const propose = args.propose === true;
 
 const bookDir = `apps/${book}`;
 const sourceDir = resolve(sourceArg);
@@ -85,14 +98,35 @@ const plan = await planImport({
 	sourceLabel: sourceArg,
 	force,
 	includeReadme,
+	classify,
 });
-if (plan.chapters.length === 0 && plan.skipped.length === 0) {
+if (
+	plan.chapters.length === 0 &&
+	plan.records.length === 0 &&
+	plan.skipped.length === 0
+) {
 	console.error(`No Markdown notes (.md, .mdx, .markdown) under ${sourceArg}`);
 	process.exit(1);
 }
 if (!dryRun) await applyImport(plan);
 
 for (const line of describeImport(plan, { dryRun, bookDir })) console.log(line);
+
+if (!dryRun && propose) {
+	console.log("");
+	const result = spawnSync(
+		"bun",
+		[
+			"run",
+			join(import.meta.dir, "propose-book.ts"),
+			"--book",
+			book,
+			"--write",
+		],
+		{ cwd: workspaceRoot, stdio: "inherit" },
+	);
+	if (result.status !== 0) process.exit(result.status ?? 1);
+}
 
 for (const line of nextSteps({
 	book,
@@ -105,4 +139,9 @@ for (const line of nextSteps({
 	console.log(line);
 }
 
-if (compileFailures(plan).length > 0) process.exit(1);
+const recordFailures = plan.records.filter(
+	(record) => record.compile.ok === false,
+);
+if (compileFailures(plan).length > 0 || recordFailures.length > 0) {
+	process.exit(1);
+}

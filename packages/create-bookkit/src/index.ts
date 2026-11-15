@@ -1,23 +1,35 @@
 #!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
-import { slugify } from "../../../scripts/_lib";
-import { titleFromSlug } from "../../../scripts/lib/scaffold-book";
-import { parseCreateArgs, USAGE } from "./args";
 import {
-	createConflicts,
-	createProject,
-	isBookkitProject,
-	isBookkitRepository,
-	isInside,
-	nextSteps,
-	readSource,
-	summarizeUpgrade,
-	upgradeProject,
-} from "./project";
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
+import { parseCreateArgs, USAGE } from "./args";
 
-const repoRoot = join(import.meta.dir, "../../..");
+const DEFAULT_REPO_URL = "https://github.com/zz-plant/bookkit.git";
+const localRoot = resolve(import.meta.dir, "../../..");
+
+const hasRepoSource = (root: string) =>
+	existsSync(join(root, "scripts", "bookkit.ts")) &&
+	existsSync(join(root, "packages", "astro-bookkit", "package.json"));
+
+const slugify = (text: string): string =>
+	text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+
+const titleFromSlug = (slug: string): string =>
+	slug
+		.split("-")
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
 
 const fail = (message: string): never => {
 	console.error(message);
@@ -33,9 +45,85 @@ if ("error" in parsed) fail(`${parsed.error}\n\n${USAGE}`);
 const args = (parsed as Extract<typeof parsed, { values: unknown }>).values;
 const target = resolve(args.target);
 
-if (isInside(target, repoRoot)) {
+const sourceRoot = args.source ? resolve(args.source) : localRoot;
+if (args.source && !hasRepoSource(sourceRoot)) {
 	fail(
-		`${target} is inside the bookkit repository (${repoRoot}). Pick a folder outside it, e.g. ../${basename(target)}: a project inside would be read as part of this workspace.`,
+		`Source directory ${sourceRoot} is not a bookkit repository checkout (missing scripts/bookkit.ts or packages/astro-bookkit/package.json).`,
+	);
+}
+
+// When invoked outside a repository clone (e.g. via `bunx create-bookkit`) or with --ref,
+// shallow-clone the Bookkit repository into a temp dir and delegate to its scaffolder.
+if (args.ref || !hasRepoSource(sourceRoot)) {
+	const cloneDir = mkdtempSync(join(tmpdir(), "bookkit-source-"));
+	try {
+		const repoUrl = process.env.BOOKKIT_REPO_URL || DEFAULT_REPO_URL;
+		const cloneArgs = ["clone", "--depth", "1", "--quiet"];
+		if (args.ref) cloneArgs.push("--branch", args.ref);
+		cloneArgs.push(repoUrl, cloneDir);
+		console.log(
+			`Fetching Bookkit engine source from ${repoUrl}${args.ref ? ` (${args.ref})` : ""}...`,
+		);
+		const clone = spawnSync("git", cloneArgs, { stdio: "inherit" });
+		if (clone.status !== 0) {
+			fail(
+				`git clone exited with status ${clone.status}. Check network access or pass --source <local-bookkit-repo>.`,
+			);
+		}
+		const forwarded = [
+			join(cloneDir, "packages", "create-bookkit", "src", "index.ts"),
+			target,
+			"--source",
+			cloneDir,
+		];
+		if (args.book) forwarded.push("--book", args.book);
+		if (args.title) forwarded.push("--title", args.title);
+		if (args.dir) forwarded.push("--dir", resolve(args.dir));
+		if (args.force) forwarded.push("--force");
+		if (args.upgrade) forwarded.push("--upgrade");
+		const delegated = spawnSync(process.execPath, ["run", ...forwarded], {
+			stdio: "inherit",
+		});
+		process.exit(delegated.status ?? 1);
+	} finally {
+		rmSync(cloneDir, { recursive: true, force: true });
+	}
+}
+
+// If --source points at another checkout, delegate so `./project` imports that checkout's `scripts/`.
+if (sourceRoot !== localRoot) {
+	const forwarded = [
+		join(sourceRoot, "packages", "create-bookkit", "src", "index.ts"),
+		target,
+		"--source",
+		sourceRoot,
+	];
+	if (args.book) forwarded.push("--book", args.book);
+	if (args.title) forwarded.push("--title", args.title);
+	if (args.dir) forwarded.push("--dir", resolve(args.dir));
+	if (args.force) forwarded.push("--force");
+	if (args.upgrade) forwarded.push("--upgrade");
+	const delegated = spawnSync(process.execPath, ["run", ...forwarded], {
+		stdio: "inherit",
+	});
+	process.exit(delegated.status ?? 1);
+}
+
+const {
+	createConflicts,
+	createProject,
+	isBookkitProject,
+	isBookkitRepository,
+	isInside,
+	nextSteps,
+	readSource,
+	summarizeUpgrade,
+	upgradeProject,
+} = await import("./project");
+
+if (isInside(target, sourceRoot)) {
+	fail(
+		`${target} is inside the bookkit repository (${sourceRoot}). Pick a folder outside it, e.g. ../${basename(target)}: a project inside would be read as part of this workspace.`,
 	);
 }
 
@@ -50,7 +138,7 @@ if (args.upgrade) {
 			`${target} is a bookkit repository, not a project made from one. Update it with git.`,
 		);
 	}
-	const result = upgradeProject(readSource(repoRoot), target);
+	const result = upgradeProject(readSource(sourceRoot), target);
 	for (const line of summarizeUpgrade(result)) console.log(line);
 	console.log(`
 Not touched: book content (apps/*/src/content/), book.config.ts, each book's own
@@ -84,7 +172,7 @@ if (entries.length > 0 && !args.force) {
 	);
 }
 
-const source = readSource(repoRoot);
+const source = readSource(sourceRoot);
 const conflicts = createConflicts(source, target, book);
 if (conflicts.length > 0) {
 	fail(

@@ -20,9 +20,11 @@ import { CHILD_TEST_TIMEOUT_MS, runChild } from "./child-process.fixture";
 import { compileMdx } from "./compile-mdx";
 import {
 	applyImport,
+	convertAdmonitions,
 	type ImportPlan,
 	MANIFEST_FILE,
 	planImport,
+	stripNotionId,
 } from "./import-markdown";
 import { describeImport, nextSteps } from "./import-report";
 
@@ -698,5 +700,115 @@ describe("nextSteps", () => {
 		expect(steps).toContain(`bun run suggest -- --book ${BOOK}`);
 		expect(steps).toContain("bun run dev");
 		expect(steps).not.toContain("bookkit");
+	});
+});
+
+describe("richer markdown import", () => {
+	it("strips Notion 32-hex and UUID suffixes from names", () => {
+		expect(
+			stripNotionId("Queue Backpressure 0123456789abcdef0123456789abcdef"),
+		).toBe("Queue Backpressure");
+		expect(stripNotionId("Runbook-12345678-1234-1234-1234-1234567890ab")).toBe(
+			"Runbook",
+		);
+	});
+
+	it("converts Docusaurus ::: admonitions outside fenced code", () => {
+		const out = convertAdmonitions(
+			[
+				":::warning[Watch out]",
+				"Check capacity first.",
+				":::",
+				"",
+				"```md",
+				":::note",
+				"Keep fenced code literal.",
+				":::",
+				"```",
+			].join("\n"),
+		);
+		expect(out).toContain("> **Watch out**\n> Check capacity first.");
+		expect(out).toContain(
+			"```md\n:::note\nKeep fenced code literal.\n:::\n```",
+		);
+	});
+
+	it("orders by _category_.json and classifies sections with --classify", async () => {
+		const richNotes = join(workspace, "rich-notes");
+		mkdirSync(join(richNotes, "alpha"), { recursive: true });
+		mkdirSync(join(richNotes, "beta"), { recursive: true });
+		mkdirSync(join(richNotes, "mechanisms"), { recursive: true });
+		mkdirSync(join(richNotes, "toolkit"), { recursive: true });
+		mkdirSync(join(richNotes, "examples"), { recursive: true });
+		mkdirSync(join(richNotes, "glossary"), { recursive: true });
+
+		writeFileSync(
+			join(richNotes, "alpha", "_category_.json"),
+			JSON.stringify({ position: 2 }),
+		);
+		writeFileSync(
+			join(richNotes, "beta", "_category_.json"),
+			JSON.stringify({ position: 1 }),
+		);
+		writeFileSync(
+			join(richNotes, "alpha", "Alpha 0123456789abcdef0123456789abcdef.md"),
+			"# Alpha\n\nSecond folder.\n",
+		);
+		writeFileSync(
+			join(richNotes, "beta", "Beta.md"),
+			"# Beta\n\n:::tip\nUseful tip.\n:::\n\nSee [[Queue Backpressure]].\n",
+		);
+		writeFileSync(
+			join(
+				richNotes,
+				"mechanisms",
+				"Queue Backpressure a1b2c3d4e5f60718293a4b5c6d7e8f90.md",
+			),
+			"# Queue Backpressure\n\nLimits upstream inflow.\n",
+		);
+		writeFileSync(
+			join(richNotes, "toolkit", "Drain Queue.md"),
+			"# Drain Queue\n\nBound backlog in 5 minutes.\n",
+		);
+		writeFileSync(
+			join(richNotes, "examples", "Outage.md"),
+			"# Outage\n\nPost-incident example.\n",
+		);
+		writeFileSync(
+			join(richNotes, "glossary", "Retry Storm.md"),
+			"# Retry Storm\n\nSynchronized retries overwhelming a dependency.\n",
+		);
+
+		const result = await planImport({
+			workspaceRoot: workspace,
+			book: BOOK,
+			sourceDir: richNotes,
+			classify: true,
+		});
+
+		expect(result.chapters.map((c) => c.slug)).toEqual(["beta", "alpha"]);
+		expect(result.chapters[0].content).toContain("> **Tip**");
+		expect(result.chapters[0].content).toContain(
+			"/read/mechanisms/queue-backpressure",
+		);
+		expect(result.records.map((r) => [r.section, r.file]).sort()).toEqual([
+			["example", "examples/outage.mdx"],
+			["glossary", "glossary/retry-storm.mdx"],
+			["mechanism", "mechanisms/queue-backpressure.mdx"],
+			["tool", "toolkit/drain-queue.mdx"],
+		]);
+
+		await applyImport(result);
+		const contentRoot = join(workspace, "apps", BOOK, "src", "content", "book");
+		expect(
+			existsSync(join(contentRoot, "mechanisms", "queue-backpressure.mdx")),
+		).toBe(true);
+		expect(existsSync(join(contentRoot, "toolkit", "drain-queue.mdx"))).toBe(
+			true,
+		);
+		expect(existsSync(join(contentRoot, "examples", "outage.mdx"))).toBe(true);
+		expect(existsSync(join(contentRoot, "glossary", "retry-storm.mdx"))).toBe(
+			true,
+		);
 	});
 });

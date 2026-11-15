@@ -47,7 +47,7 @@ export const describeImport = (
 	);
 
 	lines.push("", `Chapters, in reading order (${plan.chapters.length}):`);
-	if (plan.chapters.length === 0) lines.push("  (no notes to import)");
+	if (plan.chapters.length === 0) lines.push("  (no chapters to import)");
 	for (const chapter of plan.chapters) {
 		const status = chapter.status === "draft" ? ", draft" : "";
 		lines.push(
@@ -63,6 +63,28 @@ export const describeImport = (
 			lines.push(
 				`      ${chapter.reason}; --force ${options.dryRun ? "would replace" : "replaced"} it`,
 			);
+		}
+	}
+
+	if (plan.records.length > 0) {
+		lines.push("", `Classified records (${plan.records.length}):`);
+		const recActionW = widest(plan.records.map((r) => verb(r.action)));
+		const recSrcW = widest(plan.records.map((r) => r.source));
+		const recFileW = widest(plan.records.map((r) => r.file));
+		for (const record of plan.records) {
+			const status = record.status === "draft" ? ", draft" : "";
+			lines.push(
+				`  ${verb(record.action).padEnd(recActionW)}  ${record.source.padEnd(recSrcW)}  → ${record.file.padEnd(recFileW)}  "${record.title}"${status}`,
+			);
+			if (record.action === "keep") {
+				lines.push(
+					`      ${record.reason}; ${options.dryRun ? "import would keep it" : "kept it"} (--force replaces it)`,
+				);
+			} else if (record.action === "replace") {
+				lines.push(
+					`      ${record.reason}; --force ${options.dryRun ? "would replace" : "replaced"} it`,
+				);
+			}
 		}
 	}
 
@@ -165,11 +187,18 @@ export const describeImport = (
 	}
 
 	const failures = compileFailures(plan);
+	const recordFailures = plan.records.filter(
+		(record) => WRITES.has(record.action) && record.compile.ok === false,
+	);
 	// When the compiler is missing, no chapter is checked; say so once.
 	const unchecked = plan.chapters.find(
 		(chapter) => WRITES.has(chapter.action) && chapter.compile.ok === null,
 	);
-	const count = plan.problems.length + failures.length + (unchecked ? 1 : 0);
+	const count =
+		plan.problems.length +
+		failures.length +
+		recordFailures.length +
+		(unchecked ? 1 : 0);
 	if (count > 0) {
 		lines.push("", `Problems to fix (${count}):`);
 		for (const chapter of failures) {
@@ -178,6 +207,14 @@ export const describeImport = (
 			const at = line ? `:${line}${column ? `:${column}` : ""}` : "";
 			lines.push(
 				`  ✗ ${options.bookDir}/src/content/book/chapters/${chapter.file}${at} (from ${chapter.source}) does not compile as MDX: ${reason}`,
+			);
+		}
+		for (const record of recordFailures) {
+			if (record.compile.ok !== false) continue;
+			const { line, column, reason } = record.compile;
+			const at = line ? `:${line}${column ? `:${column}` : ""}` : "";
+			lines.push(
+				`  ✗ ${options.bookDir}/src/content/book/${record.file}${at} (from ${record.source}) does not compile as MDX: ${reason}`,
 			);
 		}
 		if (unchecked?.compile.ok === null) {

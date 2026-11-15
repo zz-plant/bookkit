@@ -11,6 +11,7 @@ import { repoRoot, slugify } from "../../_lib";
 import { flagValue } from "../cli";
 import { compileFinding, compileMdx } from "../compile-mdx";
 import {
+	emitGithubReport,
 	isBookContentPath,
 	printFolderCheck,
 	printTry,
@@ -320,6 +321,7 @@ function checkFolder(target: string, rest: string[]) {
 		process.exit(1);
 	}
 	const frame = flagValue(rest, "--frame");
+	const format = flagValue(rest, "--format");
 	const preview = runPreview(folder.files, {
 		frame,
 		requireFrameSteps: Boolean(frame),
@@ -330,6 +332,9 @@ function checkFolder(target: string, rest: string[]) {
 			JSON.stringify({ ok: preview.errors === 0, ...preview }, null, 2),
 		);
 	} else {
+		if (format === "github" || process.env.GITHUB_ACTIONS === "true") {
+			emitGithubReport(target, folder.root, preview);
+		}
 		printFolderCheck(target, preview);
 	}
 	process.exit(preview.errors === 0 ? 0 : 1);

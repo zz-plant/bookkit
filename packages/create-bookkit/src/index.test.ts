@@ -84,4 +84,22 @@ describe("create-bookkit", () => {
 			"is already a Bookkit project. To update its engine and wrappers, run with --upgrade",
 		);
 	});
+
+	it("supports bookkit upgrade from a standalone project with --source", () => {
+		const created = createBookkit("garden");
+		expect(created.status).toBe(0);
+		const upgraded = runChild(
+			[
+				process.execPath,
+				"run",
+				"scripts/bookkit.ts",
+				"upgrade",
+				"--source",
+				repoRoot,
+			],
+			{ cwd: join(cwd, "garden") },
+		);
+		expect(upgraded.status).toBe(0);
+		expect(upgraded.output).toContain("Engine");
+	});
 });

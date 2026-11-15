@@ -259,7 +259,8 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 	},
 	{
 		name: "bookkit.export_book",
-		description: "Export compiled book output in GitBook-compatible format.",
+		description:
+			"Export compiled book output as GitBook (default), Agent Skill pack (skills), eval rubric (rubric), or structured JSON bundle (json).",
 		safety: "mutating",
 		expectedRuntime: "<=1m",
 		expectedRuntimeClass: "moderate",
@@ -280,7 +281,14 @@ export const TOOL_DEFINITIONS: readonly ToolDefinitionMetadata[] = [
 		],
 		inputSchema: {
 			type: "object",
-			properties: { book: BOOK },
+			properties: {
+				book: BOOK,
+				format: {
+					type: "string",
+					enum: ["gitbook", "skills", "json", "rubric"],
+					description: "Export format (default: gitbook).",
+				},
+			},
 			additionalProperties: false,
 		},
 	},

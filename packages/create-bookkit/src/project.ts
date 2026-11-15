@@ -695,6 +695,27 @@ const MCP_JSON = `${JSON.stringify(
 	"\t",
 )}\n`;
 
+/** Starter GitHub Actions workflow so standalone projects run Bookkit checks on every push and PR. */
+const CI_WORKFLOW = `name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run verify -- --all
+      - run: bun run lint
+`;
+
 const readme = (book: string, title: string) => `# ${title}
 
 A book built with Bookkit. The engine is copied into \`packages/astro-bookkit/\`; it is not installed from a registry.
@@ -724,7 +745,11 @@ bun run bookkit help             # every command
 
 ## Updating the engine
 
-From a clone of the bookkit repository:
+\`\`\`bash
+bun run bookkit upgrade
+\`\`\`
+
+Or from a clone of the bookkit repository:
 
 \`\`\`bash
 bun run packages/create-bookkit/src/index.ts <this-folder> --upgrade
@@ -770,6 +795,7 @@ export const createProject = (
 		[".gitignore", GITIGNORE],
 		["README.md", readme(options.book, options.title)],
 		[".mcp.json", MCP_JSON],
+		[".github/workflows/ci.yml", CI_WORKFLOW],
 	] as const) {
 		if (existsSync(join(dir, rel))) keptExisting.push(rel);
 		else put(dir, rel, content, changes);
@@ -806,9 +832,11 @@ export const upgradeProject = (source: Source, dir: string): UpgradeResult => {
 		...writeAppPackages(source, dir, books),
 		...writeRootFiles(source, dir, `${books[0] ?? "bookkit"}-book`),
 	];
-	// Projects made before .mcp.json was written get one; an existing one is the author's.
+	// Projects made before .mcp.json or CI workflows were written get them; existing ones stay the author's.
 	if (!existsSync(join(dir, ".mcp.json")))
 		put(dir, ".mcp.json", MCP_JSON, changes);
+	if (!existsSync(join(dir, ".github/workflows/ci.yml")))
+		put(dir, ".github/workflows/ci.yml", CI_WORKFLOW, changes);
 	const owned = new Set([...source.scripts, ...(previous?.scripts ?? [])]);
 	const untouchedScripts = existsSync(join(dir, "scripts"))
 		? listFilesRecursive(join(dir, "scripts")).filter(

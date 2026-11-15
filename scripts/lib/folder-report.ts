@@ -1,4 +1,10 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+	appendFileSync,
+	existsSync,
+	readdirSync,
+	readFileSync,
+	statSync,
+} from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import { defaultFrames } from "../../packages/astro-bookkit/src/frames/defaults";
 import {
@@ -376,6 +382,107 @@ export const printFolderCheck = (target: string, preview: FolderPreview) => {
 	if (preview.frame.source !== "given" && preview.sections.chapter > 0) {
 		console.log(
 			`  Sections were not checked. Add --frame ${preview.frame.slug} to require them (see: bun run bookkit try ${target}).`,
+		);
+	}
+};
+
+const escapeWorkflowData = (value: string): string =>
+	value.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
+const escapeWorkflowProperty = (value: string): string =>
+	escapeWorkflowData(value).replace(/:/g, "%3A").replace(/,/g, "%2C");
+
+/** GitHub Actions workflow commands (`::error`, `::warning`) for a folder check. */
+export const formatGithubAnnotations = (
+	folderRoot: string,
+	preview: FolderPreview,
+	workspaceDir = process.env.GITHUB_WORKSPACE ?? process.cwd(),
+): string[] => {
+	const lines: string[] = [];
+	const relBase = relative(workspaceDir, folderRoot);
+	const workspacePath = (docPath: string) => {
+		const joined =
+			relBase && !relBase.startsWith("..") ? join(relBase, docPath) : docPath;
+		return joined.split("\\").join("/");
+	};
+	for (const finding of preview.findings) {
+		const title = escapeWorkflowProperty(`Bookkit (${finding.code})`);
+		const text = escapeWorkflowData(
+			`${finding.message}${finding.fix ? `. ${finding.fix}` : ""}`,
+		);
+		lines.push(`::${finding.level} title=${title}::${text}`);
+	}
+	for (const doc of preview.documents) {
+		const file = escapeWorkflowProperty(workspacePath(doc.path));
+		for (const finding of doc.findings) {
+			const title = escapeWorkflowProperty(`Bookkit (${finding.code})`);
+			const text = escapeWorkflowData(
+				`${finding.message}${finding.fix ? `. ${finding.fix}` : ""}`,
+			);
+			lines.push(`::${finding.level} file=${file},title=${title}::${text}`);
+		}
+	}
+	return lines;
+};
+
+/** Markdown summary for `$GITHUB_STEP_SUMMARY` from a folder check. */
+export const formatGithubStepSummary = (
+	target: string,
+	preview: FolderPreview,
+): string => {
+	const ok = preview.errors === 0;
+	const lines: string[] = [
+		`### Bookkit Check: \`${target}\` — ${ok ? "Passed" : "Failed"}`,
+		"",
+		"| Files | Words | Frame | Errors | Warnings |",
+		"| --- | --- | --- | --- | --- |",
+		`| ${preview.files} | ${preview.words} | ${preview.frame.slug} (${preview.frame.source}) | ${preview.errors} | ${preview.warnings} |`,
+		"",
+	];
+	const docsWithFindings = preview.documents.filter(
+		(doc) => doc.findings.length > 0,
+	);
+	if (preview.findings.length > 0 || docsWithFindings.length > 0) {
+		lines.push("| File | Level | Message | Fix |", "| --- | --- | --- | --- |");
+		for (const finding of preview.findings) {
+			lines.push(
+				`| *(folder)* | ${finding.level} | ${finding.message.replace(/\|/g, "\\|")} | ${(finding.fix ?? "").replace(/\|/g, "\\|")} |`,
+			);
+		}
+		for (const doc of docsWithFindings) {
+			for (const finding of doc.findings) {
+				lines.push(
+					`| \`${doc.path}\` | ${finding.level} | ${finding.message.replace(/\|/g, "\\|")} | ${(finding.fix ?? "").replace(/\|/g, "\\|")} |`,
+				);
+			}
+		}
+		lines.push("");
+	}
+	return `${lines.join("\n")}\n`;
+};
+
+/** Emits GitHub Actions annotations, step summary, and action outputs when present. */
+export const emitGithubReport = (
+	target: string,
+	folderRoot: string,
+	preview: FolderPreview,
+): void => {
+	for (const line of formatGithubAnnotations(folderRoot, preview)) {
+		console.log(line);
+	}
+	if (process.env.GITHUB_STEP_SUMMARY) {
+		appendFileSync(
+			process.env.GITHUB_STEP_SUMMARY,
+			formatGithubStepSummary(target, preview),
+			"utf8",
+		);
+	}
+	if (process.env.GITHUB_OUTPUT) {
+		const ok = preview.errors === 0;
+		appendFileSync(
+			process.env.GITHUB_OUTPUT,
+			`ok=${ok}\nerrors=${preview.errors}\nwarnings=${preview.warnings}\n`,
+			"utf8",
 		);
 	}
 };

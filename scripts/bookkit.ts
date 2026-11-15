@@ -70,6 +70,7 @@ import {
 	removeRecord,
 	renameChapter,
 } from "./lib/commands/structure";
+import { upgradeCommand } from "./lib/commands/upgrade";
 
 if (command === "help" || command === "--help" || command === "-h") {
 	// `help <command>` is that command's help; `help --help` is help's own.
@@ -177,7 +178,7 @@ switch (findCommand(command)?.name ?? command) {
 	}
 
 	case "export": {
-		exportCommand();
+		await exportCommand();
 		break;
 	}
 
@@ -269,6 +270,16 @@ switch (findCommand(command)?.name ?? command) {
 
 	case "use": {
 		useCommand();
+		break;
+	}
+
+	case "mcp": {
+		process.exit(runScript("mcp-server.ts", args.slice(1)));
+		break;
+	}
+
+	case "upgrade": {
+		process.exit(upgradeCommand());
 		break;
 	}
 

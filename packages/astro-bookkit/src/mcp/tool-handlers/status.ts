@@ -70,17 +70,25 @@ export const handleBets: ToolHandler = async ({ options }) => {
 		"--json",
 	]);
 	const report = parseJson(bets.stdout) as {
-		b1?: { bet?: string; title?: string; daysPastKillBy?: number };
+		b1?: {
+			bet?: string;
+			title?: string;
+			daysPastKillBy?: number;
+			unavailable?: string;
+		};
 	} | null;
 	const bet = report?.b1;
 	const ok = bets.ok && Boolean(report);
+	const summary = !ok
+		? "bookkit bets failed to run."
+		: bet?.unavailable
+			? `${bet.unavailable}.`
+			: bet?.bet
+				? `${bet.bet} · ${bet.title}${bet.daysPastKillBy && bet.daysPastKillBy > 0 ? ` · past its kill date by ${bet.daysPastKillBy} day(s): until the author rules on it, work is maintenance` : ""}.`
+				: "No active bet: work is maintenance.";
 	return {
 		ok,
-		summary: !ok
-			? "bookkit bets failed to run."
-			: bet
-				? `${bet.bet} · ${bet.title}${bet.daysPastKillBy && bet.daysPastKillBy > 0 ? ` · past its kill date by ${bet.daysPastKillBy} day(s): until the author rules on it, work is maintenance` : ""}.`
-				: "No active bet: work is maintenance.",
+		summary,
 		payload: { report, stderr: bets.stderr.trim() || undefined },
 		error: ok
 			? undefined

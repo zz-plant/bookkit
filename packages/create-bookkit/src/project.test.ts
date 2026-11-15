@@ -84,6 +84,10 @@ describe("createProject", () => {
 		const stamp = JSON.parse(read("bookkit.json"));
 		expect(stamp.engine.version).toBe(source.engineVersion);
 		expect(stamp.scripts).toEqual(source.scripts);
+		expect(existsSync(join(dir, ".github/workflows/ci.yml"))).toBe(true);
+		expect(read(".github/workflows/ci.yml")).toContain(
+			"bun run verify -- --all",
+		);
 	});
 
 	it("carries no Markdown link to a file the project does not have", () => {

@@ -286,7 +286,7 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				"bun run bookkit check [book] [--all] [--quick] [--info] [--download-model]",
 				"bun run bookkit check <file.mdx> [--json] [--quick]",
 				"bun run bookkit check <book folder> [--json]",
-				"bun run bookkit check <folder|file> [--frame <slug>] [--json] [--release]",
+				"bun run bookkit check <folder|file> [--frame <slug>] [--json] [--format github] [--release]",
 			],
 			options: [
 				[
@@ -312,6 +312,10 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 				["--frame <slug>", "Also each step of this frame, in every document"],
 				["--release", "Check it as a published book, so drafts are errors"],
 				["--json", "The findings as JSON"],
+				[
+					"--format github",
+					"Emit GitHub Actions workflow annotations and step summary",
+				],
 			],
 			notes: "Exits 1 on an error, so CI can run it.",
 			examples: [
@@ -807,22 +811,27 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		name: "export",
 		help: {
 			summary:
-				"Writes a GitBook folder of a book, and says where the last build put\nits PDF and EPUB. With --rubric, writes the book's corpus as an eval\nrubric instead: one criterion per mechanism, and your rulings as\nlabelled pairs.",
+				"Writes a GitBook folder of a book, and says where the last build put\nits PDF and EPUB. With --rubric, writes an eval rubric JSON; with\n--skills, an Agent Skill pack (SKILL.md + references/); with --json,\na structured JSON knowledge bundle.",
 			usage: [
 				"bun run bookkit export [book] [--out <dir>]",
 				"bun run bookkit export [book] --rubric [--out <file>]",
+				"bun run bookkit export [book] --skills [--out <dir>]",
+				"bun run bookkit export [book] --json [--out <file>]",
 			],
 			options: [
 				BOOK,
 				[
 					"--out <dir>",
-					"Where to write it (default: apps/<book>/exports/gitbook;\nwith --rubric, apps/<book>/exports/rubric.json)",
+					"Where to write it (defaults: exports/gitbook, exports/rubric.json,\nexports/skills/<book>, exports/book.json)",
 				],
 				["--rubric", "The corpus as an eval rubric, as JSON"],
+				["--skills", "Portable Agent Skill pack (SKILL.md + references/)"],
+				["--json", "Versioned JSON knowledge bundle + prerequisite graph"],
 			],
 			examples: [
 				"bun run bookkit export on-call",
-				"bun run bookkit export on-call --out ../on-call-gitbook",
+				"bun run bookkit export on-call --skills",
+				"bun run bookkit export on-call --json",
 				"bun run bookkit export running-hot --rubric",
 			],
 		},
@@ -893,6 +902,33 @@ export const BOOKKIT_COMMANDS: readonly BookkitCommand[] = [
 		},
 	},
 	{ name: "deploy", help: { script: "deploy.ts" } },
+	{ name: "mcp", help: { script: "mcp-server.ts" } },
+	{
+		name: "upgrade",
+		help: {
+			summary:
+				"Upgrade a standalone Bookkit project's vendored engine, scripts, and shared wrappers.",
+			usage: [
+				"bun run bookkit upgrade [--dir <project>] [--source <repo>] [--ref <git-ref>]",
+			],
+			options: [
+				[
+					"--dir <project>",
+					"Standalone project folder (default: current workspace)",
+				],
+				["--source <repo>", "Local bookkit repository checkout to copy from"],
+				[
+					"--ref <git-ref>",
+					"Upstream git branch or tag to clone when updating remotely",
+				],
+			],
+			examples: [
+				"bun run bookkit upgrade",
+				"bun run bookkit upgrade --ref main",
+				"bun run bookkit upgrade --dir ../my-book --source ~/Dev/bookkit",
+			],
+		},
+	},
 	{
 		name: "import",
 		aliases: ["import-book", "book:import"],

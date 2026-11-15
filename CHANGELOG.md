@@ -4,6 +4,17 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-15 — External workflows: zero-clone creation, CI action, agent exports, richer import, and folder MCP
+
+The owner overrode maintenance mode for this work (`AGENTS.md`).
+
+- **Zero-clone project creation and upgrades:** `packages/create-bookkit` is no longer `private`, removes static workspace imports from its entrypoint so `bunx create-bookkit` can shallow-clone upstream (`--ref` or `--source`), generates a starter `.github/workflows/ci.yml` on `createProject()` and `upgradeProject()`, and adds `bookkit upgrade [--dir <project>] [--source <repo>] [--ref <git-ref>]`.
+- **Reusable GitHub Action & annotations:** `/action.yml` runs `bookkit check` against any Markdown folder or Bookkit app in CI. `bookkit check <folder>` gains `--format github` (with automatic emission when `GITHUB_ACTIONS=true`), writing GitHub workflow error/warning annotations, `$GITHUB_STEP_SUMMARY`, and `GITHUB_OUTPUT`.
+- **Agent-native exports:** `bookkit export [book] --skills [--out <dir>]` writes a portable Agent Skill pack (`SKILL.md` + `references/`) and `bookkit export [book] --json [--out <file>]` writes a versioned JSON bundle + graph (`format: "bookkit.json.v1"`). MCP `bookkit.export_book` accepts `format: "bundle" | "skills" | "json"`.
+- **Richer Markdown imports:** `import-markdown.ts` strips trailing Notion UUID/32-hex suffixes, converts Docusaurus/MkDocs `:::` admonitions into blockquotes outside fenced code, honors `_category_.json` positions when sorting folders, and adds `--classify` (routing notes to `mechanisms/`, `toolkit/`, `examples/`, `glossary/`) and `--propose` to `bookkit import`.
+- **Folder-mode MCP server:** `bun run mcp -- --dir <folder> [--frame <slug>] [--release]` (also `bun run bookkit mcp`) serves Bookkit MCP tools (`list_books`, `validate_book`) against a plain Markdown folder without scaffolding an `apps/` workspace first.
+- **Migration:** none. Standalone projects gain `.github/workflows/ci.yml` on their next `bookkit upgrade` if one does not already exist.
+
 ## 2026-11-12 — `bookkit finish`: drafts taken the last mile
 
 The owner overrode maintenance mode for this work (AGENTS.md).
@@ -35,7 +46,6 @@ The owner overrode maintenance mode for this work (AGENTS.md).
 - **`/llms.txt` and `/md/<section>/<slug>.md`** on every built book: an index for language models and a Markdown copy of each entry, following the site's rule for crawlers (nothing for a book that is not indexable; no stub chapters).
 - **Session start** prints the maintenance notice and `bookkit bets` in every Claude Code session, not only cloud ones, which still install the workspace first.
 - **Migration:** none. A request folder made before this change revises from its judges' reasons, since its ballots have no fixes. A book's own page at `src/pages/llms.txt.ts` or `src/pages/md/[...path].ts` replaces the engine's.
-||||||| dd62bcc
 ## 2026-11-12 — A runbook opens on its actions
 
 At the owner's request, which overrides maintenance mode for this change.

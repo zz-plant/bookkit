@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { repoRoot } from "./_lib";
 import { runChildAsync, waitForChildren } from "./lib/child-process.fixture";
@@ -6,9 +8,14 @@ import { runChildAsync, waitForChildren } from "./lib/child-process.fixture";
 waitForChildren();
 
 /** Sends JSON-RPC lines to a fresh server and returns its responses by id. */
-const exchange = async (messages: unknown[]) => {
+const exchange = async (messages: unknown[], extraArgs: string[] = []) => {
 	const { stdout } = await runChildAsync(
-		[process.execPath, "run", join(repoRoot(), "scripts", "mcp-server.ts")],
+		[
+			process.execPath,
+			"run",
+			join(repoRoot(), "scripts", "mcp-server.ts"),
+			...extraArgs,
+		],
 		{
 			cwd: repoRoot(),
 			// Strings are sent as raw lines, to exercise malformed input.
@@ -122,5 +129,58 @@ describe("mcp-server (stdio)", () => {
 			},
 		]);
 		expect(fixed.get(3).result.structuredContent.payload.findings).toEqual([]);
+	});
+
+	it("serves any Markdown folder via --dir without a book app", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "bookkit-mcp-dir-"));
+		try {
+			mkdirSync(join(dir, "mechanisms"), { recursive: true });
+			writeFileSync(
+				join(dir, "mechanisms", "queue-backpressure.mdx"),
+				"---\nslug: queue-backpressure\ntitle: Queue backpressure\ndefinition: Shed load before latency cascades.\nis:\n  - Bounded queues\nisNot:\n  - Infinite retries\n---\n",
+			);
+			writeFileSync(
+				join(dir, "restart-api.md"),
+				"# Restart API\n\n## Steps\n\n1. Restart.\n",
+			);
+
+			const responses = await exchange(
+				[
+					{
+						jsonrpc: "2.0",
+						id: 1,
+						method: "tools/call",
+						params: { name: "bookkit.list_books", arguments: {} },
+					},
+					{
+						jsonrpc: "2.0",
+						id: 2,
+						method: "tools/call",
+						params: { name: "bookkit.list_mechanisms", arguments: {} },
+					},
+					{
+						jsonrpc: "2.0",
+						id: 3,
+						method: "tools/call",
+						params: { name: "bookkit.validate_book", arguments: {} },
+					},
+				],
+				["--dir", dir, "--frame", "runbook"],
+			);
+
+			expect(responses.get(1).result.structuredContent.ok).toBe(true);
+			expect(
+				responses.get(2).result.structuredContent.payload.mechanisms[0].slug,
+			).toBe("queue-backpressure");
+			const validated = responses.get(3).result;
+			expect(validated.isError).toBe(true);
+			expect(
+				validated.structuredContent.payload.findings.some(
+					(f: { code: string }) => f.code === "FRAME_STEP_MISSING",
+				),
+			).toBe(true);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

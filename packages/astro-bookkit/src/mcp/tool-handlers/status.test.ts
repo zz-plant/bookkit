@@ -40,6 +40,15 @@ describe("bookkit.status and bookkit.bets", () => {
 	it("reports the active bet", async () => {
 		const result = await runTool(options, "bookkit.bets", {});
 		expect(result.ok).toBe(true);
-		expect(result.summary).toMatch(/^B\d+ · /);
+		const report = (
+			result.payload as {
+				report?: { b1?: { bet?: string; unavailable?: string } };
+			}
+		)?.report;
+		if (report?.b1?.unavailable) {
+			expect(result.summary).toContain(report.b1.unavailable);
+		} else {
+			expect(result.summary).toMatch(/^B\d+ · /);
+		}
 	}, 30_000);
 });

@@ -11,6 +11,33 @@ import type { ToolHandler } from "./types";
  * each finding has a code, the field, a fix, and its file.
  */
 export const handleValidateBook: ToolHandler = async ({ options, args }) => {
+	if (options.folderMode && !args?.book) {
+		const result = await options.folderMode.validate({
+			releaseMode: args?.releaseMode === true,
+		});
+		const errorCount = result.findings.filter(
+			(finding) => finding.level === "error",
+		).length;
+		const warningCount = result.findings.length - errorCount;
+		return {
+			ok: result.ok,
+			summary: result.ok
+				? `Validation passed for folder ${options.folderMode.dir}${warningCount ? ` (${warningCount} warning(s))` : ""}.`
+				: `Validation failed for folder ${options.folderMode.dir}: ${errorCount} error(s).`,
+			payload: {
+				folder: options.folderMode.dir,
+				frame: result.frame,
+				findings: result.findings,
+			},
+			error: result.ok
+				? undefined
+				: {
+						...validateBookFailedError(options.folderMode.dir, errorCount),
+						cause: `${errorCount} validation error(s) in ${options.folderMode.dir}.`,
+					},
+		};
+	}
+
 	const picked = bookArg(options, args);
 	if (!picked.ok) return picked.response;
 	const book = picked.book;

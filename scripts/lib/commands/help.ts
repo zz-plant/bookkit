@@ -135,6 +135,8 @@ Preview and publish
   dev stop|status|logs [book]               stop or find a dev server bookkit dev (or astro dev) left running
   build [book] [--all]                      build one book (no book: the current one, or all)
   export [book] [--out <dir>]               a GitBook folder of the book; says where the PDF and EPUB are
+  export [book] --skills [--out <dir>]      portable Agent Skill pack (SKILL.md + references/)
+  export [book] --json [--out <file>]       versioned JSON knowledge bundle and graph
   export [book] --rubric [--out <file>]     the book's corpus as an eval rubric: one criterion per mechanism,
                                             and your rulings as labelled pairs (default:
                                             apps/<book>/exports/rubric.json)
@@ -156,6 +158,8 @@ Diagnose
 
 Other
   list                                      list the books
+  mcp [--book <book> | --dir <folder>]      serve Bookkit's MCP tools over stdio for a book or Markdown folder
+  upgrade [--dir <project>] [--ref <ref>]   upgrade a standalone project's vendored engine and scripts
   remove book <slug>                        delete a book app (also: remove-book <slug>)
   bets [--json]                             the maintainers' active bet (docs/bets.md), measured from git
 

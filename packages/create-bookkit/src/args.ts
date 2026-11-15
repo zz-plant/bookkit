@@ -1,13 +1,61 @@
 import { parseArgs } from "node:util";
-import { slugify } from "../../../scripts/_lib";
-import { didYouMean, formatUsage } from "../../../scripts/lib/cli";
+
+const slugify = (text: string): string =>
+	text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+
+const didYouMean = (flag: string, flags: string[]): string => {
+	const bare = flag.replace(/^--?/, "");
+	let best: { candidate: string; score: number } | undefined;
+	for (const candidate of flags) {
+		const c = candidate.replace(/^--?/, "");
+		const min = Math.min(bare.length, c.length);
+		let shared = 0;
+		for (let i = 0; i < min; i += 1) {
+			if (bare[i] === c[i]) shared += 1;
+		}
+		if (shared >= 2 && (!best || shared > best.score)) {
+			best = { candidate, score: shared };
+		}
+	}
+	return best ? ` Did you mean ${best.candidate}?` : "";
+};
+
+const formatUsage = (help: {
+	summary: string;
+	usage: string[];
+	options: Array<[string, string]>;
+	notes?: string;
+	examples?: string[];
+}): string => {
+	const pad = Math.max(...help.options.map(([flag]) => flag.length)) + 2;
+	const lines = [
+		help.summary,
+		"",
+		"Usage:",
+		...help.usage.map((u) => `  ${u}`),
+		"",
+		"Options:",
+		...help.options.map(
+			([flag, desc]) =>
+				`  ${flag.padEnd(pad)}${desc.replace(/\n/g, `\n${" ".repeat(pad + 2)}`)}`,
+		),
+	];
+	if (help.notes) lines.push("", help.notes);
+	if (help.examples?.length) {
+		lines.push("", "Examples:", ...help.examples.map((e) => `  ${e}`));
+	}
+	return lines.join("\n");
+};
 
 export const USAGE = formatUsage({
 	summary:
-		"Creates a standalone Bookkit project: one book app, the engine vendored\ninto packages/astro-bookkit/, and the bookkit CLI and checks in\nscripts/. Run it from a clone of the bookkit repository; <folder> must\nbe outside it.",
+		"Creates a standalone Bookkit project: one book app, the engine vendored\ninto packages/astro-bookkit/, and the bookkit CLI and checks in\nscripts/. Works from a clone of bookkit or via bunx create-bookkit;\n<folder> must be outside the source repository.",
 	usage: [
-		'bun run create-bookkit <folder> [--book <slug>] [--title "<title>"] [--dir <markdown-folder>] [--force]',
-		"bun run create-bookkit <folder> --upgrade",
+		'create-bookkit <folder> [--book <slug>] [--title "<title>"] [--dir <markdown-folder>] [--force] [--source <repo>] [--ref <git-ref>]',
+		"create-bookkit <folder> --upgrade [--source <repo>] [--ref <git-ref>]",
 	],
 	options: [
 		["--book <slug>", "The book's slug (default: from the folder name)"],
@@ -24,11 +72,19 @@ export const USAGE = formatUsage({
 			"--upgrade",
 			"Replace an existing project's engine, scripts, and shared\nwrappers with this repository's. Lists every file it\nchanges; never writes content or book.config.ts.",
 		],
+		[
+			"--source <dir>",
+			"Path to a local bookkit repository checkout to vendor from",
+		],
+		[
+			"--ref <git-ref>",
+			"Branch or tag of bookkit to shallow-clone when no local\nsource checkout is present",
+		],
 	],
 	notes:
-		"bun run create-bookkit is bun run packages/create-bookkit/src/index.ts.",
+		"Inside a bookkit clone, bun run create-bookkit runs packages/create-bookkit/src/index.ts.",
 	examples: [
-		'bun run create-bookkit ../my-book --title "My Book"',
+		'bunx create-bookkit my-book --title "My Book"',
 		"bun run create-bookkit ../field-notes --dir ~/notes/field",
 		"bun run create-bookkit ../my-book --upgrade",
 	],
@@ -41,6 +97,8 @@ export type CreateArgs = {
 	dir?: string;
 	force: boolean;
 	upgrade: boolean;
+	source?: string;
+	ref?: string;
 };
 
 const OPTIONS = {
@@ -49,6 +107,8 @@ const OPTIONS = {
 	dir: { type: "string" },
 	force: { type: "boolean" },
 	upgrade: { type: "boolean" },
+	source: { type: "string" },
+	ref: { type: "string" },
 	help: { type: "boolean", short: "h" },
 } as const;
 
@@ -63,6 +123,8 @@ export const parseCreateArgs = (
 			dir?: string;
 			force?: boolean;
 			upgrade?: boolean;
+			source?: string;
+			ref?: string;
 			help?: boolean;
 		};
 		positionals: string[];
@@ -101,7 +163,7 @@ export const parseCreateArgs = (
 			error: `Expected one project folder, got ${positionals.length}: ${positionals.join(", ")}. Quote a title that has spaces: --title "My Book".`,
 		};
 	}
-	for (const name of ["book", "title", "dir"] as const) {
+	for (const name of ["book", "title", "dir", "source", "ref"] as const) {
 		if (values[name] === "") return { error: `--${name} needs a value.` };
 	}
 	if (values.upgrade) {
@@ -127,6 +189,8 @@ export const parseCreateArgs = (
 			dir: values.dir,
 			force: values.force ?? false,
 			upgrade: values.upgrade ?? false,
+			...(values.source !== undefined ? { source: values.source } : {}),
+			...(values.ref !== undefined ? { ref: values.ref } : {}),
 		},
 	};
 };

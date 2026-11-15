@@ -1,5 +1,26 @@
 import type { BookContentRawModules } from "../book/entrypoints";
 
+export type McpFolderValidationResult = {
+	ok: boolean;
+	frame?: string;
+	findings: Array<{
+		level: string;
+		code: string;
+		message: string;
+		fix?: string;
+		file?: string;
+	}>;
+};
+
+export type McpFolderMode = {
+	dir: string;
+	frame?: string;
+	releaseMode?: boolean;
+	validate: (options?: {
+		releaseMode?: boolean;
+	}) => Promise<McpFolderValidationResult>;
+};
+
 export type McpEndpointOptions = {
 	bookTitle: string;
 	bookSlug?: string;
@@ -8,6 +29,7 @@ export type McpEndpointOptions = {
 	resourcePrefix?: string;
 	governanceResources?: McpResourceInput[];
 	workspaceRoot?: string;
+	folderMode?: McpFolderMode;
 };
 
 export type McpResourceInput = {

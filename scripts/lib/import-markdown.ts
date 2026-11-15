@@ -8,7 +8,7 @@ import {
 	statSync,
 	writeFileSync,
 } from "node:fs";
-import { join, posix } from "node:path";
+import { dirname, join, posix } from "node:path";
 import {
 	FRONTMATTER,
 	formatFrontmatter,
@@ -74,6 +74,8 @@ export type ImportOptions = {
 	force?: boolean;
 	/** Import README/index files as chapters instead of skipping them. */
 	includeReadme?: boolean;
+	/** Route notes marked by folder or frontmatter into mechanisms/toolkit/glossary/examples instead of chapters only. */
+	classify?: boolean;
 };
 
 /**
@@ -121,6 +123,20 @@ export type PlannedImage = {
 
 export type ImportProblem = { source: string; line?: number; message: string };
 
+export type PlannedRecord = {
+	source: string;
+	section: "mechanism" | "tool" | "example" | "glossary";
+	/** Relative to `src/content/book/`, e.g. `mechanisms/queue-backpressure.mdx`. */
+	file: string;
+	slug: string;
+	title: string;
+	status: string;
+	action: FileAction;
+	reason?: string;
+	content: string;
+	compile: MdxCompileResult;
+};
+
 export type ImportPlan = {
 	book: string;
 	sourceDir: string;
@@ -132,6 +148,7 @@ export type ImportPlan = {
 	/** `apps/<book>/public/images`, absolute. */
 	imagesDir: string;
 	chapters: PlannedChapter[];
+	records: PlannedRecord[];
 	images: PlannedImage[];
 	skipped: Array<{ source: string; reason: string }>;
 	links: Array<{ source: string; line: number; from: string; to: string }>;
@@ -167,15 +184,25 @@ const slugify = (value: string): string =>
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "");
 
+/** Strips trailing Notion export UUIDs (` <32hex>`, `-<32hex>`, or hyphenated UUID). */
+export const stripNotionId = (value: string): string => {
+	const cleaned = value.replace(
+		/(?:[\s-]+(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))$/i,
+		"",
+	);
+	return cleaned.trim() ? cleaned : value;
+};
+
 const stem = (path: string) => posix.basename(path).replace(NOTE_EXTENSION, "");
 
 /** The file name without an ordering prefix, and the prefix's number. */
 const splitOrder = (name: string): { order?: number; name: string } => {
-	const match = name.match(ORDER_PREFIX);
-	if (!match) return { name };
+	const clean = stripNotionId(name);
+	const match = clean.match(ORDER_PREFIX);
+	if (!match) return { name: clean };
 	return {
 		order: match[1] === undefined ? undefined : Number(match[1]),
-		name: name.slice(match[0].length),
+		name: clean.slice(match[0].length),
 	};
 };
 
@@ -184,13 +211,89 @@ const titleFromFileName = (path: string): string => {
 	return base.charAt(0).toUpperCase() + base.slice(1);
 };
 
-/** Compares paths folder by folder, numbers by value: `2-b` before `10-a`. */
-const comparePaths = (a: string, b: string): number => {
+/** Converts Docusaurus/MkDocs `:::type[Title]` admonitions outside fenced code to blockquotes. */
+export const convertAdmonitions = (body: string): string =>
+	splitFencedCode(body)
+		.map((segment) => {
+			if (segment.code) return segment.text;
+			return segment.text.replace(
+				/^:::[ \t]*([A-Za-z][A-Za-z0-9_-]*)(?:\[([^\]]+)\]|[ \t]+([^\n]+))?[ \t]*\n([\s\S]*?)^:::[ \t]*$/gm,
+				(
+					_,
+					kind: string,
+					bracketTitle?: string,
+					inlineTitle?: string,
+					inner = "",
+				) => {
+					const label = (bracketTitle ?? inlineTitle ?? "").trim();
+					const heading =
+						label || kind.charAt(0).toUpperCase() + kind.slice(1).toLowerCase();
+					const bodyLines = inner.replace(/\n$/, "").split("\n");
+					const quoted = bodyLines.map((line: string) =>
+						line.trim() ? `> ${line}` : ">",
+					);
+					return [`> **${heading}**`, ...quoted].join("\n");
+				},
+			);
+		})
+		.join("\n");
+
+/** Reads Docusaurus `_category_.json` positions per folder for ordering hints. */
+const readCategoryPositions = (sourceDir: string): Map<string, number> => {
+	const positions = new Map<string, number>();
+	const walk = (rel: string) => {
+		const full = rel ? join(sourceDir, rel) : sourceDir;
+		const category = join(full, "_category_.json");
+		if (rel && existsSync(category)) {
+			try {
+				const parsed = JSON.parse(readFileSync(category, "utf8")) as {
+					position?: unknown;
+				};
+				if (typeof parsed.position === "number") {
+					positions.set(rel, parsed.position);
+				}
+			} catch {
+				// Ignore unreadable _category_.json.
+			}
+		}
+		for (const entry of readdirSync(full, { withFileTypes: true })) {
+			if (
+				!entry.isDirectory() ||
+				entry.name.startsWith(".") ||
+				entry.name === "node_modules"
+			) {
+				continue;
+			}
+			walk(rel ? `${rel}/${entry.name}` : entry.name);
+		}
+	};
+	walk("");
+	return positions;
+};
+
+/** Compares paths folder by folder, honoring `_category_.json` positions and numbers by value. */
+const comparePaths = (
+	a: string,
+	b: string,
+	positions: Map<string, number> = new Map(),
+): number => {
 	const left = a.split("/");
 	const right = b.split("/");
+	let prefix = "";
 	for (let i = 0; i < Math.min(left.length, right.length); i += 1) {
-		const order = left[i].localeCompare(right[i], "en", { numeric: true });
-		if (order !== 0) return order;
+		if (left[i] !== right[i]) {
+			const leftIsDir = i < left.length - 1;
+			const rightIsDir = i < right.length - 1;
+			if (leftIsDir && rightIsDir) {
+				const lp = positions.get(prefix ? `${prefix}/${left[i]}` : left[i]);
+				const rp = positions.get(prefix ? `${prefix}/${right[i]}` : right[i]);
+				if (lp !== undefined && rp !== undefined && lp !== rp) return lp - rp;
+				if (lp !== undefined && rp === undefined) return -1;
+				if (lp === undefined && rp !== undefined) return 1;
+			}
+			return left[i].localeCompare(right[i], "en", { numeric: true });
+		}
+		prefix = prefix ? `${prefix}/${left[i]}` : left[i];
 	}
 	return left.length - right.length;
 };
@@ -223,8 +326,60 @@ const WIKI_LINK =
 const HTML_DESTINATION =
 	/<[A-Za-z][^<>]*?\s(?:href|src)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+)/g;
 
+export type NoteSection =
+	| "chapter"
+	| "mechanism"
+	| "tool"
+	| "example"
+	| "glossary";
+
+const SECTION_DIRS: Record<NoteSection, string> = {
+	chapter: "chapters",
+	mechanism: "mechanisms",
+	tool: "toolkit",
+	example: "examples",
+	glossary: "glossary",
+};
+
+const classifySection = (
+	source: string,
+	data: Record<string, unknown>,
+	classify: boolean,
+): NoteSection => {
+	if (!classify) return "chapter";
+	const raw = (
+		text(data.type) ??
+		text(data.kind) ??
+		text(data.section) ??
+		""
+	).toLowerCase();
+	if (raw === "mechanism" || raw === "mechanisms") return "mechanism";
+	if (raw === "tool" || raw === "toolkit" || raw === "runbook") return "tool";
+	if (raw === "example" || raw === "examples") return "example";
+	if (raw === "glossary" || raw === "term" || raw === "terms")
+		return "glossary";
+	const top = splitOrder(source.split("/")[0] ?? "").name.toLowerCase();
+	if (top === "mechanisms" || top === "mechanism") return "mechanism";
+	if (top === "toolkit" || top === "tools" || top === "runbooks") return "tool";
+	if (top === "examples" || top === "example") return "example";
+	if (top === "glossary" || top === "terms") return "glossary";
+	return "chapter";
+};
+
+const stringList = (value: unknown): string[] | undefined => {
+	if (!Array.isArray(value)) return undefined;
+	const items = value
+		.filter(
+			(item): item is string =>
+				typeof item === "string" && item.trim().length > 0,
+		)
+		.map((item) => item.trim());
+	return items.length > 0 ? items : undefined;
+};
+
 type Note = {
 	source: string;
+	section: NoteSection;
 	data: Record<string, unknown>;
 	/** Frontmatter that did not parse, and why. */
 	invalid?: { yaml: string; reason: string };
@@ -262,7 +417,11 @@ const firstHeading = (
 	return undefined;
 };
 
-const readNote = (sourceDir: string, source: string): Note => {
+const readNote = (
+	sourceDir: string,
+	source: string,
+	classify = false,
+): Note => {
 	const raw = readFileSync(join(sourceDir, source), "utf8").replace(
 		/\r\n/g,
 		"\n",
@@ -272,14 +431,15 @@ const readNote = (sourceDir: string, source: string): Note => {
 		parsed.status === "missing" ? "" : (raw.match(FRONTMATTER)?.[0] ?? "");
 	const rest = raw.slice(block.length);
 	const blank = rest.match(/^\s*\n/)?.[0] ?? "";
-	const body = rest.slice(blank.length).trimEnd();
+	const body = convertAdmonitions(rest.slice(blank.length).trimEnd());
 	const data = parsed.status === "ok" ? parsed.data : {};
+	const section = classifySection(source, data, classify);
 	const segments = source.split("/");
 	const name = stem(source);
 	const { order, name: baseName } = splitOrder(name);
 	// A folder's README or index is named for the folder.
 	const folder =
-		INDEX_NAMES.has(name.toLowerCase()) && segments.length > 1
+		INDEX_NAMES.has(stripNotionId(name).toLowerCase()) && segments.length > 1
 			? segments[segments.length - 2]
 			: undefined;
 
@@ -325,6 +485,7 @@ const readNote = (sourceDir: string, source: string): Note => {
 
 	return {
 		source,
+		section,
 		data,
 		invalid:
 			parsed.status === "invalid"
@@ -413,10 +574,13 @@ export const planImport = async (
 	const skipped: ImportPlan["skipped"] = [];
 
 	const notes: Note[] = [];
-	for (const source of listNotes(sourceDir).sort(comparePaths)) {
+	const positions = readCategoryPositions(sourceDir);
+	for (const source of listNotes(sourceDir).sort((a, b) =>
+		comparePaths(a, b, positions),
+	)) {
 		const reason = importSkipReason(source, options.includeReadme);
 		if (reason) skipped.push({ source, reason });
-		else notes.push(readNote(sourceDir, source));
+		else notes.push(readNote(sourceDir, source, options.classify ?? false));
 	}
 	assignUniqueSlugs(notes);
 	const noteBySource = new Map(notes.map((note) => [note.source, note]));
@@ -498,7 +662,7 @@ export const planImport = async (
 			.map((candidate) => noteBySource.get(candidate))
 			.find(Boolean);
 		if (linked) {
-			const to = `/read/chapters/${linked.slug}${hash ? `#${hash}` : ""}`;
+			const to = `/read/${SECTION_DIRS[linked.section]}/${linked.slug}${hash ? `#${hash}` : ""}`;
 			links.push({ source: note.source, line, from: url, to });
 			return to;
 		}
@@ -530,9 +694,11 @@ export const planImport = async (
 	// Wiki links name a note by its file name (any folder) or its title.
 	const noteByName = new Map<string, Note>();
 	for (const note of notes) {
+		const baseNoExt = posix.basename(note.source).replace(/\.mdx?$/i, "");
 		for (const key of [
 			note.source.replace(/\.mdx?$/i, ""),
-			posix.basename(note.source).replace(/\.mdx?$/i, ""),
+			baseNoExt,
+			stripNotionId(baseNoExt),
 			note.title,
 		]) {
 			const name = key.trim().toLowerCase();
@@ -604,7 +770,7 @@ export const planImport = async (
 			} else if (!target && heading) {
 				next = `[${rawText?.trim() || heading}](#${anchor(heading)})`;
 			} else if (linked) {
-				const to = `/read/chapters/${linked.slug}${heading ? `#${anchor(heading)}` : ""}`;
+				const to = `/read/${SECTION_DIRS[linked.section]}/${linked.slug}${heading ? `#${anchor(heading)}` : ""}`;
 				links.push({ source: note.source, line, from: whole, to });
 				if (bang) {
 					problems.push({
@@ -694,9 +860,15 @@ export const planImport = async (
 		...existing.map((file) => file.match(/^(\d+)-/)?.[1].length ?? 0),
 	);
 
+	const chapterNotes = notes.filter((note) => note.section === "chapter");
+	const recordNotes = notes.filter((note) => note.section !== "chapter");
+	const firstMechanismSlug =
+		recordNotes.find((note) => note.section === "mechanism")?.slug ??
+		"draft-mechanism";
+
 	const chapters: PlannedChapter[] = [];
 	const matched = new Set<string>();
-	for (const note of notes) {
+	for (const note of chapterNotes) {
 		let body = rewriteLinks(note, note.body);
 		// The note's lines before the converted body, so a line in it names the note's.
 		let linesBefore = note.bodyLine;
@@ -857,6 +1029,133 @@ export const planImport = async (
 		});
 	}
 
+	const records: PlannedRecord[] = [];
+	const contentRoot = join(appDir, "src", "content", "book");
+	for (const note of recordNotes) {
+		if (note.section === "chapter") continue;
+		let body = rewriteLinks(note, note.body);
+		if (note.dropLeadingHeading) {
+			const heading = firstHeading(body);
+			if (heading?.leading) {
+				body = body.slice(heading.length).trim();
+			}
+		}
+		if (note.invalid) {
+			problems.push({
+				source: note.source,
+				line: 1,
+				message: `frontmatter does not parse (${note.invalid.reason}); kept in the record as an MDX comment`,
+			});
+			const comment = `<!--\n${note.invalid.yaml.replace(/-->/g, "-- >").trim()}\n-->\n\n`;
+			body = `${comment}${body}`;
+		}
+		const summary =
+			text(note.data.summary) ??
+			text(note.data.description) ??
+			text(note.data.subtitle) ??
+			text(note.data.excerpt);
+		const recordFields: Record<string, unknown> =
+			note.section === "mechanism"
+				? {
+						slug: note.slug,
+						status: note.status,
+						title: note.title,
+						definition: text(note.data.definition) ?? summary ?? note.title,
+						is: stringList(note.data.is) ?? [
+							`Core pattern described in ${note.title}`,
+						],
+						isNot: stringList(note.data.isNot) ?? [
+							`Unrelated surface symptom outside ${note.title}`,
+						],
+						predictions: stringList(note.data.predictions) ?? [
+							`Applying ${note.title} changes the observable outcome`,
+						],
+						tests: stringList(note.data.tests) ?? [
+							`Verify whether ${note.title} holds in a concrete case`,
+						],
+						...(stringList(note.data.satisfies)
+							? { satisfies: stringList(note.data.satisfies) }
+							: {}),
+					}
+				: note.section === "tool"
+					? {
+							slug: note.slug,
+							status: note.status,
+							mechanism: text(note.data.mechanism) ?? firstMechanismSlug,
+							name: text(note.data.name) ?? note.title,
+							...(text(note.data.trigger)
+								? { trigger: text(note.data.trigger) }
+								: {}),
+							...(typeof note.data.timeboxMinutes === "number" &&
+							note.data.timeboxMinutes > 0 &&
+							note.data.timeboxMinutes <= 10
+								? { timeboxMinutes: note.data.timeboxMinutes }
+								: {}),
+							...(stringList(note.data.steps)
+								? { steps: stringList(note.data.steps) }
+								: {}),
+						}
+					: note.section === "example"
+						? {
+								mechanism: text(note.data.mechanism) ?? firstMechanismSlug,
+								domain: text(note.data.domain) ?? "imported",
+								title: note.title,
+								...(summary ? { summary } : {}),
+								status: note.status,
+							}
+						: {
+								slug: note.slug,
+								status: note.status,
+								term: text(note.data.term) ?? note.title,
+								definition: text(note.data.definition) ?? summary ?? note.title,
+								...(stringList(note.data.mechanisms)
+									? { mechanisms: stringList(note.data.mechanisms) }
+									: {}),
+							};
+		const frontmatter = formatFrontmatter(recordFields);
+		let converted = toMdxBody(body, { html: "jsx" });
+		let content = `${frontmatter}\n${converted.body}\n`;
+		let compiled = await compileMdx(content, appDir);
+		if (compiled.ok === false && converted.changes.html > 0) {
+			const escaped = toMdxBody(body);
+			const escapedContent = `${frontmatter}\n${escaped.body}\n`;
+			const retry = await compileMdx(escapedContent, appDir);
+			if (retry.ok !== false) {
+				converted = escaped;
+				content = escapedContent;
+				compiled = retry;
+			}
+		}
+		const rel = `${SECTION_DIRS[note.section]}/${note.slug}.mdx`;
+		const dest = join(contentRoot, rel);
+		let action: FileAction = "new";
+		let reason: string | undefined;
+		if (existsSync(dest)) {
+			const current = readFileSync(dest, "utf8");
+			if (sha256(current) === sha256(content)) {
+				action = "unchanged";
+			} else if (force) {
+				action = "replace";
+				reason = `${rel} exists`;
+			} else {
+				action = "keep";
+				reason = `${rel} exists`;
+			}
+		}
+		records.push({
+			source: note.source,
+			section: note.section,
+			file: rel,
+			slug: note.slug,
+			title: note.title,
+			status: note.status,
+			action,
+			reason,
+			content,
+			compile: compiled,
+		});
+	}
+
 	return {
 		book,
 		sourceDir,
@@ -865,6 +1164,7 @@ export const planImport = async (
 		chaptersDir,
 		imagesDir,
 		chapters,
+		records,
 		images,
 		skipped,
 		links,
@@ -896,6 +1196,14 @@ export const applyImport = async (plan: ImportPlan): Promise<void> => {
 		const path = join(plan.chaptersDir, chapter.file);
 		writeFileSync(path, chapter.content, "utf8");
 		chapter.compile = await compileMdx(readFileSync(path, "utf8"), plan.appDir);
+	}
+	const contentRoot = join(plan.appDir, "src", "content", "book");
+	for (const record of plan.records) {
+		if (!WRITES.has(record.action)) continue;
+		const path = join(contentRoot, record.file);
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, record.content, "utf8");
+		record.compile = await compileMdx(readFileSync(path, "utf8"), plan.appDir);
 	}
 	for (const image of plan.images) {
 		if (!WRITES.has(image.action)) continue;

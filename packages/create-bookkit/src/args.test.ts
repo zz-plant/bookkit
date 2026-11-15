@@ -18,6 +18,21 @@ describe("parseCreateArgs", () => {
 		expect(parseCreateArgs(["--upgrade", "../garden"])).toMatchObject({
 			values: { target: "../garden", upgrade: true },
 		});
+		expect(
+			parseCreateArgs([
+				"../garden",
+				"--source",
+				"/tmp/bookkit",
+				"--ref",
+				"v1.0",
+			]),
+		).toMatchObject({
+			values: {
+				target: "../garden",
+				source: "/tmp/bookkit",
+				ref: "v1.0",
+			},
+		});
 	});
 
 	it("asks for help instead of scaffolding a folder named --help", () => {

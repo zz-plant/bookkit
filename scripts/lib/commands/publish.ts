@@ -12,9 +12,11 @@ import {
 	stopForegroundServer,
 } from "../dev-server";
 import { resolveFromCaller } from "../folder-report";
+import { exportBookJson } from "../json-export";
 import { draftRecords, publishedRecord, withBookStatus } from "../publish-book";
 import { releaseVersions } from "../release-notes";
 import { exportRubric } from "../rubric";
+import { exportBookSkills } from "../skill-export";
 import {
 	args,
 	bookChoices,
@@ -151,13 +153,13 @@ export async function buildCommand() {
 }
 
 /**
- * `export [book] [--out <dir>] [--rubric]`: a GitBook folder of the book, or
- * its corpus as an eval rubric.
+ * `export [book] [--out <dir>] [--rubric | --skills | --json]`: a GitBook
+ * folder, an eval rubric, an Agent Skill pack, or a JSON knowledge bundle.
  */
-export function exportCommand() {
+export async function exportCommand() {
 	const target = targetBooks(
 		args,
-		"bun run bookkit export [book] [--out <dir>] [--rubric]",
+		"bun run bookkit export [book] [--out <dir>] [--rubric | --skills | --json]",
 	);
 	if (target.books.length !== 1) {
 		console.error(
@@ -168,6 +170,15 @@ export function exportCommand() {
 	const [book] = target.books;
 	if (target.note) console.log(target.note);
 	const out = flagValue(args, "--out");
+	const modes = [
+		args.includes("--rubric") && "--rubric",
+		args.includes("--skills") && "--skills",
+		args.includes("--json") && "--json",
+	].filter(Boolean) as string[];
+	if (modes.length > 1) {
+		console.error(`Pass only one of ${modes.join(", ")}.`);
+		process.exit(1);
+	}
 	if (args.includes("--rubric")) {
 		const written = exportRubric(book, out && resolveFromCaller(out));
 		if ("error" in written) {
@@ -183,6 +194,37 @@ export function exportCommand() {
 					? `${rubric.pairs.length} labelled pairs (${same.length} same idea, ${rubric.pairs.length - same.length} distinct, with reasons)`
 					: "no labelled pairs yet (bookkit rule and bookkit merge add them)"
 			}.\nWritten to ${shown.startsWith("..") ? written.path : shown}`,
+		);
+		process.exit(0);
+	}
+	if (args.includes("--skills")) {
+		const written = await exportBookSkills(
+			book,
+			out ? resolveFromCaller(out) : undefined,
+		);
+		if ("error" in written) {
+			console.error(written.error);
+			process.exit(1);
+		}
+		const shown = relative(process.cwd(), written.dir);
+		console.log(
+			`Agent Skill pack for ${book} (${written.files.length} files: ${written.files.join(", ")}).\nWritten to ${shown.startsWith("..") ? written.dir : shown}`,
+		);
+		process.exit(0);
+	}
+	if (args.includes("--json")) {
+		const written = await exportBookJson(
+			book,
+			out ? resolveFromCaller(out) : undefined,
+		);
+		if ("error" in written) {
+			console.error(written.error);
+			process.exit(1);
+		}
+		const { bundle } = written;
+		const shown = relative(process.cwd(), written.path);
+		console.log(
+			`JSON bundle for ${book} (version ${bundle.version}): ${bundle.chapters.length} chapters, ${bundle.mechanisms.length} mechanisms, ${bundle.tools.length} tools.\nWritten to ${shown.startsWith("..") ? written.path : shown}`,
 		);
 		process.exit(0);
 	}

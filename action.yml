@@ -1,0 +1,70 @@
+name: "Bookkit Check"
+description: "Check Markdown, runbooks, or a Bookkit book in pull requests with workflow annotations and a step summary."
+
+inputs:
+  path:
+    description: "Folder or file of Markdown to check (relative to the repository root)."
+    required: false
+    default: "."
+  frame:
+    description: "Frame to enforce on prose/runbook documents (runbook, field-guide, explainer, intervention)."
+    required: false
+    default: ""
+  release:
+    description: "Enforce release/published rules (--release)."
+    required: false
+    default: "false"
+  book:
+    description: "Optional Bookkit book slug inside apps/ (runs full book check instead of folder check)."
+    required: false
+    default: ""
+  bun-version:
+    description: "Bun version to install."
+    required: false
+    default: "1.4.3"
+
+outputs:
+  ok:
+    description: "true when zero errors were found, else false."
+    value: ${{ steps.run.outputs.ok }}
+  errors:
+    description: "Number of errors found."
+    value: ${{ steps.run.outputs.errors }}
+  warnings:
+    description: "Number of warnings found."
+    value: ${{ steps.run.outputs.warnings }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    - name: Install Bookkit CLI dependencies
+      shell: bash
+      run: bun install --frozen-lockfile --ignore-scripts
+      working-directory: ${{ github.action_path }}
+
+    - name: Run Bookkit check
+      id: run
+      shell: bash
+      env:
+        BOOKKIT_CHECK_PATH: ${{ inputs.path }}
+        BOOKKIT_CHECK_FRAME: ${{ inputs.frame }}
+        BOOKKIT_CHECK_RELEASE: ${{ inputs.release }}
+        BOOKKIT_CHECK_BOOK: ${{ inputs.book }}
+      run: |
+        if [ -n "$BOOKKIT_CHECK_BOOK" ]; then
+          bun run "${{ github.action_path }}/scripts/bookkit.ts" check "$BOOKKIT_CHECK_BOOK" --quick
+          exit $?
+        fi
+        args=(check "$BOOKKIT_CHECK_PATH" --format github)
+        if [ -n "$BOOKKIT_CHECK_FRAME" ]; then
+          args+=(--frame "$BOOKKIT_CHECK_FRAME")
+        fi
+        if [ "$BOOKKIT_CHECK_RELEASE" = "true" ]; then
+          args+=(--release)
+        fi
+        INIT_CWD="${{ github.workspace }}" bun run "${{ github.action_path }}/scripts/bookkit.ts" "${args[@]}"

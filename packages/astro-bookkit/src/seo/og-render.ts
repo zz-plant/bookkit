@@ -87,6 +87,9 @@ const rasterize = async (svg: string): Promise<Uint8Array> => {
 	const { renderAsync } = loadRenderer();
 	const image = await renderAsync(svg, {
 		fitTo: { mode: "width", value: OG_IMAGE_WIDTH },
+		// Satori sets text as paths, so the card needs no font. Scanning the
+		// system's fonts was 120ms of each 130ms render.
+		font: { loadSystemFonts: false },
 	});
 	return image.asPng();
 };

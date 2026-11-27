@@ -28,6 +28,12 @@ const TOUCH_SIZE = 180;
 // From the engine's folder, not the bundle's: see utils/engine-require.ts.
 const require = engineRequire();
 
+/**
+ * The icons are paths, not text, so resvg needs no font. By default it scans
+ * the system's fonts on every `new Resvg`, about 110ms each time.
+ */
+const NO_FONTS = { font: { loadSystemFonts: false } } as const;
+
 /** The letter a title is known by: its first, after a leading article. */
 export const bookInitial = (title: string): string => {
 	const words = title.trim().split(/\s+/);
@@ -113,7 +119,7 @@ const glyphOutline = async (letter: string): Promise<Glyph> => {
 			`Newsreader has no "${letter}", so the icon would be an empty box. Put your own favicon.svg, favicon.ico and apple-touch-icon.png in the book's public/.`,
 		);
 	}
-	const { x, y, width, height } = new Resvg(svg).getBBox();
+	const { x, y, width, height } = new Resvg(svg, NO_FONTS).getBBox();
 	return { d, x, y, width, height };
 };
 
@@ -150,7 +156,12 @@ export const renderBookIcons = async (title: string): Promise<BookIcons> => {
 	const name = shortBookTitle(title);
 	const glyph = await glyphOutline(bookInitial(name));
 	const rasterize = (svg: string, size: number): Uint8Array =>
-		new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng();
+		new Resvg(svg, {
+			...NO_FONTS,
+			fitTo: { mode: "width", value: size },
+		})
+			.render()
+			.asPng();
 
 	// The tab icon: a rounded tile, the initial at 62% of it.
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>${escapeHtml(name)}</title><rect width="64" height="64" rx="12" fill="${PAPER}"/>${placedGlyph(glyph, 39.68, 32, 32)}</svg>\n`;

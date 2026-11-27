@@ -4,6 +4,14 @@ Dated, documented behavior changes to the Bookkit engine, schemas, validators, a
 Per-book editorial history lives in each app's `src/content/book/releases/`.
 This file holds the current month, newest first. Earlier months are in `docs/changelog/`, one file each; when a month ends, its entries move there.
 
+## 2026-11-26 — Faster builds: icons and link previews no longer scan system fonts
+
+The owner overrode maintenance mode for this work (`AGENTS.md`).
+
+- **Builds:** resvg scanned the system's fonts on every render, though icons and link-preview cards are paths with no text. Turning that off cuts each icon render from about 110ms to under 1ms and each card from about 130ms to 10ms, with byte-identical images. A warm build saves about 0.6s; a cold build of `running-hot` went from 4.5s to 2.9s, and the test suite from about 38s to 32s.
+- **CLI:** `scripts/bookkit.ts` imports each command group when its command runs, so `--help` and light commands start about 10ms sooner.
+- **Migration:** none. The link-preview cache is keyed on `og-render.ts`, so each book re-renders its cards once.
+
 ## 2026-11-15 — External workflows: zero-clone creation, CI action, agent exports, richer import, and folder MCP
 
 The owner overrode maintenance mode for this work (`AGENTS.md`).

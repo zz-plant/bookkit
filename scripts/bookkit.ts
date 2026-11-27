@@ -22,16 +22,12 @@
  *                  remove book: each runs a script of its own
  *
  * <command>Command() reads `args` itself; the others take their arguments.
+ * Each case imports its command group when it runs, so a command loads only
+ * the modules it uses.
  */
 
 import { commandNames, findCommand } from "./lib/bookkit-commands";
 import { didYouMean, wantsHelp } from "./lib/cli";
-import {
-	checkCommand,
-	contractCommand,
-	tryCommand,
-	validateCommand,
-} from "./lib/commands/check";
 import {
 	args,
 	command,
@@ -39,38 +35,7 @@ import {
 	runScript,
 	withBookFlag,
 } from "./lib/commands/context";
-import { define } from "./lib/commands/define";
-import {
-	probeCommand,
-	redteamCommand,
-	triageCommand,
-} from "./lib/commands/diagnose";
-import { draft } from "./lib/commands/draft";
-import { finish } from "./lib/commands/finish";
 import { printHelp, printHelpFor } from "./lib/commands/help";
-import { judge, rule, similarCommand } from "./lib/commands/judge";
-import { merge, sync } from "./lib/commands/merge";
-import { createNew } from "./lib/commands/new";
-import {
-	buildCommand,
-	devCommand,
-	exportCommand,
-	publish,
-} from "./lib/commands/publish";
-import { review } from "./lib/commands/review";
-import {
-	betsCommand,
-	listCommand,
-	mapCommand,
-	statusCommand,
-	useCommand,
-} from "./lib/commands/status";
-import {
-	moveTool,
-	removeRecord,
-	renameChapter,
-} from "./lib/commands/structure";
-import { upgradeCommand } from "./lib/commands/upgrade";
 
 if (command === "help" || command === "--help" || command === "-h") {
 	// `help <command>` is that command's help; `help --help` is help's own.
@@ -88,37 +53,37 @@ loadBooks();
 
 switch (findCommand(command)?.name ?? command) {
 	case "status": {
-		await statusCommand();
+		await (await import("./lib/commands/status")).statusCommand();
 		break;
 	}
 
 	case "map": {
-		await mapCommand();
+		await (await import("./lib/commands/status")).mapCommand();
 		break;
 	}
 
 	case "bets": {
-		await betsCommand();
+		await (await import("./lib/commands/status")).betsCommand();
 		break;
 	}
 
 	case "triage": {
-		await triageCommand();
+		await (await import("./lib/commands/diagnose")).triageCommand();
 		break;
 	}
 
 	case "redteam": {
-		redteamCommand();
+		(await import("./lib/commands/diagnose")).redteamCommand();
 		break;
 	}
 
 	case "probe": {
-		probeCommand();
+		(await import("./lib/commands/diagnose")).probeCommand();
 		break;
 	}
 
 	case "similar": {
-		await similarCommand();
+		await (await import("./lib/commands/judge")).similarCommand();
 		break;
 	}
 
@@ -128,92 +93,104 @@ switch (findCommand(command)?.name ?? command) {
 	}
 
 	case "check": {
-		await checkCommand();
+		await (await import("./lib/commands/check")).checkCommand();
 		break;
 	}
 
 	case "new": {
-		createNew(args[1], args.slice(2));
+		(await import("./lib/commands/new")).createNew(args[1], args.slice(2));
 		break;
 	}
 
 	case "judge": {
-		process.exit(await judge(args.slice(1)));
+		process.exit(
+			await (await import("./lib/commands/judge")).judge(args.slice(1)),
+		);
 		break;
 	}
 
 	case "draft": {
-		process.exit(await draft(args.slice(1)));
+		process.exit(
+			await (await import("./lib/commands/draft")).draft(args.slice(1)),
+		);
 		break;
 	}
 
 	case "define": {
-		process.exit(await define(args.slice(1)));
+		process.exit(
+			await (await import("./lib/commands/define")).define(args.slice(1)),
+		);
 		break;
 	}
 
 	case "finish": {
-		process.exit(await finish(args.slice(1)));
+		process.exit(
+			await (await import("./lib/commands/finish")).finish(args.slice(1)),
+		);
 		break;
 	}
 
 	case "review": {
-		process.exit(await review(args.slice(1)));
+		process.exit(
+			await (await import("./lib/commands/review")).review(args.slice(1)),
+		);
 		break;
 	}
 
 	case "rule": {
-		process.exit(rule(args.slice(1)));
+		process.exit((await import("./lib/commands/judge")).rule(args.slice(1)));
 		break;
 	}
 
 	case "merge": {
-		process.exit(merge(args.slice(1)));
+		process.exit((await import("./lib/commands/merge")).merge(args.slice(1)));
 		break;
 	}
 
 	case "rename": {
-		process.exit(renameChapter(args.slice(1)));
+		process.exit(
+			(await import("./lib/commands/structure")).renameChapter(args.slice(1)),
+		);
 		break;
 	}
 
 	case "export": {
-		await exportCommand();
+		await (await import("./lib/commands/publish")).exportCommand();
 		break;
 	}
 
 	case "sync": {
-		process.exit(sync(args.slice(1)));
+		process.exit((await import("./lib/commands/merge")).sync(args.slice(1)));
 		break;
 	}
 
 	case "try": {
-		tryCommand();
+		(await import("./lib/commands/check")).tryCommand();
 		break;
 	}
 
 	case "contract": {
-		contractCommand();
+		(await import("./lib/commands/check")).contractCommand();
 		break;
 	}
 
 	case "dev": {
-		await devCommand();
+		await (await import("./lib/commands/publish")).devCommand();
 		break;
 	}
 
 	case "build": {
-		await buildCommand();
+		await (await import("./lib/commands/publish")).buildCommand();
 		break;
 	}
 
 	case "validate": {
-		validateCommand();
+		(await import("./lib/commands/check")).validateCommand();
 		break;
 	}
 
 	case "list": {
-		listCommand();
+		(await import("./lib/commands/status")).listCommand();
 		break;
 	}
 
@@ -231,12 +208,16 @@ switch (findCommand(command)?.name ?? command) {
 		if (args[1] === "book") {
 			process.exit(runScript("remove-book.ts", args.slice(2)));
 		}
-		process.exit(removeRecord(args.slice(1)));
+		process.exit(
+			(await import("./lib/commands/structure")).removeRecord(args.slice(1)),
+		);
 		break;
 	}
 
 	case "move": {
-		process.exit(moveTool(args.slice(1)));
+		process.exit(
+			(await import("./lib/commands/structure")).moveTool(args.slice(1)),
+		);
 		break;
 	}
 
@@ -253,12 +234,14 @@ switch (findCommand(command)?.name ?? command) {
 	}
 
 	case "publish": {
-		process.exit(publish(args.slice(1)));
+		process.exit(
+			(await import("./lib/commands/publish")).publish(args.slice(1)),
+		);
 		break;
 	}
 
 	case "init": {
-		createNew("book", args.slice(1));
+		(await import("./lib/commands/new")).createNew("book", args.slice(1));
 		break;
 	}
 
@@ -269,7 +252,7 @@ switch (findCommand(command)?.name ?? command) {
 	}
 
 	case "use": {
-		useCommand();
+		(await import("./lib/commands/status")).useCommand();
 		break;
 	}
 
@@ -279,7 +262,7 @@ switch (findCommand(command)?.name ?? command) {
 	}
 
 	case "upgrade": {
-		process.exit(upgradeCommand());
+		process.exit((await import("./lib/commands/upgrade")).upgradeCommand());
 		break;
 	}
 
